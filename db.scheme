@@ -1,0 +1,81 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.applications (
+  id integer NOT NULL DEFAULT nextval('applications_id_seq'::regclass),
+  user_id integer,
+  status character varying DEFAULT 'pending'::character varying,
+  submitted_at timestamp without time zone DEFAULT now(),
+  reviewed_at timestamp without time zone,
+  review_notes text,
+  CONSTRAINT applications_pkey PRIMARY KEY (id),
+  CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.committee_members (
+  id integer NOT NULL DEFAULT nextval('committee_members_id_seq'::regclass),
+  committee_id integer,
+  user_id integer,
+  joined_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT committee_members_pkey PRIMARY KEY (id),
+  CONSTRAINT committee_members_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id),
+  CONSTRAINT committee_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.committees (
+  id integer NOT NULL DEFAULT nextval('committees_id_seq'::regclass),
+  name character varying NOT NULL,
+  description text,
+  admin_id integer,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT committees_pkey PRIMARY KEY (id),
+  CONSTRAINT committees_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.roll_call_logs (
+  id integer NOT NULL DEFAULT nextval('roll_call_logs_id_seq'::regclass),
+  roll_call_id integer,
+  user_id integer,
+  scanned_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT roll_call_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT roll_call_logs_roll_call_id_fkey FOREIGN KEY (roll_call_id) REFERENCES public.roll_calls(id),
+  CONSTRAINT roll_call_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.roll_calls (
+  id integer NOT NULL DEFAULT nextval('roll_calls_id_seq'::regclass),
+  committee_id integer,
+  session_name character varying NOT NULL,
+  qr_code character varying NOT NULL UNIQUE,
+  session_date timestamp without time zone DEFAULT now(),
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT roll_calls_pkey PRIMARY KEY (id),
+  CONSTRAINT roll_calls_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
+);
+CREATE TABLE public.topics (
+  id integer NOT NULL DEFAULT nextval('topics_id_seq'::regclass),
+  committee_id integer,
+  title character varying NOT NULL,
+  description text,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT topics_pkey PRIMARY KEY (id),
+  CONSTRAINT topics_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
+);
+CREATE TABLE public.user_details (
+  id integer NOT NULL DEFAULT nextval('user_details_id_seq'::regclass),
+  user_id integer,
+  birth_date date,
+  phone_number character varying,
+  school_name text,
+  additional_info jsonb,
+  CONSTRAINT user_details_pkey PRIMARY KEY (id),
+  CONSTRAINT user_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.users (
+  id integer NOT NULL DEFAULT nextval('users_id_seq'::regclass),
+  full_name character varying NOT NULL,
+  email character varying NOT NULL UNIQUE,
+  password_hash character varying NOT NULL,
+  role character varying NOT NULL DEFAULT 'applicant'::character varying,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT users_pkey PRIMARY KEY (id)
+);
