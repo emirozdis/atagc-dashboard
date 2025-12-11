@@ -90,8 +90,8 @@ export function Sidebar({ isAdminSection = false }: SidebarProps) {
   const items = isAdminSection ? adminItems : participantItems;
 
   return (
-    <div className="flex flex-col h-full bg-card border-r border-border w-64">
-      <div className="p-6 border-b border-border/50">
+    <div className="flex flex-col h-full bg-[#181818] border-r border-white/5 w-64">
+      <div className="p-6 border-b border-white/5">
         <Link href={isAdminSection ? "/admin" : "/dashboard"} className="flex items-center gap-3">
           <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
           <span className="font-display font-bold text-lg text-primary">
@@ -113,8 +113,8 @@ export function Sidebar({ isAdminSection = false }: SidebarProps) {
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
               pathname === item.href
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                ? "bg-primary/10 text-primary border border-primary/20"
+                : "text-muted-foreground hover:bg-white/5 hover:text-foreground hover:border-white/10 border border-transparent"
             )}
           >
             <item.icon className="w-4 h-4" />
@@ -123,13 +123,13 @@ export function Sidebar({ isAdminSection = false }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-border/50 space-y-2">
+      <div className="p-4 border-t border-white/5 space-y-2">
         {/* Switcher Button - Only visible to Admins */}
         {role === "admin" && (
           <Button
             asChild
             variant="outline"
-            className="w-full justify-start text-xs border-dashed border-primary/30 hover:bg-primary/5"
+            className="w-full justify-start text-xs border-dashed border-white/10 hover:bg-white/5 hover:text-primary bg-transparent text-muted-foreground"
           >
             <Link href={isAdminSection ? "/dashboard" : "/admin"}>
               <RefreshCw className="w-3 h-3 mr-2" />
@@ -151,7 +151,7 @@ export function Sidebar({ isAdminSection = false }: SidebarProps) {
 }
 
 // Change Log:
-// - Updated `adminItems` to point to `/admin/...` paths.
-// - Added `isAdminSection` prop to control which menu is displayed.
-// - Refined "Switch" button to toggle between `/dashboard` and `/admin` routes.
-// - Added visual indicator for Admin Panel in the logo area.
+// - Updated background to `bg-[#181818]` to match the new dark theme.
+// - Updated borders to `border-white/5` for a subtler, modern look.
+// - Refined hover states to use `hover:bg-white/5` instead of secondary colors.
+// - Added subtle borders to active/hover navigation items for better contrast.

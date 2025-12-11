@@ -1,52 +1,94 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/lib/SERVER_supabase";
-import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, Users } from "lucide-react";
+import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, Users, FileQuestion, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface ParticipantDashboardProps {
-  user: any; // Using any for simplicity with the session user object
+  user: {
+    name?: string | null;
+    email?: string | null;
+  };
 }
 
-export async function ParticipantDashboard({ user }: ParticipantDashboardProps) {
-  // Fetch application status
-  const { data: application } = await supabase
-    .from("applications")
-    .select("status, submitted_at, review_notes")
-    .eq("user_id", user.id)
-    .single();
+interface DashboardData {
+  application: {
+    id: number;
+    status: "pending" | "approved" | "rejected";
+    submitted_at: string;
+    review_notes?: string;
+  } | null;
+  committeeMember: {
+    committee: {
+      name: string;
+      description?: string;
+    };
+  } | null;
+  topic: {
+    title: string;
+    description?: string;
+  } | null;
+}
 
-  // Fetch committee assignment if exists
-  const { data: committeeMember } = await supabase
-    .from("committee_members")
-    .select(`
-      committee:committees (
-        name,
-        description,
-        admin_id
-      )
-    `)
-    .eq("user_id", user.id)
-    .single();
+export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch assigned topic if committee exists
-  let topic = null;
-  if (committeeMember?.committee) {
-    const { data: topicData } = await supabase
-      .from("topics")
-      .select("title, description")
-      // @ts-ignore
-      .eq("committee_id", committeeMember.committee.id) 
-      .limit(1)
-      .single();
-    topic = topicData;
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("/api/participant/me");
+        if (!res.ok) throw new Error("Veri alınamadı");
+        const json = await res.json();
+        setData(json);
+      } catch (error) {
+        toast.error("Hata", { description: "Başvuru bilgileri yüklenirken bir sorun oluştu." });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center animate-fade-in">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
-  const status = application?.status || "pending";
+  const { application, committeeMember, topic } = data || {};
+
+  // If no application exists for this user
+  if (!application) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in">
+        <div className="w-24 h-24 rounded-full bg-secondary/30 flex items-center justify-center shadow-inner">
+          <FileQuestion className="w-10 h-10 text-muted-foreground/70" />
+        </div>
+        <div className="space-y-2 max-w-md mx-auto px-4">
+          <h2 className="text-2xl font-bold font-display text-foreground">Başvuru Bulunamadı</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Hesabınıza ait aktif bir başvuru kaydı görünmüyor. Eğer başvurunuzu henüz tamamlamadıysanız lütfen ana sayfadan başvuru yapınız. Bir hata olduğunu düşünüyorsanız bizimle iletişime geçin.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const status = application.status || "pending";
 
   const getStatusCard = () => {
     switch (status) {
       case "approved":
         return (
-          <Card className="bg-green-500/10 border-green-500/20">
+          <Card className="relative bg-green-500/10 border-green-500/20">
+             <div className="absolute top-4 right-4 text-xs font-mono text-green-500/60 select-none">
+               Başvuru No: {application.id}
+             </div>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <div className="flex-1">
                 <CardTitle className="text-xl text-green-500">Başvurunuz Onaylandı!</CardTitle>
@@ -60,7 +102,10 @@ export async function ParticipantDashboard({ user }: ParticipantDashboardProps) 
         );
       case "rejected":
         return (
-          <Card className="bg-destructive/10 border-destructive/20">
+          <Card className="relative bg-destructive/10 border-destructive/20">
+            <div className="absolute top-4 right-4 text-xs font-mono text-destructive/60 select-none">
+               Başvuru No: {application.id}
+             </div>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <div className="flex-1">
                 <CardTitle className="text-xl text-destructive">Başvurunuz Kabul Edilemedi</CardTitle>
@@ -71,7 +116,7 @@ export async function ParticipantDashboard({ user }: ParticipantDashboardProps) 
               <XCircle className="h-8 w-8 text-destructive" />
             </CardHeader>
             <CardContent>
-              {application?.review_notes && (
+              {application.review_notes && (
                 <div className="mt-2 p-3 bg-background/50 rounded-md text-sm border border-destructive/20">
                   <span className="font-semibold block mb-1">Açıklama:</span>
                   <span className="text-muted-foreground">{application.review_notes}</span>
@@ -82,7 +127,10 @@ export async function ParticipantDashboard({ user }: ParticipantDashboardProps) 
         );
       default:
         return (
-          <Card className="bg-yellow-500/10 border-yellow-500/20">
+          <Card className="relative bg-yellow-500/10 border-yellow-500/20">
+             <div className="absolute top-4 right-4 text-xs font-mono text-yellow-500/60 select-none">
+               Başvuru No: {application.id}
+             </div>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <div className="flex-1">
                 <CardTitle className="text-xl text-yellow-500">Değerlendirme Aşamasında</CardTitle>
@@ -154,9 +202,7 @@ export async function ParticipantDashboard({ user }: ParticipantDashboardProps) 
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {/* @ts-ignore */}
                   <div className="text-xl font-bold mb-2">{committeeMember.committee?.name}</div>
-                  {/* @ts-ignore */}
                   <p className="text-sm text-muted-foreground">{committeeMember.committee?.description || "Açıklama bulunmuyor."}</p>
                 </CardContent>
               </Card>
@@ -202,7 +248,8 @@ export async function ParticipantDashboard({ user }: ParticipantDashboardProps) 
 }
 
 // Change Log:
-// - Corrected filename from `ParticipantDasboard.tsx` to `ParticipantDashboard.tsx`.
-// - Ensured `SERVER_supabase` is used for server-side fetching.
-// - Render logic for Application Status (Approved, Rejected with notes, Pending).
-// - Added Committee/Topic display logic for approved participants.
+// - Converted to Client Component ("use client") to avoid direct server calls.
+// - Implemented data fetching via `fetch("/api/participant/me")` inside `useEffect`.
+// - Added loading state spinner.
+// - Removed direct `SERVER_supabase` import.
+// - Updated ID display to show "Başvuru No: {id}" as requested.
