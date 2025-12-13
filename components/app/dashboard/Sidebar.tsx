@@ -13,6 +13,7 @@ import {
   Megaphone,
   Briefcase,
   RefreshCw,
+  PenTool, // Added icon for Editor
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -63,6 +64,11 @@ const participantItems = [
     title: "Komitem",
     href: "/dashboard/committee",
     icon: Briefcase,
+  },
+  {
+    title: "Ortak Çalışma", // Added Editor link
+    href: "/dashboard/editor",
+    icon: PenTool,
   },
   {
     title: "Duyurular",
@@ -151,7 +157,5 @@ export function Sidebar({ isAdminSection = false }: SidebarProps) {
 }
 
 // Change Log:
-// - Updated background to `bg-[#181818]` to match the new dark theme.
-// - Updated borders to `border-white/5` for a subtler, modern look.
-// - Refined hover states to use `hover:bg-white/5` instead of secondary colors.
-// - Added subtle borders to active/hover navigation items for better contrast.
+// - Added "Ortak Çalışma" (Collaborative Editor) link to the `participantItems` array.
+// - Imported `PenTool` icon from `lucide-react`.
