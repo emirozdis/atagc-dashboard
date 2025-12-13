@@ -24,19 +24,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Database error" }, { status: 500 });
     }
 
-    // If no application, return early with nulls
-    if (!application) {
-      return NextResponse.json({
-        application: null,
-        committeeMember: null,
-        topic: null
-      });
-    }
-
-    // Fetch committee assignment
+    // Fetch committee assignment AND permission
     const { data: committeeMember, error: cmError } = await supabase
       .from("committee_members")
       .select(`
+        can_write,
         committee:committees (
           id,
           name,
@@ -78,5 +70,4 @@ export async function GET(request: Request) {
 }
 
 // Change Log:
-// - Created new API route to serve participant data.
-// - Handles fetching application, committee, and topic details server-side using the secure client.
+// - Added `can_write` to the `committee_members` selection query.

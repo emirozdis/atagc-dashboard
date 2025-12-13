@@ -11,6 +11,15 @@ CREATE TABLE public.applications (
   CONSTRAINT applications_pkey PRIMARY KEY (id),
   CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.committee_documents (
+  id integer NOT NULL DEFAULT nextval('committee_documents_id_seq'::regclass),
+  committee_id integer NOT NULL UNIQUE,
+  document_blob bytea,
+  is_locked boolean DEFAULT false,
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT committee_documents_pkey PRIMARY KEY (id),
+  CONSTRAINT committee_documents_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
+);
 CREATE TABLE public.committee_members (
   id integer NOT NULL DEFAULT nextval('committee_members_id_seq'::regclass),
   committee_id integer,

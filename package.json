@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node --compiler-options '{\"module\":\"commonjs\"}' server.ts",
-    "build": "next build && tsc server.ts --module commonjs --outDir dist",
-    "start": "node dist/server.js",
+    "dev": "next dev",
+    "collab": "ts-node --compiler-options '{\"module\":\"commonjs\"}' ./collab-server/hocuspocus-server.ts",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.560.0",
     "next": "16.0.8",

@@ -13,14 +13,13 @@ import {
   Megaphone,
   Briefcase,
   RefreshCw,
-  PenTool, // Added icon for Editor
+  PenTool,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
-// Update Admin paths to use /admin prefix
 const adminItems = [
   {
     title: "Panel",
@@ -59,26 +58,33 @@ const participantItems = [
     title: "Genel Durum",
     href: "/dashboard",
     icon: LayoutDashboard,
+    roles: ["applicant", "committee_chairman", "superadmin", "staff", "staffleader"]
   },
   {
     title: "Komitem",
     href: "/dashboard/committee",
     icon: Briefcase,
+    // Staff roles usually don't have an academic committee to view
+    roles: ["applicant", "committee_chairman", "superadmin"] 
   },
   {
-    title: "Ortak Çalışma", // Added Editor link
+    title: "Ortak Çalışma",
     href: "/dashboard/editor",
     icon: PenTool,
+    // Staff roles don't access the academic document editor
+    roles: ["applicant", "committee_chairman", "superadmin"] 
   },
   {
     title: "Duyurular",
     href: "/dashboard/announcements",
     icon: Megaphone,
+    roles: ["applicant", "committee_chairman", "superadmin", "staff", "staffleader"]
   },
   {
     title: "Profilim",
     href: "/dashboard/profile",
     icon: User,
+    roles: ["applicant", "committee_chairman", "superadmin", "staff", "staffleader"]
   },
 ];
 
@@ -91,9 +97,10 @@ export function Sidebar({ isAdminSection = false }: SidebarProps) {
   const { data: session } = useSession();
   const role = session?.user?.role;
 
-  // If we are in the Admin Layout (isAdminSection=true), show Admin Items.
-  // Otherwise show Participant items.
-  const items = isAdminSection ? adminItems : participantItems;
+  // Filter items based on role if it's the participant section
+  const items = isAdminSection 
+    ? adminItems 
+    : participantItems.filter(item => !item.roles || (role && item.roles.includes(role)));
 
   return (
     <div className="flex flex-col h-full bg-[#181818] border-r border-white/5 w-64">
@@ -130,13 +137,19 @@ export function Sidebar({ isAdminSection = false }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-white/5 space-y-2">
-        {/* Switcher Button - Only visible to Admins */}
-        {role === "admin" && (
+        {/* Switcher Button - Only visible to Superadmin/Admin roles */}
+        {(role === "superadmin" || role === "committee_chairman") && (
           <Button
             asChild
             variant="outline"
             className="w-full justify-start text-xs border-dashed border-white/10 hover:bg-white/5 hover:text-primary bg-transparent text-muted-foreground"
           >
+            {/* 
+              Logic: 
+              - If role is 'committee_chairman', they might have a limited admin panel or just chairman tools. 
+              - Assuming 'superadmin' is the main one who switches contexts fully.
+              - Modifying link based on role could be done here if needed.
+            */}
             <Link href={isAdminSection ? "/dashboard" : "/admin"}>
               <RefreshCw className="w-3 h-3 mr-2" />
               {isAdminSection ? "Katılımcı Görünümü" : "Yönetim Paneli"}
@@ -157,5 +170,7 @@ export function Sidebar({ isAdminSection = false }: SidebarProps) {
 }
 
 // Change Log:
-// - Added "Ortak Çalışma" (Collaborative Editor) link to the `participantItems` array.
-// - Imported `PenTool` icon from `lucide-react`.
+// - Updated `Sidebar` to use correct `committee_chairman` spelling (double 'm', double 't', double 'e').
+// - Added `roles` property to `participantItems` to filter visibility.
+// - Configured "Komitem" and "Ortak Çalışma" to be hidden for `staff` and `staffleader` as they don't have academic committee assignments.
+// - Updated role check in the footer button to include `committee_chairman` and `superadmin`.
