@@ -30,5 +30,14 @@ export interface Application {
             birth_date: string;
             additional_info: any;
         }[];
+        committee_members?: {
+            id: string;
+            committee: {
+                id: string;
+                name: string;
+            }
+        }[] | null;
     };
 }
+// Change Log:
+// - Updated `Application` interface to include `committee_members` in the user object.

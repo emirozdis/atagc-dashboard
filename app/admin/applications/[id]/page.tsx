@@ -14,17 +14,25 @@ import {
   ArrowLeft,
   Calendar,
   MapPin,
-  GraduationCap
+  GraduationCap,
+  Briefcase,
+  Building2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-import { Application } from "@/types/admin";
+import { Application, Committee } from "@/types/admin";
 import {
   KOMITE_OPTIONS,
   MUN_DENEYIMI_OPTIONS,
@@ -38,6 +46,11 @@ export default function ApplicationDetailPage() {
   const router = useRouter();
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Committee Assignment State
+  const [committees, setCommittees] = useState<Committee[]>([]);
+  const [selectedCommittee, setSelectedCommittee] = useState<string>("");
+  const [assignLoading, setAssignLoading] = useState(false);
 
   // Action states
   const [actionLoading, setActionLoading] = useState<boolean>(false);
@@ -48,6 +61,7 @@ export default function ApplicationDetailPage() {
     if (params.id) {
       fetchApplication(params.id as string);
     }
+    fetchCommittees();
   }, [params.id]);
 
   const fetchApplication = async (id: string) => {
@@ -57,10 +71,29 @@ export default function ApplicationDetailPage() {
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setApplication(data);
+
+      // Pre-select assigned committee if exists
+      if (data.user?.committee_members?.length > 0) {
+        setSelectedCommittee(data.user.committee_members[0].committee.id);
+      } else {
+        setSelectedCommittee("");
+      }
     } catch (error) {
       toast.error("Hata", { description: "Başvuru detayları yüklenemedi." });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCommittees = async () => {
+    try {
+      const res = await fetch("/api/admin/committees");
+      if (res.ok) {
+        const data = await res.json();
+        setCommittees(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch committees");
     }
   };
 
@@ -89,6 +122,31 @@ export default function ApplicationDetailPage() {
       toast.error("Hata", { description: "Durum güncellenemedi." });
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleAssignCommittee = async () => {
+    if (!application) return;
+    setAssignLoading(true);
+    try {
+        const res = await fetch("/api/admin/committee-assignment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                userId: application.user.id, 
+                committeeId: selectedCommittee === "none" ? null : selectedCommittee 
+            })
+        });
+
+        if (!res.ok) throw new Error("Assignment failed");
+        
+        toast.success("Komite ataması güncellendi");
+        // Re-fetch application to update local state properly
+        fetchApplication(application.id);
+    } catch (error) {
+        toast.error("Hata", { description: "Atama yapılamadı." });
+    } finally {
+        setAssignLoading(false);
     }
   };
 
@@ -143,6 +201,7 @@ export default function ApplicationDetailPage() {
     : application.user.user_details;
 
   const info = details?.additional_info || {};
+  const assignedCommittee = application.user.committee_members?.[0]?.committee;
 
   return (
     <div className="animate-fade-in pb-10">
@@ -175,13 +234,26 @@ export default function ApplicationDetailPage() {
                 <AvatarFallback className="text-3xl font-bold bg-muted text-muted-foreground">{application.user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <h2 className="text-2xl font-bold tracking-tight mb-2">{application.user.full_name}</h2>
-              <div className="flex items-center gap-2 text-muted-foreground mb-6">
+              <div className="flex items-center gap-2 text-muted-foreground mb-4">
                 <GraduationCap className="w-4 h-4" />
                 <span className="font-medium">{details?.school_name}</span>
               </div>
 
-              <div className="flex items-center justify-center w-full">
+              <div className="flex flex-col items-center gap-3 w-full">
                 {getStatusBadge(application.status)}
+                
+                {/* Committee Badge in Profile */}
+                {application.status === 'approved' && (
+                  assignedCommittee ? (
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 gap-1.5 px-3 py-1 mt-1">
+                      <Building2 className="w-3.5 h-3.5" /> {assignedCommittee.name}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20 gap-1.5 px-3 py-1 mt-1 border-dashed">
+                      <Clock className="w-3.5 h-3.5" /> Atama Bekleniyor
+                    </Badge>
+                  )
+                )}
               </div>
             </div>
 
@@ -319,12 +391,51 @@ export default function ApplicationDetailPage() {
                   </>
                 ) : (
                   <div className="text-sm font-medium text-muted-foreground bg-muted/50 px-4 py-2 rounded-md">
-                    Düzenlenemez
+                    Başvuru İşlemi Tamamlandı
                   </div>
                 )}
               </div>
             )}
           </div>
+
+          {/* Committee Assignment Card (Only visible if Approved) */}
+          {application.status === 'approved' && (
+             <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <Building2 className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold text-lg">Komite Ataması</h3>
+                </div>
+                
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex-1 w-full">
+                        <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
+                            Atanacak Komite
+                        </label>
+                        <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
+                            <SelectTrigger className="bg-background">
+                                <SelectValue placeholder="Komite Seçiniz" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">-- Atama Yok (Boş) --</SelectItem>
+                                {committees.map((committee) => (
+                                    <SelectItem key={committee.id} value={committee.id}>
+                                        {committee.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button 
+                        onClick={handleAssignCommittee} 
+                        disabled={assignLoading}
+                        className="w-full md:w-auto"
+                    >
+                        {assignLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Briefcase className="w-4 h-4 mr-2" />}
+                        Atamayı Kaydet
+                    </Button>
+                </div>
+             </div>
+          )}
 
           <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
             <div className="p-6 border-b border-border/50 bg-muted/10">
@@ -388,3 +499,9 @@ export default function ApplicationDetailPage() {
     </div >
   );
 }
+// Change Log:
+// - Added state and logic to fetch committees.
+// - Added logic to display current committee assignment in the profile sidebar badge.
+// - Added a new "Komite Ataması" card visible only when application is approved, allowing admins to select and save committee assignment.
+// - Used the new `/api/admin/committee-assignment` endpoint for saving.
+// - Display actual committee name in the badge if assigned, otherwise "Atama Bekleniyor".

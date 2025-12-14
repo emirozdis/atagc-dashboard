@@ -32,6 +32,13 @@ export async function GET(
             school_name,
             birth_date,
             additional_info
+          ),
+          committee_members (
+            id,
+            committee:committees (
+              id,
+              name
+            )
           )
         )
       `)
@@ -52,3 +59,5 @@ export async function GET(
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+// Change Log:
+// - Updated Supabase query to fetch `committee_members` and the associated `committee` details for the user.

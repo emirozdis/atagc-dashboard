@@ -12,6 +12,7 @@ import {
   Loader2,
   Eye,
   ArrowUpDown,
+  Building2,
 } from "lucide-react";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
@@ -29,9 +30,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { Application } from "@/types/admin";
-import {
-  KOMITE_OPTIONS,
-} from "@/types/application";
 import { useRouter } from "next/navigation";
 
 export default function ApplicationsPage() {
@@ -135,10 +133,6 @@ export default function ApplicationsPage() {
     }
   };
 
-  const getLabel = (value: string, options: { value: string, label: string }[]) => {
-    return options.find(o => o.value === value)?.label || value;
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -191,7 +185,7 @@ export default function ApplicationsPage() {
                   Tarih <ArrowUpDown className="w-3 h-3" />
                 </div>
               </TableHead>
-              <TableHead>Komite Tercihi</TableHead>
+              <TableHead>Komite</TableHead>
               <TableHead>Durum</TableHead>
               <TableHead className="text-right">İncele</TableHead>
             </TableRow>
@@ -214,7 +208,7 @@ export default function ApplicationsPage() {
             ) : (
               applications.map((app) => {
                 const details = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
-                const info = details?.additional_info || {};
+                const assignedCommittee = app.user.committee_members?.[0]?.committee;
 
                 return (
                   <TableRow
@@ -239,7 +233,18 @@ export default function ApplicationsPage() {
                       {new Date(app.submitted_at).toLocaleDateString("tr-TR")}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">{getLabel(info.committee_pref_1, KOMITE_OPTIONS)}</span>
+                      {assignedCommittee ? (
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="font-medium">{assignedCommittee.name}</span>
+                        </div>
+                      ) : app.status === 'approved' ? (
+                        <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20 hover:bg-orange-500/20 border-dashed">
+                          Atama Bekleniyor
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>
                     <TableCell className="text-right">
@@ -266,3 +271,9 @@ export default function ApplicationsPage() {
     </div >
   );
 }
+
+// Change Log:
+// - Removed display of preferred committee in the table entirely.
+// - If a committee is assigned, it displays the committee name.
+// - If the status is 'approved' but no committee is assigned, it displays an "Atama Bekleniyor" badge.
+// - For other statuses (pending, rejected) with no assignment, it displays a dash ("-").

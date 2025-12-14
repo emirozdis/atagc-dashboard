@@ -56,6 +56,13 @@ export async function GET(request: Request) {
             school_name,
             birth_date,
             additional_info
+          ),
+          committee_members (
+            id,
+            committee:committees (
+              id,
+              name
+            )
           )
         )
       `, { count: "exact" });
@@ -277,7 +284,3 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
-
-// Change Log:
-// - Added check for `system_settings.applications_open` in `POST` method.
-// - Returns 403 Forbidden if applications are closed.
