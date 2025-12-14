@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  ChevronDown, 
-  ChevronUp, 
-  Search, 
-  Filter, 
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  Filter,
   Loader2,
   MoreHorizontal
 } from "lucide-react";
@@ -21,14 +21,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
-// Types based on API response
+// Types updated to UUID strings
 interface Application {
-  id: number;
+  id: string;
   status: "pending" | "approved" | "rejected";
   submitted_at: string;
   review_notes?: string;
   user: {
-    id: number;
+    id: string;
     full_name: string;
     email: string;
     user_details: {
@@ -41,7 +41,7 @@ interface Application {
       school_name: string;
       birth_date: string;
       additional_info: any;
-    }[]; // Handle array or object return from Supabase
+    }[];
   };
 }
 
@@ -50,11 +50,10 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedAppId, setExpandedAppId] = useState<number | null>(null);
-  
-  // Action states
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [rejectionMode, setRejectionMode] = useState<number | null>(null);
+  const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
+
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectionMode, setRejectionMode] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
 
   useEffect(() => {
@@ -75,7 +74,7 @@ export default function ApplicationsPage() {
     }
   };
 
-  const handleStatusUpdate = async (id: number, status: "approved" | "rejected", notes?: string) => {
+  const handleStatusUpdate = async (id: string, status: "approved" | "rejected", notes?: string) => {
     try {
       setActionLoading(id);
       const res = await fetch("/api/applications", {
@@ -90,11 +89,10 @@ export default function ApplicationsPage() {
         description: `Başvuru ${status === "approved" ? "onaylandı" : "reddedildi"}.`,
       });
 
-      // Update local state
-      setApplications(apps => 
+      setApplications(apps =>
         apps.map(app => app.id === id ? { ...app, status, review_notes: notes } : app)
       );
-      
+
       setRejectionMode(null);
       setRejectionReason("");
     } catch (error) {
@@ -108,8 +106,8 @@ export default function ApplicationsPage() {
     const matchesStatus = filterStatus === "all" || app.status === filterStatus;
     const searchLower = searchQuery.toLowerCase();
     const userDetails = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
-    
-    const matchesSearch = 
+
+    const matchesSearch =
       app.user.full_name.toLowerCase().includes(searchLower) ||
       app.user.email.toLowerCase().includes(searchLower) ||
       (userDetails?.school_name || "").toLowerCase().includes(searchLower);
@@ -118,7 +116,7 @@ export default function ApplicationsPage() {
   });
 
   const getStatusBadge = (status: string) => {
-    switch(status) {
+    switch (status) {
       case "approved":
         return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-500 border border-green-500/20">Onaylandı</span>;
       case "rejected":
@@ -142,8 +140,8 @@ export default function ApplicationsPage() {
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="İsim, e-posta veya okul ara..." 
+          <Input
+            placeholder="İsim, e-posta veya okul ara..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -245,33 +243,6 @@ export default function ApplicationsPage() {
                               </div>
                             </div>
                           </div>
-
-                          <div>
-                            <h4 className="text-sm font-semibold text-primary mb-2 flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                              Deneyim ve Tercihler
-                            </h4>
-                            <div className="space-y-3 text-sm">
-                              <div>
-                                <span className="text-muted-foreground block text-xs">MUN Deneyimi</span>
-                                <span className="font-medium">
-                                  {info.mun_experience === "yok" ? "Deneyim Yok" : 
-                                   info.mun_experience === "1-2" ? "1-2 Konferans" :
-                                   info.mun_experience === "3-5" ? "3-5 Konferans" : "5+ Konferans"}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground block text-xs">İngilizce Seviyesi</span>
-                                <span className="font-medium capitalize">{info.english_level}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground block text-xs">Önceki Konferanslar</span>
-                                <p className="text-foreground/90 mt-1 bg-background/50 p-2 rounded border border-border/50">
-                                  {info.previous_conferences || "Belirtilmemiş"}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
                         </div>
 
                         <div className="space-y-6">
@@ -287,29 +258,16 @@ export default function ApplicationsPage() {
                                   {info.reason_for_joining}
                                 </p>
                               </div>
-                              <div>
-                                <span className="text-muted-foreground block text-xs mb-1">Beklentiler</span>
-                                <p className="text-foreground/80 leading-relaxed bg-background/50 p-3 rounded border border-border/50 text-xs md:text-sm">
-                                  {info.expectations}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground block text-xs mb-1">Kendini Tanıtma</span>
-                                <p className="text-foreground/80 leading-relaxed bg-background/50 p-3 rounded border border-border/50 text-xs md:text-sm">
-                                  {info.self_introduction}
-                                </p>
-                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Action Bar */}
                       <div className="mt-8 pt-6 border-t border-border/50 flex flex-col md:flex-row md:justify-end gap-4 items-center">
                         {rejectionMode === app.id ? (
                           <div className="w-full md:w-1/2 flex flex-col gap-2 animate-in slide-in-from-right-2 fade-in">
                             <Label htmlFor="reason">Reddetme Nedeni</Label>
-                            <Textarea 
+                            <Textarea
                               id="reason"
                               placeholder="Lütfen reddetme sebebini açıklayınız..."
                               value={rejectionReason}
@@ -317,16 +275,16 @@ export default function ApplicationsPage() {
                               className="min-h-[80px]"
                             />
                             <div className="flex justify-end gap-2 mt-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => { setRejectionMode(null); setRejectionReason(""); }}
                                 disabled={actionLoading === app.id}
                               >
                                 İptal
                               </Button>
-                              <Button 
-                                variant="destructive" 
+                              <Button
+                                variant="destructive"
                                 size="sm"
                                 onClick={() => handleStatusUpdate(app.id, "rejected", rejectionReason)}
                                 disabled={!rejectionReason.trim() || actionLoading === app.id}
@@ -337,16 +295,16 @@ export default function ApplicationsPage() {
                           </div>
                         ) : (
                           <>
-                             {app.review_notes && (
-                                <div className="mr-auto text-sm text-muted-foreground">
-                                  <span className="font-semibold text-destructive">Red Nedeni:</span> {app.review_notes}
-                                </div>
-                             )}
-                             
-                             <div className="flex gap-2 w-full md:w-auto">
+                            {app.review_notes && (
+                              <div className="mr-auto text-sm text-muted-foreground">
+                                <span className="font-semibold text-destructive">Red Nedeni:</span> {app.review_notes}
+                              </div>
+                            )}
+
+                            <div className="flex gap-2 w-full md:w-auto">
                               {app.status !== "rejected" && (
-                                <Button 
-                                  variant="outline" 
+                                <Button
+                                  variant="outline"
                                   className="flex-1 md:flex-none border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                   onClick={() => setRejectionMode(app.id)}
                                   disabled={actionLoading === app.id}
@@ -355,9 +313,9 @@ export default function ApplicationsPage() {
                                   Reddet
                                 </Button>
                               )}
-                              
+
                               {app.status !== "approved" && (
-                                <Button 
+                                <Button
                                   className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white"
                                   onClick={() => handleStatusUpdate(app.id, "approved")}
                                   disabled={actionLoading === app.id}
@@ -370,7 +328,7 @@ export default function ApplicationsPage() {
                                   )}
                                 </Button>
                               )}
-                             </div>
+                            </div>
                           </>
                         )}
                       </div>
@@ -385,10 +343,3 @@ export default function ApplicationsPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Created new file `app/admin/applications/page.tsx` for managing applications.
-// - Implemented listing of applications with filtering (All, Pending, Approved, Rejected) and search.
-// - Implemented "Expand to view details" pattern.
-// - Implemented Approve/Reject actions with API integration (`PUT /api/applications`).
-// - Implemented "Rejection Reason" input flow.

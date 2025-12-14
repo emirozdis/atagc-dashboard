@@ -1,9 +1,19 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.announcements (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title character varying NOT NULL,
+  content text NOT NULL,
+  author_id uuid,
+  created_at timestamp without time zone DEFAULT now(),
+  is_public boolean DEFAULT true,
+  CONSTRAINT announcements_pkey PRIMARY KEY (id),
+  CONSTRAINT announcements_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.applications (
-  id integer NOT NULL DEFAULT nextval('applications_id_seq'::regclass),
-  user_id integer,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
   status character varying DEFAULT 'pending'::character varying,
   submitted_at timestamp without time zone DEFAULT now(),
   reviewed_at timestamp without time zone,
@@ -12,8 +22,8 @@ CREATE TABLE public.applications (
   CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.committee_documents (
-  id integer NOT NULL DEFAULT nextval('committee_documents_id_seq'::regclass),
-  committee_id integer NOT NULL UNIQUE,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  committee_id uuid NOT NULL UNIQUE,
   document_blob bytea,
   is_locked boolean DEFAULT false,
   updated_at timestamp without time zone DEFAULT now(),
@@ -21,36 +31,37 @@ CREATE TABLE public.committee_documents (
   CONSTRAINT committee_documents_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
 CREATE TABLE public.committee_members (
-  id integer NOT NULL DEFAULT nextval('committee_members_id_seq'::regclass),
-  committee_id integer,
-  user_id integer,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  committee_id uuid,
+  user_id uuid,
   joined_at timestamp without time zone DEFAULT now(),
+  can_write boolean DEFAULT false,
   CONSTRAINT committee_members_pkey PRIMARY KEY (id),
   CONSTRAINT committee_members_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id),
   CONSTRAINT committee_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.committees (
-  id integer NOT NULL DEFAULT nextval('committees_id_seq'::regclass),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
   description text,
-  admin_id integer,
+  admin_id uuid,
   created_at timestamp without time zone DEFAULT now(),
   updated_at timestamp without time zone DEFAULT now(),
   CONSTRAINT committees_pkey PRIMARY KEY (id),
   CONSTRAINT committees_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.roll_call_logs (
-  id integer NOT NULL DEFAULT nextval('roll_call_logs_id_seq'::regclass),
-  roll_call_id integer,
-  user_id integer,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  roll_call_id uuid,
+  user_id uuid,
   scanned_at timestamp without time zone DEFAULT now(),
   CONSTRAINT roll_call_logs_pkey PRIMARY KEY (id),
   CONSTRAINT roll_call_logs_roll_call_id_fkey FOREIGN KEY (roll_call_id) REFERENCES public.roll_calls(id),
   CONSTRAINT roll_call_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.roll_calls (
-  id integer NOT NULL DEFAULT nextval('roll_calls_id_seq'::regclass),
-  committee_id integer,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  committee_id uuid,
   session_name character varying NOT NULL,
   qr_code character varying NOT NULL UNIQUE,
   session_date timestamp without time zone DEFAULT now(),
@@ -59,8 +70,8 @@ CREATE TABLE public.roll_calls (
   CONSTRAINT roll_calls_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
 CREATE TABLE public.topics (
-  id integer NOT NULL DEFAULT nextval('topics_id_seq'::regclass),
-  committee_id integer,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  committee_id uuid,
   title character varying NOT NULL,
   description text,
   created_at timestamp without time zone DEFAULT now(),
@@ -69,8 +80,8 @@ CREATE TABLE public.topics (
   CONSTRAINT topics_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
 CREATE TABLE public.user_details (
-  id integer NOT NULL DEFAULT nextval('user_details_id_seq'::regclass),
-  user_id integer,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
   birth_date date,
   phone_number character varying,
   school_name text,
@@ -79,7 +90,7 @@ CREATE TABLE public.user_details (
   CONSTRAINT user_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.users (
-  id integer NOT NULL DEFAULT nextval('users_id_seq'::regclass),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   full_name character varying NOT NULL,
   email character varying NOT NULL UNIQUE,
   password_hash character varying NOT NULL,

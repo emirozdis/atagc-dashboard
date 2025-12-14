@@ -9,7 +9,6 @@ import {
 } from "@/types/application";
 import { z } from "zod";
 
-// --- VALIDATION SCHEMAS ---
 const submissionSchema = z.object({
   personalInfo: personalInfoSchema,
   experience: experienceSchema,
@@ -17,12 +16,11 @@ const submissionSchema = z.object({
 });
 
 const updateSchema = z.object({
-  id: z.number(),
+  id: z.string().uuid(), // Changed to UUID
   status: z.enum(["approved", "rejected", "pending"]),
   review_notes: z.string().optional(),
 });
 
-// --- GET: List Applications (Admin Only) ---
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -30,7 +28,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch applications with joined user and user_details data
     const { data, error } = await supabase
       .from("applications")
       .select(`
@@ -68,12 +65,10 @@ export async function GET(request: Request) {
   }
 }
 
-// --- POST: Submit Application (Public/User) ---
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // 1. Validation
     const validationResult = submissionSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -85,7 +80,6 @@ export async function POST(request: Request) {
 
     const { personalInfo, experience, motivation } = validationResult.data;
 
-    // 2. Check or Create User
     const { data: existingUser, error: userCheckError } = await supabase
       .from("users")
       .select("id")
@@ -93,19 +87,14 @@ export async function POST(request: Request) {
       .single();
 
     if (userCheckError && userCheckError.code !== 'PGRST116') {
-      console.error("User check error:", userCheckError);
-      return NextResponse.json(
-        { error: "Database error", message: "Kullanıcı kontrolü sırasında hata oluştu." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Database error" }, { status: 500 });
     }
 
-    let userId: number;
+    let userId: string; // UUID string
 
     if (existingUser) {
       userId = existingUser.id;
     } else {
-      // Create new user with random password hash
       const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
       const { data: newUser, error: createUserError } = await supabase
@@ -120,16 +109,11 @@ export async function POST(request: Request) {
         .single();
 
       if (createUserError || !newUser) {
-        console.error("Create user error:", createUserError);
-        return NextResponse.json(
-          { error: "Database error", message: "Kullanıcı oluşturulurken hata oluştu." },
-          { status: 500 }
-        );
+        return NextResponse.json({ error: "Create user failed" }, { status: 500 });
       }
       userId = newUser.id;
     }
 
-    // 3. Upsert User Details
     const additionalInfo = {
       grade: personalInfo.sinif,
       city: personalInfo.sehir,
@@ -159,29 +143,12 @@ export async function POST(request: Request) {
       .eq("user_id", userId)
       .single();
 
-    let detailsError;
     if (existingDetails) {
-      const { error } = await supabase
-        .from("user_details")
-        .update(userDetailsData)
-        .eq("user_id", userId);
-      detailsError = error;
+      await supabase.from("user_details").update(userDetailsData).eq("user_id", userId);
     } else {
-      const { error } = await supabase
-        .from("user_details")
-        .insert(userDetailsData);
-      detailsError = error;
+      await supabase.from("user_details").insert(userDetailsData);
     }
 
-    if (detailsError) {
-      console.error("User details error:", detailsError);
-      return NextResponse.json(
-        { error: "Database error", message: "Kullanıcı detayları kaydedilirken hata oluştu." },
-        { status: 500 }
-      );
-    }
-
-    // 4. Create Application Record
     const { error: appError } = await supabase
       .from("applications")
       .insert({
@@ -191,11 +158,7 @@ export async function POST(request: Request) {
       });
 
     if (appError) {
-      console.error("Supabase Error:", appError);
-      return NextResponse.json(
-        { error: "Database error", message: "Başvuru kaydedilirken bir hata oluştu." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Application failed" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -204,15 +167,10 @@ export async function POST(request: Request) {
     );
 
   } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-// --- PUT: Update Application Status (Admin Only) ---
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -222,7 +180,6 @@ export async function PUT(request: Request) {
 
     const body = await request.json();
     
-    // Validate Update Body
     const validationResult = updateSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
@@ -243,23 +200,12 @@ export async function PUT(request: Request) {
       .eq("id", id);
 
     if (error) {
-      console.error("Update application error:", error);
-      return NextResponse.json(
-        { error: "Database error", message: "Başvuru güncellenirken hata oluştu." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Update failed" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, message: "Başvuru güncellendi." });
 
   } catch (error) {
-    console.error("API Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
-
-// Change Log:
-// - Created new file `app/api/applications/route.ts` to centralize application logic.
-// - Moved POST logic from `submit-application` here (handling User + UserDetails + Application creation).
-// - Added GET method: Protected by Admin session, fetches applications joining users and details.
-// - Added PUT method: Protected by Admin session, updates application status and review notes.

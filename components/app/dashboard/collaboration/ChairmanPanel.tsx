@@ -1,0 +1,99 @@
+"use client";
+
+import { useState } from 'react';
+import { Search, Shield } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Switch } from '@/components/ui/switch';
+
+interface Member {
+  id: string; // UUID
+  userId: string; // UUID
+  full_name: string;
+  email: string;
+  can_edit: boolean;
+}
+
+interface ChairmanPanelProps {
+  isOpen: boolean;
+  members: Member[];
+  onTogglePermission: (memberId: string, targetUserId: string, currentStatus: boolean) => void;
+}
+
+export function ChairmanPanel({ isOpen, members, onTogglePermission }: ChairmanPanelProps) {
+  const [searchMember, setSearchMember] = useState("");
+
+  const filteredMembers = (members || []).filter(m => 
+    (m.full_name || "").toLowerCase().includes(searchMember.toLowerCase()) ||
+    (m.email || "").toLowerCase().includes(searchMember.toLowerCase())
+  );
+
+  return (
+    <div 
+      className={`fixed right-6 top-[100px] bottom-6 w-[340px] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl flex flex-col transition-transform duration-300 z-50 ${isOpen ? 'translate-x-0' : 'translate-x-[120%]'}`}
+    >
+      <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5 rounded-t-xl">
+        <h3 className="font-semibold flex items-center gap-2">
+          <Shield className="w-4 h-4 text-primary" /> 
+          Üye İzinleri
+        </h3>
+        <span className="text-xs text-muted-foreground">{members?.length || 0} Üye</span>
+      </div>
+
+      <div className="p-3 border-b border-white/5">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
+          <Input 
+            placeholder="Üye ara..." 
+            className="pl-9 h-9 bg-background/50 border-white/10" 
+            value={searchMember}
+            onChange={(e) => setSearchMember(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {filteredMembers.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            {members?.length === 0 ? "Henüz üye bulunmuyor." : "Aranan kriterde üye yok."}
+          </div>
+        ) : filteredMembers.map(member => (
+          <div key={member.id} className="group flex items-center justify-between p-3 rounded-lg bg-card/50 hover:bg-card border border-white/5 hover:border-white/10 transition-all">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <Avatar className="h-9 w-9 border border-white/10">
+                <AvatarImage src={`https://avatar.vercel.sh/${member.email}`} />
+                <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                  {(member.full_name || "??").substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-medium truncate">{member.full_name}</span>
+                <span className="text-xs text-muted-foreground truncate">{member.email}</span>
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-end gap-1">
+              <Switch 
+                checked={member.can_edit}
+                onCheckedChange={() => onTogglePermission(member.id, member.userId, member.can_edit)}
+                className="scale-75 data-[state=checked]:bg-green-500"
+              />
+              <span className={`text-[10px] font-medium ${member.can_edit ? 'text-green-500' : 'text-destructive'}`}>
+                {member.can_edit ? 'Yazabilir' : 'Yazamaz'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="p-3 border-t border-white/5 bg-white/5 rounded-b-xl text-[10px] text-center text-muted-foreground">
+        Değişiklikler anında uygulanır.
+      </div>
+    </div>
+  );
+}
+
+// Change Log:
+// - Added defensive checks for `members` array and member properties to avoid crashes.
+// - Safely handled potentially undefined `full_name` or `email` in filter logic.
+// - Added null check for `members.length`.

@@ -14,7 +14,7 @@ interface ParticipantDashboardProps {
 
 interface DashboardData {
   application: {
-    id: number;
+    id: string; // UUID
     status: "pending" | "approved" | "rejected";
     submitted_at: string;
     review_notes?: string;
@@ -62,7 +62,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
   const { application, committeeMember, topic } = data || {};
 
-  // If no application exists for this user
   if (!application) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in">
@@ -86,9 +85,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       case "approved":
         return (
           <Card className="relative bg-green-500/10 border-green-500/20">
-             <div className="absolute top-4 right-4 text-xs font-mono text-green-500/60 select-none">
-               Başvuru No: {application.id}
-             </div>
+            <div className="absolute top-4 right-4 text-[10px] font-mono text-green-500/60 select-none">
+              ID: {application.id.slice(0, 8)}...
+            </div>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <div className="flex-1">
                 <CardTitle className="text-xl text-green-500">Başvurunuz Onaylandı!</CardTitle>
@@ -103,9 +102,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       case "rejected":
         return (
           <Card className="relative bg-destructive/10 border-destructive/20">
-            <div className="absolute top-4 right-4 text-xs font-mono text-destructive/60 select-none">
-               Başvuru No: {application.id}
-             </div>
+            <div className="absolute top-4 right-4 text-[10px] font-mono text-destructive/60 select-none">
+              ID: {application.id.slice(0, 8)}...
+            </div>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <div className="flex-1">
                 <CardTitle className="text-xl text-destructive">Başvurunuz Kabul Edilemedi</CardTitle>
@@ -128,9 +127,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       default:
         return (
           <Card className="relative bg-yellow-500/10 border-yellow-500/20">
-             <div className="absolute top-4 right-4 text-xs font-mono text-yellow-500/60 select-none">
-               Başvuru No: {application.id}
-             </div>
+            <div className="absolute top-4 right-4 text-[10px] font-mono text-yellow-500/60 select-none">
+              ID: {application.id.slice(0, 8)}...
+            </div>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <div className="flex-1">
                 <CardTitle className="text-xl text-yellow-500">Değerlendirme Aşamasında</CardTitle>
@@ -159,12 +158,11 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         </p>
       </div>
 
-      {/* Application Status */}
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2">
-            {getStatusCard()}
+          {getStatusCard()}
         </div>
-        
+
         <Card className="bg-card/50 border-border/50">
           <CardHeader>
             <CardTitle className="text-base">Etkinlik Bilgileri</CardTitle>
@@ -187,11 +185,10 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         </Card>
       </div>
 
-      {/* Committee Info - Only show if approved */}
       {status === "approved" && (
         <div className="space-y-4">
           <h3 className="text-xl font-display font-semibold">Komite Bilgileri</h3>
-          
+
           {committeeMember ? (
             <div className="grid gap-4 md:grid-cols-2">
               <Card className="bg-card/50 border-border/50">
@@ -230,26 +227,19 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
               </Card>
             </div>
           ) : (
-             <Card className="bg-card/50 border-border/50 border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                    <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                    <h4 className="font-medium text-lg text-foreground">Komite Ataması Bekleniyor</h4>
-                    <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-                      Başvurunuz onaylandı, ancak henüz bir komiteye yerleştirilmediniz. 
-                      Komite atamaları yapıldığında buradan görebileceksiniz.
-                    </p>
-                </CardContent>
-             </Card>
+            <Card className="bg-card/50 border-border/50 border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                <h4 className="font-medium text-lg text-foreground">Komite Ataması Bekleniyor</h4>
+                <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+                  Başvurunuz onaylandı, ancak henüz bir komiteye yerleştirilmediniz.
+                  Komite atamaları yapıldığında buradan görebileceksiniz.
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
     </div>
   );
 }
-
-// Change Log:
-// - Converted to Client Component ("use client") to avoid direct server calls.
-// - Implemented data fetching via `fetch("/api/participant/me")` inside `useEffect`.
-// - Added loading state spinner.
-// - Removed direct `SERVER_supabase` import.
-// - Updated ID display to show "Başvuru No: {id}" as requested.

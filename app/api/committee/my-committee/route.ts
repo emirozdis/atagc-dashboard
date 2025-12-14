@@ -9,35 +9,55 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 1. Find the committee this user admins
+  // 1. Find the committee this user admins (UUID check)
   const { data: committee, error } = await supabase
     .from("committees")
     .select("id, name")
     .eq("admin_id", session.user.id)
     .single();
 
-  if (error || !committee) return NextResponse.json({ error: "Committee not found" }, { status: 404 });
+  if (error || !committee) {
+    console.error("Committee not found for admin:", session.user.id, error);
+    return NextResponse.json({ error: "Committee not found" }, { status: 404 });
+  }
 
   // 2. Fetch members of this committee
-  const { data: members } = await supabase
+  // Explicitly selecting fields from the joined table
+  const { data: members, error: membersError } = await supabase
     .from("committee_members")
-    .select("id, user:users(id, full_name, email), can_write")
+    .select(`
+      id,
+      can_write,
+      user:users (
+        id,
+        full_name,
+        email
+      )
+    `)
     .eq("committee_id", committee.id);
+
+  if (membersError) {
+    console.error("Error fetching committee members:", membersError);
+  }
   
-  const formattedMembers = members?.map(m => ({
-    // @ts-ignore
-    id: m.id, // committee_members.id (used for API PUT)
-    // @ts-ignore
-    userId: m.user.id, // users.id (used for WebSocket targeting)
-    // @ts-ignore
-    full_name: m.user.full_name,
-    // @ts-ignore
-    email: m.user.email,
-    can_edit: m.can_write
-  })) || [];
+  const formattedMembers = members?.map((m: any) => {
+    // Handle potential array return from Supabase for one-to-many inference
+    const userData = Array.isArray(m.user) ? m.user[0] : m.user;
+    
+    return {
+      id: m.id, // UUID string of the membership record
+      userId: userData?.id, // UUID string of the user
+      full_name: userData?.full_name || "İsimsiz Üye",
+      email: userData?.email || "",
+      can_edit: m.can_write
+    };
+  }) || [];
 
   return NextResponse.json({ ...committee, members: formattedMembers });
 }
 
 // Change Log:
-// - Added `userId: m.user.id` to the response so the frontend can target specific users via WebSocket.
+// - Added error logging for debugging.
+// - Updated Supabase select query to use explicit syntax for joined table fields.
+// - Added robust mapping logic to handle `m.user` being either an object or an array (Supabase quirk).
+// - Added fallback values for missing user data to prevent frontend crashes.

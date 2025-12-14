@@ -27,10 +27,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Verify password
-        // Note: Ensure your DB has valid bcrypt hashes. 
-        // The application form currently generates random strings, so you cannot log in as an applicant yet.
-        // You must manually seed an admin user with a valid bcrypt hash to test this.
+        // Verify password with the generated hash
         const isValid = await bcrypt.compare(credentials.password, user.password_hash);
 
         if (!isValid) {
@@ -38,7 +35,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         return {
-          id: user.id.toString(),
+          id: user.id, // This is now a UUID string
           name: user.full_name,
           email: user.email,
           role: user.role,

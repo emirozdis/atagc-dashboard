@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface Committee {
-  id: number;
+  id: string; // UUID
   name: string;
   description: string;
 }
@@ -19,10 +19,8 @@ export default function AdminDocumentsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Fetch all committees
     const fetchCommittees = async () => {
       try {
-        // You might need to create this API endpoint or reuse existing
         const res = await fetch("/api/admin/committees"); 
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
@@ -36,12 +34,12 @@ export default function AdminDocumentsPage() {
     fetchCommittees();
   }, []);
 
-  const handleOpenDocument = (committeeId: number) => {
+  const handleOpenDocument = (committeeId: string) => {
     // Navigate to the editor with a query param to override the user's default committee
     router.push(`/dashboard/editor?committeeId=${committeeId}`);
   };
 
-  if (loading) return <Loader2 className="animate-spin" />;
+  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">

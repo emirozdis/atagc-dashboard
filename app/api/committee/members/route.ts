@@ -11,7 +11,7 @@ export async function PUT(request: Request) {
 
   const { memberId, canEdit } = await request.json();
 
-  // Update 'can_write' column based on the request
+  // Update 'can_write' column based on the request (UUID memberId)
   const { error } = await supabase
     .from("committee_members")
     .update({ can_write: canEdit })
@@ -24,6 +24,3 @@ export async function PUT(request: Request) {
 
   return NextResponse.json({ success: true });
 }
-
-// Change Log:
-// - Updated to update `can_write` column instead of `can_edit`.

@@ -21,14 +21,14 @@ export default function Home() {
                 className="relative w-24 h-24 md:w-32 md:h-32 object-contain"
               />
             </div>
-            
+
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold gold-gradient mb-4 tracking-tight">
               ATAGÇ 2025
             </h1>
             <p className="text-muted-foreground text-base md:text-lg mb-8 max-w-2xl">
               Atatürk Gençliği Çalıştayı - Delegasyon Başvuru Formu
             </p>
-            
+
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-sm md:text-base text-foreground/80 bg-secondary/30 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
               <div className="flex items-center gap-2.5">
                 <Calendar className="w-5 h-5 text-primary" />
@@ -80,7 +80,7 @@ export default function Home() {
                 İTÜ GVO İzmir Atatürk Gençlik Çalıştayı
               </p>
             </div>
-            
+
             <a
               href="https://instagram.com/ituatagc"
               target="_blank"

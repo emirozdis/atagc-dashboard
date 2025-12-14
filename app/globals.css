@@ -122,6 +122,16 @@
   }
 }
 
+@layer components {
+  .collaboration-cursor__caret {
+    @apply border-l-2 border-solid ml-[-1px] mr-[-1px] pointer-events-none relative break-normal inline;
+  }
+
+  .collaboration-cursor__label {
+    @apply rounded-[3px_3px_3px_0] text-white font-sans text-[11px] font-semibold left-[-1px] px-[0.4rem] py-[0.1rem] absolute top-[-1.4em] select-none whitespace-nowrap z-10 shadow-[0_1px_3px_rgba(0,0,0,0.3)] leading-normal;
+  }
+}
+
 /* Hide scrollbars visually while preserving scroll functionality everywhere */
 /* Works across WebKit, Firefox, and IE/Edge */
 :root, * {
