@@ -49,30 +49,47 @@ export default function AnnouncementsPage() {
 
       <div className="space-y-4">
         {announcements.length === 0 ? (
-           <Card className="bg-card/50 border-dashed border-border/50">
-             <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-               <Megaphone className="w-12 h-12 mb-4 opacity-20" />
-               <p>Henüz duyuru bulunmuyor.</p>
-             </CardContent>
-           </Card>
+          <Card className="bg-card border-dashed border-2 shadow-sm">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <div className="bg-primary/10 p-4 rounded-full mb-4">
+                <Megaphone className="w-8 h-8 text-primary" />
+              </div>
+              <p className="text-lg font-medium">Henüz duyuru bulunmuyor</p>
+              <p className="text-sm">Yeni duyurular eklendiğinde burada görünecek.</p>
+            </CardContent>
+          </Card>
         ) : (
           announcements.map((item) => (
-            <Card key={item.id} className="bg-card/50 border-border/50 hover:bg-secondary/10 transition-colors">
-              <CardHeader>
+            <Card key={item.id} className="group bg-card border-border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-primary overflow-hidden">
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-4">
-                   <div className="space-y-1">
-                     <CardTitle className="text-xl">{item.title}</CardTitle>
-                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                       <CalendarDays className="w-3 h-3" />
-                       {new Date(item.created_at).toLocaleDateString("tr-TR")}
-                       {item.author && <span className="ml-2">• {item.author.full_name}</span>}
-                     </div>
-                   </div>
-                   <Megaphone className="w-5 h-5 text-primary shrink-0 mt-1" />
+                  <div className="space-y-1.5">
+                    <CardTitle className="text-xl font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">
+                      {item.title}
+                    </CardTitle>
+                    <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <CalendarDays className="w-3.5 h-3.5" />
+                        <span className="font-medium">
+                          {new Date(item.created_at).toLocaleDateString("tr-TR", {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      {item.author && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-border" />
+                          <span className="font-medium text-foreground/80">{item.author.full_name}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
+                <p className="text-base leading-relaxed whitespace-pre-wrap text-muted-foreground font-normal">
                   {item.content}
                 </p>
               </CardContent>

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, Users, FileQuestion, Loader2 } from "lucide-react";
+import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, Users, FileQuestion, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface ParticipantDashboardProps {
   user: {
@@ -64,14 +65,14 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
   if (!application) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in">
-        <div className="w-24 h-24 rounded-full bg-secondary/30 flex items-center justify-center shadow-inner">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in py-12">
+        <div className="w-24 h-24 rounded-full bg-secondary/30 flex items-center justify-center shadow-inner ring-1 ring-white/10">
           <FileQuestion className="w-10 h-10 text-muted-foreground/70" />
         </div>
-        <div className="space-y-2 max-w-md mx-auto px-4">
-          <h2 className="text-2xl font-bold font-display text-foreground">Başvuru Bulunamadı</h2>
+        <div className="space-y-3 max-w-md mx-auto px-4">
+          <h2 className="text-3xl font-bold font-display text-foreground tracking-tight">Başvuru Bulunamadı</h2>
           <p className="text-muted-foreground leading-relaxed">
-            Hesabınıza ait aktif bir başvuru kaydı görünmüyor. Eğer başvurunuzu henüz tamamlamadıysanız lütfen ana sayfadan başvuru yapınız. Bir hata olduğunu düşünüyorsanız bizimle iletişime geçin.
+            Hesabınıza ait aktif bir başvuru kaydı görünmüyor. Eğer başvurunuzu henüz tamamlamadıysanız lütfen ana sayfadan başvuru yapınız.
           </p>
         </div>
       </div>
@@ -80,160 +81,207 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
   const status = application.status || "pending";
 
-  const getStatusCard = () => {
+  const getStatusContent = () => {
     switch (status) {
       case "approved":
-        return (
-          <Card className="relative bg-green-500/10 border-green-500/20">
-            <div className="absolute top-4 right-4 text-[10px] font-mono text-green-500/60 select-none">
-              ID: {application.id.slice(0, 8)}...
-            </div>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <div className="flex-1">
-                <CardTitle className="text-xl text-green-500">Başvurunuz Onaylandı!</CardTitle>
-                <CardDescription className="text-green-500/80">
-                  ATAGÇ 2026'ya katılımınız kesinleşmiştir.
-                </CardDescription>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </CardHeader>
-          </Card>
-        );
+        return {
+          color: "text-emerald-500",
+          bgColor: "bg-emerald-500/10",
+          borderColor: "border-emerald-500/20",
+          icon: CheckCircle,
+          title: "Başvurunuz Onaylandı!",
+          description: "ATAGÇ 2026'ya katılımınız kesinleşmiştir."
+        };
       case "rejected":
-        return (
-          <Card className="relative bg-destructive/10 border-destructive/20">
-            <div className="absolute top-4 right-4 text-[10px] font-mono text-destructive/60 select-none">
-              ID: {application.id.slice(0, 8)}...
-            </div>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <div className="flex-1">
-                <CardTitle className="text-xl text-destructive">Başvurunuz Kabul Edilemedi</CardTitle>
-                <CardDescription className="text-destructive/80">
-                  Maalesef başvurunuz olumlu değerlendirilememiştir.
-                </CardDescription>
-              </div>
-              <XCircle className="h-8 w-8 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              {application.review_notes && (
-                <div className="mt-2 p-3 bg-background/50 rounded-md text-sm border border-destructive/20">
-                  <span className="font-semibold block mb-1">Açıklama:</span>
-                  <span className="text-muted-foreground">{application.review_notes}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
+        return {
+          color: "text-red-500",
+          bgColor: "bg-red-500/10",
+          borderColor: "border-red-500/20",
+          icon: XCircle,
+          title: "Başvurunuz Kabul Edilemedi",
+          description: "Maalesef başvurunuz olumlu değerlendirilememiştir."
+        };
+      case "pending":
       default:
-        return (
-          <Card className="relative bg-yellow-500/10 border-yellow-500/20">
-            <div className="absolute top-4 right-4 text-[10px] font-mono text-yellow-500/60 select-none">
-              ID: {application.id.slice(0, 8)}...
-            </div>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <div className="flex-1">
-                <CardTitle className="text-xl text-yellow-500">Değerlendirme Aşamasında</CardTitle>
-                <CardDescription className="text-yellow-500/80">
-                  Başvurunuz ekibimiz tarafından incelenmektedir.
-                </CardDescription>
-              </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Sonuçlar panel üzerinden ve e-posta adresinizden duyurulacaktır.
-            </CardContent>
-          </Card>
-        );
+        return {
+          color: "text-amber-500",
+          bgColor: "bg-amber-500/10",
+          borderColor: "border-amber-500/20",
+          icon: Clock,
+          title: "Değerlendirme Aşamasında",
+          description: "Başvurunuz ekibimiz tarafından incelenmektedir."
+        };
     }
   };
 
+  const statusContent = getStatusContent();
+  const StatusIcon = statusContent.icon;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div>
-        <h2 className="text-3xl font-display font-bold text-foreground">
-          Merhaba, {user?.name?.split(" ")[0]}
-        </h2>
-        <p className="text-muted-foreground mt-1">
-          Başvuru durumunu ve etkinlik detaylarını buradan takip edebilirsin.
-        </p>
+    <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-12">
+      {/* Hero Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
+        <div>
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
+            Merhaba, <span className="text-primary">{user?.name?.split(" ")[0]}</span>
+          </h2>
+          <p className="text-muted-foreground mt-2 text-lg">
+            Başvuru durumunu ve etkinlik detaylarını yönetin.
+          </p>
+        </div>
+        <Badge variant="outline" className="w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider bg-secondary/50">
+          ATAGÇ 2026
+        </Badge>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2">
-          {getStatusCard()}
+      <div className="grid gap-6 lg:grid-cols-3 items-start">
+        {/* Status Card */}
+        <div className="lg:col-span-2">
+          <Card className={`border ${statusContent.borderColor} bg-card shadow-sm`}>
+            <div className="p-6 flex flex-col sm:flex-row gap-5 items-start">
+              <div className={`p-3 rounded-xl ${statusContent.bgColor} shrink-0`}>
+                <StatusIcon className={`h-8 w-8 ${statusContent.color}`} />
+              </div>
+
+              <div className="space-y-1 flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-xl font-semibold tracking-tight ${statusContent.color}`}>
+                    {statusContent.title}
+                  </h3>
+                  <Badge variant="secondary" className="font-mono text-[10px] text-muted-foreground/70">
+                    {application.id.slice(0, 8)}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  {statusContent.description}
+                </p>
+
+                {status === "rejected" && application.review_notes && (
+                  <div className="mt-3 p-3 bg-secondary/30 rounded-lg text-sm border border-border/50">
+                    <span className="font-medium block mb-1 text-foreground/90">Değerlendirme Notu:</span>
+                    <span className="text-muted-foreground">{application.review_notes}</span>
+                  </div>
+                )}
+                {status === "pending" && (
+                  <p className="text-xs text-muted-foreground/60 pt-2 flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" />
+                    Sonuçlar panel üzerinden ve e-posta ile duyurulacaktır.
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
         </div>
 
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader>
-            <CardTitle className="text-base">Etkinlik Bilgileri</CardTitle>
+        {/* Event Info Card */}
+        <Card className="bg-card border-border/50 shadow-sm flex flex-col">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-primary" />
+              Etkinlik Detayları
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-3 text-sm">
-              <Calendar className="w-4 h-4 text-primary" />
-              <span>15 - 17 Mayıs 2026</span>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                <Calendar className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-xs font-medium text-foreground">Tarih</div>
+                  <div className="text-xs text-muted-foreground">15 - 17 Mayıs 2026</div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-xs font-medium text-foreground">Konum</div>
+                  <div className="text-xs text-muted-foreground">İTÜ GVO İzmir NESAN</div>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-sm">
-              <MapPin className="w-4 h-4 text-primary" />
-              <span>İTÜ GVO İzmir NESAN</span>
-            </div>
-            <div className="pt-2 border-t border-border/50">
-              <span className="text-xs text-muted-foreground">
+
+            <div className="pt-3 border-t border-border/50">
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <Info className="w-3 h-3" />
                 Detaylı program yakında açıklanacaktır.
-              </span>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {status === "approved" && (
-        <div className="space-y-4">
-          <h3 className="text-xl font-display font-semibold">Komite Bilgileri</h3>
+        <div className="space-y-6 pt-4">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border/50"></div>
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Komite ve Çalışma</h3>
+            <div className="h-px flex-1 bg-border/50"></div>
+          </div>
 
           {committeeMember ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="bg-card/50 border-border/50">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Committee Card */}
+              <Card className="bg-card/30 border-border/40 hover:bg-card/50 transition-colors group">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Users className="w-5 h-5 text-primary" />
-                    Komite
+                  <CardTitle className="flex items-center gap-2.5 text-lg">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    Komite Bilgisi
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xl font-bold mb-2">{committeeMember.committee?.name}</div>
-                  <p className="text-sm text-muted-foreground">{committeeMember.committee?.description || "Açıklama bulunmuyor."}</p>
+                  <div className="text-xl font-bold mb-3 text-foreground">{committeeMember.committee?.name}</div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {committeeMember.committee?.description || "Açıklama bulunmuyor."}
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-card/50 border-border/50">
+              {/* Topic Card */}
+              <Card className="bg-card/30 border-border/40 hover:bg-card/50 transition-colors group">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <FileText className="w-5 h-5 text-primary" />
+                  <CardTitle className="flex items-center gap-2.5 text-lg">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                      <FileText className="w-5 h-5" />
+                    </div>
                     Çalışma Konusu
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {topic ? (
                     <>
-                      <div className="text-lg font-bold mb-2">{topic.title}</div>
-                      <p className="text-sm text-muted-foreground line-clamp-3">{topic.description}</p>
+                      <div className="text-xl font-bold mb-3 text-foreground">{topic.title}</div>
+                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                        {topic.description}
+                      </p>
+                      {topic.description && topic.description.length > 150 && (
+                        <button className="mt-2 text-xs text-primary font-medium hover:underline flex items-center gap-1">
+                          Devamını Oku <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
                     </>
                   ) : (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Info className="w-4 h-4" />
-                      <span>Henüz konu atanmadı veya ilan edilmedi.</span>
+                    <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground/60 space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-secondary/50 flex items-center justify-center">
+                        <Info className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">Henüz konu ilan edilmedi.</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </div>
           ) : (
-            <Card className="bg-card/50 border-border/50 border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                <h4 className="font-medium text-lg text-foreground">Komite Ataması Bekleniyor</h4>
-                <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+            <Card className="bg-secondary/10 border-dashed border-border/60">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mb-5 animate-pulse">
+                  <Users className="w-7 h-7 text-muted-foreground" />
+                </div>
+                <h4 className="font-semibold text-xl text-foreground mb-2">Komite Ataması Bekleniyor</h4>
+                <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
                   Başvurunuz onaylandı, ancak henüz bir komiteye yerleştirilmediniz.
-                  Komite atamaları yapıldığında buradan görebileceksiniz.
+                  Bu süreçte ekibimiz en uygun eşleşmeyi sağlamak için çalışmaktadır.
                 </p>
               </CardContent>
             </Card>
