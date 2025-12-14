@@ -11,7 +11,9 @@ import {
   Filter,
   Loader2,
   Eye,
+  ArrowUpDown,
 } from "lucide-react";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   Table,
   TableBody,
@@ -36,39 +38,79 @@ export default function ApplicationsPage() {
   const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination & Sort State
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    key: 'submitted_at',
+    direction: 'desc'
+  });
+
+  // Filter State
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch when params change
   useEffect(() => {
     fetchApplications();
-  }, []);
+  }, [page, filterStatus, debouncedSearch, sortConfig]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filterStatus, debouncedSearch]);
 
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/applications");
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        status: filterStatus,
+        search: debouncedSearch,
+        sort_by: sortConfig.key,
+        sort_order: sortConfig.direction
+      });
+
+      const res = await fetch(`/api/applications?${params}`);
       if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setApplications(data);
+
+      const responseData = await res.json();
+      // Handle the new response structure { data, meta }
+      if (responseData.data) {
+        setApplications(responseData.data);
+        setTotalPages(responseData.meta.totalPages);
+      } else {
+        // Fallback or error if format is wrong
+        setApplications([]);
+        setTotalPages(0);
+      }
+
     } catch (error) {
       toast.error("Hata", { description: "Başvuru listesi yüklenemedi." });
+      setApplications([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredApplications = applications.filter(app => {
-    const matchesStatus = filterStatus === "all" || app.status === filterStatus;
-    const searchLower = searchQuery.toLowerCase();
-    const userDetails = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
-
-    const matchesSearch =
-      app.user.full_name.toLowerCase().includes(searchLower) ||
-      app.user.email.toLowerCase().includes(searchLower) ||
-      (userDetails?.school_name || "").toLowerCase().includes(searchLower);
-
-    return matchesStatus && matchesSearch;
-  });
+  const handleSort = (key: string) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -103,7 +145,7 @@ export default function ApplicationsPage() {
         <div>
           <h2 className="text-3xl font-display font-bold text-foreground">Başvurular</h2>
           <p className="text-muted-foreground mt-1">
-            Toplam {applications.length} başvuru alındı.
+            Başvuruları buradan yönetebilirsiniz.
           </p>
         </div>
       </div>
@@ -138,9 +180,17 @@ export default function ApplicationsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Başvuran</TableHead>
+              <TableHead className="cursor-pointer hover:text-foreground" onClick={() => handleSort('full_name')}>
+                <div className="flex items-center gap-2">
+                  Başvuran <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </TableHead>
               <TableHead>Okul</TableHead>
-              <TableHead>Tarih</TableHead>
+              <TableHead className="cursor-pointer hover:text-foreground" onClick={() => handleSort('submitted_at')}>
+                <div className="flex items-center gap-2">
+                  Tarih <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </TableHead>
               <TableHead>Komite Tercihi</TableHead>
               <TableHead>Durum</TableHead>
               <TableHead className="text-right">İncele</TableHead>
@@ -155,14 +205,14 @@ export default function ApplicationsPage() {
                   </div>
                 </TableCell>
               </TableRow>
-            ) : filteredApplications.length === 0 ? (
+            ) : applications.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   Kriterlere uygun başvuru bulunamadı.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredApplications.map((app) => {
+              applications.map((app) => {
                 const details = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
                 const info = details?.additional_info || {};
 
@@ -205,6 +255,13 @@ export default function ApplicationsPage() {
             )}
           </TableBody >
         </Table >
+        <div className="px-4 border-t border-border/50">
+          <PaginationControls
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </div>
       </div >
     </div >
   );

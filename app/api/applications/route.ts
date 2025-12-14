@@ -28,14 +28,27 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "all";
+    const sortBy = searchParams.get("sort_by") || "submitted_at";
+    const sortOrder = searchParams.get("sort_order") || "desc";
+
+    // Calculate range
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // Start building the query
+    let query = supabase
       .from("applications")
       .select(`
         id,
         status,
         submitted_at,
         review_notes,
-        user:users (
+        user:users!inner (
           id,
           full_name,
           email,
@@ -47,8 +60,74 @@ export async function GET(request: Request) {
             additional_info
           )
         )
-      `)
-      .order("submitted_at", { ascending: false });
+      `, { count: "exact" });
+
+    // Status filter
+    if (status !== "all") {
+      query = query.eq("status", status);
+    }
+
+    // Search filter
+    // Note: Searching deeper into JSON or joined tables can be tricky in Supabase/PostgREST.
+    // We can search on the joined user table fields if we use !inner join and apply filters on the foreign table.
+    // However, basic text search across multiple fields might need a dedicated RPC or careful structure.
+    // For now, let's try to filter by fields we can access.
+    // Since we are joining `users`, we can filter on `users.full_name` etc.
+    if (search) {
+      // Supabase JS client doesn't support OR across different tables easily in one line without RPC or complex syntax.
+      // But we can filter on the inner joined table columns.
+      // Syntax for filtering on joined table: 'user.full_name.ilike.%search%'
+      // OR logic across tables is hard. Let's prioritize Name and Email.
+      // We will try a raw filter if possible, or simple separate filters if "OR" is needed.
+      // Actually, PostgREST allows embedding resources. filtering on them works as AND.
+      // To do OR across parent and child, it's hard.
+      // Let's assume for now we primarily search on the user's name/email.
+      // We can use the text search syntax for the joined table?
+      // Unfortunately, standard `or` with foreign tables is tricky.
+      // Let's stick to filtering on the `user` relation if possible, but the `or()` method applies to the main table usually.
+      // Workaround: We might have to fetch more and filter in memory if the dataset is small, OR use a view.
+      // BUT, given this is "Advanced Agentic Coding", let's try to do it right.
+      // If we use `!inner` on users, we can filter users.
+      // query = query.ilike('user.full_name', `%${search}%`) -- this syntax might not work directly as `user` is an alias/relationship.
+
+      // Let's try to simple filter implementation first:
+      // If the user searches, we might need a specific structure.
+      // Actually, for simplicity and reliability without changing schema/adding indexes/RPCs right now:
+      // We will fetch based on status/sort first, and if there is a search, we might rely on the frontend OR 
+      // if we assume `users` is the main thing we search, we can filter `users.full_name` etc.
+
+      // Correct PostgREST syntax for nested filter:
+      // query = query.filter('user.full_name', 'ilike', `%${search}%`)
+      // But we want OR (name OR email).
+      // `users.or(full_name.ilike.%${search}%,email.ilike.%${search}%)` - this needs to be applied to the users join?
+      // It's cleaner to just fetch matches.
+    }
+
+    // Let's implement searching by filtering on the client for now because of the complex join filtering limitation 
+    // without using a Database Function (RPC) or complex text search configuration.
+    // WAIT, I should do this server side as requested.
+    // To do it server side with Supabase on joined tables:
+    // We can filter the embedding resource.
+    // .select('..., user:users!inner(...)')
+    // .or('full_name.ilike.%search%,email.ilike.%search%', { foreignTable: 'users' })
+    if (search) {
+      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`, { foreignTable: 'users' });
+    }
+
+    // Sort
+    // "user.full_name" sorting is also tricky. 
+    // If sorting by a column in the main table:
+    if (sortBy === 'submitted_at' || sortBy === 'status') {
+      query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+    } else if (sortBy === 'full_name') {
+      // Sorting by foreign table column
+      query = query.order('full_name', { foreignTable: 'users', ascending: sortOrder === 'asc' });
+    }
+
+    // Apply pagination
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
 
     if (error) {
       console.error("Fetch applications error:", error);
@@ -58,12 +137,21 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({
+      data,
+      meta: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil((count || 0) / limit),
+      }
+    });
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
 
 export async function POST(request: Request) {
   try {

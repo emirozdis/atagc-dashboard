@@ -9,8 +9,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   Shield,
-  BadgeCheck
+  BadgeCheck,
+  ArrowUpDown
 } from "lucide-react";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   Table,
   TableBody,
@@ -38,22 +40,65 @@ import { User } from "@/types/user";
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination & Sort State
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    key: 'created_at',
+    direction: 'desc'
+  });
+
+  // Filter State
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch when params change
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [page, roleFilter, debouncedSearch, sortConfig]);
+
+  // Reset page
+  useEffect(() => {
+    setPage(1);
+  }, [roleFilter, debouncedSearch]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/users");
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        role: roleFilter,
+        search: debouncedSearch,
+        sort_by: sortConfig.key,
+        sort_order: sortConfig.direction
+      });
+
+      const res = await fetch(`/api/admin/users?${params}`);
       if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-      setUsers(data);
+
+      const responseData = await res.json();
+      if (responseData.data) {
+        setUsers(responseData.data);
+        setTotalPages(responseData.meta.totalPages);
+      } else {
+        setUsers([]);
+        setTotalPages(0);
+      }
     } catch (error) {
       toast.error("Hata", { description: "Kullanıcılar yüklenemedi." });
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -69,6 +114,10 @@ export default function UsersPage() {
 
       if (!res.ok) throw new Error("Failed");
 
+      // Optimistic update or refetch
+      // For simplicity, let's update local state if it matches current filter
+      // But role change might make it disappear from current filter
+      // Safest is to refetch or just update local
       setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
       toast.success("Rol Güncellendi");
     } catch (error) {
@@ -76,13 +125,12 @@ export default function UsersPage() {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch =
-      user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  const handleSort = (key: string) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -147,6 +195,8 @@ export default function UsersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Kullanıcı</TableHead>
+              <TableHead>Okul</TableHead>
+              <TableHead>Telefon</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead className="text-right">İşlemler</TableHead>
             </TableRow>
@@ -160,14 +210,14 @@ export default function UsersPage() {
                   </div>
                 </TableCell>
               </TableRow>
-            ) : filteredUsers.length === 0 ? (
+            ) : users.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
                   Kullanıcı bulunamadı.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredUsers.map((user) => (
+              users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -180,6 +230,12 @@ export default function UsersPage() {
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {(Array.isArray(user.user_details) ? user.user_details[0]?.school_name : user.user_details?.school_name) || "-"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {(Array.isArray(user.user_details) ? user.user_details[0]?.phone_number : user.user_details?.phone_number) || "-"}
                   </TableCell>
                   <TableCell>{getRoleBadge(user.role)}</TableCell>
                   <TableCell className="text-right">
@@ -209,6 +265,13 @@ export default function UsersPage() {
             )}
           </TableBody>
         </Table>
+        <div className="px-4 border-t border-border/50">
+          <PaginationControls
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </div>
       </div>
     </div>
   );

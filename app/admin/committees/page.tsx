@@ -217,7 +217,7 @@ export default function AdminCommitteesPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredCommittees.map(committee => (
-            <Card key={committee.id} className="bg-card/50 border-border/50 hover:bg-secondary/20 transition-all group">
+            <Card key={committee.id} className="bg-card border-border/50 hover:bg-secondary/20 transition-all group">
               <CardHeader>
                 <CardTitle className="flex justify-between items-start gap-2">
                   <span className="truncate">{committee.name}</span>

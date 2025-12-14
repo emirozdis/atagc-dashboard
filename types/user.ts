@@ -4,4 +4,9 @@ export interface User {
     email: string;
     role: string;
     created_at: string;
+    user_details?: {
+        school_name?: string;
+        phone_number?: string;
+        birth_date?: string;
+    } | null;
 }
