@@ -270,7 +270,7 @@ export default function CollaborativeEditorPage() {
           </div>
         </div>
 
-        <Card className="flex-1 bg-card/30 border-white/5 flex flex-col overflow-hidden shadow-xl backdrop-blur-sm relative">
+        <Card className="flex-1 bg-card border-card/50 flex flex-col overflow-hidden relative">
           <EditorToolbar editor={editor} />
           <div className="flex-1 overflow-y-auto">
             <EditorContent editor={editor} className="h-full w-full" />

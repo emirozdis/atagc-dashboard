@@ -95,7 +95,7 @@ export default function CommitteePage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Committee Info */}
-        <Card className="lg:col-span-2 bg-card/50 border-border/50">
+        <Card className="lg:col-span-2 bg-card border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
@@ -125,7 +125,7 @@ export default function CommitteePage() {
 
         {/* Sidebar Actions */}
         <div className="space-y-6">
-          <Card className="bg-card/50 border-border/50">
+          <Card className="bg-card border-border/50">
             <CardHeader>
               <CardTitle className="text-base">Hızlı İşlemler</CardTitle>
             </CardHeader>
@@ -149,7 +149,7 @@ export default function CommitteePage() {
       {/* Members and Admin Section */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Admin Card */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card border-border/50">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Shield className="w-4 h-4 text-primary" />
@@ -178,7 +178,7 @@ export default function CommitteePage() {
         </Card>
 
         {/* Members Card */}
-        <Card className="lg:col-span-2 bg-card/50 border-border/50">
+        <Card className="lg:col-span-2 bg-card border-border/50">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">

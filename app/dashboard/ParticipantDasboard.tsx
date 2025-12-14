@@ -197,7 +197,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
           {committeeMember ? (
             <div className="grid gap-6 md:grid-cols-2">
               {/* Committee Card */}
-              <Card className="bg-card/30 border-border/40 hover:bg-card/50 transition-colors group">
+              <Card className="bg-card border-border/40 hover:bg-card/50 transition-colors group">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2.5 text-lg">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
@@ -215,7 +215,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
               </Card>
 
               {/* Topic Card */}
-              <Card className="bg-card/30 border-border/40 hover:bg-card/50 transition-colors group">
+              <Card className="bg-card border-border/40 hover:bg-card/50 transition-colors group">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2.5 text-lg">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">

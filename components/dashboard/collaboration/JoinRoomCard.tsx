@@ -19,16 +19,16 @@ interface JoinRoomCardProps {
   onJoin: () => void;
 }
 
-export function JoinRoomCard({ 
-  userRole, 
-  allCommittees, 
-  committeeInfo, 
-  onCommitteeSelect, 
-  onJoin 
+export function JoinRoomCard({
+  userRole,
+  allCommittees,
+  committeeInfo,
+  onCommitteeSelect,
+  onJoin
 }: JoinRoomCardProps) {
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-100px)] animate-fade-in px-4">
-      <Card className="w-full max-w-md bg-card/50 border-white/5 shadow-2xl backdrop-blur-md">
+      <Card className="w-full max-w-md bg-card border-card/50 ">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Users className="w-8 h-8 text-primary" />

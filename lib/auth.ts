@@ -16,7 +16,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Fetch user from public.users table
+        // 1. Fetch user from public.users table
         const { data: user, error } = await supabase
           .from("users")
           .select("*")
@@ -27,7 +27,23 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Verify password with the generated hash
+        // 2. Check System Maintenance Mode
+        const { data: settings } = await supabase
+          .from("system_settings")
+          .select("maintenance_mode")
+          .single();
+
+        if (settings?.maintenance_mode) {
+          // Allow login only for admins and superadmins
+          if (user.role !== "superadmin" && user.role !== "admin") {
+            // Returning null causes standard login failure. 
+            // NextAuth default behavior treats any error/null as "CredentialsSignin".
+            // To be more explicit, we just deny access here.
+            return null;
+          }
+        }
+
+        // 3. Verify password
         const isValid = await bcrypt.compare(credentials.password, user.password_hash);
 
         if (!isValid) {
@@ -35,7 +51,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         return {
-          id: user.id, // This is now a UUID string
+          id: user.id,
           name: user.full_name,
           email: user.email,
           role: user.role,
@@ -67,3 +83,7 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+// Change Log:
+// - Added Maintenance Mode check inside `authorize`.
+// - Restricts login to `superadmin` and `admin` if `maintenance_mode` is true.
