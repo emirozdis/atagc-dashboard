@@ -105,12 +105,15 @@ export default function AdminCommitteesPage() {
   };
 
   const startEdit = (committee: Committee) => {
+    // Handle topic being an array or object
+    const topicData = Array.isArray(committee.topic) ? committee.topic[0] : committee.topic;
+
     setEditingId(committee.id);
     setFormData({
       name: committee.name,
       description: committee.description || "",
-      topicTitle: committee.topic?.title || "",
-      topicDescription: committee.topic?.description || "",
+      topicTitle: topicData?.title || "",
+      topicDescription: topicData?.description || "",
     });
     setIsDialogOpen(true);
   };
@@ -216,36 +219,45 @@ export default function AdminCommitteesPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCommittees.map(committee => (
-            <Card key={committee.id} className="bg-card border-border/50 hover:bg-secondary/20 transition-all group">
-              <CardHeader>
-                <CardTitle className="flex justify-between items-start gap-2">
-                  <span className="truncate">{committee.name}</span>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon-sm" onClick={() => startEdit(committee)}>
-                      <Pencil className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                    </Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(committee.id)}>
-                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                    </Button>
+          {filteredCommittees.map(committee => {
+             // Handle topic being an array or object
+             const topicData = Array.isArray(committee.topic) ? committee.topic[0] : committee.topic;
+             
+             return (
+              <Card key={committee.id} className="bg-card border-border/50 hover:bg-secondary/20 transition-all group">
+                <CardHeader>
+                  <CardTitle className="flex justify-between items-start gap-2">
+                    <span className="truncate">{committee.name}</span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon-sm" onClick={() => startEdit(committee)}>
+                        <Pencil className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(committee.id)}>
+                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </div>
+                  </CardTitle>
+                  <CardDescription className="line-clamp-2 min-h-[40px]">
+                    {committee.description || "Açıklama yok."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 text-sm">
+                    <div className="p-3 bg-background/50 rounded border border-border/50">
+                      <div className="font-medium text-xs text-muted-foreground mb-1 uppercase tracking-wider">Çalışma Konusu</div>
+                      <div className="font-medium text-foreground">{topicData?.title || "Belirlenmedi"}</div>
+                    </div>
                   </div>
-                </CardTitle>
-                <CardDescription className="line-clamp-2 min-h-[40px]">
-                  {committee.description || "Açıklama yok."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm">
-                  <div className="p-3 bg-background/50 rounded border border-border/50">
-                    <div className="font-medium text-xs text-muted-foreground mb-1 uppercase tracking-wider">Çalışma Konusu</div>
-                    <div className="font-medium text-foreground">{committee.topic?.title || "Belirlenmedi"}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
+
+// Change Log:
+// - Updated `startEdit` and the rendering loop to check if `committee.topic` is an array or object.
+// - Safely accesses `topicData?.title` to properly display the topic if available, fixing the issue where "Belirlenmedi" was shown despite topics existing.

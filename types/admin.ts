@@ -7,7 +7,11 @@ export interface Committee {
         id: string;
         title: string;
         description: string;
-    };
+    } | {
+        id: string;
+        title: string;
+        description: string;
+    }[];
 }
 
 export interface Application {
@@ -40,4 +44,4 @@ export interface Application {
     };
 }
 // Change Log:
-// - Updated `Application` interface to include `committee_members` in the user object.
+// - Updated `Committee` interface to allow `topic` to be either an object or an array of objects, matching the actual API response.
