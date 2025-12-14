@@ -5,15 +5,15 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Loader2, 
-  Mail, 
-  Phone, 
-  GraduationCap, 
-  MapPin, 
-  Calendar, 
-  User, 
-  FileText, 
+import {
+  Loader2,
+  Mail,
+  Phone,
+  GraduationCap,
+  MapPin,
+  Calendar,
+  User,
+  FileText,
   Users,
   Shield,
   CheckCircle2,
@@ -27,55 +27,7 @@ import {
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
-interface ProfileData {
-  user: {
-    id: string;
-    full_name: string;
-    email: string;
-    role: string;
-    created_at: string;
-    updated_at: string;
-  };
-  userDetails: {
-    id: string;
-    birth_date: string;
-    phone_number: string;
-    school_name: string;
-    additional_info: {
-      grade?: string;
-      city?: string;
-      mun_experience?: string;
-      previous_conferences?: string;
-      committee_pref_1?: string;
-      committee_pref_2?: string;
-      delegation_type?: string;
-      english_level?: string;
-      reason_for_joining?: string;
-      expectations?: string;
-      self_introduction?: string;
-      kvkk_approved?: boolean;
-    };
-  } | null;
-  application: {
-    id: string;
-    status: string;
-    submitted_at: string;
-    review_notes: string | null;
-  } | null;
-  committeeMember: {
-    can_write: boolean;
-    committee: {
-      id: string;
-      name: string;
-      description: string;
-      admin_id: string;
-    };
-  } | null;
-  topic: {
-    title: string;
-    description: string;
-  } | null;
-}
+import { ProfileData } from "@/types/dashboard";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
@@ -344,128 +296,128 @@ export default function ProfilePage() {
       </div>
 
       {/* MUN Experience & Preferences */}
-      {(additionalInfo.mun_experience || 
-        additionalInfo.previous_conferences || 
-        additionalInfo.committee_pref_1 || 
+      {(additionalInfo.mun_experience ||
+        additionalInfo.previous_conferences ||
+        additionalInfo.committee_pref_1 ||
         additionalInfo.committee_pref_2 ||
         additionalInfo.delegation_type ||
         additionalInfo.english_level) && (
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-primary" />
-              MUN Deneyimi ve Tercihler
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              {additionalInfo.mun_experience && (
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">MUN Deneyimi</Label>
-                  <div className="text-sm font-medium">{additionalInfo.mun_experience}</div>
-                </div>
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-primary" />
+                MUN Deneyimi ve Tercihler
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                {additionalInfo.mun_experience && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">MUN Deneyimi</Label>
+                    <div className="text-sm font-medium">{additionalInfo.mun_experience}</div>
+                  </div>
+                )}
+                {additionalInfo.english_level && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      İngilizce Seviyesi
+                    </Label>
+                    <div className="text-sm font-medium">{additionalInfo.english_level}</div>
+                  </div>
+                )}
+                {additionalInfo.delegation_type && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Delegasyon Tercihi</Label>
+                    <div className="text-sm font-medium">{additionalInfo.delegation_type}</div>
+                  </div>
+                )}
+                {additionalInfo.committee_pref_1 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">1. Komite Tercihi</Label>
+                    <div className="text-sm font-medium">{additionalInfo.committee_pref_1}</div>
+                  </div>
+                )}
+                {additionalInfo.committee_pref_2 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">2. Komite Tercihi</Label>
+                    <div className="text-sm font-medium">{additionalInfo.committee_pref_2}</div>
+                  </div>
+                )}
+              </div>
+              {additionalInfo.previous_conferences && (
+                <>
+                  <div className="h-px bg-border/50 my-2" />
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Önceki Konferanslar</Label>
+                    <div className="text-sm font-medium">{additionalInfo.previous_conferences}</div>
+                  </div>
+                </>
               )}
-              {additionalInfo.english_level && (
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    İngilizce Seviyesi
-                  </Label>
-                  <div className="text-sm font-medium">{additionalInfo.english_level}</div>
-                </div>
-              )}
-              {additionalInfo.delegation_type && (
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Delegasyon Tercihi</Label>
-                  <div className="text-sm font-medium">{additionalInfo.delegation_type}</div>
-                </div>
-              )}
-              {additionalInfo.committee_pref_1 && (
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">1. Komite Tercihi</Label>
-                  <div className="text-sm font-medium">{additionalInfo.committee_pref_1}</div>
-                </div>
-              )}
-              {additionalInfo.committee_pref_2 && (
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">2. Komite Tercihi</Label>
-                  <div className="text-sm font-medium">{additionalInfo.committee_pref_2}</div>
-                </div>
-              )}
-            </div>
-            {additionalInfo.previous_conferences && (
-              <>
-                <div className="h-px bg-border/50 my-2" />
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Önceki Konferanslar</Label>
-                  <div className="text-sm font-medium">{additionalInfo.previous_conferences}</div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
       {/* Motivation & Expectations */}
-      {(additionalInfo.reason_for_joining || 
-        additionalInfo.expectations || 
+      {(additionalInfo.reason_for_joining ||
+        additionalInfo.expectations ||
         additionalInfo.self_introduction) && (
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              Motivasyon ve Beklentiler
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {additionalInfo.reason_for_joining && (
-              <>
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                Motivasyon ve Beklentiler
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {additionalInfo.reason_for_joining && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Katılım Nedeni</Label>
+                    <div className="text-sm bg-secondary/10 p-3 rounded-lg border border-border/50 leading-relaxed">
+                      {additionalInfo.reason_for_joining}
+                    </div>
+                  </div>
+                  <div className="h-px bg-border/50 my-2" />
+                </>
+              )}
+              {additionalInfo.expectations && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Beklentiler</Label>
+                    <div className="text-sm bg-secondary/10 p-3 rounded-lg border border-border/50 leading-relaxed">
+                      {additionalInfo.expectations}
+                    </div>
+                  </div>
+                  <div className="h-px bg-border/50 my-2" />
+                </>
+              )}
+              {additionalInfo.self_introduction && (
                 <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Katılım Nedeni</Label>
+                  <Label className="text-sm text-muted-foreground">Kendinizi Tanıtın</Label>
                   <div className="text-sm bg-secondary/10 p-3 rounded-lg border border-border/50 leading-relaxed">
-                    {additionalInfo.reason_for_joining}
+                    {additionalInfo.self_introduction}
                   </div>
                 </div>
-                <div className="h-px bg-border/50 my-2" />
-              </>
-            )}
-            {additionalInfo.expectations && (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Beklentiler</Label>
-                  <div className="text-sm bg-secondary/10 p-3 rounded-lg border border-border/50 leading-relaxed">
-                    {additionalInfo.expectations}
+              )}
+              {additionalInfo.kvkk_approved !== undefined && (
+                <>
+                  <div className="h-px bg-border/50 my-2" />
+                  <div className="flex items-center gap-2">
+                    {additionalInfo.kvkk_approved ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500" />
+                    )}
+                    <span className="text-sm">
+                      KVKK Aydınlatma Metni Onayı: {additionalInfo.kvkk_approved ? "Onaylandı" : "Onaylanmadı"}
+                    </span>
                   </div>
-                </div>
-                <div className="h-px bg-border/50 my-2" />
-              </>
-            )}
-            {additionalInfo.self_introduction && (
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Kendinizi Tanıtın</Label>
-                <div className="text-sm bg-secondary/10 p-3 rounded-lg border border-border/50 leading-relaxed">
-                  {additionalInfo.self_introduction}
-                </div>
-              </div>
-            )}
-            {additionalInfo.kvkk_approved !== undefined && (
-              <>
-                <div className="h-px bg-border/50 my-2" />
-                <div className="flex items-center gap-2">
-                  {additionalInfo.kvkk_approved ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-500" />
-                  )}
-                  <span className="text-sm">
-                    KVKK Aydınlatma Metni Onayı: {additionalInfo.kvkk_approved ? "Onaylandı" : "Onaylanmadı"}
-                  </span>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
       {/* Committee Information */}
       {committeeMember && (

@@ -12,8 +12,8 @@ export default withAuth(
     if (isLoginPage) {
       if (isAuth) {
         // If already logged in, redirect to the appropriate dashboard based on role
-        if (token.role === "admin") {
-            return NextResponse.redirect(new URL("/admin", req.url));
+        if (token.role === "superadmin") {
+          return NextResponse.redirect(new URL("/admin", req.url));
         }
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
@@ -22,13 +22,15 @@ export default withAuth(
 
     // 2. Protect Admin Routes
     if (isAdminRoute) {
-      if (token?.role !== "admin") {
-        // If not admin, redirect to participant dashboard (or 403 page)
+      const allowedAdminRoles = ["superadmin"];
+      if (!token?.role || !allowedAdminRoles.includes(token.role as string)) {
+        // If not an admin role, redirect to participant dashboard (or 403 page)
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
       return null; // Admin is allowed
     }
 
+    // 3. Protect generic Dashboard Routes (Participant View)
     // 3. Protect generic Dashboard Routes (Participant View)
     if (!isAuth) {
       let from = req.nextUrl.pathname;
@@ -38,6 +40,11 @@ export default withAuth(
       return NextResponse.redirect(
         new URL(`/login?callbackUrl=${encodeURIComponent(from)}`, req.url)
       );
+    }
+
+    // 4. Redirect Superadmin from Dashboard to Admin
+    if (req.nextUrl.pathname.startsWith("/dashboard") && token?.role === "superadmin") {
+      return NextResponse.redirect(new URL("/admin", req.url));
     }
   },
   {

@@ -9,33 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 
-interface CommitteeData {
-  committee: {
-    id: string; // UUID
-    name: string;
-    description: string;
-  };
-  topic: {
-    title: string;
-    description: string;
-  } | null;
-  can_write: boolean;
-}
-
-interface Member {
-  id: string;
-  userId: string;
-  full_name: string;
-  email: string;
-  role: string;
-  can_edit: boolean;
-}
-
-interface Admin {
-  id: string;
-  full_name: string;
-  email: string;
-}
+import { CommitteeData, CommitteeMember as Member, CommitteeAdmin as Admin } from "@/types/committee";
 
 export default function CommitteePage() {
   const [data, setData] = useState<CommitteeData | null>(null);
@@ -75,13 +49,13 @@ export default function CommitteePage() {
     fetchData();
   }, []);
 
-  const filteredMembers = members.filter(m => 
+  const filteredMembers = members.filter(m =>
     (m.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (m.email || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getRoleBadge = (role: string) => {
-    switch(role) {
+    switch (role) {
       case "superadmin":
       case "admin":
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"><ShieldAlert className="w-3 h-3" /> Yönetici</span>;
@@ -162,10 +136,10 @@ export default function CommitteePage() {
                 </Link>
               </Button>
               {!data.can_write && (
-                 <div className="flex items-center gap-2 text-xs text-yellow-500 bg-yellow-500/10 p-2 rounded">
-                    <Lock className="w-3 h-3" />
-                    <span>Yazma yetkiniz kısıtlıdır.</span>
-                 </div>
+                <div className="flex items-center gap-2 text-xs text-yellow-500 bg-yellow-500/10 p-2 rounded">
+                  <Lock className="w-3 h-3" />
+                  <span>Yazma yetkiniz kısıtlıdır.</span>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -217,9 +191,9 @@ export default function CommitteePage() {
           <CardContent className="space-y-4">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Üye ara..." 
-                className="pl-9 h-9 bg-background/50 border-border/50" 
+              <Input
+                placeholder="Üye ara..."
+                className="pl-9 h-9 bg-background/50 border-border/50"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -232,8 +206,8 @@ export default function CommitteePage() {
                 </div>
               ) : (
                 filteredMembers.map(member => (
-                  <div 
-                    key={member.id} 
+                  <div
+                    key={member.id}
                     className="group flex items-center justify-between p-3 rounded-lg bg-card/30 hover:bg-card/50 border border-border/30 hover:border-border/50 transition-all"
                   >
                     <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
@@ -248,7 +222,7 @@ export default function CommitteePage() {
                         <span className="text-xs text-muted-foreground truncate">{member.email}</span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {getRoleBadge(member.role)}
                     </div>

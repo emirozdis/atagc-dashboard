@@ -15,10 +15,10 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
-// POST: Admin only
+// POST: Superadmin only
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "superadmin" && session?.user?.role !== "admin") {
+  if (session?.user?.role !== "superadmin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

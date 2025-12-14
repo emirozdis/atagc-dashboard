@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { 
-  Plus, 
-  Pencil, 
-  Trash2, 
-  Loader2, 
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
   Users,
   Search
 } from "lucide-react";
@@ -25,23 +25,13 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
-interface Committee {
-  id: string; // UUID
-  name: string;
-  description: string;
-  admin_id?: string | null;
-  topic?: {
-    id: string;
-    title: string;
-    description: string;
-  };
-}
+import { Committee } from "@/types/admin";
 
 export default function AdminCommitteesPage() {
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -73,12 +63,12 @@ export default function AdminCommitteesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    
+
     try {
       const method = editingId ? "PUT" : "POST";
-      const body = { 
-        ...formData, 
-        id: editingId 
+      const body = {
+        ...formData,
+        id: editingId
       };
 
       const res = await fetch("/api/admin/committees", {
@@ -106,7 +96,7 @@ export default function AdminCommitteesPage() {
     try {
       const res = await fetch(`/api/admin/committees?id=${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
-      
+
       toast.success("Komite Silindi");
       setCommittees(prev => prev.filter(c => c.id !== id));
     } catch (error) {
@@ -130,7 +120,7 @@ export default function AdminCommitteesPage() {
     setFormData({ name: "", description: "", topicTitle: "", topicDescription: "" });
   };
 
-  const filteredCommittees = committees.filter(c => 
+  const filteredCommittees = committees.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -143,7 +133,7 @@ export default function AdminCommitteesPage() {
             Komiteleri ve çalışma konularını yönetin.
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if(!open) resetForm(); }}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -160,39 +150,39 @@ export default function AdminCommitteesPage() {
             <form onSubmit={handleSubmit} className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Komite Adı</Label>
-                <Input 
-                  value={formData.name} 
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  placeholder="Örn: DISEC" 
-                  required 
+                <Input
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Örn: DISEC"
+                  required
                 />
               </div>
               <div className="space-y-2">
                 <Label>Açıklama</Label>
-                <Textarea 
-                  value={formData.description} 
-                  onChange={e => setFormData({...formData, description: e.target.value})}
-                  placeholder="Komite hakkında kısa bilgi..." 
+                <Textarea
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Komite hakkında kısa bilgi..."
                 />
               </div>
-              
+
               <div className="border-t border-border pt-4 mt-4">
                 <h4 className="font-medium mb-3 text-sm text-primary">Çalışma Konusu (Topic)</h4>
                 <div className="space-y-3">
                   <div className="space-y-2">
                     <Label>Konu Başlığı</Label>
-                    <Input 
-                      value={formData.topicTitle} 
-                      onChange={e => setFormData({...formData, topicTitle: e.target.value})}
-                      placeholder="Örn: Silahsızlanma..." 
+                    <Input
+                      value={formData.topicTitle}
+                      onChange={e => setFormData({ ...formData, topicTitle: e.target.value })}
+                      placeholder="Örn: Silahsızlanma..."
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Konu İçeriği</Label>
-                    <Textarea 
-                      value={formData.topicDescription} 
-                      onChange={e => setFormData({...formData, topicDescription: e.target.value})}
-                      placeholder="Konu detayları..." 
+                    <Textarea
+                      value={formData.topicDescription}
+                      onChange={e => setFormData({ ...formData, topicDescription: e.target.value })}
+                      placeholder="Konu detayları..."
                     />
                   </div>
                 </div>
@@ -212,8 +202,8 @@ export default function AdminCommitteesPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input 
-          placeholder="Komite ara..." 
+        <Input
+          placeholder="Komite ara..."
           className="pl-9 max-w-sm"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

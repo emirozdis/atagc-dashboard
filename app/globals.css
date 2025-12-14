@@ -54,7 +54,7 @@
   --background: oklch(0.1 0 0); /* Slightly darker than #121212 */
   --foreground: oklch(0.985 0 0);
   
-  --card: oklch(0.12 0 0); /* Slightly lighter than bg */
+  --card: oklch(0.1867 0 0); /* Slightly lighter than bg */
   --card-foreground: oklch(0.985 0 0);
   
   --popover: oklch(0.12 0 0);
@@ -110,7 +110,7 @@
   }
 
   .glass-card {
-    @apply bg-card/30 backdrop-blur-md border border-white/10 shadow-xl;
+    @apply bg-card backdrop-blur-md border border-white/10 shadow-xl;
   }
 
   .form-glow {

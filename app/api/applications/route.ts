@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { 
-  personalInfoSchema, 
-  experienceSchema, 
-  motivationSchema 
+import {
+  personalInfoSchema,
+  experienceSchema,
+  motivationSchema
 } from "@/types/application";
 import { z } from "zod";
 
@@ -24,7 +24,7 @@ const updateSchema = z.object({
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (session?.user?.role !== "admin") {
+    if (session?.user?.role !== "superadmin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       userId = existingUser.id;
     } else {
       const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      
+
       const { data: newUser, error: createUserError } = await supabase
         .from("users")
         .insert({
@@ -174,12 +174,12 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (session?.user?.role !== "admin") {
+    if (session?.user?.role !== "superadmin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    
+
     const validationResult = updateSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
@@ -189,6 +189,23 @@ export async function PUT(request: Request) {
     }
 
     const { id, status, review_notes } = validationResult.data;
+
+    const { data: currentApp, error: fetchError } = await supabase
+      .from("applications")
+      .select("status")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !currentApp) {
+      return NextResponse.json({ error: "Application not found" }, { status: 404 });
+    }
+
+    if (currentApp.status !== "pending") {
+      return NextResponse.json(
+        { error: "Only pending applications can be edited" },
+        { status: 400 }
+      );
+    }
 
     const { error } = await supabase
       .from("applications")

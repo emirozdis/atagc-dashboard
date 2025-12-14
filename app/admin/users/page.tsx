@@ -2,15 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { 
-  Search, 
-  Loader2, 
+import {
+  Search,
+  Loader2,
   MoreHorizontal,
   ShieldAlert,
   ShieldCheck,
-  Shield
+  Shield,
+  BadgeCheck
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,14 +31,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
-interface User {
-  id: string; // UUID
-  full_name: string;
-  email: string;
-  role: string;
-  created_at: string;
-}
+import { User } from "@/types/user";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -65,7 +68,7 @@ export default function UsersPage() {
       });
 
       if (!res.ok) throw new Error("Failed");
-      
+
       setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
       toast.success("Rol Güncellendi");
     } catch (error) {
@@ -74,7 +77,7 @@ export default function UsersPage() {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = 
+    const matchesSearch =
       user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
@@ -82,14 +85,26 @@ export default function UsersPage() {
   });
 
   const getRoleBadge = (role: string) => {
-    switch(role) {
+    switch (role) {
       case "superadmin":
       case "admin":
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"><ShieldAlert className="w-3 h-3" /> Yönetici</span>;
+        return (
+          <Badge variant="outline" className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20 gap-1">
+            <ShieldAlert className="w-3 h-3" /> Yönetici
+          </Badge>
+        );
       case "committee_chairman":
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20"><ShieldCheck className="w-3 h-3" /> Jüri/Başkan</span>;
+        return (
+          <Badge variant="outline" className="bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 border-purple-500/20 gap-1">
+            <ShieldCheck className="w-3 h-3" /> Jüri/Başkan
+          </Badge>
+        );
       default:
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20"><Shield className="w-3 h-3" /> Katılımcı</span>;
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border-blue-500/20 gap-1">
+            <Shield className="w-3 h-3" /> Katılımcı
+          </Badge>
+        );
     }
   };
 
@@ -107,8 +122,8 @@ export default function UsersPage() {
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="İsim veya e-posta ara..." 
+          <Input
+            placeholder="İsim veya e-posta ara..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -127,23 +142,35 @@ export default function UsersPage() {
         </Select>
       </div>
 
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader>
-          <CardTitle>Kullanıcı Listesi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredUsers.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Kullanıcı bulunamadı.</p>
-              ) : (
-                filteredUsers.map((user) => (
-                  <div key={user.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 rounded-lg bg-background/50 border border-white/5 gap-4">
-                    <div className="flex items-center gap-4">
+      <div className="rounded-md border border-border/50 bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Kullanıcı</TableHead>
+              <TableHead>Rol</TableHead>
+              <TableHead className="text-right">İşlemler</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={3} className="h-24 text-center">
+                  <div className="flex justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredUsers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                  Kullanıcı bulunamadı.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
                       <Avatar>
                         <AvatarImage src={`https://avatar.vercel.sh/${user.email}`} />
                         <AvatarFallback>{user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
@@ -153,37 +180,36 @@ export default function UsersPage() {
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-                      {getRoleBadge(user.role)}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "applicant")}>
-                            Katılımcı Yap
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "committee_chairman")}>
-                            Komite Başkanı Yap
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "superadmin")} className="text-destructive focus:text-destructive">
-                            Yönetici Yap
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </TableCell>
+                  <TableCell>{getRoleBadge(user.role)}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "applicant")}>
+                          Katılımcı Yap
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "committee_chairman")}>
+                          Komite Başkanı Yap
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "superadmin")} className="text-destructive focus:text-destructive">
+                          Yönetici Yap
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

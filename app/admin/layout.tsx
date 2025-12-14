@@ -1,5 +1,5 @@
-import { Sidebar } from "@/components/app/dashboard/Sidebar";
-import { Header } from "@/components/app/dashboard/Header";
+import { AdminSidebar } from "@/components/dashboard/AdminSidebar";
+import { Header } from "@/components/dashboard/Header";
 
 export default function AdminLayout({
   children,
@@ -15,7 +15,7 @@ export default function AdminLayout({
       </div>
 
       <div className="hidden md:flex flex-col w-64 fixed inset-y-0 z-50">
-        <Sidebar isAdminSection={true} />
+        <AdminSidebar />
       </div>
       <div className="flex-1 flex flex-col md:pl-64 h-full relative z-0">
         <Header />

@@ -16,28 +16,16 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-import { EditorToolbar } from '@/components/app/dashboard/collaboration/EditorToolbar';
-import { JoinRoomCard } from '@/components/app/dashboard/collaboration/JoinRoomCard';
-import { ChairmanPanel } from '@/components/app/dashboard/collaboration/ChairmanPanel';
+import { EditorToolbar } from '@/components/dashboard/collaboration/EditorToolbar';
+import { JoinRoomCard } from '@/components/dashboard/collaboration/JoinRoomCard';
+import { ChairmanPanel } from '@/components/dashboard/collaboration/ChairmanPanel';
 
 const COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
   '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'
 ];
 
-interface CommitteeInfo {
-  id: string; // UUID
-  name: string;
-}
-
-interface Member {
-  id: string; // UUID
-  userId: string; // UUID
-  full_name: string;
-  email: string;
-  role: string;
-  can_edit: boolean;
-}
+import { CommitteeInfo, EditorMember as Member } from "@/types/dashboard";
 
 export default function CollaborativeEditorPage() {
   const { data: session } = useSession();
@@ -154,7 +142,7 @@ export default function CollaborativeEditorPage() {
 
     try {
       const doc = new Y.Doc();
-      
+
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
       const websocketUrl = `${protocol}://${window.location.hostname}:1234`;
 

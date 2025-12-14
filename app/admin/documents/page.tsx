@@ -7,11 +7,7 @@ import { FileText, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-interface Committee {
-  id: string; // UUID
-  name: string;
-  description: string;
-}
+import { Committee } from "@/types/admin";
 
 export default function AdminDocumentsPage() {
   const [committees, setCommittees] = useState<Committee[]>([]);
@@ -21,7 +17,7 @@ export default function AdminDocumentsPage() {
   useEffect(() => {
     const fetchCommittees = async () => {
       try {
-        const res = await fetch("/api/admin/committees"); 
+        const res = await fetch("/api/admin/committees");
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
         setCommittees(data);
@@ -61,8 +57,8 @@ export default function AdminDocumentsPage() {
               <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
                 {committee.description}
               </p>
-              <Button 
-                onClick={() => handleOpenDocument(committee.id)} 
+              <Button
+                onClick={() => handleOpenDocument(committee.id)}
                 className="w-full"
                 variant="secondary"
               >

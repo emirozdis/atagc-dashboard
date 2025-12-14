@@ -15,7 +15,7 @@ export function MotivationStep({ form }: MotivationStepProps) {
     <div className="space-y-6 animate-fade-in">
       <div className="space-y-2">
         <Label htmlFor="katilimNedeni" className="text-foreground">
-          Neden ATAGÇ'ye katılmak istiyorsunuz? <span className="text-destructive">*</span>
+          Neden ATAGÇ&apos;ye katılmak istiyorsunuz? <span className="text-destructive">*</span>
         </Label>
         <Textarea
           id="katilimNedeni"
@@ -74,11 +74,11 @@ export function MotivationStep({ form }: MotivationStepProps) {
               htmlFor="kvkkOnay"
               className="text-sm text-foreground cursor-pointer leading-relaxed"
             >
-              KVKK Aydınlatma Metni'ni okudum ve kişisel verilerimin işlenmesini kabul ediyorum.{" "}
+              KVKK Aydınlatma Metni&apos;ni okudum ve kişisel verilerimin işlenmesini kabul ediyorum.{" "}
               <span className="text-destructive">*</span>
             </Label>
             <p className="text-xs text-muted-foreground">
-              Başvuru formunda paylaştığınız bilgiler yalnızca değerlendirme sürecinde kullanılacak 
+              Başvuru formunda paylaştığınız bilgiler yalnızca değerlendirme sürecinde kullanılacak
               ve üçüncü şahıslarla paylaşılmayacaktır.
             </p>
           </div>

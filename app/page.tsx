@@ -1,6 +1,6 @@
 "use client"
 
-import { ApplicationForm } from "@/components/app/application-form/ApplicationForm";
+import { ApplicationForm } from "@/components/application-form/ApplicationForm";
 import { Calendar, MapPin, Instagram } from "lucide-react";
 
 export default function Home() {

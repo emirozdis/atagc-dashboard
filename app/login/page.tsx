@@ -38,13 +38,13 @@ export default function LoginPage() {
         toast.success("Giriş Başarılı", {
           description: "Yönlendiriliyorsunuz...",
         });
-        
+
         // Fetch session to determine where to redirect
         // This is a quick client-side check. Middleware will also enforce this.
         const sessionRes = await fetch("/api/auth/session");
         const session = await sessionRes.json();
 
-        if (session?.user?.role === "admin") {
+        if (session?.user?.role === "superadmin") {
           router.push("/admin");
         } else {
           router.push("/dashboard");
@@ -76,7 +76,7 @@ export default function LoginPage() {
             className="w-20 h-20 mx-auto mb-4 object-contain"
           />
           <h1 className="text-2xl font-bold font-display gold-gradient">
-            ATAGÇ 
+            ATAGÇ
           </h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Lütfen hesabınıza giriş yapın

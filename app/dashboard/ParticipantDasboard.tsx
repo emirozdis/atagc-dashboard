@@ -6,31 +6,7 @@ import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, Users, F
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
-interface ParticipantDashboardProps {
-  user: {
-    name?: string | null;
-    email?: string | null;
-  };
-}
-
-interface DashboardData {
-  application: {
-    id: string; // UUID
-    status: "pending" | "approved" | "rejected";
-    submitted_at: string;
-    review_notes?: string;
-  } | null;
-  committeeMember: {
-    committee: {
-      name: string;
-      description?: string;
-    };
-  } | null;
-  topic: {
-    title: string;
-    description?: string;
-  } | null;
-}
+import { ParticipantDashboardProps, DashboardData } from "@/types/dashboard";
 
 export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null);
