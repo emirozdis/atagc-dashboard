@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, FileText, Loader2, Lock } from "lucide-react";
+import { Users, FileText, Loader2, Lock, Shield, UserCog, ShieldAlert, ShieldCheck, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 
 interface CommitteeData {
@@ -20,9 +22,27 @@ interface CommitteeData {
   can_write: boolean;
 }
 
+interface Member {
+  id: string;
+  userId: string;
+  full_name: string;
+  email: string;
+  role: string;
+  can_edit: boolean;
+}
+
+interface Admin {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
 export default function CommitteePage() {
   const [data, setData] = useState<CommitteeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [admin, setAdmin] = useState<Admin | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,6 +58,14 @@ export default function CommitteePage() {
             });
           }
         }
+
+        // Fetch members and admin
+        const membersRes = await fetch("/api/committee/members");
+        if (membersRes.ok) {
+          const membersData = await membersRes.json();
+          setMembers(membersData.members || []);
+          setAdmin(membersData.admin || null);
+        }
       } catch (e) {
         toast.error("Veri yüklenemedi");
       } finally {
@@ -46,6 +74,27 @@ export default function CommitteePage() {
     };
     fetchData();
   }, []);
+
+  const filteredMembers = members.filter(m => 
+    (m.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (m.email || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getRoleBadge = (role: string) => {
+    switch(role) {
+      case "superadmin":
+      case "admin":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"><ShieldAlert className="w-3 h-3" /> Yönetici</span>;
+      case "committee_chairman":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20"><ShieldCheck className="w-3 h-3" /> Başkan</span>;
+      case "staff":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20"><Shield className="w-3 h-3" /> Personel</span>;
+      case "staffleader":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20"><Shield className="w-3 h-3" /> Personel Lideri</span>;
+      default:
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20"><Shield className="w-3 h-3" /> Üye</span>;
+    }
+  };
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
 
@@ -70,9 +119,9 @@ export default function CommitteePage() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Committee Info */}
-        <Card className="md:col-span-2 bg-card/50 border-border/50">
+        <Card className="lg:col-span-2 bg-card/50 border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
@@ -121,6 +170,94 @@ export default function CommitteePage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Members and Admin Section */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Admin Card */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="w-4 h-4 text-primary" />
+              Komite Yöneticisi
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {admin ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <Avatar className="h-10 w-10 border border-primary/20">
+                  <AvatarImage src={`https://avatar.vercel.sh/${admin.email}`} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm font-semibold">
+                    {(admin.full_name || "??").substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm font-semibold truncate">{admin.full_name}</span>
+                  <span className="text-xs text-muted-foreground truncate">{admin.email}</span>
+                </div>
+                <UserCog className="w-4 h-4 text-primary flex-shrink-0" />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Yönetici bilgisi bulunamadı.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Members Card */}
+        <Card className="lg:col-span-2 bg-card/50 border-border/50">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                Komite Üyeleri
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">{members.length} Üye</span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Üye ara..." 
+                className="pl-9 h-9 bg-background/50 border-border/50" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {filteredMembers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  {members.length === 0 ? "Henüz üye bulunmuyor." : "Aranan kriterde üye yok."}
+                </div>
+              ) : (
+                filteredMembers.map(member => (
+                  <div 
+                    key={member.id} 
+                    className="group flex items-center justify-between p-3 rounded-lg bg-card/30 hover:bg-card/50 border border-border/30 hover:border-border/50 transition-all"
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
+                      <Avatar className="h-9 w-9 border border-border/30 flex-shrink-0">
+                        <AvatarImage src={`https://avatar.vercel.sh/${member.email}`} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                          {(member.full_name || "??").substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-sm font-medium truncate">{member.full_name}</span>
+                        <span className="text-xs text-muted-foreground truncate">{member.email}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {getRoleBadge(member.role)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

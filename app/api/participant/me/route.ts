@@ -12,6 +12,29 @@ export async function GET(request: Request) {
 
     const userId = session.user.id;
 
+    // Fetch full user information (users can only access their own data via userId from session)
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id, full_name, email, role, created_at, updated_at")
+      .eq("id", userId)
+      .single();
+
+    if (userError) {
+      console.error("Fetch user error:", userError);
+      return NextResponse.json({ error: "Database error" }, { status: 500 });
+    }
+
+    // Fetch user details (phone, school, birth_date, additional_info)
+    const { data: userDetails, error: detailsError } = await supabase
+      .from("user_details")
+      .select("id, birth_date, phone_number, school_name, additional_info")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (detailsError && detailsError.code !== 'PGRST116') {
+      console.error("Fetch user details error:", detailsError);
+    }
+
     // Fetch application
     const { data: application, error: appError } = await supabase
       .from("applications")
@@ -58,6 +81,8 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
+      user,
+      userDetails,
       application,
       committeeMember,
       topic

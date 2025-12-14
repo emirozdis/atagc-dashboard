@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Search, Shield } from 'lucide-react';
+import { Search, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +11,7 @@ interface Member {
   userId: string; // UUID
   full_name: string;
   email: string;
+  role: string;
   can_edit: boolean;
 }
 
@@ -27,6 +28,22 @@ export function ChairmanPanel({ isOpen, members, onTogglePermission }: ChairmanP
     (m.full_name || "").toLowerCase().includes(searchMember.toLowerCase()) ||
     (m.email || "").toLowerCase().includes(searchMember.toLowerCase())
   );
+
+  const getRoleBadge = (role: string) => {
+    switch(role) {
+      case "superadmin":
+      case "admin":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"><ShieldAlert className="w-3 h-3" /> Yönetici</span>;
+      case "committee_chairman":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20"><ShieldCheck className="w-3 h-3" /> Jüri/Başkan</span>;
+      case "staff":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20"><Shield className="w-3 h-3" /> Personel</span>;
+      case "staffleader":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20"><Shield className="w-3 h-3" /> Personel Lideri</span>;
+      default:
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20"><Shield className="w-3 h-3" /> Katılımcı</span>;
+    }
+  };
 
   return (
     <div 
@@ -78,9 +95,7 @@ export function ChairmanPanel({ isOpen, members, onTogglePermission }: ChairmanP
                 onCheckedChange={() => onTogglePermission(member.id, member.userId, member.can_edit)}
                 className="scale-75 data-[state=checked]:bg-green-500"
               />
-              <span className={`text-[10px] font-medium ${member.can_edit ? 'text-green-500' : 'text-destructive'}`}>
-                {member.can_edit ? 'Yazabilir' : 'Yazamaz'}
-              </span>
+              {getRoleBadge(member.role)}
             </div>
           </div>
         ))}

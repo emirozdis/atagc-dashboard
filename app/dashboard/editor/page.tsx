@@ -35,6 +35,7 @@ interface Member {
   userId: string; // UUID
   full_name: string;
   email: string;
+  role: string;
   can_edit: boolean;
 }
 
