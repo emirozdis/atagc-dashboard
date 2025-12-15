@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Announcement } from "@/types/announcement";
 import { AnnouncementFeed } from "@/components/dashboard/announcements/AnnouncementFeed";
-import { CreateAnnouncementDialog } from "@/components/admin/CreateAnnouncementDialog";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function AdminAnnouncementsPage() {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -38,7 +39,13 @@ export default function AdminAnnouncementsPage() {
                         Tüm sistem duyurularını buradan yönetebilirsiniz.
                     </p>
                 </div>
-                <CreateAnnouncementDialog onSuccess={fetchAnnouncements} />
+                {/* Changed from Dialog to Link */}
+                <Link href="/admin/announcements/new">
+                    <Button>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Yeni Duyuru
+                    </Button>
+                </Link>
             </div>
 
             {loading ? (

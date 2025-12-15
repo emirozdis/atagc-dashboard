@@ -16,6 +16,24 @@ export async function GET(request: Request) {
   const role = searchParams.get("role") || "all";
   const sortBy = searchParams.get("sort_by") || "created_at";
   const sortOrder = searchParams.get("sort_order") || "desc";
+  const idsParam = searchParams.get("ids"); // New: Filter by comma-separated IDs
+
+  // If IDs are provided, we ignore pagination/search to return specific users (usually for selection preview)
+  if (idsParam) {
+    const ids = idsParam.split(",").filter(Boolean);
+    if (ids.length === 0) return NextResponse.json({ data: [] });
+
+    // Limit the number of IDs to prevent massive query issues (e.g. max 50 for preview)
+    // If you need all, specific logic handles bulk. 
+    // Here we fetch details for the specific IDs requested.
+    const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name, email, role")
+        .in("id", ids);
+    
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data });
+  }
 
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -62,7 +80,7 @@ export async function PUT(request: Request) {
     const { id, role } = await request.json();
 
     // Prevent changing own role to lock oneself out
-    if (parseInt(session.user.id) === id) {
+    if (session.user.id === id) {
       return NextResponse.json({ error: "Cannot change own role" }, { status: 400 });
     }
 
