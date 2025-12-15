@@ -9,20 +9,47 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 1. Find the committee this user admins (UUID check)
-  const { data: committee, error } = await supabase
+  let committeeId: string | null = null;
+
+  // 1. Try to find committee by admin_id
+  const { data: adminCommittee } = await supabase
     .from("committees")
     .select("id, name")
     .eq("admin_id", session.user.id)
-    .single();
+    .maybeSingle();
 
-  if (error || !committee) {
-    console.error("Committee not found for admin:", session.user.id, error);
+  if (adminCommittee) {
+    committeeId = adminCommittee.id;
+  } else {
+    // 2. Fallback: Try to find committee by membership
+    const { data: memberCommittee } = await supabase
+      .from("committee_members")
+      .select("committee_id")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (memberCommittee) {
+      committeeId = memberCommittee.committee_id;
+    }
+  }
+
+  if (!committeeId) {
+    console.error("Committee not found for chairman:", session.user.id);
     return NextResponse.json({ error: "Committee not found" }, { status: 404 });
   }
 
-  // 2. Fetch members of this committee
-  // Explicitly selecting fields from the joined table
+  // Fetch committee details using the found ID
+  const { data: committee, error: commError } = await supabase
+    .from("committees")
+    .select("id, name")
+    .eq("id", committeeId)
+    .single();
+    
+  if (commError) {
+     return NextResponse.json({ error: "Failed to fetch committee details" }, { status: 500 });
+  }
+
+  // 3. Fetch members of this committee
   const { data: members, error: membersError } = await supabase
     .from("committee_members")
     .select(`
@@ -34,7 +61,7 @@ export async function GET() {
         email
       )
     `)
-    .eq("committee_id", committee.id);
+    .eq("committee_id", committeeId);
 
   if (membersError) {
     console.error("Error fetching committee members:", membersError);
@@ -57,7 +84,5 @@ export async function GET() {
 }
 
 // Change Log:
-// - Added error logging for debugging.
-// - Updated Supabase select query to use explicit syntax for joined table fields.
-// - Added robust mapping logic to handle `m.user` being either an object or an array (Supabase quirk).
-// - Added fallback values for missing user data to prevent frontend crashes.
+// - Added fallback logic: If `admin_id` check returns nothing, it checks `committee_members` to find the chairman's committee.
+// - This ensures consistency with the roll-call creation fix.

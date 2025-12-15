@@ -1,147 +1,146 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { QrCode, RefreshCcw, Loader2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Loader2, Users, QrCode } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CreateRollCallDialog } from "@/components/admin/CreateRollCallDialog";
+import { Badge } from "@/components/ui/badge";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
-interface Committee {
-  id: string; // UUID
-  name: string;
+interface RollCall {
+  id: string;
+  session_name: string;
+  created_at: string;
+  committee: { 
+    name: string;
+    committee_members: { count: number }[]; 
+  };
+  roll_call_logs: { count: number }[];
 }
 
-export default function RollCallPage() {
-  const [committees, setCommittees] = useState<Committee[]>([]);
-  const [selectedCommittee, setSelectedCommittee] = useState<string>("");
-  const [sessionName, setSessionName] = useState("");
-  const [qrData, setQrData] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+export default function AdminRollCallsPage() {
+  const [rollCalls, setRollCalls] = useState<RollCall[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCommittees = async () => {
-      const res = await fetch("/api/admin/committees");
-      if (res.ok) {
-        const data = await res.json();
-        setCommittees(data);
-      }
-    };
-    fetchCommittees();
-  }, []);
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const generateQR = async () => {
-    if (!selectedCommittee || !sessionName) {
-      toast.error("Eksik Bilgi", { description: "Lütfen komite ve oturum adı seçiniz." });
-      return;
-    }
-
+  const fetchRollCalls = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/roll-call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          committee_id: selectedCommittee,
-          session_name: sessionName,
-        }),
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
       });
 
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-      
-      const qrPayload = JSON.stringify({
-        sessionId: data.id,
-        token: data.qr_code,
-        type: "ATAGC_ROLL_CALL"
-      });
-      
-      setQrData(qrPayload);
-      toast.success("QR Kod Oluşturuldu");
+      const res = await fetch(`/api/admin/roll-calls?${params}`);
+      if (res.ok) {
+        const responseData = await res.json();
+        setRollCalls(responseData.data || []);
+        setTotalPages(responseData.meta.totalPages || 1);
+      }
     } catch (e) {
-      toast.error("Hata", { description: "QR Kod oluşturulamadı." });
+      toast.error("Hata", { description: "Yoklamalar yüklenemedi." });
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchRollCalls();
+  }, [page]);
+
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
-      <div>
-        <h2 className="text-3xl font-display font-bold text-foreground">Yoklama</h2>
-        <p className="text-muted-foreground mt-1">
-          Oturumlar için yoklama QR kodu oluşturun.
-        </p>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-display font-bold text-foreground">Yoklamalar</h2>
+          <p className="text-muted-foreground mt-1">
+            Tüm komitelerin yoklama geçmişi ve anlık durumları.
+          </p>
+        </div>
+        <CreateRollCallDialog onSuccess={fetchRollCalls} />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader>
-            <CardTitle>Oturum Bilgileri</CardTitle>
-            <CardDescription>QR kod oluşturmak için detayları giriniz.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Komite</Label>
-              <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Komite Seçiniz" />
-                </SelectTrigger>
-                <SelectContent>
-                  {committees.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <Card className="bg-card border-border/50">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Oturum</TableHead>
+                <TableHead>Komite</TableHead>
+                <TableHead>Tarih</TableHead>
+                <TableHead>Katılım / Toplam</TableHead>
+                <TableHead>Oran</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : rollCalls.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    Henüz yoklama kaydı bulunmuyor.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rollCalls.map((rc) => {
+                  const attendedCount = rc.roll_call_logs?.[0]?.count || 0;
+                  const totalMembers = rc.committee?.committee_members?.[0]?.count || 0;
+                  const ratio = totalMembers > 0 ? Math.round((attendedCount / totalMembers) * 100) : 0;
 
-            <div className="space-y-2">
-              <Label>Oturum Adı</Label>
-              <Input 
-                placeholder="Örn: 1. Oturum, Sabah Oturumu" 
-                value={sessionName}
-                onChange={(e) => setSessionName(e.target.value)}
-              />
-            </div>
-
-            <Button onClick={generateQR} className="w-full mt-4" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
-              QR Kod Oluştur
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 border-border/50 flex flex-col items-center justify-center p-6 min-h-[300px]">
-          {qrData ? (
-            <div className="text-center space-y-4 animate-in zoom-in fade-in">
-              <div className="bg-white p-4 rounded-xl shadow-lg inline-block">
-                 <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}&bgcolor=ffffff`} 
-                    alt="Session QR Code" 
-                    className="w-48 h-48 md:w-64 md:h-64 object-contain"
-                 />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-primary">{sessionName}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {committees.find(c => c.id === selectedCommittee)?.name}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setQrData(null)}>
-                <RefreshCcw className="w-3 h-3 mr-2" />
-                Yeni Kod
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center text-muted-foreground">
-              <QrCode className="w-16 h-16 mx-auto mb-4 opacity-20" />
-              <p>QR kod burada görüntülenecektir.</p>
-            </div>
-          )}
-        </Card>
-      </div>
+                  return (
+                    <TableRow key={rc.id} className="hover:bg-muted/50">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                           <QrCode className="w-4 h-4 text-muted-foreground" />
+                           {rc.session_name}
+                        </div>
+                      </TableCell>
+                      <TableCell>{rc.committee?.name || "Bilinmiyor"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                          {new Date(rc.created_at).toLocaleString("tr-TR", { dateStyle: 'medium', timeStyle: 'short' })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                           <Users className="w-4 h-4 text-muted-foreground" />
+                           <span className="font-mono font-medium">
+                             {attendedCount} <span className="text-muted-foreground">/ {totalMembers}</span>
+                           </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={`gap-1.5 font-mono ${ratio === 100 ? 'bg-green-500/10 text-green-500' : ''}`}>
+                          %{ratio}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+          <div className="px-4 border-t border-border/50">
+             <PaginationControls
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+             />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+// Change Log:
+// - Added PaginationControls and state (page, totalPages).
+// - Updated Table columns to display "Attended / Total" and "Ratio (%)".
+// - Updated data processing to handle the new API response structure with nested committee counts.

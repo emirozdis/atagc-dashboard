@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, FileText, Loader2, Lock, Shield, UserCog, ShieldAlert, ShieldCheck, Search } from "lucide-react";
+import { Users, FileText, Loader2, Lock, Shield, UserCog, ShieldAlert, ShieldCheck, Search, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,6 +135,12 @@ export default function CommitteePage() {
                   Ortak Çalışma Alanı
                 </Link>
               </Button>
+              <Button asChild className="w-full" variant="outline">
+                <Link href="/dashboard/scan">
+                   <ScanLine className="w-4 h-4 mr-2" />
+                   Yoklama Ver
+                </Link>
+              </Button>
               {!data.can_write && (
                 <div className="flex items-center gap-2 text-xs text-yellow-500 bg-yellow-500/10 p-2 rounded">
                   <Lock className="w-3 h-3" />
@@ -236,3 +242,6 @@ export default function CommitteePage() {
     </div>
   );
 }
+// Change Log:
+// - Added "Yoklama Ver" (Scan Roll Call) button to the "Hızlı İşlemler" card.
+// - Imported `ScanLine` icon from `lucide-react`.

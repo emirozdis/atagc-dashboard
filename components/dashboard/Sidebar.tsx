@@ -5,15 +5,15 @@ import {
   LayoutDashboard,
   Megaphone,
   Briefcase,
-  RefreshCw,
   PenTool,
   User,
   LogOut,
+  QrCode,
+  ScanLine
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
 
 const participantItems = [
   {
@@ -26,14 +26,24 @@ const participantItems = [
     title: "Komitem",
     href: "/dashboard/committee",
     icon: Briefcase,
-    // Staff roles usually don't have an academic committee to view
     roles: ["applicant", "committee_chairman", "superadmin"]
   },
   {
     title: "Ortak Çalışma",
     href: "/dashboard/editor",
     icon: PenTool,
-    // Staff roles don't access the academic document editor
+    roles: ["applicant", "committee_chairman", "superadmin"]
+  },
+  {
+    title: "Yoklama Oluştur",
+    href: "/dashboard/committee/roll-call",
+    icon: QrCode,
+    roles: ["committee_chairman"]
+  },
+  {
+    title: "Yoklama Ver",
+    href: "/dashboard/scan",
+    icon: ScanLine,
     roles: ["applicant", "committee_chairman", "superadmin"]
   },
   {
@@ -50,18 +60,22 @@ const participantItems = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  className?: string;
+  onClose?: () => void;
+}
+
+export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role;
 
-  // Filter items based on role
   const items = participantItems.filter(item => !item.roles || (role && item.roles.includes(role)));
 
   return (
-    <div className="flex flex-col h-full bg-[#181818] border-r border-white/5 w-64">
+    <div className={cn("flex flex-col h-full bg-[#181818] border-r border-white/5 w-64", className)}>
       <div className="p-6 border-b border-white/5">
-        <Link href="/dashboard" className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center gap-3" onClick={onClose}>
           <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
           <span className="font-display font-bold text-lg text-primary">
             ATAGÇ
@@ -78,6 +92,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            onClick={onClose}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
               pathname === item.href
@@ -105,7 +120,5 @@ export function Sidebar() {
 }
 
 // Change Log:
-// - Updated `Sidebar` to use correct `committee_chairman` spelling (double 'm', double 't', double 'e').
-// - Added `roles` property to `participantItems` to filter visibility.
-// - Configured "Komitem" and "Ortak Çalışma" to be hidden for `staff` and `staffleader` as they don't have academic committee assignments.
-// - Updated role check in the footer button to include `committee_chairman` and `superadmin`.
+// - Added `className` and `onClose` props to support rendering inside Mobile Sheet.
+// - Attached `onClick={onClose}` to links so the menu closes on navigation.
