@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import getAuthorization from "@/lib/getAuthorization";
 
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await getAuthorization({ requireAuth: true });
+    if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+    const session = auth.session;
 
     try {
-        const { token } = await request.json(); // The QR code string (UUID)
+        const { token } = await request.json(); // The QR code string (UUID) 
 
         if (!token) {
             return NextResponse.json({ error: "Token is required" }, { status: 400 });

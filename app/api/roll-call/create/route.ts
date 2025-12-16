@@ -1,14 +1,42 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import getAuthorization from "@/lib/getAuthorization";
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await getAuthorization({
+        requireAuth: true,
+        customCheck: async (session, supabase) => {
+            if (!session?.user) return { ok: false, status: 401, message: 'Unauthorized' };
+            const role = session.user.role;
+
+            if (role === 'committee_chairman') {
+                const { data: adminCommittee } = await supabase
+                    .from('committees')
+                    .select('id')
+                    .eq('admin_id', session.user.id)
+                    .maybeSingle();
+
+                if (adminCommittee) return { ok: true, payload: { role, adminCommitteeId: adminCommittee.id } };
+
+                const { data: memberCommittee } = await supabase
+                    .from('committee_members')
+                    .select('committee_id')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+
+                if (memberCommittee) return { ok: true, payload: { role, memberCommitteeId: memberCommittee.committee_id } };
+
+                return { ok: false, status: 403, message: 'Yönettiğiniz bir komite bulunamadı.' };
+            }
+
+            if (role === 'superadmin' || role === 'admin') return { ok: true, payload: { role } };
+
+            return { ok: false, status: 403, message: 'Forbidden' };
+        }
+    });
+
+    if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
 
     try {
         const { committee_id, session_name } = await request.json();
@@ -16,34 +44,15 @@ export async function POST(request: Request) {
         let targetCommitteeId = committee_id;
 
         // Permission Logic
-        if (session.user.role === "committee_chairman") {
-            // Chairmen can ONLY create for their own committee
-            
-            // 1. Try to find committee where user is explicitly defined as admin
-            const { data: adminCommittee } = await supabase
-                .from("committees")
-                .select("id")
-                .eq("admin_id", session.user.id)
-                .maybeSingle();
-
-            if (adminCommittee) {
-                targetCommitteeId = adminCommittee.id;
+        if (auth.payload?.role === "committee_chairman") {
+            if (auth.payload.adminCommitteeId) {
+                targetCommitteeId = auth.payload.adminCommitteeId;
+            } else if (auth.payload.memberCommitteeId) {
+                targetCommitteeId = auth.payload.memberCommitteeId;
             } else {
-                // 2. Fallback: Check if they are a member of any committee
-                // Since they have the ROLE 'committee_chairman', their membership implies chairmanship of that committee
-                const { data: memberCommittee, error: memberError } = await supabase
-                    .from("committee_members")
-                    .select("committee_id")
-                    .eq("user_id", session.user.id)
-                    .maybeSingle();
-
-                if (memberCommittee) {
-                    targetCommitteeId = memberCommittee.committee_id;
-                } else {
-                    return NextResponse.json({ error: "Yönettiğiniz bir komite bulunamadı." }, { status: 403 });
-                }
+                return NextResponse.json({ error: "Yönettiğiniz bir komite bulunamadı." }, { status: 403 });
             }
-        } else if (session.user.role === "superadmin" || session.user.role === "admin") {
+        } else if (auth.payload?.role === "superadmin" || auth.payload?.role === "admin") {
             // Admins must provide a committee_id
             if (!targetCommitteeId) {
                 return NextResponse.json({ error: "Committee ID is required for admins." }, { status: 400 });

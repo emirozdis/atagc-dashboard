@@ -16,7 +16,7 @@ export default function CommitteeRollCallPage() {
   const [committeeName, setCommitteeName] = useState<string>("");
   const [stats, setStats] = useState<{ scanned: number, total: number }>({ scanned: 0, total: 0 });
   const [isCompleted, setIsCompleted] = useState(false);
-  
+
   // Use a ref to prevent race conditions in auto-closing
   const isCompletedRef = useRef(false);
 
@@ -41,34 +41,34 @@ export default function CommitteeRollCallPage() {
     let interval: NodeJS.Timeout;
 
     if (rollCallId && !isCompleted) {
-        const fetchStats = async () => {
-            try {
-                const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setStats(data);
+      const fetchStats = async () => {
+        try {
+          const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
+          if (res.ok) {
+            const data = await res.json();
+            setStats(data);
 
-                    // Automatic Finish Condition
-                    if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
-                        isCompletedRef.current = true;
-                        setIsCompleted(true);
-                        toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
-                    }
-                }
-            } catch (e) {
-                console.error("Stats polling error");
+            // Automatic Finish Condition
+            if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
+              isCompletedRef.current = true;
+              setIsCompleted(true);
+              toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
             }
-        };
+          }
+        } catch (e) {
+          console.error("Stats polling error");
+        }
+      };
 
-        // Initial fetch
-        fetchStats();
+      // Initial fetch
+      fetchStats();
 
-        // Poll every 3 seconds
-        interval = setInterval(fetchStats, 3000);
+      // Poll every 3 seconds
+      interval = setInterval(fetchStats, 3000);
     }
 
     return () => {
-        if (interval) clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, [rollCallId, isCompleted]);
 
@@ -94,7 +94,7 @@ export default function CommitteeRollCallPage() {
       }
 
       const data = await res.json();
-      
+
       setRollCallId(data.id);
       setQrData(data.qr_code);
       setStats({ scanned: 0, total: 0 });
@@ -110,8 +110,8 @@ export default function CommitteeRollCallPage() {
   };
 
   const handleManualFinish = () => {
-    if(!confirm("Yoklamayı bitirmek istediğinize emin misiniz?")) return;
-    
+    if (!confirm("Yoklamayı bitirmek istediğinize emin misiniz?")) return;
+
     // Trigger success screen manually
     setIsCompleted(true);
     isCompletedRef.current = true;
@@ -147,17 +147,17 @@ export default function CommitteeRollCallPage() {
               <Info className="w-4 h-4 mt-0.5 shrink-0" />
               <p>
                 {committeeName ? (
-                    <>Yoklama <span className="font-bold">{committeeName}</span> komitesine atanacaktır.</>
+                  <>Yoklama <span className="font-bold">{committeeName}</span> komitesine atanacaktır.</>
                 ) : (
-                    "Oluşturulan QR kod otomatik olarak yöneticisi olduğunuz komiteye atanacaktır."
+                  "Oluşturulan QR kod otomatik olarak yöneticisi olduğunuz komiteye atanacaktır."
                 )}
               </p>
             </div>
 
             <div className="space-y-2">
               <Label>Oturum Adı</Label>
-              <Input 
-                placeholder="Örn: 1. Oturum, Sabah Oturumu" 
+              <Input
+                placeholder="Örn: 1. Oturum, Sabah Oturumu"
                 value={sessionName}
                 onChange={(e) => setSessionName(e.target.value)}
                 disabled={!!qrData}
@@ -165,52 +165,52 @@ export default function CommitteeRollCallPage() {
             </div>
 
             {!qrData && (
-                <Button onClick={generateQR} className="w-full mt-4" disabled={loading}>
+              <Button onClick={generateQR} className="w-full mt-4" disabled={loading}>
                 {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
                 QR Kod Oluştur
-                </Button>
+              </Button>
             )}
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border/50 flex flex-col items-center justify-center p-6 min-h-[300px]">
           {isCompleted ? (
-             /* Success / Summary Screen */
-             <div className="text-center space-y-6 animate-in zoom-in fade-in w-full py-6">
-                <div className="flex justify-center mb-2">
-                    <div className="p-4 bg-green-500/20 text-green-500 rounded-full ring-4 ring-green-500/10">
-                        <CheckCircle className="w-16 h-16" />
-                    </div>
+            /* Success / Summary Screen */
+            <div className="text-center space-y-6 animate-in zoom-in fade-in w-full py-6">
+              <div className="flex justify-center mb-2">
+                <div className="p-4 bg-green-500/20 text-green-500 rounded-full ring-4 ring-green-500/10">
+                  <CheckCircle className="w-16 h-16" />
                 </div>
-                
-                <div className="space-y-2">
-                    <h3 className="font-bold text-2xl text-green-500">Yoklama Tamamlandı</h3>
-                    <p className="text-muted-foreground font-medium text-lg">{sessionName}</p>
-                </div>
+              </div>
 
-                <div className="bg-secondary/30 border border-border/50 rounded-xl p-6 max-w-xs mx-auto">
-                    <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mb-2">Katılım Durumu</div>
-                    <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-4xl font-bold text-foreground">{stats.scanned}</span>
-                        <span className="text-xl text-muted-foreground">/ {stats.total}</span>
-                    </div>
-                </div>
+              <div className="space-y-2">
+                <h3 className="font-bold text-2xl text-green-500">Yoklama Tamamlandı</h3>
+                <p className="text-muted-foreground font-medium text-lg">{sessionName}</p>
+              </div>
 
-                <Button size="lg" onClick={handleClose} className="w-full max-w-xs">
-                    Tamam
-                </Button>
-             </div>
+              <div className="bg-secondary/30 border border-border/50 rounded-xl p-6 max-w-xs mx-auto">
+                <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mb-2">Katılım Durumu</div>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-4xl font-bold text-foreground">{stats.scanned}</span>
+                  <span className="text-xl text-muted-foreground">/ {stats.total}</span>
+                </div>
+              </div>
+
+              <Button size="lg" onClick={handleClose} className="w-full max-w-xs">
+                Tamam
+              </Button>
+            </div>
           ) : qrData ? (
-             /* Active QR Screen */
+            /* Active QR Screen */
             <div className="text-center space-y-6 animate-in zoom-in fade-in w-full">
               <div className="bg-white p-4 rounded-xl shadow-lg inline-block">
-                 <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}&bgcolor=ffffff`} 
-                    alt="Session QR Code" 
-                    className="w-48 h-48 md:w-64 md:h-64 object-contain"
-                 />
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}&bgcolor=ffffff`}
+                  alt="Session QR Code"
+                  className="w-48 h-48 md:w-64 md:h-64 object-contain"
+                />
               </div>
-              
+
               <div className="space-y-1">
                 <h3 className="font-bold text-xl text-primary">{sessionName}</h3>
                 <p className="text-sm text-muted-foreground">
@@ -221,43 +221,43 @@ export default function CommitteeRollCallPage() {
               {/* Realtime Stats */}
               <div className="bg-secondary/20 border border-border/50 rounded-lg p-4 flex items-center justify-between gap-4 max-w-xs mx-auto w-full">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/20 text-primary rounded-full">
-                        <Users className="w-5 h-5" />
+                  <div className="p-2 bg-primary/20 text-primary rounded-full">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs text-muted-foreground">Anlık Katılım</div>
+                    <div className="font-mono font-bold text-lg">
+                      {stats.scanned} <span className="text-muted-foreground/60 text-sm">/ {stats.total}</span>
                     </div>
-                    <div className="text-left">
-                        <div className="text-xs text-muted-foreground">Anlık Katılım</div>
-                        <div className="font-mono font-bold text-lg">
-                            {stats.scanned} <span className="text-muted-foreground/60 text-sm">/ {stats.total}</span>
-                        </div>
-                    </div>
+                  </div>
                 </div>
                 {stats.total > 0 && (
-                    <div className="h-10 w-10 relative flex items-center justify-center">
-                         <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
-                            <path
-                                className="text-secondary"
-                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                            />
-                            <path
-                                className="text-primary transition-all duration-500 ease-out"
-                                strokeDasharray={`${(stats.scanned / stats.total) * 100}, 100`}
-                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                            />
-                         </svg>
-                    </div>
+                  <div className="h-10 w-10 relative flex items-center justify-center">
+                    <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        className="text-secondary"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="text-primary transition-all duration-500 ease-out"
+                        strokeDasharray={`${(stats.scanned / stats.total) * 100}, 100`}
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                    </svg>
+                  </div>
                 )}
               </div>
 
-              <Button 
-                variant="destructive" 
-                size="default" 
-                onClick={handleManualFinish} 
+              <Button
+                variant="destructive"
+                size="default"
+                onClick={handleManualFinish}
                 className="mt-4 w-full"
               >
                 <StopCircle className="w-4 h-4 mr-2" />

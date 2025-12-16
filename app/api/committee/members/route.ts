@@ -1,36 +1,44 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import getAuthorization from "@/lib/getAuthorization";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Participant-level access: user must belong to a committee. We use a customCheck
+  // to verify membership and return the committeeMember payload for reuse.
+  const auth = await getAuthorization({
+    requireAuth: true,
+    customCheck: async (session) => {
+      const { data: committeeMember, error: cmError } = await supabase
+        .from("committee_members")
+        .select(`
+          committee:committees (
+            id,
+            name,
+            admin_id
+          )
+        `)
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (cmError && cmError.code !== 'PGRST116') {
+        console.error("Fetch committee error:", cmError);
+        return { ok: false, status: 500, message: "Database error" };
+      }
+
+      if (!committeeMember?.committee) {
+        return { ok: false, status: 404, message: "Committee not found" };
+      }
+
+      return { ok: true, payload: { committeeMember } };
+    },
+  });
+
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
   }
 
   try {
-    // First, get the user's committee
-    const { data: committeeMember, error: cmError } = await supabase
-      .from("committee_members")
-      .select(`
-        committee:committees (
-          id,
-          name,
-          admin_id
-        )
-      `)
-      .eq("user_id", session.user.id)
-      .maybeSingle();
-
-    if (cmError && cmError.code !== 'PGRST116') {
-      console.error("Fetch committee error:", cmError);
-      return NextResponse.json({ error: "Database error" }, { status: 500 });
-    }
-
-    if (!committeeMember?.committee) {
-      return NextResponse.json({ error: "Committee not found" }, { status: 404 });
-    }
+    const committeeMember = auth.payload.committeeMember;
 
     // @ts-ignore
     const committeeId = committeeMember.committee.id;
@@ -100,9 +108,10 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "committee_chairman") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Only committee chairmen can update members
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: "committee_chairman" });
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
   }
 
   const { memberId, canEdit } = await request.json();

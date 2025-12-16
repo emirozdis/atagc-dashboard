@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import getAuthorization from "@/lib/getAuthorization";
 import {
   personalInfoSchema,
   experienceSchema,
@@ -23,10 +22,9 @@ const updateSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (session?.user?.role !== "superadmin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
+    if (!auth.ok) return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
+    const session = auth.session;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -231,10 +229,9 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (session?.user?.role !== "superadmin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
+    if (!auth.ok) return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
+    const session = auth.session;
 
     const body = await request.json();
 

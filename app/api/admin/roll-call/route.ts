@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import getAuthorization from "@/lib/getAuthorization";
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "superadmin" && session?.user?.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
+  if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+  const session = auth.session;
 
   try {
     const { committee_id, session_name } = await request.json();
