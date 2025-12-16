@@ -5,9 +5,9 @@ import { Calendar, MapPin, Instagram } from "lucide-react";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#181818] relative overflow-x-hidden">
+    <main className="min-h-screen bg-background relative overflow-x-hidden">
       {/* Background decoration */}
-      <div className="fixed inset-0 -z-10 bg-[#181818]"></div>
+      <div className="fixed inset-0 -z-10 bg-background"></div>
 
       {/* Header */}
       <header className="relative py-12 md:py-16 border-b border-border/30">
@@ -34,7 +34,7 @@ export default function Home() {
                 <Calendar className="w-5 h-5 text-primary" />
                 <span>15 - 16 - 17 Mayıs 2026</span>
               </div>
-              <div className="hidden sm:block w-px h-6 bg-white/10" />
+              <div className="hidden sm:block w-px h-6 bg-border/20" />
               <div className="flex items-center gap-2.5">
                 <MapPin className="w-5 h-5 text-primary" />
                 <span>İTÜ GVO İzmir NESAN Yerleşkesi</span>
@@ -48,7 +48,7 @@ export default function Home() {
       <section className="py-12 md:py-20">
         <div className="container mx-auto">
           <div className="max-w-3xl mx-auto">
-            <div className="glass-card rounded-3xl p-6 md:p-12 form-glow">
+            <div className="bg-card/80 backdrop-blur-md rounded-3xl p-6 md:p-12 border border-border/50 shadow-xl form-glow">
               <div className="mb-10 text-center">
                 <h2 className="text-2xl md:text-3xl font-display font-semibold text-foreground mb-3">
                   Delegasyon Başvurusu
@@ -91,7 +91,7 @@ export default function Home() {
               <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">@ituatagc</span>
             </a>
 
-            <div className="w-full max-w-xs border-t border-white/10 pt-6 mt-2">
+            <div className="w-full max-w-xs border-t border-border/10 pt-6 mt-2">
               <p className="text-muted-foreground/60 text-xs">
                 © 2025 ATAGÇ. Tüm hakları saklıdır.
               </p>
@@ -102,3 +102,6 @@ export default function Home() {
     </main>
   );
 }
+// Change Log:
+// - Replaced hardcoded `bg-[#181818]` with `bg-background`.
+// - Updated card classes to use `bg-card/80` and `border-border/50`.

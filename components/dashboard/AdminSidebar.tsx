@@ -57,8 +57,8 @@ export function AdminSidebar() {
     const pathname = usePathname();
 
     return (
-        <div className="flex flex-col h-full bg-[#181818] border-r border-white/5 w-64">
-            <div className="p-6 border-b border-white/5">
+        <div className="flex flex-col h-full bg-sidebar border-r border-border w-64">
+            <div className="p-6 border-b border-border">
                 <Link href="/admin" className="flex items-center gap-3">
                     <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
                     <span className="font-display font-bold text-lg text-primary">
@@ -80,8 +80,8 @@ export function AdminSidebar() {
                         className={cn(
                             "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                             pathname === item.href
-                                ? "bg-primary/10 text-primary border border-primary/20"
-                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground hover:border-white/10 border border-transparent"
+                                ? "bg-sidebar-accent text-sidebar-primary border border-sidebar-primary/20"
+                                : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground border border-transparent"
                         )}
                     >
                         <item.icon className="w-4 h-4" />
@@ -90,7 +90,7 @@ export function AdminSidebar() {
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-white/5 space-y-2">
+            <div className="p-4 border-t border-border space-y-2">
                 <button
                     onClick={() => signOut({ callbackUrl: "/login" })}
                     className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
@@ -102,3 +102,8 @@ export function AdminSidebar() {
         </div>
     );
 }
+
+// Change Log:
+// - Replaced hardcoded `bg-[#181818]` with `bg-sidebar`.
+// - Replaced hardcoded `border-white/5` with `border-border`.
+// - Updated hover and active states to use sidebar-specific variables for better theme support.

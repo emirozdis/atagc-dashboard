@@ -123,7 +123,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile Header */}
-      <Card className="bg-card/50 border-border/50">
+      <Card className="bg-card border-border/50">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-center gap-6 mb-6">
             <Avatar className="w-24 h-24 border-4 border-background shadow-xl">
@@ -151,7 +151,7 @@ export default function ProfilePage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Personal Information */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="w-5 h-5 text-primary" />
@@ -174,10 +174,6 @@ export default function ProfilePage() {
             {userDetails?.phone_number && (
               <>
                 <div className="h-px bg-border/50 my-2" />
-              </>
-            )}
-            {userDetails?.phone_number && (
-              <>
                 <div className="space-y-2">
                   <Label className="text-sm text-muted-foreground flex items-center gap-2">
                     <Phone className="w-4 h-4" />
@@ -185,11 +181,11 @@ export default function ProfilePage() {
                   </Label>
                   <div className="text-sm font-medium">{userDetails.phone_number}</div>
                 </div>
-                <div className="h-px bg-border/50 my-2" />
               </>
             )}
             {userDetails?.birth_date && (
               <>
+                <div className="h-px bg-border/50 my-2" />
                 <div className="space-y-2">
                   <Label className="text-sm text-muted-foreground flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
@@ -197,11 +193,11 @@ export default function ProfilePage() {
                   </Label>
                   <div className="text-sm font-medium">{formatDate(userDetails.birth_date)}</div>
                 </div>
-                <div className="h-px bg-border/50 my-2" />
               </>
             )}
             {userDetails?.school_name && (
               <>
+                <div className="h-px bg-border/50 my-2" />
                 <div className="space-y-2">
                   <Label className="text-sm text-muted-foreground flex items-center gap-2">
                     <GraduationCap className="w-4 h-4" />
@@ -209,11 +205,11 @@ export default function ProfilePage() {
                   </Label>
                   <div className="text-sm font-medium">{userDetails.school_name}</div>
                 </div>
-                <div className="h-px bg-border/50 my-2" />
               </>
             )}
             {additionalInfo.city && (
               <>
+                <div className="h-px bg-border/50 my-2" />
                 <div className="space-y-2">
                   <Label className="text-sm text-muted-foreground flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
@@ -221,25 +217,25 @@ export default function ProfilePage() {
                   </Label>
                   <div className="text-sm font-medium">{additionalInfo.city}</div>
                 </div>
-                {additionalInfo.grade && (
-                  <div className="h-px bg-border/50 my-2" />
-                )}
               </>
             )}
             {additionalInfo.grade && (
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                  <BookOpen className="w-4 h-4" />
-                  Sınıf
-                </Label>
-                <div className="text-sm font-medium">{additionalInfo.grade}. Sınıf</div>
-              </div>
+              <>
+                <div className="h-px bg-border/50 my-2" />
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                    <BookOpen className="w-4 h-4" />
+                    Sınıf
+                  </Label>
+                  <div className="text-sm font-medium">{additionalInfo.grade}. Sınıf</div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         {/* Application & Account Info */}
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
@@ -302,7 +298,7 @@ export default function ProfilePage() {
         additionalInfo.committee_pref_2 ||
         additionalInfo.delegation_type ||
         additionalInfo.english_level) && (
-          <Card className="bg-card/50 border-border/50">
+          <Card className="bg-card border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Award className="w-5 h-5 text-primary" />
@@ -362,7 +358,7 @@ export default function ProfilePage() {
       {(additionalInfo.reason_for_joining ||
         additionalInfo.expectations ||
         additionalInfo.self_introduction) && (
-          <Card className="bg-card/50 border-border/50">
+          <Card className="bg-card border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-primary" />
@@ -421,7 +417,7 @@ export default function ProfilePage() {
 
       {/* Committee Information */}
       {committeeMember && (
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
@@ -496,3 +492,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+// Change Log:
+// - Replaced `bg-card/50` with `bg-card` for consistency.

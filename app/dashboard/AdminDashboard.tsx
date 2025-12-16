@@ -13,7 +13,7 @@ export function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Toplam Başvuru</CardTitle>
             <FileText className="h-4 w-4 text-primary" />
@@ -26,7 +26,7 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
         
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Bekleyen Onay</CardTitle>
             <Clock className="h-4 w-4 text-yellow-500" />
@@ -39,7 +39,7 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
         
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Kayıtlı Delegeler</CardTitle>
             <Users className="h-4 w-4 text-green-500" />
@@ -52,7 +52,7 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 border-border/50">
+        <Card className="bg-card border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sorun Bildirimleri</CardTitle>
             <AlertCircle className="h-4 w-4 text-destructive" />
@@ -68,7 +68,7 @@ export function AdminDashboard() {
 
       {/* Recent Activity Placeholder */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 bg-card/50 border-border/50">
+        <Card className="col-span-4 bg-card border-border/50">
           <CardHeader>
             <CardTitle>Son Başvurular</CardTitle>
           </CardHeader>
@@ -79,7 +79,7 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
         
-        <Card className="col-span-3 bg-card/50 border-border/50">
+        <Card className="col-span-3 bg-card border-border/50">
           <CardHeader>
             <CardTitle>Komite Doluluk Oranları</CardTitle>
           </CardHeader>
@@ -95,5 +95,4 @@ export function AdminDashboard() {
 }
 
 // Change Log:
-// - Created new file.
-// - Moved original dashboard content from `app/dashboard/page.tsx` to this component.
+// - Replaced `bg-card/50` with `bg-card` for consistency.

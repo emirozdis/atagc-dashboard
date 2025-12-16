@@ -61,11 +61,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#181818] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       {/* Background decoration */}
-      <div className="fixed inset-0 -z-10 bg-[#181818]">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-3xl" />
+      <div className="fixed inset-0 -z-10 bg-background">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-md">
@@ -83,7 +83,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="glass-card p-8 rounded-2xl border border-white/5">
+        <div className="bg-card/80 backdrop-blur-md p-8 rounded-2xl border border-border/50 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">E-posta</Label>
@@ -143,5 +143,5 @@ export default function LoginPage() {
 }
 
 // Change Log:
-// - Updated handleSubmit to manually fetch session after sign-in.
-// - Redirects admins to /admin and users to /dashboard based on role.
+// - Replaced hardcoded `bg-[#181818]` with `bg-background`.
+// - Updated card class to use `bg-card/80` and `border-border/50` for consistency.

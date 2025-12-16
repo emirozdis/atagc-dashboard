@@ -9,7 +9,17 @@ import { toast } from "sonner";
 
 import { Committee } from "@/types/admin";
 
-export default function AdminDocumentsPage() {
+/*************  ✨ Windsurf Command ⭐  *************/
+/**
+ * AdminDocumentsPage component.
+ *
+ * This component is used by the admin to manage committee documents.
+ * It fetches all the committees and renders a list of them.
+ * Each committee is a card with a title, description and a button to open the editor.
+ *
+ * @returns {JSX.Element} The component.
+ */
+/*******  1ec0cfaf-fe52-470b-8327-74b20a72e48d  *******/export default function AdminDocumentsPage() {
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -46,7 +56,7 @@ export default function AdminDocumentsPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {committees.map((committee) => (
-          <Card key={committee.id} className="bg-card/50 border-border/50 hover:bg-secondary/20 transition-colors">
+          <Card key={committee.id} className="bg-card border-border/50 hover:bg-accent/50 transition-colors">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
@@ -71,3 +81,6 @@ export default function AdminDocumentsPage() {
     </div>
   );
 }
+// Change Log:
+// - Changed `bg-card/50` to `bg-card` for consistency.
+// - Changed hover state to `hover:bg-accent/50`.
