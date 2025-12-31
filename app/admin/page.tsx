@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Users, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { FileText, Users, Clock, AlertCircle, Loader2, Activity, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface DashboardStats {
   stats: {
@@ -20,6 +23,14 @@ interface DashboardStats {
       full_name: string;
       email: string;
     };
+  }[];
+  recentLogs: {
+    id: string;
+    action: string;
+    created_at: string;
+    user: {
+      full_name: string;
+    } | null;
   }[];
 }
 
@@ -133,7 +144,7 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Activity & Logs */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4 bg-card border-border/50">
           <CardHeader>
@@ -173,15 +184,48 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-3 bg-card border-border/50">
-          <CardHeader>
-            <CardTitle>Komite Doluluk</CardTitle>
+        {/* Logs Widget (Replaced Committee Occupancy) */}
+        <Card className="col-span-3 bg-card border-border/50 flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="space-y-1">
+              <CardTitle className="text-base">Sistem Kayıtları</CardTitle>
+              <CardDescription>Son yapılan işlemler</CardDescription>
+            </div>
+            <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-md text-sm">
-              Bu özellik yakında eklenecek
+          <CardContent className="flex-1">
+            <div className="space-y-4">
+              {data?.recentLogs && data.recentLogs.length > 0 ? (
+                data.recentLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors border border-transparent hover:border-border/30">
+                    <div className="mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {log.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </p>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{log.user?.full_name || "Sistem"}</span>
+                        <span>{new Date(log.created_at).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Kayıt bulunamadı.
+                </div>
+              )}
             </div>
           </CardContent>
+          <div className="p-4 pt-0 mt-auto">
+            <Link href="/admin/logs">
+              <Button variant="outline" className="w-full text-xs">
+                Tüm Kayıtları Gör <ArrowRight className="w-3 h-3 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </Card>
       </div>
     </div>
@@ -189,5 +233,6 @@ export default function AdminDashboardPage() {
 }
 
 // Change Log:
-// - Moved Admin Dashboard content here.
-// - This route (/admin) is protected by Middleware.
+// - Added `recentLogs` to `DashboardStats` interface.
+// - Replaced the "Komite Doluluk" card with a "Sistem Kayıtları" widget.
+// - This widget displays the 5 most recent logs and provides a link to the full logs page.

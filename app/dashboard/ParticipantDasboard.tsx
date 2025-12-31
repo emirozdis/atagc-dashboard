@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, Users, FileQuestion, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     );
   }
 
-  const { application, committeeMember, topic } = data || {};
+  const { application, committeeMember, topic, settings } = data || {};
 
   if (!application) {
     return (
@@ -66,7 +66,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
           borderColor: "border-emerald-500/20",
           icon: CheckCircle,
           title: "Başvurunuz Onaylandı!",
-          description: "ATAGÇ 2026'ya katılımınız kesinleşmiştir."
+          description: `${settings?.term_name || "Etkinliğe"} katılımınız kesinleşmiştir.`
         };
       case "rejected":
         return {
@@ -93,6 +93,32 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   const statusContent = getStatusContent();
   const StatusIcon = statusContent.icon;
 
+  const formatDateRange = (start: string | null | undefined, end: string | null | undefined) => {
+    if (!start) return "Tarih Belirlenmedi";
+    try {
+        const startDate = new Date(start);
+        const endDate = end ? new Date(end) : null;
+        
+        const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+        
+        if (endDate) {
+            // Check if valid dates
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "Tarih Belirlenmedi";
+
+            // If same month and year
+            if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
+                return `${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`;
+            }
+            return `${startDate.toLocaleDateString('tr-TR', options)} - ${endDate.toLocaleDateString('tr-TR', options)}`;
+        }
+        
+        if (isNaN(startDate.getTime())) return "Tarih Belirlenmedi";
+        return startDate.toLocaleDateString('tr-TR', options);
+    } catch (e) {
+        return "Tarih Formatı Hatalı";
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-12">
       {/* Hero Section */}
@@ -105,9 +131,13 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
             Başvuru durumunu ve etkinlik detaylarını yönetin.
           </p>
         </div>
-        <Badge variant="outline" className="w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider bg-secondary/50">
-          ATAGÇ 2026
-        </Badge>
+        
+        {/* Dynamic Term Name Badge */}
+        {settings?.term_name && (
+            <Badge variant="outline" className="w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider bg-secondary/50">
+            {settings.term_name}
+            </Badge>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3 items-start">
@@ -163,7 +193,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                 <Calendar className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs font-medium text-foreground">Tarih</div>
-                  <div className="text-xs text-muted-foreground">15 - 17 Mayıs 2026</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDateRange(settings?.event_start_date, settings?.event_end_date)}
+                  </div>
                 </div>
               </div>
 
@@ -171,7 +203,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                 <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs font-medium text-foreground">Konum</div>
-                  <div className="text-xs text-muted-foreground">İTÜ GVO İzmir NESAN</div>
+                  <div className="text-xs text-muted-foreground">
+                    {settings?.location || "Konum Belirlenmedi"}
+                  </div>
                 </div>
               </div>
             </div>

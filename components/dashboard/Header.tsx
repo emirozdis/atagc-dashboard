@@ -42,11 +42,6 @@ export function Header() {
             <span className="sr-only">Toggle theme</span>
         </Button>
 
-        <button className="relative p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
-        </button>
-
         <div className="flex items-center gap-3 border-l border-border pl-4">
           <div className="hidden md:block text-right">
             <p className="text-sm font-medium text-foreground">

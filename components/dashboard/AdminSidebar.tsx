@@ -10,6 +10,7 @@ import {
     QrCode,
     CalendarDays,
     Megaphone,
+    ScrollText,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -45,6 +46,11 @@ const adminItems = [
         title: "Duyurular",
         href: "/admin/announcements",
         icon: Megaphone,
+    },
+    {
+        title: "Sistem Kayıtları",
+        href: "/admin/logs",
+        icon: ScrollText,
     },
     {
         title: "Ayarlar",
@@ -104,6 +110,4 @@ export function AdminSidebar() {
 }
 
 // Change Log:
-// - Replaced hardcoded `bg-[#181818]` with `bg-sidebar`.
-// - Replaced hardcoded `border-white/5` with `border-border`.
-// - Updated hover and active states to use sidebar-specific variables for better theme support.
+// - Added "Sistem Kayıtları" (System Logs) to the sidebar menu.

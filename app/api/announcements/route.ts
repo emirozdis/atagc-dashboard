@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization"; 
+import { logAction } from "@/lib/logger";
 
 export async function GET() {
   const auth = await getAuthorization({ requireAuth: false });
   const session = auth.session;
 
   // Base query
-  // Note: Joining arrays in PostgREST is tricky. 
-  // For simplicity in listing, we just fetch the arrays. 
-  // The frontend can map IDs to names if it has the reference data, 
-  // or we perform a second lookup.
   let query = supabase
     .from("announcements")
     .select(`
@@ -64,10 +61,7 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
   }
   
-  // Optional: Fetch committee names for display if needed
-  // This is a simple client-side friendly optimization
   if (data && data.length > 0) {
-      // Gather all unique committee IDs
       const allCommIds = new Set<string>();
       data.forEach((a: any) => {
           if (a.committee_ids) a.committee_ids.forEach((id: string) => allCommIds.add(id));
@@ -81,7 +75,6 @@ export async function GET() {
           
           const commMap = new Map(comms?.map(c => [c.id, c.name]));
 
-          // Attach names
           data.forEach((a: any) => {
               if (a.committee_ids) {
                   a.committees_list = a.committee_ids.map((id: string) => ({ name: commMap.get(id) || "Bilinmiyor" }));
@@ -95,7 +88,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
-  if (!auth.ok) {
+  if (!auth.ok || !auth.session) {
     return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
   }
   const session = auth.session;
@@ -121,12 +114,59 @@ export async function POST(request: Request) {
         insertData.target_user_ids = userIds; 
     }
 
-    const { error } = await supabase.from("announcements").insert(insertData);
+    const { data: newAnnouncement, error } = await supabase
+        .from("announcements")
+        .insert(insertData)
+        .select("id")
+        .single();
 
     if (error) throw error;
+
+    await logAction(session.user.id, "create_announcement", { 
+        announcement_id: newAnnouncement.id,
+        title: title,
+        target: targetType,
+        previous_state: null
+    }, request);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Create announcement error:", error);
     return NextResponse.json({ error: "Failed to create announcement" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+    const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
+    if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
+    const session = auth.session;
+
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get("id");
+
+        if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
+
+        // Fetch previous state
+        const { data: previousState } = await supabase
+            .from("announcements")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        const { error } = await supabase.from("announcements").delete().eq("id", id);
+
+        if (error) throw error;
+
+        await logAction(session.user.id, "delete_announcement", { 
+            announcement_id: id,
+            previous_state: previousState
+        }, request);
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+    }
+}
+// Change Log:
+// - Updated DELETE to fetch and log `previous_state`.

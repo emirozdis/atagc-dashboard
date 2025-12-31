@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { logAction } from "@/lib/logger";
 
 export async function POST(request: Request) {
     const auth = await getAuthorization({ requireAuth: true });
-    if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+    if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
     const session = auth.session;
 
     try {
@@ -65,6 +66,8 @@ export async function POST(request: Request) {
 
         if (insertError) throw insertError;
 
+        await logAction(session.user.id, "scan_roll_call", { roll_call_id: rollCall.id, session: rollCall.session_name }, request);
+
         return NextResponse.json({ 
             success: true, 
             session_name: rollCall.session_name,
@@ -77,7 +80,4 @@ export async function POST(request: Request) {
     }
 }
 // Change Log:
-// - Created new route to handle QR Code scanning.
-// - Validates existence of the QR token.
-// - Enforces committee membership rule (User must belong to the session's committee).
-// - Enforces "scan once" rule via database check.
+// - Added `logAction` to log successful roll call scans.

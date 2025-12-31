@@ -52,6 +52,17 @@ CREATE TABLE public.committees (
   CONSTRAINT committees_pkey PRIMARY KEY (id),
   CONSTRAINT committees_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  action character varying NOT NULL,
+  details jsonb,
+  ip_address character varying,
+  user_agent character varying,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT logs_pkey PRIMARY KEY (id),
+  CONSTRAINT logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.roll_call_logs (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   roll_call_id uuid,
@@ -78,6 +89,9 @@ CREATE TABLE public.system_settings (
   term_name character varying DEFAULT 'ATAGÇ 2026'::character varying,
   contact_email character varying DEFAULT 'info@atagc.com.tr'::character varying,
   updated_at timestamp without time zone DEFAULT now(),
+  event_start_date timestamp without time zone,
+  event_end_date timestamp without time zone,
+  location text DEFAULT 'İTÜ GVO İzmir NESAN Yerleşkesi'::text,
   CONSTRAINT system_settings_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.topics (
@@ -108,5 +122,6 @@ CREATE TABLE public.users (
   role character varying NOT NULL DEFAULT 'applicant'::character varying,
   created_at timestamp without time zone DEFAULT now(),
   updated_at timestamp without time zone DEFAULT now(),
+  is_suspended boolean DEFAULT false,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );

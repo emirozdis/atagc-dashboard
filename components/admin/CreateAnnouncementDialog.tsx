@@ -91,16 +91,23 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
 
         setLoading(true);
         try {
+            // Prepare payload to match API expectations (plural arrays)
+            const payload: any = { 
+                title, 
+                content,
+                targetType,
+            };
+
+            if (targetType === 'committee') {
+                payload.committeeIds = [selectedCommittee];
+            } else if (targetType === 'user') {
+                payload.userIds = [selectedUser];
+            }
+
             const res = await fetch("/api/announcements", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    title, 
-                    content,
-                    targetType,
-                    committeeId: targetType === 'committee' ? selectedCommittee : null,
-                    userId: targetType === 'user' ? selectedUser : null
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (!res.ok) throw new Error("Failed to create");
@@ -248,3 +255,9 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
         </Dialog>
     );
 }
+
+// Change Log:
+// - Updated `handleSubmit` to format the payload correctly for the API.
+// - targetType 'committee' now sends `committeeIds: [selectedCommittee]`.
+// - targetType 'user' now sends `userIds: [selectedUser]`.
+// - This ensures compatibility with `api/announcements/route.ts` which expects array inputs.

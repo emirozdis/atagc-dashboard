@@ -13,7 +13,8 @@ export async function GET(request: Request) {
             { count: totalApplications, error: totalError },
             { count: pendingApplications, error: pendingError },
             { count: approvedApplications, error: approvedError },
-            { data: recentApplications, error: recentError }
+            { data: recentApplications, error: recentError },
+            { data: recentLogs, error: logsError }
         ] = await Promise.all([
             // Total Applications
             supabase.from("applications").select("*", { count: "exact", head: true }),
@@ -28,20 +29,34 @@ export async function GET(request: Request) {
             supabase
                 .from("applications")
                 .select(`
-          id,
-          status,
-          submitted_at,
-          user:users (
-            full_name,
-            email
-          )
-        `)
+                  id,
+                  status,
+                  submitted_at,
+                  user:users (
+                    full_name,
+                    email
+                  )
+                `)
                 .order("submitted_at", { ascending: false })
+                .limit(5),
+            
+            // Recent Logs (Last 5) - Added for dashboard widget
+            supabase
+                .from("logs")
+                .select(`
+                  id,
+                  action,
+                  created_at,
+                  user:users (
+                    full_name
+                  )
+                `)
+                .order("created_at", { ascending: false })
                 .limit(5)
         ]);
 
-        if (totalError || pendingError || approvedError || recentError) {
-            console.error("Stats API Error:", { totalError, pendingError, approvedError, recentError });
+        if (totalError || pendingError || approvedError || recentError || logsError) {
+            console.error("Stats API Error:", { totalError, pendingError, approvedError, recentError, logsError });
             return NextResponse.json({ error: "Database error" }, { status: 500 });
         }
 
@@ -51,7 +66,8 @@ export async function GET(request: Request) {
                 pending: pendingApplications || 0,
                 approved: approvedApplications || 0,
             },
-            recentActivity: recentApplications || []
+            recentActivity: recentApplications || [],
+            recentLogs: recentLogs || []
         });
 
     } catch (error) {
@@ -59,3 +75,6 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+// Change Log:
+// - Added query to fetch `recentLogs` (last 5) for the dashboard widget.
+// - Updated response JSON structure to include `recentLogs`.

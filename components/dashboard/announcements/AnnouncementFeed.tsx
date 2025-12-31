@@ -2,14 +2,16 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Megaphone, CalendarDays, Users, User, Globe } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Megaphone, CalendarDays, Users, User, Globe, Trash2 } from "lucide-react";
 import { Announcement } from "@/types/announcement";
 
 interface AnnouncementFeedProps {
     announcements: Announcement[];
+    onDelete?: (id: string) => void;
 }
 
-export function AnnouncementFeed({ announcements }: AnnouncementFeedProps) {
+export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedProps) {
     if (announcements.length === 0) {
         return (
             <Card className="bg-card border-dashed border-2 shadow-sm">
@@ -27,33 +29,50 @@ export function AnnouncementFeed({ announcements }: AnnouncementFeedProps) {
     return (
         <div className="space-y-4">
             {announcements.map((item) => (
-                <Card key={item.id} className="group bg-card border-border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-primary overflow-hidden">
+                <Card key={item.id} className="group bg-card border-border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-primary overflow-hidden relative">
                     <CardHeader className="pb-3">
                         <div className="flex flex-col gap-2">
                             <div className="flex items-start justify-between gap-4">
                                 <CardTitle className="text-xl font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">
                                     {item.title}
                                 </CardTitle>
-                                {item.committee_ids && item.committee_ids.length > 0 ? (
-                                     <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 whitespace-nowrap">
-                                        <Users className="w-3 h-3 mr-1" /> 
-                                        {item.committees_list && item.committees_list.length > 0 
-                                            ? item.committees_list.map(c => c.name).join(", ")
-                                            : `${item.committee_ids.length} Komiteye Özel`
-                                        }
-                                     </Badge>
-                                ) : (item.target_user_ids && item.target_user_ids.length > 0) ? (
-                                    <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">
-                                        <User className="w-3 h-3 mr-1" /> 
-                                        {item.target_user_ids.length === 1 ? "Kişiye Özel" : `${item.target_user_ids.length} Kişiye Özel`}
-                                     </Badge>
-                                ) : (
-                                    <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 whitespace-nowrap">
-                                        <Globe className="w-3 h-3 mr-1" /> Genel
-                                    </Badge>
-                                )}
+
+                                <div className="flex items-center gap-2">
+                                    {item.committee_ids && item.committee_ids.length > 0 ? (
+                                        <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 whitespace-nowrap">
+                                            <Users className="w-3 h-3 mr-1" />
+                                            {item.committees_list && item.committees_list.length > 0
+                                                ? item.committees_list.map(c => c.name).join(", ")
+                                                : `${item.committee_ids.length} Komiteye Özel`
+                                            }
+                                        </Badge>
+                                    ) : (item.target_user_ids && item.target_user_ids.length > 0) ? (
+                                        <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">
+                                            <User className="w-3 h-3 mr-1" />
+                                            {item.target_user_ids.length === 1 ? "Kişiye Özel" : `${item.target_user_ids.length} Kişiye Özel`}
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 whitespace-nowrap">
+                                            <Globe className="w-3 h-3 mr-1" /> Genel
+                                        </Badge>
+                                    )}
+
+                                    {onDelete && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 -mr-2"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDelete(item.id);
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
-                            
+
                             <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1.5">
                                     <CalendarDays className="w-3.5 h-3.5" />
@@ -89,3 +108,7 @@ export function AnnouncementFeed({ announcements }: AnnouncementFeedProps) {
         </div>
     );
 }
+
+// Change Log:
+// - Added optional `onDelete` prop.
+// - Added delete button (trash icon) to the card header if `onDelete` is provided.

@@ -26,6 +26,24 @@ export default function AdminAnnouncementsPage() {
         }
     };
 
+    const handleDelete = async (id: string) => {
+        if (!confirm("Bu duyuruyu silmek istediğinize emin misiniz?")) return;
+
+        const toastId = toast.loading("Siliniyor...");
+        try {
+            const res = await fetch(`/api/announcements?id=${id}`, {
+                method: "DELETE",
+            });
+
+            if (!res.ok) throw new Error("Silme başarısız");
+
+            setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+            toast.success("Duyuru silindi", { id: toastId });
+        } catch (error) {
+            toast.error("Hata", { id: toastId, description: "Duyuru silinemedi." });
+        }
+    };
+
     useEffect(() => {
         fetchAnnouncements();
     }, []);
@@ -39,7 +57,6 @@ export default function AdminAnnouncementsPage() {
                         Tüm sistem duyurularını buradan yönetebilirsiniz.
                     </p>
                 </div>
-                {/* Changed from Dialog to Link */}
                 <Link href="/admin/announcements/new">
                     <Button>
                         <Plus className="w-4 h-4 mr-2" />
@@ -51,8 +68,15 @@ export default function AdminAnnouncementsPage() {
             {loading ? (
                 <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
             ) : (
-                <AnnouncementFeed announcements={announcements} />
+                <AnnouncementFeed 
+                    announcements={announcements} 
+                    onDelete={handleDelete} 
+                />
             )}
         </div>
     );
 }
+
+// Change Log:
+// - Added handleDelete function to delete announcements.
+// - Passed onDelete prop to AnnouncementFeed to enable deletion capability in the UI.

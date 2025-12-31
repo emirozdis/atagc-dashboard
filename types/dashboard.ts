@@ -46,6 +46,13 @@ export interface ProfileData {
         title: string;
         description: string;
     } | null;
+    settings?: {
+        term_name: string;
+        location: string;
+        event_start_date: string | null;
+        event_end_date: string | null;
+        contact_email: string;
+    } | null;
 }
 
 export interface ParticipantDashboardProps {
@@ -72,6 +79,13 @@ export interface DashboardData {
         title: string;
         description?: string;
     } | null;
+    settings?: {
+        term_name: string;
+        location: string;
+        event_start_date: string | null;
+        event_end_date: string | null;
+        contact_email: string;
+    } | null;
 }
 
 export interface CommitteeInfo {
@@ -87,3 +101,5 @@ export interface EditorMember {
     role: string;
     can_edit: boolean;
 }
+// Change Log:
+// - Added `settings` field to `DashboardData` and `ProfileData` interfaces to support dynamic event details.

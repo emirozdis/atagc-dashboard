@@ -49,7 +49,7 @@ export default function ApplicationDetailPage() {
   
   // Committee Assignment State
   const [committees, setCommittees] = useState<Committee[]>([]);
-  const [selectedCommittee, setSelectedCommittee] = useState<string>("");
+  const [selectedCommittee, setSelectedCommittee] = useState<string>("none"); // Default to "none" string for Select
   const [assignLoading, setAssignLoading] = useState(false);
 
   // Action states
@@ -76,7 +76,7 @@ export default function ApplicationDetailPage() {
       if (data.user?.committee_members?.length > 0) {
         setSelectedCommittee(data.user.committee_members[0].committee.id);
       } else {
-        setSelectedCommittee("");
+        setSelectedCommittee("none");
       }
     } catch (error) {
       toast.error("Hata", { description: "Başvuru detayları yüklenemedi." });
@@ -497,9 +497,7 @@ export default function ApplicationDetailPage() {
     </div >
   );
 }
+
 // Change Log:
-// - Added state and logic to fetch committees.
-// - Added logic to display current committee assignment in the profile sidebar badge.
-// - Added a new "Komite Ataması" card visible only when application is approved, allowing admins to select and save committee assignment.
-// - Used the new `/api/admin/committee-assignment` endpoint for saving.
-// - Display actual committee name in the badge if assigned, otherwise "Atama Bekleniyor".
+// - Updated default `selectedCommittee` to `"none"` to match the SelectItem value for unassigned.
+// - Fixed potential issue where empty string initialization caused placeholder to show instead of "Atama Yok".

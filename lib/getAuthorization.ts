@@ -12,7 +12,7 @@ type AuthOptions = {
    */
   customCheck?: (
     session: any,
-    supabaseClient?: typeof supabase
+    supabaseClient: typeof supabase
   ) => Promise<{ ok: boolean; payload?: any; message?: string; status?: number }>;
 };
 
@@ -55,3 +55,6 @@ export async function getAuthorization(opts: AuthOptions = {}) {
 }
 
 export default getAuthorization;
+
+// Change Log:
+// - Removed optional modifier `?` from `supabaseClient` in `customCheck` type definition to fix "possibly undefined" TypeScript error in consumers.

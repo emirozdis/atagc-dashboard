@@ -7,6 +7,7 @@ import {
   motivationSchema
 } from "@/types/application";
 import { z } from "zod";
+import { logAction } from "@/lib/logger";
 
 const submissionSchema = z.object({
   personalInfo: personalInfoSchema,
@@ -217,6 +218,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Application failed" }, { status: 500 });
     }
 
+    await logAction(userId, "submit_application", { 
+        email: personalInfo.email,
+        previous_state: null
+    }, request);
+
     return NextResponse.json(
       { success: true, message: "Başvuru başarıyla alındı." },
       { status: 200 }
@@ -275,9 +281,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Update failed" }, { status: 500 });
     }
 
+    await logAction(session?.user?.id, "update_application_status", { 
+        application_id: id, 
+        new_status: status,
+        previous_state: currentApp 
+    }, request);
+
     return NextResponse.json({ success: true, message: "Başvuru güncellendi." });
 
   } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+// Change Log:
+// - Updated PUT to log `previous_state` (currentApp status).

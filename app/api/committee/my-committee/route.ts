@@ -4,7 +4,7 @@ import getAuthorization from "@/lib/getAuthorization";
 
 export async function GET() {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: "committee_chairman" });
-  if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+  if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
   const session = auth.session;
 
   let committeeId: string | null = null;
@@ -82,5 +82,4 @@ export async function GET() {
 }
 
 // Change Log:
-// - Added fallback logic: If `admin_id` check returns nothing, it checks `committee_members` to find the chairman's committee.
-// - This ensures consistency with the roll-call creation fix.
+// - Added `|| !auth.session` to the authorization check to resolve "session is possibly null" TypeScript errors.

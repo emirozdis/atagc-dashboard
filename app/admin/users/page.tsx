@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Loader2,
@@ -9,7 +10,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   Shield,
-  BadgeCheck,
+  Eye,
+  Settings,
   ArrowUpDown
 } from "lucide-react";
 import { PaginationControls } from "@/components/ui/pagination-controls";
@@ -36,8 +38,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 
 import { User } from "@/types/user";
+import { ManageUserDialog } from "@/components/admin/UserManagementDialog";
 
 export default function UsersPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,6 +58,10 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+
+  // Selection States for Dialogs
+  const [manageUser, setManageUser] = useState<User | null>(null);
+  const [isManageOpen, setIsManageOpen] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -114,14 +122,47 @@ export default function UsersPage() {
 
       if (!res.ok) throw new Error("Failed");
 
-      // Optimistic update or refetch
-      // For simplicity, let's update local state if it matches current filter
-      // But role change might make it disappear from current filter
-      // Safest is to refetch or just update local
-      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
       toast.success("Rol Güncellendi");
     } catch (error) {
       toast.error("Hata", { description: "Rol güncellenemedi." });
+    }
+  };
+
+  const handleToggleSuspend = async (userId: string, isSuspended: boolean) => {
+    try {
+        const res = await fetch("/api/admin/users", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: userId, is_suspended: isSuspended }),
+        });
+
+        if (!res.ok) throw new Error("Failed");
+
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_suspended: isSuspended } : u));
+        toast.success(isSuspended ? "Kullanıcı Askıya Alındı" : "Kullanıcı Aktifleştirildi");
+    } catch (error) {
+        toast.error("Hata", { description: "İşlem başarısız." });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/admin/users?id=${userId}`, {
+        method: "DELETE"
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed");
+      }
+
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setManageUser(null);
+      setIsManageOpen(false);
+      toast.success("Kullanıcı Silindi");
+    } catch (error: any) {
+      toast.error("Silinemedi", { description: error.message || "Bir hata oluştu." });
     }
   };
 
@@ -147,6 +188,12 @@ export default function UsersPage() {
             <ShieldCheck className="w-3 h-3" /> Jüri/Başkan
           </Badge>
         );
+      case "staff":
+        return (
+          <Badge variant="outline" className="bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 border-orange-500/20 gap-1">
+            <Shield className="w-3 h-3" /> Personel
+          </Badge>
+        );
       default:
         return (
           <Badge variant="outline" className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border-blue-500/20 gap-1">
@@ -162,7 +209,7 @@ export default function UsersPage() {
         <div>
           <h2 className="text-3xl font-display font-bold text-foreground">Kullanıcılar</h2>
           <p className="text-muted-foreground mt-1">
-            Sistemdeki tüm kayıtlı kullanıcılar.
+            Sistemdeki tüm kayıtlı kullanıcılar ve yetkileri.
           </p>
         </div>
       </div>
@@ -185,6 +232,7 @@ export default function UsersPage() {
             <SelectItem value="all">Tümü</SelectItem>
             <SelectItem value="superadmin">Yöneticiler</SelectItem>
             <SelectItem value="committee_chairman">Komite Başkanları</SelectItem>
+            <SelectItem value="staff">Personel</SelectItem>
             <SelectItem value="applicant">Katılımcılar</SelectItem>
           </SelectContent>
         </Select>
@@ -194,17 +242,21 @@ export default function UsersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Kullanıcı</TableHead>
+              <TableHead className="cursor-pointer hover:text-foreground" onClick={() => handleSort('full_name')}>
+                <div className="flex items-center gap-2">
+                  Kullanıcı <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </TableHead>
               <TableHead>Okul</TableHead>
               <TableHead>Telefon</TableHead>
-              <TableHead>Rol</TableHead>
+              <TableHead>Durum</TableHead>
               <TableHead className="text-right">İşlemler</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   <div className="flex justify-center">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   </div>
@@ -212,13 +264,17 @@ export default function UsersPage() {
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                   Kullanıcı bulunamadı.
                 </TableCell>
               </TableRow>
             ) : (
               users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow 
+                    key={user.id} 
+                    className={`cursor-pointer hover:bg-white/5 transition-colors ${user.is_suspended ? "bg-red-500/5 opacity-80" : ""}`}
+                    onClick={() => router.push(`/admin/users/${user.id}`)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar>
@@ -226,7 +282,10 @@ export default function UsersPage() {
                         <AvatarFallback>{user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium text-foreground">{user.full_name}</div>
+                        <div className="font-medium text-foreground flex items-center gap-2">
+                            {user.full_name}
+                            {user.is_suspended && <Badge variant="destructive" className="text-[10px] h-4 px-1">Askıda</Badge>}
+                        </div>
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </div>
@@ -239,26 +298,31 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>{getRoleBadge(user.role)}</TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="w-4 h-4" />
+                    <div className="flex justify-end gap-1">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                router.push(`/admin/users/${user.id}`); 
+                            }}
+                            title="İncele"
+                        >
+                            <Eye className="w-4 h-4 text-muted-foreground hover:text-primary" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "applicant")}>
-                          Katılımcı Yap
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "committee_chairman")}>
-                          Komite Başkanı Yap
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "superadmin")} className="text-destructive focus:text-destructive">
-                          Yönetici Yap
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={(e) => { 
+                                e.stopPropagation();
+                                setManageUser(user); 
+                                setIsManageOpen(true); 
+                            }}
+                            title="Yönet"
+                        >
+                            <Settings className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                        </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -273,6 +337,15 @@ export default function UsersPage() {
           />
         </div>
       </div>
+
+      <ManageUserDialog 
+        user={manageUser}
+        open={isManageOpen}
+        onOpenChange={setIsManageOpen}
+        onUpdateRole={handleRoleUpdate}
+        onToggleSuspend={handleToggleSuspend}
+        onDelete={handleDeleteUser}
+      />
     </div>
   );
 }

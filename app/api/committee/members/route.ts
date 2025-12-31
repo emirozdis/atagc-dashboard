@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { logAction } from "@/lib/logger";
 
 export async function GET() {
   // Participant-level access: user must belong to a committee. We use a customCheck
@@ -110,11 +111,19 @@ export async function GET() {
 export async function PUT(request: Request) {
   // Only committee chairmen can update members
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: "committee_chairman" });
-  if (!auth.ok) {
+  if (!auth.ok || !auth.session) {
     return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
   }
+  const session = auth.session;
 
   const { memberId, canEdit } = await request.json();
+
+  // Fetch previous state
+  const { data: previousState } = await supabase
+    .from("committee_members")
+    .select("can_write")
+    .eq("id", memberId)
+    .single();
 
   // Update 'can_write' column based on the request (UUID memberId)
   const { error } = await supabase
@@ -127,5 +136,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 
+  await logAction(session.user.id, "update_member_permission", { 
+      member_id: memberId, 
+      can_write: canEdit,
+      previous_state: previousState
+  }, request);
+
   return NextResponse.json({ success: true });
 }
+// Change Log:
+// - Updated PUT to fetch and log `previous_state` (permissions).
