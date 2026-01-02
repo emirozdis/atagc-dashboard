@@ -125,3 +125,30 @@ CREATE TABLE public.users (
   is_suspended boolean DEFAULT false,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.vote_options (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  vote_id uuid NOT NULL,
+  label text NOT NULL,
+  CONSTRAINT vote_options_pkey PRIMARY KEY (id),
+  CONSTRAINT vote_options_vote_id_fkey FOREIGN KEY (vote_id) REFERENCES public.votes(id)
+);
+CREATE TABLE public.vote_responses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  vote_id uuid NOT NULL,
+  option_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT vote_responses_pkey PRIMARY KEY (id),
+  CONSTRAINT vote_responses_vote_id_fkey FOREIGN KEY (vote_id) REFERENCES public.votes(id),
+  CONSTRAINT vote_responses_option_id_fkey FOREIGN KEY (option_id) REFERENCES public.vote_options(id),
+  CONSTRAINT vote_responses_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.votes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  committee_id uuid NOT NULL,
+  title text NOT NULL,
+  status text DEFAULT 'open'::text CHECK (status = ANY (ARRAY['open'::text, 'closed'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT votes_pkey PRIMARY KEY (id),
+  CONSTRAINT votes_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
+);

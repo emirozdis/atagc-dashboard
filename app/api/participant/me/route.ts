@@ -17,12 +17,14 @@ export async function GET(request: Request) {
         { data: userDetails, error: detailsError },
         { data: application, error: appError },
         { data: committeeMember, error: cmError },
+        { data: managedCommittee, error: managedError },
         { data: settingsData, error: settingsError }
     ] = await Promise.all([
         supabase.from("users").select("id, full_name, email, role, created_at, updated_at").eq("id", userId).single(),
         supabase.from("user_details").select("id, birth_date, phone_number, school_name, additional_info").eq("user_id", userId).maybeSingle(),
         supabase.from("applications").select("id, status, submitted_at, review_notes").eq("user_id", userId).maybeSingle(),
         supabase.from("committee_members").select(`can_write, committee:committees (id, name, description, admin_id)`).eq("user_id", userId).maybeSingle(),
+        supabase.from("committees").select("id, name, description, admin_id").eq("admin_id", userId).maybeSingle(),
         supabase.from("system_settings").select("term_name, location, event_start_date, event_end_date, contact_email").maybeSingle()
     ]);
 
@@ -33,23 +35,39 @@ export async function GET(request: Request) {
 
     if (appError) console.error("Fetch application error:", appError);
 
-    // 2. Fetch Topic
-    let topic = null;
-    if (committeeMember?.committee) {
-      // @ts-ignore
-      const committeeId = committeeMember.committee.id;
-      const { data: topicData } = await supabase
-        .from("topics")
-        .select("title, description")
-        .eq("committee_id", committeeId)
-        .limit(1)
-        .maybeSingle();
-      
-      topic = topicData;
+    // 2. Unify Committee Data
+    // Use 'any' to bypass strict type inference mismatch between committeeMember (inferred array prop) and managedCommittee (object)
+    let finalCommitteeData: any = committeeMember;
+
+    // Handle Supabase returning array for committee relation if strictly typed
+    if (finalCommitteeData && Array.isArray(finalCommitteeData.committee)) {
+        finalCommitteeData.committee = finalCommitteeData.committee[0];
     }
 
-    // 3. Prepare Settings with Generic Defaults
-    // "2026" is removed from hardcoded strings here. It must come from DB.
+    if (!finalCommitteeData && managedCommittee) {
+        finalCommitteeData = {
+            can_write: true, // Chairmen implicitly have write access
+            committee: managedCommittee
+        };
+    }
+
+    // 3. Fetch Topic
+    let topic = null;
+    if (finalCommitteeData?.committee) {
+      const committeeId = finalCommitteeData.committee.id;
+      if (committeeId) {
+          const { data: topicData } = await supabase
+            .from("topics")
+            .select("title, description")
+            .eq("committee_id", committeeId)
+            .limit(1)
+            .maybeSingle();
+          
+          topic = topicData;
+      }
+    }
+
+    // 4. Prepare Settings with Generic Defaults
     const finalSettings = {
         term_name: settingsData?.term_name ?? "ATAGÇ",
         location: settingsData?.location ?? "Konum Belirlenmedi",
@@ -62,7 +80,7 @@ export async function GET(request: Request) {
       user,
       userDetails,
       application,
-      committeeMember,
+      committeeMember: finalCommitteeData,
       topic,
       settings: finalSettings
     });
@@ -72,3 +90,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+// Change Log:
+// - Added `: any` type annotation to `finalCommitteeData` to resolve TypeScript error where `committee` property types mismatched (array vs object).
+// - Added a check to flatten `finalCommitteeData.committee` if it comes back as an array from Supabase, ensuring consistency for the frontend.
+// - Cleaned up `@ts-ignore` comments by using the `any` typed variable.

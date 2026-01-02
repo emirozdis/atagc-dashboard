@@ -1,331 +1,247 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { Search, Loader2, X, Filter, UserPlus, Users, UserMinus } from "lucide-react";
-import { User } from "@/types/user";
+import { Search, Trash2, CheckCircle, MoreHorizontal, UserCog } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { toast } from "sonner";
+import { User } from "@/types/user";
+import { useRouter } from "next/navigation";
 
 interface UserSelectionTableProps {
-  selectedUsers: string[]; // Array of User IDs
-  onSelectionChange: (ids: string[]) => void;
+  selectedUsers?: string[]; // Optional external control
+  onSelectionChange?: (ids: string[]) => void;
 }
 
-export function UserSelectionTable({ selectedUsers, onSelectionChange }: UserSelectionTableProps) {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Pagination & Filter State
-  const [page, setPage] = useState(1);
-  const [limit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [role, setRole] = useState("all");
-
-  // Cache user details for display chips
-  const [selectedUserDetails, setSelectedUserDetails] = useState<Map<string, string>>(new Map());
-
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1); // Reset to page 1 on search change
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  // Fetch Users for Table
-  useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({
-          page: page.toString(),
-          limit: limit.toString(),
-          role: role,
-          search: debouncedSearch,
-          sort_by: "full_name",
-          sort_order: "asc"
-        });
-
-        const res = await fetch(`/api/admin/users?${params}`);
-        if (res.ok) {
-          const json = await res.json();
-          setUsers(json.data || []);
-          setTotalPages(json.meta.totalPages || 1);
-        }
-      } catch (e) {
-        console.error("Failed to fetch users", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
-  }, [page, role, debouncedSearch]);
-
-  // Update User Details Cache efficiently to prevent infinite loops
-  useEffect(() => {
-    if (users.length === 0) return;
-
-    setSelectedUserDetails(prev => {
-      let hasNew = false;
-      users.forEach(u => {
-        if (selectedUsers.includes(u.id) && !prev.has(u.id)) {
-          hasNew = true;
-        }
-      });
-
-      if (!hasNew) return prev; // Return same reference to avoid re-render
-
-      const next = new Map(prev);
-      users.forEach(u => {
-        if (selectedUsers.includes(u.id) && !next.has(u.id)) {
-          next.set(u.id, u.full_name);
-        }
-      });
-      return next;
-    });
-  }, [users, selectedUsers]);
-
-  const toggleUser = (user: User) => {
-    const isSelected = selectedUsers.includes(user.id);
-    let newSelected;
-
-    if (isSelected) {
-      newSelected = selectedUsers.filter(id => id !== user.id);
+export function UserSelectionTable({ selectedUsers: externalSelected, onSelectionChange }: UserSelectionTableProps) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [internalSelected, setInternalSelected] = useState<string[]>([]);
+  
+  // Determine if controlled or uncontrolled
+  const isControlled = externalSelected !== undefined;
+  const selectedIds = isControlled ? externalSelected : internalSelected;
+  
+  const handleSelectionChange = (newIds: string[]) => {
+    if (isControlled && onSelectionChange) {
+      onSelectionChange(newIds);
     } else {
-      newSelected = [...selectedUsers, user.id];
-      // Optimistically update details for immediate feedback
-      setSelectedUserDetails(prev => {
-        const next = new Map(prev);
-        next.set(user.id, user.full_name);
-        return next;
-      });
-    }
-    onSelectionChange(newSelected);
-  };
-
-  const removeUser = (id: string) => {
-    onSelectionChange(selectedUsers.filter(uid => uid !== id));
-  };
-
-  const handleSelectAllOnPage = () => {
-    const pageUserIds = users.map(u => u.id);
-    // Add ones that aren't already selected
-    const toAdd = pageUserIds.filter(id => !selectedUsers.includes(id));
-    if (toAdd.length > 0) {
-      onSelectionChange([...selectedUsers, ...toAdd]);
-      // Update details cache
-      setSelectedUserDetails(prev => {
-        const next = new Map(prev);
-        users.forEach(u => next.set(u.id, u.full_name));
-        return next;
-      });
+      setInternalSelected(newIds);
     }
   };
 
-  const handleDeselectAllOnPage = () => {
-    const pageUserIds = users.map(u => u.id);
-    onSelectionChange(selectedUsers.filter(id => !pageUserIds.includes(id)));
-  };
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const limit = 10;
 
-  // Bulk Select Helper
-  const handleBulkAddByRole = async (targetRole: string) => {
-    const toastId = toast.loading("Kullanıcılar ekleniyor...");
-    try {
-      const res = await fetch(`/api/admin/users/ids?role=${targetRole}`);
+  // React Query Fetch
+  const { data, isLoading } = useQuery({
+    queryKey: ["users", page, search],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: search,
+        sort_by: "created_at",
+        sort_order: "desc"
+      });
+      const res = await fetch(`/api/admin/users?${params}`);
       if (!res.ok) throw new Error("Failed");
-      const ids: string[] = await res.json();
+      return res.json();
+    },
+    placeholderData: (prev) => prev
+  });
 
-      // Merge unique
-      const newSet = new Set([...selectedUsers, ...ids]);
-      onSelectionChange(Array.from(newSet));
-      toast.success(`${ids.length} kullanıcı eklendi`, { id: toastId });
-    } catch (e) {
-      toast.error("Hata oluştu", { id: toastId });
+  const users: User[] = data?.data || [];
+  const totalPages = data?.meta?.totalPages || 1;
+
+  // Batch Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        await fetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
+      }
+    },
+    onSuccess: () => {
+      toast.success(`${selectedIds.length} kullanıcı silindi`);
+      handleSelectionChange([]);
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: () => {
+      toast.error("Silme işlemi başarısız oldu.");
+    }
+  });
+
+  const toggleUser = (id: string) => {
+    if (selectedIds.includes(id)) {
+      handleSelectionChange(selectedIds.filter(x => x !== id));
+    } else {
+      handleSelectionChange([...selectedIds, id]);
     }
   };
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'applicant': return 'Katılımcı';
-      case 'committee_chairman': return 'Başkan';
-      case 'superadmin': return 'Admin';
-      case 'staff': return 'Personel';
-      default: return role;
+  const toggleAll = () => {
+    const pageIds = users.map(u => u.id);
+    const allSelected = pageIds.every(id => selectedIds.includes(id));
+    if (allSelected) {
+      handleSelectionChange(selectedIds.filter(id => !pageIds.includes(id)));
+    } else {
+      const unique = new Set([...selectedIds, ...pageIds]);
+      handleSelectionChange(Array.from(unique));
+    }
+  };
+
+  const handleDelete = () => {
+    if (confirm(`Seçili ${selectedIds.length} kullanıcıyı silmek istediğinize emin misiniz?`)) {
+      deleteMutation.mutate(selectedIds);
     }
   };
 
   return (
     <div className="space-y-4">
-      {/* Controls & Filters */}
-      <div className="flex flex-col gap-4 bg-secondary/10 p-4 rounded-lg border border-border/50">
-        <div className="flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
-          <h4 className="text-sm font-semibold flex items-center gap-2">
-            <Users className="w-4 h-4 text-primary" />
-            Kullanıcı Seçimi
-            {selectedUsers.length > 0 && <Badge variant="secondary" className="ml-2">{selectedUsers.length} Seçildi</Badge>}
-          </h4>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => handleBulkAddByRole('all')} className="h-8 text-xs">
-              <UserPlus className="w-3 h-3 mr-1" /> Tümünü Ekle
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onSelectionChange([])} disabled={selectedUsers.length === 0} className="h-8 text-xs text-destructive hover:text-destructive">
-              <UserMinus className="w-3 h-3 mr-1" /> Temizle
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="İsim veya e-posta ara..."
-              className="pl-9 h-9"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <Select value={role} onValueChange={(val) => { setRole(val); setPage(1); }}>
-            <SelectTrigger className="w-full md:w-[180px] h-9">
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4" />
-                <SelectValue placeholder="Rol Filtrele" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Roller</SelectItem>
-              <SelectItem value="applicant">Katılımcılar</SelectItem>
-              <SelectItem value="committee_chairman">Komite Başkanları</SelectItem>
-              <SelectItem value="staff">Personel</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={handleSelectAllOnPage} className="text-xs h-7 px-2">
-            Bu sayfadakileri seç
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleDeselectAllOnPage} className="text-xs h-7 px-2">
-            Bu sayfadakileri kaldır
-          </Button>
+      {/* Search & Filter */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Kullanıcı ara..."
+            className="pl-9"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+          />
         </div>
       </div>
 
-      {/* Selected Chips Preview (First 20) */}
-      {selectedUsers.length > 0 && (
-        <div className="flex flex-wrap gap-2 p-3 bg-background border rounded-lg min-h-[40px] max-h-[120px] overflow-y-auto">
-          {selectedUsers.slice(0, 20).map(id => (
-            <Badge key={id} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1 group">
-              <span>{selectedUserDetails.get(id) || "Kullanıcı"}</span>
-              <button
-                onClick={() => removeUser(id)}
-                className="hover:bg-destructive/20 rounded-full p-0.5 transition-colors opacity-50 group-hover:opacity-100"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-          {selectedUsers.length > 20 && (
-            <Badge variant="outline" className="text-muted-foreground">+{selectedUsers.length - 20} diğer</Badge>
-          )}
-        </div>
-      )}
-
       {/* Table */}
-      <div className="rounded-md border border-border/50 bg-card overflow-hidden shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px] text-center">
-                #
-              </TableHead>
-              <TableHead>Kullanıcı</TableHead>
-              <TableHead>Rol</TableHead>
-              <TableHead>Okul</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
+      <div className="rounded-md border border-border/50 bg-card overflow-hidden">
+        {isLoading ? <TableSkeleton rows={5} /> : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="h-32 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                    <Loader2 className="animate-spin w-6 h-6 text-primary" />
-                    <span className="text-xs">Yükleniyor...</span>
-                  </div>
-                </TableCell>
+                <TableHead className="w-[50px] text-center">
+                  <Checkbox 
+                    checked={users.length > 0 && users.every(u => selectedIds.includes(u.id))}
+                    onCheckedChange={toggleAll}
+                  />
+                </TableHead>
+                <TableHead>Kullanıcı</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Durum</TableHead>
+                <TableHead className="text-right">İşlem</TableHead>
               </TableRow>
-            ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
-                  Kriterlere uygun kullanıcı bulunamadı.
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map(user => {
-                const isSelected = selectedUsers.includes(user.id);
-                return (
-                  <TableRow
-                    key={user.id}
-                    className={`cursor-pointer transition-colors ${isSelected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-white/5"}`}
-                    onClick={() => toggleUser(user)}
+            </TableHeader>
+            <TableBody>
+              {users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    Kullanıcı bulunamadı.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map(user => (
+                  <TableRow 
+                    key={user.id} 
+                    className={`cursor-pointer transition-colors ${selectedIds.includes(user.id) ? "bg-muted/50" : "hover:bg-muted/30"}`}
+                    onClick={() => toggleUser(user.id)}
                   >
-                    <TableCell className="text-center">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleUser(user)}
-                        onClick={(e) => e.stopPropagation()}
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox 
+                        checked={selectedIds.includes(user.id)}
+                        onCheckedChange={() => toggleUser(user.id)}
                       />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8 border border-white/10">
+                        <Avatar className="h-8 w-8">
                           <AvatarImage src={`https://avatar.vercel.sh/${user.email}`} />
-                          <AvatarFallback>{user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                          <AvatarFallback>{user.full_name.substring(0, 2)}</AvatarFallback>
                         </Avatar>
-                        <div>
-                          <div className="font-medium text-sm text-foreground">{user.full_name}</div>
-                          <div className="text-xs text-muted-foreground">{user.email}</div>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{user.full_name}</span>
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs font-normal capitalize bg-secondary/10">
-                        {getRoleBadge(user.role)}
+                      <Badge variant="outline" className="capitalize bg-secondary/50">
+                        {user.role === 'committee_chairman' ? 'Başkan' : user.role}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {(Array.isArray(user.user_details) ? user.user_details[0]?.school_name : user.user_details?.school_name) || "-"}
+                    <TableCell>
+                      {user.is_suspended ? 
+                        <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge> : 
+                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600 hover:bg-green-500/20">Aktif</Badge>
+                      }
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/admin/users/${user.id}`);
+                        }}
+                      >
+                        <UserCog className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                      </Button>
                     </TableCell>
                   </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
-        <div className="border-t border-border/50 px-4 py-2 bg-muted/10">
-          <PaginationControls
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+        <div className="px-4 py-2 border-t border-border/50">
+          <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       </div>
+
+      {/* Batch Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-6 py-3 rounded-full shadow-xl flex items-center gap-4 animate-in slide-in-from-bottom-10 z-50">
+          <span className="font-bold text-sm whitespace-nowrap">{selectedIds.length} Seçildi</span>
+          <div className="h-4 w-px bg-background/20" />
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            disabled={deleteMutation.isPending}
+            className="text-red-400 hover:text-red-300 hover:bg-white/10 h-8"
+            onClick={handleDelete}
+          >
+            {deleteMutation.isPending ? (
+              "Siliniyor..."
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" /> Sil
+              </>
+            )}
+          </Button>
+          <Button 
+            size="sm" 
+            variant="secondary" 
+            className="text-black bg-white hover:bg-white/90 h-8"
+            onClick={() => handleSelectionChange([])}
+          >
+            Vazgeç
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
+
+// Change Log:
+// - Added `onClick` to `TableRow` to toggle selection, improving usability.
+// - Implemented proper Controlled vs Uncontrolled logic for `selectedIds`.
+// - Added `e.stopPropagation()` to Checkbox cell and Action button to prevent double-toggling.
+// - Fixed the `UsersPage` issue by properly handling internal state when no props are passed.

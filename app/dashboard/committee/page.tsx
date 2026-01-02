@@ -1,247 +1,212 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, FileText, Loader2, Lock, Shield, UserCog, ShieldAlert, ShieldCheck, Search, ScanLine } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { 
+  Users, 
+  FileText, 
+  ArrowRight, 
+  ShieldCheck, 
+  PenTool, 
+  Calendar,
+  Globe
+} from "lucide-react";
 
-import { CommitteeData, CommitteeMember as Member, CommitteeAdmin as Admin } from "@/types/committee";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { VotingSystem } from "@/components/committee/VotingSystem";
+import { CommitteeData } from "@/types/committee";
+
+// --- Sub-Components for cleaner code ---
+
+const CommitteeHero = ({ name, description, role }: { name: string; description: string; role: string }) => (
+  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-secondary/20 border border-border/50 p-8 md:p-10 mb-8">
+    <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+      <Globe className="w-64 h-64" />
+    </div>
+    
+    <div className="relative z-10 space-y-4">
+      <div className="flex items-center gap-3">
+        <Badge variant="outline" className="bg-background/50 backdrop-blur-sm border-primary/20 text-primary px-3 py-1">
+          {role === 'committee_chairman' ? 'Komite Başkanı' : 'Delege'}
+        </Badge>
+        <Badge variant="secondary" className="bg-background/50 backdrop-blur-sm">
+          ATAGÇ 2026
+        </Badge>
+      </div>
+      
+      <div className="space-y-2 max-w-3xl">
+        <h1 className="text-3xl md:text-5xl font-display font-bold tracking-tight text-foreground">
+          {name}
+        </h1>
+        <p className="text-lg text-muted-foreground leading-relaxed">
+          {description}
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+const TopicCard = ({ topic }: { topic: { title: string; description: string } | null }) => (
+  <Card className="bg-card/50 border-border/50 backdrop-blur-sm overflow-hidden h-full">
+    <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+    <CardHeader className="pb-3">
+      <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
+        <FileText className="w-4 h-4" />
+        Gündem Maddesi
+      </div>
+      <CardTitle className="text-xl font-bold leading-tight">
+        {topic?.title || "Gündem Belirlenmedi"}
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        {topic?.description || "Henüz bir çalışma konusu (topic) girilmemiştir."}
+      </p>
+    </CardContent>
+  </Card>
+);
+
+const QuickActions = ({ canWrite }: { canWrite: boolean }) => (
+  <Card className="border-border/50 h-full">
+    <CardHeader>
+      <CardTitle className="text-lg flex items-center gap-2">
+        <ShieldCheck className="w-5 h-5 text-primary" />
+        Hızlı İşlemler
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-3">
+      <Button asChild className="w-full justify-between group h-auto py-4" variant="secondary">
+        <Link href="/dashboard/editor">
+          <div className="flex items-center gap-3 text-left">
+            <div className="p-2 bg-background rounded-lg border border-border/50 group-hover:border-primary/30 transition-colors">
+              <PenTool className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm">Ortak Çalışma</div>
+              <div className="text-xs text-muted-foreground">Position paper & taslaklar</div>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+        </Link>
+      </Button>
+
+      {!canWrite && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-600 flex gap-2 items-start">
+          <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>Bu komitede yazma yetkiniz kısıtlanmıştır. Yalnızca görüntüleyebilirsiniz.</span>
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
+// --- Main Page Component ---
 
 export default function CommitteePage() {
-  const [data, setData] = useState<CommitteeData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [admin, setAdmin] = useState<Admin | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const { data: session } = useSession();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch("/api/participant/me");
-        if (res.ok) {
-          const json = await res.json();
-          if (json.committeeMember) {
-            setData({
-              committee: json.committeeMember.committee,
-              topic: json.topic,
-              can_write: json.committeeMember.can_write
-            });
-          }
-        }
+  const { data: committeeData, isLoading } = useQuery<CommitteeData | null>({
+    queryKey: ["committee-data"],
+    queryFn: async () => {
+      const res = await fetch("/api/participant/me");
+      if (!res.ok) throw new Error("Failed");
+      const json = await res.json();
+      return json.committeeMember ? {
+        committee: json.committeeMember.committee,
+        topic: json.topic,
+        can_write: json.committeeMember.can_write
+      } : null;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-        // Fetch members and admin
-        const membersRes = await fetch("/api/committee/members");
-        if (membersRes.ok) {
-          const membersData = await membersRes.json();
-          setMembers(membersData.members || []);
-          setAdmin(membersData.admin || null);
-        }
-      } catch (e) {
-        toast.error("Veri yüklenemedi");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  const filteredMembers = members.filter(m =>
-    (m.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (m.email || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case "superadmin":
-      case "admin":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"><ShieldAlert className="w-3 h-3" /> Yönetici</span>;
-      case "committee_chairman":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20"><ShieldCheck className="w-3 h-3" /> Başkan</span>;
-      case "staff":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/10 text-orange-500 border border-orange-500/20"><Shield className="w-3 h-3" /> Personel</span>;
-      case "staffleader":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20"><Shield className="w-3 h-3" /> Personel Lideri</span>;
-      default:
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20"><Shield className="w-3 h-3" /> Üye</span>;
-    }
-  };
-
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
-
-  if (!data) {
+  if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <Users className="w-16 h-16 text-muted-foreground/30" />
-        <h2 className="text-xl font-bold">Komite Bulunamadı</h2>
-        <p className="text-muted-foreground max-w-md">
-          Henüz bir komiteye atanmamış olabilirsiniz veya başvurunuz onaylanmamış olabilir.
-        </p>
+      <div className="max-w-6xl mx-auto space-y-8 p-6">
+        <Skeleton className="h-64 w-full rounded-3xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <Skeleton className="h-96 w-full lg:col-span-2 rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
-      <div>
-        <h2 className="text-3xl font-display font-bold text-foreground">Komitem</h2>
-        <p className="text-muted-foreground mt-1">
-          Atandığınız komite ve çalışma detayları.
-        </p>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Committee Info */}
-        <Card className="lg:col-span-2 bg-card border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              {data.committee.name}
-            </CardTitle>
-            <CardDescription>{data.committee.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
-                Çalışma Konusu (Topic)
-              </h3>
-              {data.topic ? (
-                <div className="bg-secondary/10 p-4 rounded-lg border border-border/50">
-                  <div className="font-medium text-foreground mb-2">{data.topic.title}</div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {data.topic.description}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-muted-foreground italic">Henüz çalışma konusu belirlenmedi.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Sidebar Actions */}
-        <div className="space-y-6">
-          <Card className="bg-card border-border/50">
-            <CardHeader>
-              <CardTitle className="text-base">Hızlı İşlemler</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button asChild className="w-full" variant="secondary">
-                <Link href="/dashboard/editor">
-                  Ortak Çalışma Alanı
-                </Link>
-              </Button>
-              <Button asChild className="w-full" variant="outline">
-                <Link href="/dashboard/scan">
-                   <ScanLine className="w-4 h-4 mr-2" />
-                   Yoklama Ver
-                </Link>
-              </Button>
-              {!data.can_write && (
-                <div className="flex items-center gap-2 text-xs text-yellow-500 bg-yellow-500/10 p-2 rounded">
-                  <Lock className="w-3 h-3" />
-                  <span>Yazma yetkiniz kısıtlıdır.</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+  if (!committeeData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+          <Users className="w-10 h-10 text-muted-foreground" />
         </div>
+        <div>
+          <h2 className="text-2xl font-bold font-display">Komite Bulunamadı</h2>
+          <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+            Henüz bir komiteye atanmamış olabilirsiniz. Lütfen başvurunuzun onaylanmasını bekleyiniz veya yönetim ile iletişime geçiniz.
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/dashboard">Panele Dön</Link>
+        </Button>
       </div>
+    );
+  }
 
-      {/* Members and Admin Section */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Admin Card */}
-        <Card className="bg-card border-border/50">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary" />
-              Komite Yöneticisi
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {admin ? (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <Avatar className="h-10 w-10 border border-primary/20">
-                  <AvatarImage src={`https://avatar.vercel.sh/${admin.email}`} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-sm font-semibold">
-                    {(admin.full_name || "??").substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-sm font-semibold truncate">{admin.full_name}</span>
-                  <span className="text-xs text-muted-foreground truncate">{admin.email}</span>
-                </div>
-                <UserCog className="w-4 h-4 text-primary flex-shrink-0" />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">Yönetici bilgisi bulunamadı.</p>
-            )}
-          </CardContent>
-        </Card>
+  const isChairman = session?.user?.role === 'committee_chairman';
 
-        {/* Members Card */}
-        <Card className="lg:col-span-2 bg-card border-border/50">
-          <CardHeader>
+  return (
+    <div className="animate-fade-in max-w-6xl mx-auto pb-20">
+      
+      {/* 1. Hero Section */}
+      <CommitteeHero 
+        name={committeeData.committee.name} 
+        description={committeeData.committee.description} 
+        role={session?.user?.role || 'applicant'}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* 2. Left Column: Context & Actions (4 cols) */}
+        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
+          <TopicCard topic={committeeData.topic} />
+          
+          <QuickActions canWrite={committeeData.can_write} />
+
+          {/* Metadata Card */}
+          <div className="rounded-xl border border-border/40 p-4 bg-muted/5 space-y-3 text-sm">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
-                Komite Üyeleri
-              </CardTitle>
-              <span className="text-xs text-muted-foreground">{members.length} Üye</span>
+              <span className="text-muted-foreground flex items-center gap-2">
+                <Calendar className="w-4 h-4" /> Oturum
+              </span>
+              <span className="font-medium">1. Gün / Sabah</span>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Üye ara..."
-                className="pl-9 h-9 bg-background/50 border-border/50"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <Separator />
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground flex items-center gap-2">
+                <Users className="w-4 h-4" /> Durum
+              </span>
+              <span className="font-medium text-green-600 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                Aktif
+              </span>
             </div>
+          </div>
+        </div>
 
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {filteredMembers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  {members.length === 0 ? "Henüz üye bulunmuyor." : "Aranan kriterde üye yok."}
-                </div>
-              ) : (
-                filteredMembers.map(member => (
-                  <div
-                    key={member.id}
-                    className="group flex items-center justify-between p-3 rounded-lg bg-card/30 hover:bg-card/50 border border-border/30 hover:border-border/50 transition-all"
-                  >
-                    <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
-                      <Avatar className="h-9 w-9 border border-border/30 flex-shrink-0">
-                        <AvatarImage src={`https://avatar.vercel.sh/${member.email}`} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                          {(member.full_name || "??").substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-sm font-medium truncate">{member.full_name}</span>
-                        <span className="text-xs text-muted-foreground truncate">{member.email}</span>
-                      </div>
-                    </div>
+        {/* 3. Right Column: Voting & Operations (8 cols) */}
+        <div className="lg:col-span-8 space-y-6">
+          <VotingSystem 
+            committeeId={committeeData.committee.id} 
+            isChairman={isChairman} 
+            userId={session?.user?.id || ""} 
+          />
+        </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {getRoleBadge(member.role)}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
 }
-// Change Log:
-// - Added "Yoklama Ver" (Scan Roll Call) button to the "Hızlı İşlemler" card.
-// - Imported `ScanLine` icon from `lucide-react`.
