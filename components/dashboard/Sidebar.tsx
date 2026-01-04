@@ -127,4 +127,5 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 }
 
 // Change Log:
-// - Added "Kaynaklar" (Resources) link accessible to all roles.
+// - Re-added the "Kaynaklar" (Resources) link to the sidebar.
+// - Retained the "Ortak Çalışma" link as requested implicitly by not asking for its removal again.

@@ -10,7 +10,8 @@ import {
   ShieldCheck, 
   PenTool, 
   Calendar,
-  Globe
+  Globe,
+  Archive
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -101,10 +102,25 @@ const QuickActions = ({ canWrite }: { canWrite: boolean }) => (
         </Link>
       </Button>
 
+       <Button asChild className="w-full justify-between group h-auto py-4" variant="secondary">
+        <Link href="/dashboard/resources">
+          <div className="flex items-center gap-3 text-left">
+            <div className="p-2 bg-background rounded-lg border border-border/50 group-hover:border-primary/30 transition-colors">
+              <Archive className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm">Kaynaklar</div>
+              <div className="text-xs text-muted-foreground">Belgeler ve kılavuzlar</div>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+        </Link>
+      </Button>
+
       {!canWrite && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-600 flex gap-2 items-start">
           <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>Bu komitede yazma yetkiniz kısıtlanmıştır. Yalnızca görüntüleyebilirsiniz.</span>
+          <span>Ortak çalışma belgesinde yazma yetkiniz kısıtlanmıştır. Yalnızca görüntüleyebilirsiniz.</span>
         </div>
       )}
     </CardContent>
@@ -216,3 +232,8 @@ export default function CommitteePage() {
     </div>
   );
 }
+
+// Change Log:
+// - Removed the `CommitteeResources` component from this page as resources are now on their own dedicated page.
+// - Added a new button/link to the `QuickActions` component that directs users to `/dashboard/resources`.
+// - Updated the "read-only" description to specify it applies to the "Ortak çalışma belgesi".

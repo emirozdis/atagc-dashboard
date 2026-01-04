@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, UploadCloud, Loader2 } from "lucide-react";
+import { Plus, UploadCloud, Loader2, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
+import { Committee } from "@/types/admin";
+import { useSession } from "next-auth/react";
 
 interface ResourceUploadDialogProps {
   onSuccess: () => void;
@@ -25,8 +27,60 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
     title: "",
     description: "",
     category: "general",
-    is_public: true
+    is_public: true,
+    committee_id: "null", // Use 'null' as string for empty state
   });
+
+  const [committees, setCommittees] = useState<Committee[]>([]);
+  const { data: session } = useSession();
+  const [chairmanCommittee, setChairmanCommittee] = useState<Committee | null>(null);
+
+  const isChairman = session?.user?.role === "committee_chairman";
+  const isAdmin = session?.user?.role === "superadmin" || session?.user?.role === "admin";
+
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      if (open && isAdmin) {
+        try {
+          const res = await fetch("/api/admin/committees");
+          if (res.ok) setCommittees(await res.json());
+        } catch (e) {
+          console.error("Failed to fetch committees", e);
+        }
+      }
+    };
+    fetchAdminData();
+  }, [open, isAdmin]);
+
+  useEffect(() => {
+    const fetchChairmanData = async () => {
+      if (open && isChairman) {
+        try {
+          const res = await fetch("/api/committee/my-committee");
+          if (res.ok) {
+            const data = await res.json();
+            setChairmanCommittee(data);
+            setFormData(prev => ({ ...prev, is_public: false, committee_id: data.id }));
+          }
+        } catch (e) {
+          console.error("Failed to fetch chairman's committee", e);
+        }
+      }
+    };
+    fetchChairmanData();
+  }, [open, isChairman]);
+
+  const resetForm = () => {
+    setFile(null);
+    setFormData({
+      title: "",
+      description: "",
+      category: "general",
+      is_public: true,
+      committee_id: "null",
+    });
+    setChairmanCommittee(null);
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,21 +100,18 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          global: { headers: { Authorization: `Bearer ${token}` } }
-        }
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
       );
 
       // 3. Upload File
       const fileExt = file.name.split('.').pop();
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const fileName = `${Date.now()}-${sanitizedName}`;
-      const filePath = `${formData.category}/${fileName}`;
+      const filePath = `uploads/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('resources')
         .upload(filePath, file);
-
       if (uploadError) throw uploadError;
 
       // 4. Get Public URL
@@ -68,23 +119,33 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
         .from('resources')
         .getPublicUrl(filePath);
 
-      // 5. Save Metadata
+      // 5. Prepare and Save Metadata
+      const payload: any = {
+        ...formData,
+        file_url: publicUrl,
+        file_type: fileExt,
+      };
+
+      if (isChairman && chairmanCommittee) {
+        payload.committee_id = chairmanCommittee.id;
+        payload.is_public = false; // Enforce private for chairmen
+      } else {
+        payload.committee_id = formData.committee_id === 'null' ? null : formData.committee_id;
+      }
+      
       const res = await fetch("/api/resources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          file_url: publicUrl,
-          file_type: fileExt
-        })
+        body: JSON.stringify(payload)
       });
-
-      if (!res.ok) throw new Error("Metadata save failed");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Metadata save failed");
+      }
 
       toast.success("Dosya başarıyla yüklendi");
       setOpen(false);
-      setFile(null);
-      setFormData({ title: "", description: "", category: "general", is_public: true });
+      resetForm();
       onSuccess();
 
     } catch (error: any) {
@@ -96,7 +157,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) resetForm(); }}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="w-4 h-4 mr-2" /> Dosya Yükle
@@ -143,6 +204,34 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
             />
           </div>
 
+          {isAdmin && (
+            <div className="space-y-2">
+              <Label>Komite (Opsiyonel)</Label>
+              <Select 
+                value={formData.committee_id}
+                onValueChange={(val) => setFormData({...formData, committee_id: val})}
+              >
+                <SelectTrigger><SelectValue placeholder="Komite seçin veya genel bırakın" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="null">-- Genel Kaynak --</SelectItem>
+                  {committees.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {isChairman && chairmanCommittee && (
+            <div className="space-y-2">
+                <Label>Komite</Label>
+                <div className="flex items-center gap-2 text-sm font-medium p-3 bg-secondary/20 rounded-md border border-border/50">
+                    <Building2 className="w-4 h-4 text-primary" />
+                    <span>{chairmanCommittee.name}</span>
+                </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Kategori</Label>
@@ -159,21 +248,23 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2 flex flex-col justify-end pb-2">
-              <div className="flex items-center justify-between border p-2 rounded-md">
-                <Label className="cursor-pointer" htmlFor="public-switch">Herkese Açık</Label>
-                <Switch 
-                  id="public-switch"
-                  checked={formData.is_public}
-                  onCheckedChange={(c) => setFormData({...formData, is_public: c})}
-                />
+            
+            {isAdmin && (
+              <div className="space-y-2 flex flex-col justify-end pb-2">
+                <div className="flex items-center justify-between border p-2 rounded-md">
+                  <Label className="cursor-pointer" htmlFor="public-switch">Herkese Açık</Label>
+                  <Switch 
+                    id="public-switch"
+                    checked={formData.is_public}
+                    onCheckedChange={(c) => setFormData({...formData, is_public: c})}
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Yükle ve Kaydet"}
+            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Yükle ve Kaydet"}
           </Button>
         </form>
       </DialogContent>
@@ -181,6 +272,8 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
   );
 }
 
-// Change Log:
-// - Added `<DialogDescription>` to fix accessibility warning.
-// - Functionality remains the same.
+// Change log:
+// - Added `useSession` to detect user role (`admin` vs. `committee_chairman`).
+// - If the user is a chairman, it automatically fetches their committee and hides the selection dropdown, showing a static display of their committee name.
+// - The "Public" switch is now only shown to admins. For chairmen, uploads are defaulted and enforced to be private to their committee.
+// - The form submission logic was updated to correctly handle the payload for both roles.

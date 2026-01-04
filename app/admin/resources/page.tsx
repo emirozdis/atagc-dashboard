@@ -8,7 +8,10 @@ import {
   Download,
   Trash2,
   Search,
-  FolderOpen
+  FolderOpen,
+  Filter,
+  Building2,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResourceUploadDialog } from "@/components/admin/ResourceUploadDialog";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
+import { Committee } from "@/types/admin";
 
 interface Resource {
   id: string;
@@ -35,17 +40,28 @@ interface Resource {
   is_public: boolean;
   created_at: string;
   uploader: { full_name: string };
+  committee: { name: string } | null;
 }
 
 export default function AdminResourcesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [committeeFilter, setCommitteeFilter] = useState("all");
 
   const { data: resources = [], isLoading } = useQuery<Resource[]>({
-    queryKey: ["resources", categoryFilter],
+    queryKey: ["admin-resources", committeeFilter],
     queryFn: async () => {
-      const res = await fetch(`/api/resources?category=${categoryFilter}`);
+      const params = new URLSearchParams({ filterCommitteeId: committeeFilter });
+      const res = await fetch(`/api/resources?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    }
+  });
+
+  const { data: committees = [] } = useQuery<Committee[]>({
+    queryKey: ["committees"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/committees");
       if (!res.ok) throw new Error("Failed");
       return res.json();
     }
@@ -58,7 +74,7 @@ export default function AdminResourcesPage() {
     },
     onSuccess: () => {
       toast.success("Dosya silindi");
-      queryClient.invalidateQueries({ queryKey: ["resources"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-resources"] });
     },
     onError: () => toast.error("Silme başarısız")
   });
@@ -87,7 +103,7 @@ export default function AdminResourcesPage() {
             Delegeler için dosya ve doküman paylaşımı.
           </p>
         </div>
-        <ResourceUploadDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ["resources"] })} />
+        <ResourceUploadDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-resources"] })} />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 items-center bg-card p-4 rounded-xl border border-border/50">
@@ -100,19 +116,21 @@ export default function AdminResourcesPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
-          {["all", "guide", "rules", "schedule", "general"].map((cat) => (
-            <Button
-              key={cat}
-              variant={categoryFilter === cat ? "default" : "outline"}
-              size="sm"
-              onClick={() => setCategoryFilter(cat)}
-              className="capitalize"
-            >
-              {cat === "all" ? "Tümü" : cat}
-            </Button>
-          ))}
-        </div>
+        <Select value={committeeFilter} onValueChange={setCommitteeFilter}>
+          <SelectTrigger className="w-full sm:w-[240px]">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              <SelectValue placeholder="Komite Filtrele" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tüm Komiteler</SelectItem>
+            <SelectItem value="general">Genel Kaynaklar</SelectItem>
+            {committees.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Card className="bg-card border-border/50">
@@ -129,6 +147,7 @@ export default function AdminResourcesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Dosya Adı</TableHead>
+                  <TableHead>Komite</TableHead>
                   <TableHead>Kategori</TableHead>
                   <TableHead>Erişim</TableHead>
                   <TableHead>Yükleyen</TableHead>
@@ -143,6 +162,19 @@ export default function AdminResourcesPage() {
                         <span className="font-medium">{res.title}</span>
                         <span className="text-xs text-muted-foreground truncate max-w-[200px]">{res.description}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {res.committee ? (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Building2 className="w-3 h-3 text-muted-foreground" />
+                          <span className="font-medium">{res.committee.name}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Globe className="w-3 h-3" />
+                          <span>Genel</span>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>{getCategoryBadge(res.category)}</TableCell>
                     <TableCell>
@@ -182,3 +214,9 @@ export default function AdminResourcesPage() {
     </div>
   );
 }
+
+// Change Log:
+// - Added `committee` to the Resource interface and table display.
+// - Implemented a `<Select>` component to filter resources by committee or view general resources.
+// - Updated the `useQuery` key to include the filter state, triggering refetches on change.
+// - The `ResourceUploadDialog` is reused and will now support assigning a committee.
