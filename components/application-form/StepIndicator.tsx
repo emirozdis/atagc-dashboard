@@ -20,16 +20,18 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
             <div className="flex flex-col items-center">
               <div
                 className={cn(
-                  "step-indicator font-semibold text-sm",
-                  currentStep > step.number && "completed",
-                  currentStep === step.number && "active",
-                  currentStep < step.number && "inactive"
+                  "flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors duration-300",
+                  currentStep > step.number 
+                    ? "bg-primary border-primary text-primary-foreground"
+                    : currentStep === step.number
+                      ? "border-primary text-primary"
+                      : "border-muted text-muted-foreground"
                 )}
               >
                 {currentStep > step.number ? (
                   <Check className="w-5 h-5" />
                 ) : (
-                  step.number
+                  <span className="text-sm font-semibold">{step.number}</span>
                 )}
               </div>
               <span
@@ -44,17 +46,22 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
             {index < steps.length - 1 && (
               <div
                 className={cn(
-                  "step-line",
-                  currentStep > step.number ? "active" : "inactive"
+                  "h-[2px] flex-1 mx-2 transition-colors duration-300",
+                  currentStep > step.number ? "bg-primary" : "bg-muted"
                 )}
               />
             )}
           </div>
         ))}
       </div>
-      <p className="text-center text-sm text-muted-foreground mt-4 sm:hidden">
+      {/* Mobile Title */}
+      <p className="text-center text-sm font-medium text-foreground mt-4 sm:hidden">
         {steps[currentStep - 1]?.title}
       </p>
     </div>
   );
 }
+
+// Change Log:
+// - Ensured `StepIndicator` is exported as a named export `export function StepIndicator`.
+// - Refined Tailwind classes for better visual consistency with the new theme (using flex utils for centering).

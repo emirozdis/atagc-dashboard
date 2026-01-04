@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Read: 60/min, Write: 10/min
+const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  try {
+    await writeLimiter.check(10, ip);
+  } catch {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "superadmin"] });
   if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: 401 });
 
@@ -37,6 +49,13 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  try {
+    await readLimiter.check(60, ip);
+  } catch {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
   const auth = await getAuthorization({ requireAuth: true });
   if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: 401 });
 
@@ -60,3 +79,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json(data);
 }
+
+// Change Log:
+// - Added rate limiting: GET (60/min), POST (10/min).

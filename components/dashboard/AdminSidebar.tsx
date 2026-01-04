@@ -11,6 +11,8 @@ import {
     CalendarDays,
     Megaphone,
     ScrollText,
+    FolderOpen,
+    User
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -43,6 +45,11 @@ const adminItems = [
         icon: QrCode,
     },
     {
+        title: "Kaynaklar",
+        href: "/admin/resources",
+        icon: FolderOpen,
+    },
+    {
         title: "Duyurular",
         href: "/admin/announcements",
         icon: Megaphone,
@@ -51,6 +58,11 @@ const adminItems = [
         title: "Sistem Kayıtları",
         href: "/admin/logs",
         icon: ScrollText,
+    },
+    {
+        title: "Profilim",
+        href: "/admin/profile",
+        icon: User,
     },
     {
         title: "Ayarlar",
@@ -110,4 +122,4 @@ export function AdminSidebar() {
 }
 
 // Change Log:
-// - Added "Sistem Kayıtları" (System Logs) to the sidebar menu.
+// - Added "Profilim" link to the admin sidebar menu.

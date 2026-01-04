@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   CheckCircle,
@@ -31,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { Application, Committee } from "@/types/admin";
 import {
@@ -44,132 +46,87 @@ import Link from "next/link";
 export default function ApplicationDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [application, setApplication] = useState<Application | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Committee Assignment State
-  const [committees, setCommittees] = useState<Committee[]>([]);
-  const [selectedCommittee, setSelectedCommittee] = useState<string>("none"); // Default to "none" string for Select
-  const [assignLoading, setAssignLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const id = params.id as string;
 
-  // Action states
-  const [actionLoading, setActionLoading] = useState<boolean>(false);
+  // Committee Assignment State
+  const [selectedCommittee, setSelectedCommittee] = useState<string>("none");
   const [rejectionMode, setRejectionMode] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  useEffect(() => {
-    if (params.id) {
-      fetchApplication(params.id as string);
-    }
-    fetchCommittees();
-  }, [params.id]);
-
-  const fetchApplication = async (id: string) => {
-    try {
-      setLoading(true);
+  // Queries
+  const { data: application, isLoading: appLoading, error } = useQuery<Application>({
+    queryKey: ['application', id],
+    queryFn: async () => {
       const res = await fetch(`/api/applications/${id}`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setApplication(data);
-
-      // Pre-select assigned committee if exists
-      if (data.user?.committee_members?.length > 0) {
-        setSelectedCommittee(data.user.committee_members[0].committee.id);
-      } else {
-        setSelectedCommittee("none");
-      }
-    } catch (error) {
-      toast.error("Hata", { description: "Başvuru detayları yüklenemedi." });
-    } finally {
-      setLoading(false);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
     }
-  };
+  });
 
-  const fetchCommittees = async () => {
-    try {
+  const { data: committees = [] } = useQuery<Committee[]>({
+    queryKey: ['committees'],
+    queryFn: async () => {
       const res = await fetch("/api/admin/committees");
-      if (res.ok) {
-        const data = await res.json();
-        setCommittees(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch committees");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
     }
-  };
+  });
 
-  const handleStatusUpdate = async (status: "approved" | "rejected", notes?: string) => {
-    if (!application) return;
-
-    try {
-      setActionLoading(true);
-      const res = await fetch("/api/applications", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: application.id, status, review_notes: notes }),
-      });
-
-      if (!res.ok) throw new Error("Update failed");
-
-      toast.success("İşlem Başarılı", {
-        description: `Başvuru ${status === "approved" ? "onaylandı" : "reddedildi"}.`,
-      });
-
-      // Update local state
-      setApplication({ ...application, status, review_notes: notes });
-      setRejectionMode(false);
-      setRejectionReason("");
-    } catch (error) {
-      toast.error("Hata", { description: "Durum güncellenemedi." });
-    } finally {
-      setActionLoading(false);
+  // Set initial selected committee when data loads
+  useEffect(() => {
+    if (application?.user?.committee_members && application.user.committee_members.length > 0) {
+      setSelectedCommittee(application.user.committee_members[0].committee.id);
+    } else {
+      setSelectedCommittee("none");
     }
-  };
+  }, [application]);
 
-  const handleAssignCommittee = async () => {
-    if (!application) return;
-    setAssignLoading(true);
-    try {
+  // Mutations
+  const statusMutation = useMutation({
+    mutationFn: async ({ status, notes }: { status: "approved" | "rejected", notes?: string }) => {
+        const res = await fetch("/api/applications", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: application?.id, status, review_notes: notes }),
+        });
+        if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: (_, variables) => {
+        toast.success("İşlem Başarılı", {
+            description: `Başvuru ${variables.status === "approved" ? "onaylandı" : "reddedildi"}.`
+        });
+        queryClient.invalidateQueries({ queryKey: ['application', id] });
+        setRejectionMode(false);
+        setRejectionReason("");
+    },
+    onError: () => toast.error("Durum güncellenemedi.")
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: async () => {
         const res = await fetch("/api/admin/committee-assignment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-                userId: application.user.id, 
+                userId: application?.user.id, 
                 committeeId: selectedCommittee === "none" ? null : selectedCommittee 
             })
         });
-
-        if (!res.ok) throw new Error("Assignment failed");
-        
+        if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
         toast.success("Komite ataması güncellendi");
-        // Re-fetch application to update local state properly
-        fetchApplication(application.id);
-    } catch (error) {
-        toast.error("Hata", { description: "Atama yapılamadı." });
-    } finally {
-        setAssignLoading(false);
-    }
-  };
+        queryClient.invalidateQueries({ queryKey: ['application', id] });
+    },
+    onError: () => toast.error("Atama yapılamadı.")
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "approved":
-        return (
-          <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20 gap-1.5 px-3 py-1">
-            <CheckCircle className="w-4 h-4" /> Onaylandı
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20 gap-1.5 px-3 py-1">
-            <XCircle className="w-4 h-4" /> Reddedildi
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20 gap-1.5 px-3 py-1">
-            <Clock className="w-4 h-4" /> Bekliyor
-          </Badge>
-        );
+      case "approved": return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20 gap-1.5 px-3 py-1"><CheckCircle className="w-4 h-4" /> Onaylandı</Badge>;
+      case "rejected": return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20 gap-1.5 px-3 py-1"><XCircle className="w-4 h-4" /> Reddedildi</Badge>;
+      default: return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20 gap-1.5 px-3 py-1"><Clock className="w-4 h-4" /> Bekliyor</Badge>;
     }
   };
 
@@ -177,15 +134,21 @@ export default function ApplicationDetailPage() {
     return options.find(o => o.value === value)?.label || value;
   };
 
-  if (loading) {
+  if (appLoading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="grid grid-cols-12 gap-6 p-6 max-w-7xl mx-auto">
+        <div className="col-span-12 lg:col-span-4 space-y-6">
+            <Skeleton className="h-[400px] w-full rounded-xl" />
+        </div>
+        <div className="col-span-12 lg:col-span-8 space-y-6">
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-[500px] w-full rounded-xl" />
+        </div>
       </div>
     );
   }
 
-  if (!application) {
+  if (error || !application) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <div className="text-muted-foreground text-lg">Başvuru bulunamadı.</div>
@@ -358,13 +321,13 @@ export default function ApplicationDetailPage() {
                     onChange={(e) => setRejectionReason(e.target.value)}
                   />
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" onClick={() => setRejectionMode(false)} disabled={actionLoading}>İptal</Button>
+                    <Button variant="ghost" onClick={() => setRejectionMode(false)} disabled={statusMutation.isPending}>İptal</Button>
                     <Button
                       variant="destructive"
-                      onClick={() => handleStatusUpdate("rejected", rejectionReason)}
-                      disabled={!rejectionReason.trim() || actionLoading}
+                      onClick={() => statusMutation.mutate({ status: "rejected", notes: rejectionReason })}
+                      disabled={!rejectionReason.trim() || statusMutation.isPending}
                     >
-                      {actionLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                      {statusMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                       Reddet ve Bitir
                     </Button>
                   </div>
@@ -374,15 +337,15 @@ export default function ApplicationDetailPage() {
               <div className="flex gap-3 w-full md:w-auto">
                 {application.status === "pending" ? (
                   <>
-                    <Button variant="destructive" className="bg-red-600 text-white hover:bg-red-700 flex-1 md:flex-none" onClick={() => setRejectionMode(true)} disabled={actionLoading}>
+                    <Button variant="destructive" className="bg-red-600 text-white hover:bg-red-700 flex-1 md:flex-none" onClick={() => setRejectionMode(true)} disabled={statusMutation.isPending}>
                       <XCircle className="w-4 h-4 mr-2" /> Reddet
                     </Button>
                     <Button
                       className="bg-green-600 hover:bg-green-700 text-white flex-1 md:flex-none"
-                      onClick={() => handleStatusUpdate("approved")}
-                      disabled={actionLoading}
+                      onClick={() => statusMutation.mutate({ status: "approved" })}
+                      disabled={statusMutation.isPending}
                     >
-                      {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                      {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                         <>
                           <CheckCircle className="w-4 h-4 mr-2" /> Onayla
                         </>
@@ -424,11 +387,11 @@ export default function ApplicationDetailPage() {
                         </Select>
                     </div>
                     <Button 
-                        onClick={handleAssignCommittee} 
-                        disabled={assignLoading}
+                        onClick={() => assignMutation.mutate()} 
+                        disabled={assignMutation.isPending}
                         className="w-full md:w-auto"
                     >
-                        {assignLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Briefcase className="w-4 h-4 mr-2" />}
+                        {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Briefcase className="w-4 h-4 mr-2" />}
                         Atamayı Kaydet
                     </Button>
                 </div>
@@ -499,5 +462,6 @@ export default function ApplicationDetailPage() {
 }
 
 // Change Log:
-// - Updated default `selectedCommittee` to `"none"` to match the SelectItem value for unassigned.
-// - Fixed potential issue where empty string initialization caused placeholder to show instead of "Atama Yok".
+// - Refactored `fetchApplication` and `fetchCommittees` to use `useQuery`.
+// - Refactored `handleStatusUpdate` and `handleAssignCommittee` to use `useMutation`.
+// - Replaced loader with `Skeleton` layout.

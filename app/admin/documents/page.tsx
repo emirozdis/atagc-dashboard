@@ -1,51 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Loader2 } from "lucide-react";
+import { FileText, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-
 import { Committee } from "@/types/admin";
+import { CardSkeleton } from "@/components/ui/skeleton-loader";
 
-/*************  ✨ Windsurf Command ⭐  *************/
-/**
- * AdminDocumentsPage component.
- *
- * This component is used by the admin to manage committee documents.
- * It fetches all the committees and renders a list of them.
- * Each committee is a card with a title, description and a button to open the editor.
- *
- * @returns {JSX.Element} The component.
- */
-/*******  1ec0cfaf-fe52-470b-8327-74b20a72e48d  *******/export default function AdminDocumentsPage() {
-  const [committees, setCommittees] = useState<Committee[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function AdminDocumentsPage() {
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchCommittees = async () => {
-      try {
-        const res = await fetch("/api/admin/committees");
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
-        setCommittees(data);
-      } catch (e) {
-        toast.error("Hata", { description: "Komiteler yüklenemedi." });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCommittees();
-  }, []);
+  const { data: committees = [], isLoading } = useQuery<Committee[]>({
+    queryKey: ['committees'],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/committees");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    }
+  });
 
   const handleOpenDocument = (committeeId: string) => {
-    // Navigate to the editor with a query param to override the user's default committee
     router.push(`/dashboard/editor?committeeId=${committeeId}`);
   };
 
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
+  if (isLoading) return <div className="p-4"><CardSkeleton count={4} /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -81,6 +60,7 @@ import { Committee } from "@/types/admin";
     </div>
   );
 }
+
 // Change Log:
-// - Changed `bg-card/50` to `bg-card` for consistency.
-// - Changed hover state to `hover:bg-accent/50`.
+// - Refactored to `useQuery`.
+// - Added `CardSkeleton` for loading state.

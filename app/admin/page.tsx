@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
   Card, 
   CardContent, 
@@ -12,7 +12,6 @@ import {
   FileText, 
   Clock, 
   AlertCircle, 
-  Loader2, 
   Activity, 
   ArrowRight, 
   ExternalLink,
@@ -20,12 +19,12 @@ import {
   Megaphone,
   Users
 } from "lucide-react";
-import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardStats {
   stats: {
@@ -53,26 +52,14 @@ interface DashboardStats {
 }
 
 export default function AdminDashboardPage() {
-  const [data, setData] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch("/api/admin/stats");
-        if (!res.ok) throw new Error("Failed to fetch stats");
-        const json = await res.json();
-        setData(json);
-      } catch (error) {
-        console.error(error);
-        toast.error("Hata", { description: "İstatistikler yüklenemedi." });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  const { data, isLoading } = useQuery<DashboardStats>({
+    queryKey: ['admin-stats'],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/stats");
+      if (!res.ok) throw new Error("Failed to fetch stats");
+      return res.json();
+    }
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -85,17 +72,32 @@ export default function AdminDashboardPage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-primary/50" />
+      <div className="space-y-8 p-4">
+        <div className="flex justify-between">
+            <div className="space-y-2">
+                <Skeleton className="h-10 w-[200px]" />
+                <Skeleton className="h-4 w-[300px]" />
+            </div>
+            <div className="flex gap-2">
+                <Skeleton className="h-10 w-[120px]" />
+                <Skeleton className="h-10 w-[120px]" />
+            </div>
+        </div>
+        <div className="grid gap-6 md:grid-cols-4">
+            {[1,2,3,4].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+            <Skeleton className="lg:col-span-2 h-[400px] rounded-xl" />
+            <Skeleton className="h-[400px] rounded-xl" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-8 animate-fade-in pb-10">
-      
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border/40 pb-6">
         <div>
@@ -120,7 +122,6 @@ export default function AdminDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        
         {/* Total Applications */}
         <Card className="bg-card border-border/50 shadow-sm hover:shadow-md transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -187,7 +188,6 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        
         {/* Recent Activity Column */}
         <Card className="lg:col-span-2 bg-card border-border/50 shadow-sm flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -303,8 +303,5 @@ export default function AdminDashboardPage() {
 }
 
 // Change Log:
-// - Completely enhanced the UI for the admin dashboard.
-// - Added quick action buttons to the header.
-// - Styled KPI cards with distinct colors and icons (Yellow for pending actions).
-// - Replaced basic lists with refined tables/timelines using avatars and status badges.
-// - Improved typography and spacing for a cleaner, professional look.
+// - Refactored data fetching to `useQuery`.
+// - Implemented full-page Skeleton loader.

@@ -2,8 +2,20 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization"; 
 import { logAction } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
-export async function GET() {
+// Read Limit: 60/min, Write Limit: 10/min
+const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
+
+export async function GET(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  try {
+    await readLimiter.check(60, ip);
+  } catch {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
   const auth = await getAuthorization({ requireAuth: false });
   const session = auth.session;
 
@@ -25,23 +37,13 @@ export async function GET() {
 
      // Admins see all announcements
      if (role !== 'superadmin' && role !== 'admin') {
-         // Regular users see: 
-         // 1. Public announcements
-         // 2. Announcements where their committee ID is in the announcement's committee_ids array
-         // 3. Announcements where their user ID is in the target_user_ids array
-         
-         // Fetch user's committee assignments
+         // User logic: public + targeted
          const { data: memberData } = await supabase
              .from("committee_members")
              .select("committee_id")
              .eq("user_id", userId);
          
          const userCommitteeIds = memberData?.map(m => m.committee_id) || [];
-         
-         // PostgREST Filter Logic:
-         // is_public.eq.true 
-         // OR target_user_ids.cs.{userId}  (Contains check)
-         // OR committee_ids.ov.{id1,id2}   (Overlap check)
          
          let orFilter = `is_public.eq.true,target_user_ids.cs.{${userId}}`;
          
@@ -87,6 +89,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  try {
+    await writeLimiter.check(10, ip);
+  } catch {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok || !auth.session) {
     return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
@@ -137,6 +146,13 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    try {
+        await writeLimiter.check(20, ip);
+    } catch {
+        return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+    }
+
     const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
     if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
     const session = auth.session;
@@ -168,5 +184,6 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: "Delete failed" }, { status: 500 });
     }
 }
+
 // Change Log:
-// - Updated DELETE to fetch and log `previous_state`.
+// - Implemented rate limiting for GET (60/min) and POST/DELETE (10-20/min).

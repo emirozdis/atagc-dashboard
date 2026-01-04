@@ -9,7 +9,8 @@ import {
   User,
   LogOut,
   QrCode,
-  ScanLine
+  ScanLine,
+  FolderOpen
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -45,6 +46,12 @@ const participantItems = [
     href: "/dashboard/scan",
     icon: ScanLine,
     roles: ["applicant", "committee_chairman", "superadmin"]
+  },
+  {
+    title: "Kaynaklar",
+    href: "/dashboard/resources",
+    icon: FolderOpen,
+    roles: ["applicant", "committee_chairman", "superadmin", "staff", "staffleader"]
   },
   {
     title: "Duyurular",
@@ -120,6 +127,4 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 }
 
 // Change Log:
-// - Replaced hardcoded `bg-[#181818]` with `bg-sidebar`.
-// - Replaced hardcoded `border-white/5` with `border-border`.
-// - Updated hover and active states to use sidebar-specific variables.
+// - Added "Kaynaklar" (Resources) link accessible to all roles.

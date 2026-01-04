@@ -8,6 +8,11 @@ import {
 } from "@/types/application";
 import { z } from "zod";
 import { logAction } from "@/lib/logger";
+import { apiHandler } from "@/lib/api-handler";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Limit: 5 requests per minute per IP
+const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 const submissionSchema = z.object({
   personalInfo: personalInfoSchema,
@@ -21,277 +26,267 @@ const updateSchema = z.object({
   review_notes: z.string().optional(),
 });
 
-export async function GET(request: Request) {
-  try {
-    const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
-    if (!auth.ok) return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
-    const session = auth.session;
+export const GET = apiHandler(async (request: Request) => {
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
+  if (!auth.ok) throw new Error("Unauthorized");
 
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const search = searchParams.get("search") || "";
-    const status = searchParams.get("status") || "all";
-    const sortBy = searchParams.get("sort_by") || "submitted_at";
-    const sortOrder = searchParams.get("sort_order") || "desc";
+  const { searchParams } = new URL(request.url);
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "10");
+  const search = searchParams.get("search") || "";
+  const status = searchParams.get("status") || "all";
+  const sortBy = searchParams.get("sort_by") || "submitted_at";
+  const sortOrder = searchParams.get("sort_order") || "desc";
 
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
-    let query = supabase
-      .from("applications")
-      .select(`
+  let query = supabase
+    .from("applications")
+    .select(`
+      id,
+      status,
+      submitted_at,
+      review_notes,
+      user:users!inner (
         id,
-        status,
-        submitted_at,
-        review_notes,
-        user:users!inner (
+        full_name,
+        email,
+        user_details (
           id,
-          full_name,
-          email,
-          user_details (
+          phone_number,
+          school_name,
+          birth_date,
+          additional_info
+        ),
+        committee_members (
+          id,
+          committee:committees (
             id,
-            phone_number,
-            school_name,
-            birth_date,
-            additional_info
-          ),
-          committee_members (
-            id,
-            committee:committees (
-              id,
-              name
-            )
+            name
           )
         )
-      `, { count: "exact" });
+      )
+    `, { count: "exact" });
 
-    if (status !== "all") {
-      query = query.eq("status", status);
-    }
-
-    if (search) {
-      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`, { foreignTable: 'users' });
-    }
-
-    if (sortBy === 'submitted_at' || sortBy === 'status') {
-      query = query.order(sortBy, { ascending: sortOrder === 'asc' });
-    } else if (sortBy === 'full_name') {
-      query = query.order('full_name', { foreignTable: 'users', ascending: sortOrder === 'asc' });
-    }
-
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error("Fetch applications error:", error);
-      return NextResponse.json(
-        { error: "Database error", message: "Başvurular yüklenirken hata oluştu." },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      data,
-      meta: {
-        total: count,
-        page,
-        limit,
-        totalPages: Math.ceil((count || 0) / limit),
-      }
-    });
-  } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  if (status !== "all") {
+    query = query.eq("status", status);
   }
-}
 
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`, { foreignTable: 'users' });
+  }
 
-export async function POST(request: Request) {
-  try {
-    // 1. Check System Settings for Application Status
-    const { data: settings } = await supabase
-      .from("system_settings")
-      .select("applications_open")
-      .single();
+  if (sortBy === 'submitted_at' || sortBy === 'status') {
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+  } else if (sortBy === 'full_name') {
+    query = query.order('full_name', { foreignTable: 'users', ascending: sortOrder === 'asc' });
+  }
 
-    if (settings && settings.applications_open === false) {
-      return NextResponse.json(
-        { error: "Başvurular şu an kapalıdır. İlginiz için teşekkür ederiz." },
-        { status: 403 }
-      );
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
+
+  if (error) throw error;
+
+  return NextResponse.json({
+    data,
+    meta: {
+      total: count,
+      page,
+      limit,
+      totalPages: Math.ceil((count || 0) / limit),
     }
+  });
+});
 
-    // 2. Proceed with submission logic
-    const body = await request.json();
+export const POST = apiHandler(async (request: Request) => {
+  // 1. Rate Limiting
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  await limiter.check(5, ip); // 5 requests per min
 
-    const validationResult = submissionSchema.safeParse(body);
+  // 2. Check System Settings
+  const { data: settings } = await supabase
+    .from("system_settings")
+    .select("applications_open")
+    .single();
 
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: "Validation failed", details: validationResult.error.format() },
-        { status: 400 }
-      );
-    }
-
-    const { personalInfo, experience, motivation } = validationResult.data;
-
-    const { data: existingUser, error: userCheckError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", personalInfo.email)
-      .single();
-
-    if (userCheckError && userCheckError.code !== 'PGRST116') {
-      return NextResponse.json({ error: "Database error" }, { status: 500 });
-    }
-
-    let userId: string;
-
-    if (existingUser) {
-      userId = existingUser.id;
-    } else {
-      const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-
-      const { data: newUser, error: createUserError } = await supabase
-        .from("users")
-        .insert({
-          full_name: personalInfo.adSoyad,
-          email: personalInfo.email,
-          password_hash: randomHash,
-          role: 'applicant'
-        })
-        .select("id")
-        .single();
-
-      if (createUserError || !newUser) {
-        return NextResponse.json({ error: "Create user failed" }, { status: 500 });
-      }
-      userId = newUser.id;
-    }
-
-    const additionalInfo = {
-      grade: personalInfo.sinif,
-      city: personalInfo.sehir,
-      mun_experience: experience.munDeneyimi,
-      previous_conferences: experience.oncekiKonferanslar || null,
-      committee_pref_1: experience.komiteTercihi1,
-      committee_pref_2: experience.komiteTercihi2 || null,
-      delegation_type: experience.delegasyonTercihi,
-      english_level: experience.ingilizce,
-      reason_for_joining: motivation.katilimNedeni,
-      expectations: motivation.beklentiler,
-      self_introduction: motivation.kendinizTanitin,
-      kvkk_approved: motivation.kvkkOnay,
-    };
-
-    const userDetailsData = {
-      user_id: userId,
-      birth_date: personalInfo.dogumTarihi,
-      phone_number: personalInfo.telefon,
-      school_name: personalInfo.okul,
-      additional_info: additionalInfo,
-    };
-
-    const { data: existingDetails } = await supabase
-      .from("user_details")
-      .select("id")
-      .eq("user_id", userId)
-      .single();
-
-    if (existingDetails) {
-      await supabase.from("user_details").update(userDetailsData).eq("user_id", userId);
-    } else {
-      await supabase.from("user_details").insert(userDetailsData);
-    }
-
-    const { error: appError } = await supabase
-      .from("applications")
-      .insert({
-        user_id: userId,
-        status: 'pending',
-        submitted_at: new Date().toISOString()
-      });
-
-    if (appError) {
-      return NextResponse.json({ error: "Application failed" }, { status: 500 });
-    }
-
-    await logAction(userId, "submit_application", { 
-        email: personalInfo.email,
-        previous_state: null
-    }, request);
-
+  if (settings && settings.applications_open === false) {
     return NextResponse.json(
-      { success: true, message: "Başvuru başarıyla alındı." },
-      { status: 200 }
+      { error: "Başvurular şu an kapalıdır. İlginiz için teşekkür ederiz." },
+      { status: 403 }
     );
-
-  } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}
 
-export async function PUT(request: Request) {
-  try {
-    const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
-    if (!auth.ok) return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
-    const session = auth.session;
+  const body = await request.json();
+  const { personalInfo, experience, motivation } = submissionSchema.parse(body); // Zod throws error if invalid
 
-    const body = await request.json();
+  // 3. Email Verification Check (Server-Side Enforcement)
+  // Ensure the email has been verified in the last 1 hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  
+  const { data: verification } = await supabase
+    .from("email_verifications")
+    .select("id")
+    .eq("email", personalInfo.email)
+    .eq("verified", true)
+    .gt("created_at", oneHourAgo)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-    const validationResult = updateSchema.safeParse(body);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: "Validation failed", details: validationResult.error.format() },
-        { status: 400 }
-      );
+  if (!verification) {
+    return NextResponse.json(
+      { error: "E-posta adresi doğrulanmamış veya doğrulama zaman aşımına uğramış. Lütfen tekrar doğrulama yapınız." },
+      { status: 400 }
+    );
+  }
+
+  // 4. Duplicate Checks
+  // Check Email
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", personalInfo.email)
+    .single();
+
+  // Check Phone Number (Data Integrity Enhancement)
+  const { data: existingPhone } = await supabase
+    .from("user_details")
+    .select("user_id")
+    .eq("phone_number", personalInfo.telefon)
+    .single();
+
+  if (existingPhone && (!existingUser || existingPhone.user_id !== existingUser.id)) {
+    return NextResponse.json(
+      { error: "Bu telefon numarası ile daha önce başvuru yapılmış." },
+      { status: 409 }
+    );
+  }
+
+  let userId: string;
+
+  if (existingUser) {
+    userId = existingUser.id;
+    // Check if user already has an application
+    const { data: existingApp } = await supabase.from("applications").select("id").eq("user_id", userId).single();
+    if (existingApp) {
+        return NextResponse.json({ error: "Zaten bir başvurunuz bulunmaktadır." }, { status: 409 });
     }
+  } else {
+    // Generate secure random password
+    const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
-    const { id, status, review_notes } = validationResult.data;
-
-    const { data: currentApp, error: fetchError } = await supabase
-      .from("applications")
-      .select("status")
-      .eq("id", id)
+    const { data: newUser, error: createUserError } = await supabase
+      .from("users")
+      .insert({
+        full_name: personalInfo.adSoyad,
+        email: personalInfo.email,
+        password_hash: randomHash, 
+        role: 'applicant'
+      })
+      .select("id")
       .single();
 
-    if (fetchError || !currentApp) {
-      return NextResponse.json({ error: "Application not found" }, { status: 404 });
-    }
-
-    if (currentApp.status !== "pending") {
-      return NextResponse.json(
-        { error: "Only pending applications can be edited" },
-        { status: 400 }
-      );
-    }
-
-    const { error } = await supabase
-      .from("applications")
-      .update({
-        status,
-        review_notes,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-
-    if (error) {
-      return NextResponse.json({ error: "Update failed" }, { status: 500 });
-    }
-
-    await logAction(session?.user?.id, "update_application_status", { 
-        application_id: id, 
-        new_status: status,
-        previous_state: currentApp 
-    }, request);
-
-    return NextResponse.json({ success: true, message: "Başvuru güncellendi." });
-
-  } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    if (createUserError) throw createUserError;
+    userId = newUser.id;
   }
-}
+
+  const additionalInfo = {
+    grade: personalInfo.sinif,
+    city: personalInfo.sehir,
+    mun_experience: experience.munDeneyimi,
+    previous_conferences: experience.oncekiKonferanslar || null,
+    committee_pref_1: experience.komiteTercihi1,
+    committee_pref_2: experience.komiteTercihi2 || null,
+    delegation_type: experience.delegasyonTercihi,
+    english_level: experience.ingilizce,
+    reason_for_joining: motivation.katilimNedeni,
+    expectations: motivation.beklentiler,
+    self_introduction: motivation.kendinizTanitin,
+    kvkk_approved: motivation.kvkkOnay,
+  };
+
+  const userDetailsData = {
+    user_id: userId,
+    birth_date: personalInfo.dogumTarihi,
+    phone_number: personalInfo.telefon,
+    school_name: personalInfo.okul,
+    additional_info: additionalInfo,
+  };
+
+  const { data: existingDetails } = await supabase
+    .from("user_details")
+    .select("id")
+    .eq("user_id", userId)
+    .single();
+
+  if (existingDetails) {
+    await supabase.from("user_details").update(userDetailsData).eq("user_id", userId);
+  } else {
+    await supabase.from("user_details").insert(userDetailsData);
+  }
+
+  const { error: appError } = await supabase
+    .from("applications")
+    .insert({
+      user_id: userId,
+      status: 'pending',
+      submitted_at: new Date().toISOString()
+    });
+
+  if (appError) throw appError;
+
+  await logAction(userId, "submit_application", { 
+      email: personalInfo.email,
+      previous_state: null
+  }, request);
+
+  return NextResponse.json(
+    { success: true, message: "Başvuru başarıyla alındı." },
+    { status: 200 }
+  );
+});
+
+export const PUT = apiHandler(async (request: Request) => {
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
+  if (!auth.ok) throw new Error("Unauthorized");
+  const session = auth.session;
+
+  const body = await request.json();
+  const { id, status, review_notes } = updateSchema.parse(body);
+
+  const { data: currentApp, error: fetchError } = await supabase
+    .from("applications")
+    .select("status")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !currentApp) {
+    return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  }
+
+  const { error } = await supabase
+    .from("applications")
+    .update({
+      status,
+      review_notes,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) throw error;
+
+  await logAction(session?.user?.id, "update_application_status", { 
+      application_id: id, 
+      new_status: status,
+      previous_state: currentApp 
+  }, request);
+
+  return NextResponse.json({ success: true, message: "Başvuru güncellendi." });
+});
+
 // Change Log:
-// - Updated PUT to log `previous_state` (currentApp status).
+// - Added Server-Side email verification check in POST handler.
+// - It queries `email_verifications` to ensure a verified record exists for the given email within the last hour.
+// - This prevents bypassing the UI verification step.

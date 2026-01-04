@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PersonalInfoData, SINIF_OPTIONS } from "@/types/application";
-import { CheckCircle2, Loader2, MailCheck, Send } from "lucide-react";
+import { CheckCircle2, Loader2, MailCheck, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface PersonalInfoStepProps {
@@ -25,6 +25,7 @@ export function PersonalInfoStep({ form, isEmailVerified, onVerify }: PersonalIn
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
   const email = watch("email");
 
@@ -35,27 +36,62 @@ export function PersonalInfoStep({ form, isEmailVerified, onVerify }: PersonalIn
 
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: getValues("email") }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Kod gönderilemedi.");
+      }
+
       setIsVerifying(true);
       toast.success("Doğrulama Kodu Gönderildi", {
-        description: `${getValues("email")} adresine doğrulama kodu gönderildi. (Kod: 123456)`,
+        description: "Lütfen e-posta adresinizi kontrol ediniz.",
       });
-    }, 1500);
+    } catch (error: any) {
+      toast.error("Hata", { description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerifyCode = () => {
-    if (verificationCode === "123456") { // Mock check
+  const handleVerifyCode = async () => {
+    if (!verificationCode || verificationCode.length < 6) {
+      toast.error("Hata", { description: "Lütfen 6 haneli kodu giriniz." });
+      return;
+    }
+
+    setVerifyLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          email: getValues("email"), 
+          code: verificationCode 
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Doğrulama başarısız.");
+      }
+
       onVerify(true);
       setIsVerifying(false);
       toast.success("E-posta Doğrulandı", {
-        description: "E-posta adresiniz başarıyla doğrulandı.",
+        description: "İşlemlere devam edebilirsiniz.",
       });
-    } else {
-      toast.error("Hatalı Kod", {
-        description: "Lütfen kodu kontrol edip tekrar deneyiniz.",
-      });
+    } catch (error: any) {
+      toast.error("Doğrulama Hatası", { description: error.message });
+    } finally {
+      setVerifyLoading(false);
     }
   };
 
@@ -100,6 +136,7 @@ export function PersonalInfoStep({ form, isEmailVerified, onVerify }: PersonalIn
                   {...register("email")}
                   onChange={handleEmailChange}
                   className={isEmailVerified ? "border-green-500/50 bg-green-500/5 pr-10" : ""}
+                  disabled={isEmailVerified || isVerifying}
                 />
                 {isEmailVerified && (
                   <CheckCircle2 className="absolute right-3 top-2.5 w-5 h-5 text-green-500 animate-in fade-in zoom-in" />
@@ -117,9 +154,7 @@ export function PersonalInfoStep({ form, isEmailVerified, onVerify }: PersonalIn
                   {isLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <>
-                      Kod Gönder
-                    </>
+                    "Kod Gönder"
                   )}
                 </Button>
               )}
@@ -127,21 +162,37 @@ export function PersonalInfoStep({ form, isEmailVerified, onVerify }: PersonalIn
 
             {/* Verification Code Input Area */}
             {isVerifying && !isEmailVerified && (
-              <div className="flex gap-2 animate-in slide-in-from-top-2 fade-in">
-                <Input
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  placeholder="Doğrulama Kodu (123456)"
-                  className="bg-primary/5 border-primary/20"
-                  maxLength={6}
-                />
-                <Button 
-                  type="button" 
-                  onClick={handleVerifyCode}
-                  className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  Onayla
-                </Button>
+              <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 fade-in bg-secondary/10 p-3 rounded-md border border-border/50">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>E-posta adresinize gönderilen kodu giriniz.</span>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    placeholder="6 Haneli Kod"
+                    className="bg-background border-border"
+                    maxLength={6}
+                  />
+                  <Button 
+                    type="button" 
+                    onClick={handleVerifyCode}
+                    disabled={verifyLoading}
+                    className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {verifyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Onayla"}
+                  </Button>
+                </div>
+                <div className="flex justify-end">
+                  <button 
+                    type="button"
+                    onClick={() => { setIsVerifying(false); setVerificationCode(""); }}
+                    className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    E-postayı değiştir veya tekrar gönder
+                  </button>
+                </div>
               </div>
             )}
             
@@ -249,9 +300,7 @@ export function PersonalInfoStep({ form, isEmailVerified, onVerify }: PersonalIn
 }
 
 // Change Log:
-// - Added isEmailVerified and onVerify props.
-// - Implemented handleSendCode to simulate sending verification code.
-// - Implemented handleVerifyCode to mock code validation (123456).
-// - Added UI for verifying email (Send Code button, Code Input, Verified Checkmark).
-// - Handled email input change to reset verification status.
-// - Added visual feedback (toasts, loading states, success colors).
+// - Replaced mock `setTimeout` and hardcoded code check with real `fetch` calls to `/api/auth/verify`.
+// - Added proper error handling using the API response.
+// - Enhanced UI for code entry (wrapped in a styled block, added "Change email" option).
+// - Added loading states for specific actions (Send vs Verify).

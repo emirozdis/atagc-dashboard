@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Loader2,
@@ -15,7 +16,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  User as UserIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function NewAnnouncementPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
@@ -58,56 +57,66 @@ export default function NewAnnouncementPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [activePreset, setActivePreset] = useState<"all" | "committee" | "custom">("custom");
 
-  // Step 3 Data
-  const [previewUsers, setPreviewUsers] = useState<{ id: string, full_name: string, email: string }[]>([]);
-  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-
-  // Data
-  const [committees, setCommittees] = useState<Committee[]>([]);
   // Committee selection tracking
   const [selectedCommitteeIds, setSelectedCommitteeIds] = useState<string[]>([]);
+  
+  // Queries
+  const { data: committees = [] } = useQuery<Committee[]>({
+    queryKey: ['committees'],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/committees");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    }
+  });
+
   const selectedCommitteeNames = committees
     .filter(c => selectedCommitteeIds.includes(c.id))
     .map(c => c.name);
-  // Fetch Committees
-  useEffect(() => {
-    const fetchCommittees = async () => {
-      try {
-        const res = await fetch("/api/admin/committees");
-        if (res.ok) {
-          const data = await res.json();
-          setCommittees(data);
-        }
-      } catch (e) {
-        console.error("Committees fetch failed");
-      }
-    };
-    fetchCommittees();
-  }, []);
 
-  // Fetch Preview Users when entering Step 3
-  useEffect(() => {
-    if (currentStep === 3 && selectedUserIds.length > 0) {
-      const fetchPreview = async () => {
-        setLoadingPreview(true);
-        try {
-          // Fetch only first 50 for preview to keep performance high
-          const idsToFetch = selectedUserIds.slice(0, 50).join(",");
-          const res = await fetch(`/api/admin/users?ids=${idsToFetch}`);
-          if (res.ok) {
-            const json = await res.json();
-            setPreviewUsers(json.data || []);
-          }
-        } catch (e) {
-          console.error("Preview fetch failed");
-        } finally {
-          setLoadingPreview(false);
+  // Preview Users Query
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
+  const { data: previewUsers = [], isLoading: loadingPreview } = useQuery({
+    queryKey: ['preview-users', selectedUserIds],
+    queryFn: async () => {
+        const idsToFetch = selectedUserIds.slice(0, 50).join(",");
+        const res = await fetch(`/api/admin/users?ids=${idsToFetch}`);
+        if (!res.ok) throw new Error("Failed");
+        const json = await res.json();
+        return json.data || [];
+    },
+    enabled: currentStep === 3 && selectedUserIds.length > 0
+  });
+
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: async () => {
+        const payload: any = { title, content };
+
+        if (activePreset === 'all') {
+            payload.targetType = 'all';
+        } else if (activePreset === 'committee') {
+            payload.targetType = 'committee';
+            payload.committeeIds = selectedCommitteeIds;
+        } else {
+            payload.targetType = 'user';
+            payload.userIds = selectedUserIds;
         }
-      };
-      fetchPreview();
-    }
-  }, [currentStep, selectedUserIds]);
+
+        const res = await fetch("/api/announcements", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+        toast.success("Duyuru başarıyla oluşturuldu.");
+        router.push("/admin/announcements");
+    },
+    onError: () => toast.error("Duyuru oluşturulamadı.")
+  });
 
   // Preset Handlers
   const handlePresetSelect = async (preset: "all" | "committee") => {
@@ -117,8 +126,7 @@ export default function NewAnnouncementPage() {
         const res = await fetch("/api/admin/users/ids?role=all");
         if (res.ok) {
           const ids = await res.json();
-          const newSet = new Set([...selectedUserIds, ...ids]);
-          setSelectedUserIds(Array.from(newSet));
+          setSelectedUserIds(prev => Array.from(new Set([...prev, ...ids])));
           setActivePreset("all");
           setSelectedCommitteeIds([]);
           toast.success("Tüm kullanıcılar seçildi.", { id: toastId });
@@ -136,46 +144,11 @@ export default function NewAnnouncementPage() {
       const res = await fetch(`/api/admin/users/ids?committee_id=${committeeId}`);
       if (res.ok) {
         const ids = await res.json();
-        const newSet = new Set([...selectedUserIds, ...ids]);
-        setSelectedUserIds(Array.from(newSet));
-        // Track which committees were added so we can display them in overview
+        setSelectedUserIds(prev => Array.from(new Set([...prev, ...ids])));
         setSelectedCommitteeIds(prev => Array.from(new Set([...prev, committeeId])));
         toast.success(`${ids.length} üye eklendi.`, { id: toastId });
       }
     } catch (e) { toast.error("Hata", { id: toastId }); }
-  };
-
-  const handleSubmit = async () => {
-    setLoading(true);
-    try {
-      // Prepare payload: if 'all' preset is active, treat as public announcement
-      const payload: any = { title, content };
-
-      if (activePreset === 'all') {
-        payload.targetType = 'all'; // POST handler treats unknown types as public
-      } else if (activePreset === 'committee') {
-        payload.targetType = 'committee';
-        payload.committeeIds = selectedCommitteeIds;
-      } else {
-        payload.targetType = 'user';
-        payload.userIds = selectedUserIds;
-      }
-
-      const res = await fetch("/api/announcements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error("Failed");
-
-      toast.success("Duyuru başarıyla oluşturuldu.");
-      router.push("/admin/announcements");
-    } catch (error) {
-      toast.error("Hata", { description: "Duyuru oluşturulamadı." });
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Navigation Logic
@@ -385,7 +358,6 @@ export default function NewAnnouncementPage() {
                   selectedUsers={selectedUserIds}
                   onSelectionChange={(ids) => {
                     setSelectedUserIds(ids);
-                    // Any manual edits switch preset to custom and clear committee tracking
                     setActivePreset("custom");
                     setSelectedCommitteeIds([]);
                   }}
@@ -484,7 +456,7 @@ export default function NewAnnouncementPage() {
                           </div>
                         ) : previewUsers.length > 0 ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {previewUsers.map(user => (
+                            {previewUsers.map((user: any) => (
                               <div key={user.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors border border-transparent hover:border-border/50">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
                                   {user.full_name.substring(0, 2).toUpperCase()}
@@ -533,8 +505,8 @@ export default function NewAnnouncementPage() {
                 İleri <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={loading} className="px-6 py-2 shadow-md shadow-primary/15">
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+              <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending} className="px-6 py-2 shadow-md shadow-primary/15">
+                {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                 Yayınla
               </Button>
             )}
@@ -544,3 +516,7 @@ export default function NewAnnouncementPage() {
     </div>
   );
 }
+
+// Change Log:
+// - Refactored `useEffect` fetches to `useQuery`.
+// - Refactored submission to `useMutation`.

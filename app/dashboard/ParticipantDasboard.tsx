@@ -1,39 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, Users, FileQuestion, Loader2, ArrowRight } from "lucide-react";
-import { toast } from "sonner";
+import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, FileQuestion, ArrowRight, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { ParticipantDashboardProps, DashboardData } from "@/types/dashboard";
 
 export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
+  const { data, isLoading } = useQuery<DashboardData>({
+    queryKey: ['participant-me'],
+    queryFn: async () => {
         const res = await fetch("/api/participant/me");
-        if (!res.ok) throw new Error("Veri alınamadı");
-        const json = await res.json();
-        setData(json);
-      } catch (error) {
-        toast.error("Hata", { description: "Başvuru bilgileri yüklenirken bir sorun oluştu." });
-      } finally {
-        setLoading(false);
-      }
-    };
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+    }
+  });
 
-    fetchData();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center animate-fade-in">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+        <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-12 p-4">
+            <div className="flex flex-col gap-2">
+                <Skeleton className="h-10 w-[300px]" />
+                <Skeleton className="h-4 w-[200px]" />
+            </div>
+            <div className="grid gap-6 lg:grid-cols-3">
+                <Skeleton className="h-[200px] lg:col-span-2 rounded-xl" />
+                <Skeleton className="h-[200px] rounded-xl" />
+            </div>
+        </div>
     );
   }
 
@@ -301,3 +297,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     </div>
   );
 }
+
+// Change Log:
+// - Refactored to use `useQuery`.
+// - Implemented Skeleton loaders.

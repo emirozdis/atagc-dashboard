@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -39,5 +39,4 @@ export default function RootLayout({
 }
 
 // Change Log:
-// - Wrapped children with <Providers> to enable SessionProvider.
-// - Added <Toaster /> for global toast notifications.
+// - Added `suppressHydrationWarning` to the `<html>` tag to resolve hydration mismatch errors caused by `next-themes` modifying the DOM on the client.

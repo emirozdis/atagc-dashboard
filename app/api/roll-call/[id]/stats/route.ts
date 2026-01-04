@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Limit: 30 requests per minute (Polling endpoint)
+const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    try {
+        await limiter.check(30, ip);
+    } catch {
+        return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+    }
+
     const auth = await getAuthorization({ requireAuth: true });
     if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
     const session = auth.session;
@@ -50,5 +61,6 @@ export async function GET(
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
 // Change Log:
-// - Created new endpoint to fetch real-time statistics (scanned vs total members) for a specific roll call session.
+// - Added rate limiting (30/min) to handle client-side polling efficiently.

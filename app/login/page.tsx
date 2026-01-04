@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,8 +31,13 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
+        // Display specific error message from server (e.g. Rate Limit, Suspension) or fallback
+        const errorMessage = result.error === "CredentialsSignin" 
+            ? "E-posta veya şifre hatalı." 
+            : result.error;
+
         toast.error("Giriş Başarısız", {
-          description: "E-posta veya şifre hatalı.",
+          description: errorMessage,
         });
         setLoading(false);
       } else {
@@ -104,7 +110,15 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Şifre</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Şifre</Label>
+                <Link 
+                  href="/forgot-password" 
+                  className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                >
+                  Şifremi unuttum?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -143,5 +157,5 @@ export default function LoginPage() {
 }
 
 // Change Log:
-// - Replaced hardcoded `bg-[#181818]` with `bg-background`.
-// - Updated card class to use `bg-card/80` and `border-border/50` for consistency.
+// - Added "Forgot Password" link next to the Password label.
+// - Updated layout to accommodate the link.

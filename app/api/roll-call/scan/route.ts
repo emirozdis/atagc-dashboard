@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Rate limit: 20 scans per minute per IP (allows for quick sequential scanning if needed, but blocks abusive loops)
+const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export async function POST(request: Request) {
     const auth = await getAuthorization({ requireAuth: true });
@@ -9,6 +13,9 @@ export async function POST(request: Request) {
     const session = auth.session;
 
     try {
+        const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+        await limiter.check(20, ip);
+
         const { token } = await request.json(); // The QR code string (UUID) 
 
         if (!token) {
@@ -27,9 +34,6 @@ export async function POST(request: Request) {
         }
 
         // 2. Check User's Committee Membership
-        // Admins and Chairmen might scan for testing, but typically this is for participants (applicants)
-        // Strictly enforcing: User must be a member of the committee to be marked 'present'.
-        
         const { data: membership, error: memError } = await supabase
             .from("committee_members")
             .select("id")
@@ -37,7 +41,7 @@ export async function POST(request: Request) {
             .eq("committee_id", rollCall.committee_id)
             .maybeSingle();
 
-        // Allow Admins/Superadmins to bypass membership check (optional, but good for testing)
+        // Allow Admins/Superadmins to bypass membership check
         const isAdmin = session.user.role === 'superadmin' || session.user.role === 'admin';
 
         if (!membership && !isAdmin) {
@@ -74,10 +78,14 @@ export async function POST(request: Request) {
             message: "Yoklama başarıyla alındı."
         });
 
-    } catch (error) {
+    } catch (error: any) {
+        if (error.message === "Rate limit exceeded") {
+            return NextResponse.json({ error: "Çok fazla deneme yaptınız. Lütfen bekleyin." }, { status: 429 });
+        }
         console.error("Roll call scan error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
 // Change Log:
-// - Added `logAction` to log successful roll call scans.
+// - Added rate limiting (20 requests/min).

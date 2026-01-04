@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
     ArrowLeft, 
-    Loader2, 
     Mail, 
     Phone, 
-    MapPin, 
-    Calendar, 
     GraduationCap, 
     Shield, 
     ShieldAlert, 
@@ -29,87 +27,96 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ManageUserDialog } from "@/components/admin/UserManagementDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { User, UserDetail } from "@/types/user";
 
 export default function UserDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const id = params.id as string;
     const [isManageOpen, setIsManageOpen] = useState(false);
 
-    useEffect(() => {
-        if (params.id) fetchUser(params.id as string);
-    }, [params.id]);
-
-    const fetchUser = async (id: string) => {
-        try {
-            setLoading(true);
+    // Query
+    const { data: user, isLoading, error } = useQuery<User>({
+        queryKey: ['user', id],
+        queryFn: async () => {
             const res = await fetch(`/api/admin/users/${id}`);
             if (!res.ok) throw new Error("User not found");
-            const data = await res.json();
-            setUser(data);
-        } catch (e) {
-            toast.error("Kullanıcı bulunamadı");
-            router.push("/admin/users");
-        } finally {
-            setLoading(false);
+            return res.json();
         }
-    };
+    });
 
-    const handleUpdate = async (userId: string, newRole: string) => {
-        try {
+    // Mutations
+    const updateRoleMutation = useMutation({
+        mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
             const res = await fetch("/api/admin/users", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: userId, role: newRole }),
             });
             if (!res.ok) throw new Error("Failed");
-            
-            setUser(prev => prev ? { ...prev, role: newRole } : null);
+        },
+        onSuccess: () => {
             toast.success("Rol güncellendi");
-        } catch (e) {
-            toast.error("İşlem başarısız");
-        }
-    };
+            queryClient.invalidateQueries({ queryKey: ['user', id] });
+        },
+        onError: () => toast.error("İşlem başarısız")
+    });
 
-    const handleSuspend = async (userId: string, isSuspended: boolean) => {
-        try {
+    const suspendMutation = useMutation({
+        mutationFn: async ({ userId, isSuspended }: { userId: string, isSuspended: boolean }) => {
             const res = await fetch("/api/admin/users", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: userId, is_suspended: isSuspended }),
             });
             if (!res.ok) throw new Error("Failed");
-            
-            setUser(prev => prev ? { ...prev, is_suspended: isSuspended } : null);
-            toast.success(isSuspended ? "Kullanıcı askıya alındı" : "Kullanıcı aktifleştirildi");
-        } catch (e) {
-            toast.error("İşlem başarısız");
-        }
-    };
+        },
+        onSuccess: (_, variables) => {
+            toast.success(variables.isSuspended ? "Kullanıcı askıya alındı" : "Kullanıcı aktifleştirildi");
+            queryClient.invalidateQueries({ queryKey: ['user', id] });
+        },
+        onError: () => toast.error("İşlem başarısız")
+    });
 
-    const handleDelete = async (userId: string) => {
-        try {
+    const deleteMutation = useMutation({
+        mutationFn: async (userId: string) => {
             const res = await fetch(`/api/admin/users?id=${userId}`, { method: "DELETE" });
             if (!res.ok) throw new Error("Failed");
-            
+        },
+        onSuccess: () => {
             toast.success("Kullanıcı silindi");
             router.push("/admin/users");
-        } catch (e) {
-            toast.error("Silme işlemi başarısız");
-        }
-    };
+        },
+        onError: () => toast.error("Silme işlemi başarısız")
+    });
 
-    if (loading) {
+    if (isLoading) {
         return (
-            <div className="flex h-[80vh] items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="space-y-6 max-w-7xl mx-auto p-6">
+                <div className="flex justify-between">
+                    <Skeleton className="h-10 w-[200px]" />
+                    <Skeleton className="h-10 w-[100px]" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Skeleton className="h-[300px] w-full rounded-xl" />
+                    <Skeleton className="h-[500px] w-full rounded-xl lg:col-span-2" />
+                </div>
             </div>
         );
     }
 
-    if (!user) return null;
+    if (error || !user) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[50vh]">
+                <p className="text-muted-foreground mb-4">Kullanıcı bulunamadı.</p>
+                <Link href="/admin/users">
+                    <Button variant="outline">Geri Dön</Button>
+                </Link>
+            </div>
+        );
+    }
 
     // Helper to safely unwrap arrays or objects
     const getFirstItem = <T,>(item: T | T[] | undefined | null): T | null => {
@@ -361,10 +368,14 @@ export default function UserDetailPage() {
                 user={user}
                 open={isManageOpen}
                 onOpenChange={setIsManageOpen}
-                onUpdateRole={handleUpdate}
-                onToggleSuspend={handleSuspend}
-                onDelete={handleDelete}
+                onUpdateRole={(id, role) => updateRoleMutation.mutateAsync({ userId: id, newRole: role })}
+                onToggleSuspend={(id, suspended) => suspendMutation.mutateAsync({ userId: id, isSuspended: suspended })}
+                onDelete={(id) => deleteMutation.mutateAsync(id)}
             />
         </div>
     );
 }
+
+// Change Log:
+// - Refactored to `useQuery` and `useMutation`.
+// - Uses `Skeleton`.

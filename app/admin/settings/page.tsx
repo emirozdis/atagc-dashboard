@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,8 @@ import {
   Clock,
   Lock
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect, useState } from "react";
 
 interface SystemSettings {
   applications_open: boolean;
@@ -34,72 +35,72 @@ interface SystemSettings {
 }
 
 export default function SettingsPage() {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<SystemSettings>({
-    applications_open: true,
-    maintenance_mode: false,
-    term_name: "",
-    contact_email: "",
-    location: "",
-    event_start_date: "",
-    event_end_date: ""
+  const queryClient = useQueryClient();
+  const [localSettings, setLocalSettings] = useState<SystemSettings | null>(null);
+
+  // Query
+  const { data: settings, isLoading } = useQuery<SystemSettings>({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/settings");
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      return {
+          ...data,
+          event_start_date: data.event_start_date ? data.event_start_date.split('T')[0] : "",
+          event_end_date: data.event_end_date ? data.event_end_date.split('T')[0] : ""
+      };
+    }
   });
 
+  // Sync local state when data loads
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (settings) {
+        setLocalSettings(settings);
+    }
+  }, [settings]);
 
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch("/api/admin/settings");
-      if (res.ok) {
-        const data = await res.json();
-        setSettings({
-            applications_open: data.applications_open ?? true,
-            maintenance_mode: data.maintenance_mode ?? false,
-            term_name: data.term_name || "",
-            contact_email: data.contact_email || "",
-            location: data.location || "",
-            // Handle date string directly to avoid timezone offsets
-            event_start_date: data.event_start_date ? data.event_start_date.split('T')[0] : "",
-            event_end_date: data.event_end_date ? data.event_end_date.split('T')[0] : ""
+  // Mutation
+  const saveMutation = useMutation({
+    mutationFn: async (newSettings: SystemSettings) => {
+        const res = await fetch("/api/admin/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newSettings),
         });
-      }
-    } catch (e) {
-      toast.error("Ayarlar yüklenemedi");
-    } finally {
-      setLoading(false);
+        if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+        toast.success("Ayarlar başarıyla kaydedildi");
+        queryClient.invalidateQueries({ queryKey: ['settings'] });
+    },
+    onError: () => toast.error("Değişiklikler kaydedilemedi.")
+  });
+
+  const handleSave = () => {
+    if (localSettings) {
+        saveMutation.mutate(localSettings);
     }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-
-      if (!res.ok) throw new Error("Save failed");
-
-      toast.success("Ayarlar başarıyla kaydedildi", {
-        description: "Sistem değişiklikleri anında uygulandı."
-      });
-      // Refresh to ensure we have the clean state
-      fetchSettings();
-    } catch (error) {
-      toast.error("Hata", { description: "Değişiklikler kaydedilemedi." });
-    } finally {
-      setSaving(false);
+  const updateSetting = (key: keyof SystemSettings, value: any) => {
+    if (localSettings) {
+        setLocalSettings({ ...localSettings, [key]: value });
     }
   };
 
-  if (loading) {
+  if (isLoading || !localSettings) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-8 max-w-5xl mx-auto p-4">
+        <div className="flex justify-between items-center">
+            <Skeleton className="h-10 w-[200px]" />
+            <Skeleton className="h-10 w-[150px]" />
+        </div>
+        <div className="space-y-6">
+            <Skeleton className="h-[250px] w-full rounded-xl" />
+            <Skeleton className="h-[250px] w-full rounded-xl" />
+            <Skeleton className="h-[250px] w-full rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -116,8 +117,8 @@ export default function SettingsPage() {
             Platform genel yapılandırması ve erişim kontrolleri.
           </p>
         </div>
-        <Button onClick={handleSave} disabled={saving} size="lg" className="shadow-lg shadow-primary/20">
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+        <Button onClick={handleSave} disabled={saveMutation.isPending} size="lg" className="shadow-lg shadow-primary/20">
+            {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Değişiklikleri Kaydet
         </Button>
       </div>
@@ -142,8 +143,8 @@ export default function SettingsPage() {
                         Dönem / Etkinlik Adı
                     </Label>
                     <Input
-                        value={settings.term_name}
-                        onChange={(e) => setSettings({ ...settings, term_name: e.target.value })}
+                        value={localSettings.term_name}
+                        onChange={(e) => updateSetting('term_name', e.target.value)}
                         placeholder="Örn: ATAGÇ 2026"
                         className="bg-background/50 h-11 text-lg"
                     />
@@ -156,8 +157,8 @@ export default function SettingsPage() {
                         İletişim E-postası
                     </Label>
                     <Input
-                        value={settings.contact_email}
-                        onChange={(e) => setSettings({ ...settings, contact_email: e.target.value })}
+                        value={localSettings.contact_email}
+                        onChange={(e) => updateSetting('contact_email', e.target.value)}
                         placeholder="info@atagc.com.tr"
                         type="email"
                         className="bg-background/50 h-11"
@@ -186,8 +187,8 @@ export default function SettingsPage() {
                             Konum / Yerleşke
                         </Label>
                         <Input
-                            value={settings.location}
-                            onChange={(e) => setSettings({ ...settings, location: e.target.value })}
+                            value={localSettings.location}
+                            onChange={(e) => updateSetting('location', e.target.value)}
                             placeholder="Örn: İTÜ GVO İzmir NESAN Yerleşkesi"
                             className="bg-background/50 h-11"
                         />
@@ -201,8 +202,8 @@ export default function SettingsPage() {
                             </Label>
                             <Input
                                 type="date"
-                                value={settings.event_start_date || ""}
-                                onChange={(e) => setSettings({ ...settings, event_start_date: e.target.value })}
+                                value={localSettings.event_start_date || ""}
+                                onChange={(e) => updateSetting('event_start_date', e.target.value)}
                                 className="bg-background/50 h-11 w-full block"
                             />
                         </div>
@@ -213,8 +214,8 @@ export default function SettingsPage() {
                             </Label>
                             <Input
                                 type="date"
-                                value={settings.event_end_date || ""}
-                                onChange={(e) => setSettings({ ...settings, event_end_date: e.target.value })}
+                                value={localSettings.event_end_date || ""}
+                                onChange={(e) => updateSetting('event_end_date', e.target.value)}
                                 className="bg-background/50 h-11 w-full block"
                             />
                         </div>
@@ -245,7 +246,7 @@ export default function SettingsPage() {
                         <div className="space-y-1.5 flex-1">
                             <div className="flex items-center gap-3">
                                 <Label className="text-base font-semibold cursor-pointer" htmlFor="apps-switch">Başvuru Alımı</Label>
-                                {settings.applications_open ? (
+                                {localSettings.applications_open ? (
                                     <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">AÇIK</span>
                                 ) : (
                                     <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">KAPALI</span>
@@ -256,11 +257,11 @@ export default function SettingsPage() {
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-muted-foreground">{settings.applications_open ? "Açık" : "Kapalı"}</span>
+                            <span className="text-xs font-medium text-muted-foreground">{localSettings.applications_open ? "Açık" : "Kapalı"}</span>
                             <Switch
                                 id="apps-switch"
-                                checked={settings.applications_open}
-                                onCheckedChange={(checked) => setSettings({ ...settings, applications_open: checked })}
+                                checked={localSettings.applications_open}
+                                onCheckedChange={(checked) => updateSetting('applications_open', checked)}
                             />
                         </div>
                     </div>
@@ -271,19 +272,19 @@ export default function SettingsPage() {
                             <div className="flex items-center gap-3">
                                 <AlertTriangle className="w-5 h-5 text-red-500" />
                                 <Label className="text-base font-semibold text-red-600 cursor-pointer" htmlFor="maintenance-switch">Bakım Modu</Label>
-                                {settings.maintenance_mode && <span className="animate-pulse text-[10px] font-bold text-red-600 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/30">AKTİF</span>}
+                                {localSettings.maintenance_mode && <span className="animate-pulse text-[10px] font-bold text-red-600 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/30">AKTİF</span>}
                             </div>
                             <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
                                 Bakım modu aktif edildiğinde, <span className="font-semibold text-foreground">Yöneticiler (Admin)</span> hariç kimse sisteme giriş yapamaz. Giriş yapmış kullanıcıların oturumu sonlandırılmaz ancak sayfaları yenilediklerinde erişim engellenir.
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-muted-foreground">{settings.maintenance_mode ? "Aktif" : "Pasif"}</span>
+                            <span className="text-xs font-medium text-muted-foreground">{localSettings.maintenance_mode ? "Aktif" : "Pasif"}</span>
                             <Switch
                                 id="maintenance-switch"
                                 className="data-[state=checked]:bg-red-500"
-                                checked={settings.maintenance_mode}
-                                onCheckedChange={(checked) => setSettings({ ...settings, maintenance_mode: checked })}
+                                checked={localSettings.maintenance_mode}
+                                onCheckedChange={(checked) => updateSetting('maintenance_mode', checked)}
                             />
                         </div>
                     </div>
@@ -325,5 +326,5 @@ export default function SettingsPage() {
 }
 
 // Change Log:
-// - Updated `fetchSettings` to parse date strings using `split('T')[0]` instead of creating a Date object and converting to ISO string, which was causing timezone offsets (off-by-one day error).
-// - Removed default initialized state values for strings to prevent hydration mismatch with loading state.
+// - Refactored to `useQuery` and `useMutation`.
+// - Uses `Skeleton` for loading.

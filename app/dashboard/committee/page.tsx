@@ -20,11 +20,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { VotingSystem } from "@/components/committee/VotingSystem";
 import { CommitteeData } from "@/types/committee";
+import { TourButton } from "@/components/dashboard/TourButton"; // New import
 
-// --- Sub-Components for cleaner code ---
+// --- Sub-Components ---
 
 const CommitteeHero = ({ name, description, role }: { name: string; description: string; role: string }) => (
-  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-secondary/20 border border-border/50 p-8 md:p-10 mb-8">
+  <div id="tour-committee-hero" className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-secondary/20 border border-border/50 p-8 md:p-10 mb-8">
     <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
       <Globe className="w-64 h-64" />
     </div>
@@ -39,20 +40,25 @@ const CommitteeHero = ({ name, description, role }: { name: string; description:
         </Badge>
       </div>
       
-      <div className="space-y-2 max-w-3xl">
-        <h1 className="text-3xl md:text-5xl font-display font-bold tracking-tight text-foreground">
-          {name}
-        </h1>
-        <p className="text-lg text-muted-foreground leading-relaxed">
-          {description}
-        </p>
+      <div className="flex justify-between items-start">
+        <div className="space-y-2 max-w-3xl">
+          <h1 className="text-3xl md:text-5xl font-display font-bold tracking-tight text-foreground">
+            {name}
+          </h1>
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            {description}
+          </p>
+        </div>
+        <div className="hidden md:block">
+            <TourButton />
+        </div>
       </div>
     </div>
   </div>
 );
 
 const TopicCard = ({ topic }: { topic: { title: string; description: string } | null }) => (
-  <Card className="bg-card/50 border-border/50 backdrop-blur-sm overflow-hidden h-full">
+  <Card id="tour-topic" className="bg-card/50 border-border/50 backdrop-blur-sm overflow-hidden h-full">
     <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
     <CardHeader className="pb-3">
       <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
@@ -72,7 +78,7 @@ const TopicCard = ({ topic }: { topic: { title: string; description: string } | 
 );
 
 const QuickActions = ({ canWrite }: { canWrite: boolean }) => (
-  <Card className="border-border/50 h-full">
+  <Card id="tour-actions" className="border-border/50 h-full">
     <CardHeader>
       <CardTitle className="text-lg flex items-center gap-2">
         <ShieldCheck className="w-5 h-5 text-primary" />
@@ -198,7 +204,7 @@ export default function CommitteePage() {
         </div>
 
         {/* 3. Right Column: Voting & Operations (8 cols) */}
-        <div className="lg:col-span-8 space-y-6">
+        <div id="tour-voting" className="lg:col-span-8 space-y-6">
           <VotingSystem 
             committeeId={committeeData.committee.id} 
             isChairman={isChairman} 

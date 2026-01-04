@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { rateLimit } from "@/lib/rate-limit";
 
-export async function GET() {
+// Limit: 60 requests per minute
+const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+
+export async function GET(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  try {
+    await limiter.check(60, ip);
+  } catch {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: "committee_chairman" });
   if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
   const session = auth.session;
@@ -82,4 +93,4 @@ export async function GET() {
 }
 
 // Change Log:
-// - Added `|| !auth.session` to the authorization check to resolve "session is possibly null" TypeScript errors.
+// - Added rate limiting (60/min).

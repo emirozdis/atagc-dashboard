@@ -3,6 +3,10 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { supabase } from "@/lib/SERVER_supabase";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Rate limit: 5 attempts per minute per IP
+const loginLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -13,6 +17,14 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
+        // 0. Rate Limiting
+        const ip = (req?.headers as any)?.["x-forwarded-for"] || "127.0.0.1";
+        try {
+          await loginLimiter.check(5, ip);
+        } catch {
+          throw new Error("Çok fazla giriş denemesi. Lütfen 1 dakika bekleyin.");
+        }
+
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
@@ -54,12 +66,6 @@ export const authOptions: NextAuthOptions = {
         }
 
         // 5. Log Successful Login
-        // Note: 'req' here might differ based on context (NextAuth implementation details), 
-        // but we can pass it if available or just log without IP for now.
-        // req is available in 'authorize' if using NextAuth v4 with appropriate setup, 
-        // but often it's tricky to get full request object in authorize.
-        // We will log without detailed request context here if needed.
-        
         await logAction(user.id, "login_success", { role: user.role });
 
         return {
@@ -96,5 +102,7 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
 // Change Log:
-// - Imported `logAction` and logging successful login attempts inside `authorize`.
+// - Implemented rate limiting (5 attempts/min) in `authorize` callback.
+// - Added error throwing for rate limit exceeded.

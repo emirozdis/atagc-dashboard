@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { QrCode, RefreshCcw, Loader2, Info, Users, StopCircle, CheckCircle } from "lucide-react";
+import { QrCode, Loader2, Info, Users, StopCircle, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,107 +13,66 @@ export default function CommitteeRollCallPage() {
   const [sessionName, setSessionName] = useState("");
   const [qrData, setQrData] = useState<string | null>(null);
   const [rollCallId, setRollCallId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [committeeName, setCommitteeName] = useState<string>("");
-  const [stats, setStats] = useState<{ scanned: number, total: number }>({ scanned: 0, total: 0 });
   const [isCompleted, setIsCompleted] = useState(false);
-
-  // Use a ref to prevent race conditions in auto-closing
   const isCompletedRef = useRef(false);
 
-  // Fetch committee info on mount
-  useEffect(() => {
-    const fetchInfo = async () => {
-      try {
+  // Queries
+  const { data: committee } = useQuery({
+    queryKey: ['my-committee'],
+    queryFn: async () => {
         const res = await fetch("/api/committee/my-committee");
-        if (res.ok) {
-          const data = await res.json();
-          setCommitteeName(data.name || "");
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+    }
+  });
+
+  const { data: stats = { scanned: 0, total: 0 } } = useQuery({
+    queryKey: ['roll-call-stats', rollCallId],
+    queryFn: async () => {
+        const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
+        if (!res.ok) throw new Error("Failed");
+        const data = await res.json();
+        
+        if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
+            isCompletedRef.current = true;
+            setIsCompleted(true);
+            toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
         }
-      } catch (e) {
-        console.error("Failed to fetch committee info");
-      }
-    };
-    fetchInfo();
-  }, []);
+        return data;
+    },
+    enabled: !!rollCallId && !isCompleted,
+    refetchInterval: 3000
+  });
 
-  // Poll for stats when a roll call is active
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: async () => {
+        if (!sessionName) throw new Error("Oturum adı giriniz");
+        
+        const res = await fetch("/api/roll-call/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_name: sessionName }),
+        });
 
-    if (rollCallId && !isCompleted) {
-      const fetchStats = async () => {
-        try {
-          const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
-          if (res.ok) {
-            const data = await res.json();
-            setStats(data);
-
-            // Automatic Finish Condition
-            if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
-              isCompletedRef.current = true;
-              setIsCompleted(true);
-              toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
-            }
-          }
-        } catch (e) {
-          console.error("Stats polling error");
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || "Failed");
         }
-      };
-
-      // Initial fetch
-      fetchStats();
-
-      // Poll every 3 seconds
-      interval = setInterval(fetchStats, 3000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [rollCallId, isCompleted]);
-
-  const generateQR = async () => {
-    if (!sessionName) {
-      toast.error("Eksik Bilgi", { description: "Lütfen oturum adı giriniz." });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetch("/api/roll-call/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session_name: sessionName,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "İşlem başarısız");
-      }
-
-      const data = await res.json();
-
-      setRollCallId(data.id);
-      setQrData(data.qr_code);
-      setStats({ scanned: 0, total: 0 });
-      setIsCompleted(false);
-      isCompletedRef.current = false;
-
-      toast.success("QR Kod Oluşturuldu");
-    } catch (e: any) {
-      toast.error("Hata", { description: e.message || "QR Kod oluşturulamadı." });
-    } finally {
-      setLoading(false);
-    }
-  };
+        return res.json();
+    },
+    onSuccess: (data) => {
+        setRollCallId(data.id);
+        setQrData(data.qr_code);
+        setIsCompleted(false);
+        isCompletedRef.current = false;
+        toast.success("QR Kod Oluşturuldu");
+    },
+    onError: (e: any) => toast.error(e.message)
+  });
 
   const handleManualFinish = () => {
     if (!confirm("Yoklamayı bitirmek istediğinize emin misiniz?")) return;
-
-    // Trigger success screen manually
     setIsCompleted(true);
     isCompletedRef.current = true;
     toast.info("Yoklama manuel olarak sonlandırıldı.");
@@ -121,7 +81,6 @@ export default function CommitteeRollCallPage() {
   const handleClose = () => {
     setQrData(null);
     setRollCallId(null);
-    setStats({ scanned: 0, total: 0 });
     setSessionName("");
     setIsCompleted(false);
     isCompletedRef.current = false;
@@ -146,8 +105,8 @@ export default function CommitteeRollCallPage() {
             <div className="p-3 bg-primary/10 border border-primary/20 rounded-md text-sm text-primary flex gap-2">
               <Info className="w-4 h-4 mt-0.5 shrink-0" />
               <p>
-                {committeeName ? (
-                  <>Yoklama <span className="font-bold">{committeeName}</span> komitesine atanacaktır.</>
+                {committee?.name ? (
+                  <>Yoklama <span className="font-bold">{committee.name}</span> komitesine atanacaktır.</>
                 ) : (
                   "Oluşturulan QR kod otomatik olarak yöneticisi olduğunuz komiteye atanacaktır."
                 )}
@@ -165,8 +124,8 @@ export default function CommitteeRollCallPage() {
             </div>
 
             {!qrData && (
-              <Button onClick={generateQR} className="w-full mt-4" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
+              <Button onClick={() => createMutation.mutate()} className="w-full mt-4" disabled={createMutation.isPending}>
+                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
                 QR Kod Oluştur
               </Button>
             )}
@@ -276,3 +235,7 @@ export default function CommitteeRollCallPage() {
     </div>
   );
 }
+
+// Change Log:
+// - Refactored to `useQuery` and `useMutation`.
+// - Implemented stats polling using `refetchInterval` in `useQuery`.

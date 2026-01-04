@@ -1,33 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Announcement } from "@/types/announcement";
 import { AnnouncementFeed } from "@/components/dashboard/announcements/AnnouncementFeed";
+import { CardSkeleton } from "@/components/ui/skeleton-loader";
 
 export default function AnnouncementsPage() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchAnnouncements = async () => {
-      try {
+  const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
+    queryKey: ['announcements-public'],
+    queryFn: async () => {
         const res = await fetch("/api/announcements");
-        if (res.ok) {
-          const data = await res.json();
-          setAnnouncements(data);
-        }
-      } catch (e) {
-        toast.error("Duyurular yüklenemedi");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAnnouncements();
-  }, []);
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+    }
+  });
 
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
+  if (isLoading) return <div className="max-w-4xl mx-auto p-4"><CardSkeleton count={3} /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
@@ -42,3 +30,7 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
+
+// Change Log:
+// - Refactored to `useQuery`.
+// - Uses `CardSkeleton`.

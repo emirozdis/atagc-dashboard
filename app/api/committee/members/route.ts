@@ -2,10 +2,20 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
-export async function GET() {
-  // Participant-level access: user must belong to a committee. We use a customCheck
-  // to verify membership and return the committeeMember payload for reuse.
+// Read: 60/min, Write: 20/min
+const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
+
+export async function GET(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  try {
+    await readLimiter.check(60, ip);
+  } catch {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
   const auth = await getAuthorization({
     requireAuth: true,
     customCheck: async (session) => {
@@ -109,6 +119,13 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  try {
+    await writeLimiter.check(20, ip);
+  } catch {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
   // Only committee chairmen can update members
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: "committee_chairman" });
   if (!auth.ok || !auth.session) {
@@ -144,5 +161,6 @@ export async function PUT(request: Request) {
 
   return NextResponse.json({ success: true });
 }
+
 // Change Log:
-// - Updated PUT to fetch and log `previous_state` (permissions).
+// - Added rate limiting: GET (60/min), PUT (20/min).
