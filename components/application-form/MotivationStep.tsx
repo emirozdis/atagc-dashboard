@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MotivationData } from "@/types/application";
+import { KvkkDialog } from "./KvkkDialog";
 
 interface MotivationStepProps {
   form: UseFormReturn<MotivationData>;
@@ -10,6 +12,7 @@ interface MotivationStepProps {
 
 export function MotivationStep({ form }: MotivationStepProps) {
   const { register, formState: { errors }, setValue, watch } = form;
+  const [kvkkOpen, setKvkkOpen] = useState(false);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -72,9 +75,18 @@ export function MotivationStep({ form }: MotivationStepProps) {
           <div className="space-y-1">
             <Label
               htmlFor="kvkkOnay"
-              className="text-sm text-foreground cursor-pointer leading-relaxed"
+              className="text-sm text-foreground leading-relaxed"
             >
-              KVKK Aydınlatma Metni&apos;ni okudum ve kişisel verilerimin işlenmesini kabul ediyorum.{" "}
+              <span 
+                className="text-primary hover:underline cursor-pointer font-medium"
+                onClick={(e) => {
+                  e.preventDefault(); // Prevent checkbox toggle when clicking the link
+                  setKvkkOpen(true);
+                }}
+              >
+                KVKK Aydınlatma Metni
+              </span>
+              &apos;ni okudum ve kişisel verilerimin işlenmesini kabul ediyorum.{" "}
               <span className="text-destructive">*</span>
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -87,6 +99,13 @@ export function MotivationStep({ form }: MotivationStepProps) {
           <p className="text-sm text-destructive mt-2">{errors.kvkkOnay.message}</p>
         )}
       </div>
+
+      <KvkkDialog open={kvkkOpen} onOpenChange={setKvkkOpen} />
     </div>
   );
 }
+
+// Change Log:
+// - Integrated `KvkkDialog` component.
+// - Made the text "KVKK Aydınlatma Metni" clickable to open the dialog.
+// - Added `e.preventDefault()` on the link click to ensure it opens the modal instead of toggling the checkbox associated with the label.

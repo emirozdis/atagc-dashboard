@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -11,218 +9,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PersonalInfoData, SINIF_OPTIONS } from "@/types/application";
-import { CheckCircle2, Loader2, MailCheck, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
 
-interface PersonalInfoStepProps {
-  form: UseFormReturn<PersonalInfoData>;
-  isEmailVerified: boolean;
-  onVerify: (status: boolean) => void;
-}
-
-export function PersonalInfoStep({ form, isEmailVerified, onVerify }: PersonalInfoStepProps) {
-  const { register, formState: { errors }, setValue, watch, getValues, trigger } = form;
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [verifyLoading, setVerifyLoading] = useState(false);
-
-  const email = watch("email");
-
-  const handleSendCode = async () => {
-    // Validate email format first
-    const isEmailValid = await trigger("email");
-    if (!isEmailValid) return;
-
-    setIsLoading(true);
-    
-    try {
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: getValues("email") }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Kod gönderilemedi.");
-      }
-
-      setIsVerifying(true);
-      toast.success("Doğrulama Kodu Gönderildi", {
-        description: "Lütfen e-posta adresinizi kontrol ediniz.",
-      });
-    } catch (error: any) {
-      toast.error("Hata", { description: error.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!verificationCode || verificationCode.length < 6) {
-      toast.error("Hata", { description: "Lütfen 6 haneli kodu giriniz." });
-      return;
-    }
-
-    setVerifyLoading(true);
-    try {
-      const res = await fetch("/api/auth/verify", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          email: getValues("email"), 
-          code: verificationCode 
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Doğrulama başarısız.");
-      }
-
-      onVerify(true);
-      setIsVerifying(false);
-      toast.success("E-posta Doğrulandı", {
-        description: "İşlemlere devam edebilirsiniz.",
-      });
-    } catch (error: any) {
-      toast.error("Doğrulama Hatası", { description: error.message });
-    } finally {
-      setVerifyLoading(false);
-    }
-  };
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isEmailVerified) {
-      onVerify(false);
-      setIsVerifying(false);
-      setVerificationCode("");
-    }
-    // Call original onChange from react-hook-form
-    register("email").onChange(e);
-  };
+export function PersonalInfoStep({ form }: { form: UseFormReturn<PersonalInfoData> }) {
+  const { register, formState: { errors }, setValue, watch } = form;
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="space-y-2">
-        <Label htmlFor="adSoyad" className="text-foreground">
-          Ad Soyad <span className="text-destructive">*</span>
+        <Label htmlFor="telefon" className="text-foreground">
+          Telefon Numarası <span className="text-destructive">*</span>
         </Label>
         <Input
-          id="adSoyad"
-          placeholder="Adınızı ve soyadınızı giriniz"
-          {...register("adSoyad")}
+          id="telefon"
+          type="tel"
+          placeholder="0555 555 55 55"
+          {...register("telefon")}
         />
-        {errors.adSoyad && (
-          <p className="text-sm text-destructive">{errors.adSoyad.message}</p>
+        {errors.telefon && (
+          <p className="text-sm text-destructive">{errors.telefon.message}</p>
         )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-foreground">
-            E-posta <span className="text-destructive">*</span>
-          </Label>
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2 relative">
-              <div className="relative w-full">
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="ornek@email.com"
-                  {...register("email")}
-                  onChange={handleEmailChange}
-                  className={isEmailVerified ? "border-green-500/50 bg-green-500/5 pr-10" : ""}
-                  disabled={isEmailVerified || isVerifying}
-                />
-                {isEmailVerified && (
-                  <CheckCircle2 className="absolute right-3 top-2.5 w-5 h-5 text-green-500 animate-in fade-in zoom-in" />
-                )}
-              </div>
-              
-              {!isEmailVerified && !isVerifying && (
-                <Button 
-                  type="button" 
-                  onClick={handleSendCode}
-                  disabled={isLoading || !email}
-                  variant="secondary"
-                  className="shrink-0 w-[110px]"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Kod Gönder"
-                  )}
-                </Button>
-              )}
-            </div>
-
-            {/* Verification Code Input Area */}
-            {isVerifying && !isEmailVerified && (
-              <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 fade-in bg-secondary/10 p-3 rounded-md border border-border/50">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>E-posta adresinize gönderilen kodu giriniz.</span>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    placeholder="6 Haneli Kod"
-                    className="bg-background border-border"
-                    maxLength={6}
-                  />
-                  <Button 
-                    type="button" 
-                    onClick={handleVerifyCode}
-                    disabled={verifyLoading}
-                    className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
-                    {verifyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Onayla"}
-                  </Button>
-                </div>
-                <div className="flex justify-end">
-                  <button 
-                    type="button"
-                    onClick={() => { setIsVerifying(false); setVerificationCode(""); }}
-                    className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
-                  >
-                    E-postayı değiştir veya tekrar gönder
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {isEmailVerified && (
-              <div className="flex items-center gap-2 text-xs text-green-500 font-medium px-1">
-                <MailCheck className="w-3.5 h-3.5" />
-                <span>E-posta adresi doğrulandı</span>
-              </div>
-            )}
-          </div>
-          
-          {errors.email && (
-            <p className="text-sm text-destructive">{errors.email.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="telefon" className="text-foreground">
-            Telefon <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="telefon"
-            type="tel"
-            placeholder="05XX XXX XX XX"
-            {...register("telefon")}
-          />
-          {errors.telefon && (
-            <p className="text-sm text-destructive">{errors.telefon.message}</p>
-          )}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -300,7 +105,4 @@ export function PersonalInfoStep({ form, isEmailVerified, onVerify }: PersonalIn
 }
 
 // Change Log:
-// - Replaced mock `setTimeout` and hardcoded code check with real `fetch` calls to `/api/auth/verify`.
-// - Added proper error handling using the API response.
-// - Enhanced UI for code entry (wrapped in a styled block, added "Change email" option).
-// - Added loading states for specific actions (Send vs Verify).
+// - Added missing `telefon` input field which was causing the form to get stuck due to validation errors.

@@ -1,8 +1,21 @@
 import { z } from "zod";
 
-export const personalInfoSchema = z.object({
+// Password Regex: Min 8 chars, 1 uppercase, 1 lowercase, 1 number
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+
+export const accountCreationSchema = z.object({
   adSoyad: z.string().min(2, "Ad soyad en az 2 karakter olmalıdır").max(100, "Ad soyad en fazla 100 karakter olabilir"),
   email: z.string().email("Geçerli bir e-posta adresi giriniz"),
+  password: z.string()
+    .min(8, "Şifre en az 8 karakter olmalıdır")
+    .regex(passwordRegex, "Şifre en az 1 büyük harf, 1 küçük harf ve 1 rakam içermelidir"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Şifreler eşleşmiyor",
+  path: ["confirmPassword"],
+});
+
+export const personalInfoSchema = z.object({
   telefon: z.string().min(10, "Geçerli bir telefon numarası giriniz").max(15, "Telefon numarası çok uzun"),
   dogumTarihi: z.string().min(1, "Doğum tarihi zorunludur"),
   okul: z.string().min(2, "Okul adı en az 2 karakter olmalıdır").max(150, "Okul adı çok uzun"),
@@ -26,11 +39,13 @@ export const motivationSchema = z.object({
   kvkkOnay: z.boolean().refine((val) => val === true, "KVKK onayı zorunludur"),
 });
 
+export type AccountCreationData = z.infer<typeof accountCreationSchema>;
 export type PersonalInfoData = z.infer<typeof personalInfoSchema>;
 export type ExperienceData = z.infer<typeof experienceSchema>;
 export type MotivationData = z.infer<typeof motivationSchema>;
 
 export interface ApplicationFormData {
+  accountCreation: AccountCreationData;
   personalInfo: PersonalInfoData;
   experience: ExperienceData;
   motivation: MotivationData;
@@ -65,3 +80,6 @@ export const INGILIZCE_OPTIONS = [
   { value: "ileri", label: "İleri (C1-C2)" },
   { value: "anadil", label: "Anadil" },
 ];
+
+// Change Log:
+// - Updated `password` schema to enforce complex passwords (Min 8 chars, 1 Uppercase, 1 Lowercase, 1 Number).
