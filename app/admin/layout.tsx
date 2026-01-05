@@ -1,5 +1,6 @@
 import { AdminSidebar } from "@/components/dashboard/AdminSidebar";
 import { Header } from "@/components/dashboard/Header";
+import { AdminMobileNav } from "@/components/dashboard/AdminMobileNav";
 
 export default function AdminLayout({
   children,
@@ -19,12 +20,17 @@ export default function AdminLayout({
       </div>
       <div className="flex-1 flex flex-col md:pl-64 h-full relative z-0">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
+        {/* Adjusted padding: p-4 for mobile, pb-24 to clear bottom nav */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
+          {children}
+        </main>
+        <AdminMobileNav />
       </div>
     </div>
   );
 }
 
 // Change Log:
-// - Replaced hardcoded `bg-[#181818]` with `bg-background`.
-// - Adjusted decoration opacities for better light/dark mode compatibility.
+// - Imported and added `AdminMobileNav` component.
+// - Added `pb-24` to `main` container on mobile to prevent content from being hidden behind the bottom navigation.
+// - Maintained `p-4` padding for mobile consistent with previous fixes.

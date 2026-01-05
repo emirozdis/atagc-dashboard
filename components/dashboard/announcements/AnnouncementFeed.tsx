@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Megaphone, CalendarDays, Users, User, Globe, Trash2 } from "lucide-react";
 import { Announcement } from "@/types/announcement";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface AnnouncementFeedProps {
     announcements: Announcement[];
@@ -94,9 +95,10 @@ export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedPr
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-base leading-relaxed whitespace-pre-wrap text-muted-foreground font-normal">
-                            {item.content}
-                        </p>
+                        <div 
+                            className="text-base leading-relaxed text-muted-foreground font-normal whitespace-pre-wrap"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.content) }}
+                        />
                         {(item.target_user_ids && item.target_user_ids.length > 0) && (
                             <p className="mt-2 text-xs text-muted-foreground italic border-t border-border/50 pt-2">
                                 Bu duyuru özel olarak gönderilmiştir.
@@ -110,5 +112,6 @@ export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedPr
 }
 
 // Change Log:
-// - Added optional `onDelete` prop.
-// - Added delete button (trash icon) to the card header if `onDelete` is provided.
+// - Imported `sanitizeHtml`.
+// - Replaced direct children rendering with `dangerouslySetInnerHTML` wrapped in `sanitizeHtml` to safely render rich text and prevent XSS.
+// - Kept `whitespace-pre-wrap` to preserve formatting of newlines from the admin textarea.

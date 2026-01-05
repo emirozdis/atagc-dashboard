@@ -20,7 +20,8 @@ export default function DashboardLayout({
       </div>
       <div className="flex-1 flex flex-col md:pl-64 h-full relative z-0">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 pb-24 md:pb-8">
+        {/* Adjusted padding: p-4 for mobile */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
           {children}
         </main>
         <MobileNav />
@@ -28,6 +29,6 @@ export default function DashboardLayout({
     </div>
   );
 }
+
 // Change Log:
-// - Added MobileNav component at the bottom of the main content area.
-// - Added padding-bottom to main content to prevent mobile nav overlap.
+// - Reduced mobile padding from `p-6` to `p-4` to match admin layout adjustments.

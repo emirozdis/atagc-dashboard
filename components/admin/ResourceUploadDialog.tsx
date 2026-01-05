@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Plus, UploadCloud, Loader2, Building2 } from "lucide-react";
 import { toast } from "sonner";
-import { createClient } from "@supabase/supabase-js";
 import { Committee } from "@/types/admin";
 import { useSession } from "next-auth/react";
 
@@ -28,7 +27,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
     description: "",
     category: "general",
     is_public: true,
-    committee_id: "null", // Use 'null' as string for empty state
+    committee_id: "null",
   });
 
   const [committees, setCommittees] = useState<Committee[]>([]);
@@ -91,56 +90,29 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
 
     setLoading(true);
     try {
-      // 1. Get Authenticated Supabase Token
-      const tokenRes = await fetch("/api/auth/supabase-token");
-      if (!tokenRes.ok) throw new Error("Authentication failed");
-      const { token } = await tokenRes.json();
-
-      // 2. Initialize Client with Token
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${token}` } } }
-      );
-
-      // 3. Upload File
-      const fileExt = file.name.split('.').pop();
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const fileName = `${Date.now()}-${sanitizedName}`;
-      const filePath = `uploads/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('resources')
-        .upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      // 4. Get Public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('resources')
-        .getPublicUrl(filePath);
-
-      // 5. Prepare and Save Metadata
-      const payload: any = {
-        ...formData,
-        file_url: publicUrl,
-        file_type: fileExt,
-      };
-
-      if (isChairman && chairmanCommittee) {
-        payload.committee_id = chairmanCommittee.id;
-        payload.is_public = false; // Enforce private for chairmen
-      } else {
-        payload.committee_id = formData.committee_id === 'null' ? null : formData.committee_id;
-      }
+      const payload = new FormData();
+      payload.append("file", file);
+      payload.append("title", formData.title);
+      payload.append("description", formData.description);
+      payload.append("category", formData.category);
       
+      if (isChairman && chairmanCommittee) {
+        payload.append("committee_id", chairmanCommittee.id);
+        payload.append("is_public", "false"); 
+      } else {
+        payload.append("committee_id", formData.committee_id);
+        payload.append("is_public", String(formData.is_public));
+      }
+
       const res = await fetch("/api/resources", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: payload 
       });
+
+      const result = await res.json();
+
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Metadata save failed");
+        throw new Error(result.error || result.message || "Yükleme sırasında hata oluştu");
       }
 
       toast.success("Dosya başarıyla yüklendi");
@@ -150,7 +122,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
 
     } catch (error: any) {
       console.error(error);
-      toast.error("Yükleme başarısız", { description: error.message || "İzin hatası olabilir." });
+      toast.error("Yükleme başarısız", { description: error.message });
     } finally {
       setLoading(false);
     }
@@ -179,6 +151,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
                 type="file" 
                 className="absolute inset-0 opacity-0 cursor-pointer" 
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               />
               <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
               <span className="text-sm font-medium">{file ? file.name : "Dosya sürükleyin veya tıklayın"}</span>
@@ -272,8 +245,5 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
   );
 }
 
-// Change log:
-// - Added `useSession` to detect user role (`admin` vs. `committee_chairman`).
-// - If the user is a chairman, it automatically fetches their committee and hides the selection dropdown, showing a static display of their committee name.
-// - The "Public" switch is now only shown to admins. For chairmen, uploads are defaulted and enforced to be private to their committee.
-// - The form submission logic was updated to correctly handle the payload for both roles.
+// Change Log:
+// - Updated handling of the API response to properly extract the `error` message returned from the new 400 Bad Request responses.

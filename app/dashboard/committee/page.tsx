@@ -11,17 +11,20 @@ import {
   PenTool, 
   Calendar,
   Globe,
-  Archive
+  Archive,
+  BarChart,
+  Clock,
+  UserCheck
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { VotingSystem } from "@/components/committee/VotingSystem";
 import { CommitteeData } from "@/types/committee";
-import { TourButton } from "@/components/dashboard/TourButton"; // New import
+import { TourButton } from "@/components/dashboard/TourButton";
 
 // --- Sub-Components ---
 
@@ -127,12 +130,76 @@ const QuickActions = ({ canWrite }: { canWrite: boolean }) => (
   </Card>
 );
 
+const ChairmanStatsCard = ({ stats }: { stats: any }) => {
+  if (!stats) return null;
+  
+  return (
+    <Card className="bg-primary/5 border-primary/10">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <BarChart className="w-5 h-5 text-primary" />
+          Komite İstatistikleri
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-background/60 p-3 rounded-lg border border-border/50">
+            <span className="text-xs text-muted-foreground block mb-1">Toplam Üye</span>
+            <div className="text-2xl font-bold text-foreground flex items-center gap-2">
+              {stats.total_members}
+              <Users className="w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+          <div className="bg-background/60 p-3 rounded-lg border border-border/50">
+            <span className="text-xs text-muted-foreground block mb-1">Son Yoklama</span>
+            <div className="text-2xl font-bold text-foreground flex items-center gap-2">
+              %{stats.last_roll_call?.attendance_rate ?? 0}
+              <UserCheck className="w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+        </div>
+        
+        {stats.last_roll_call && (
+          <div className="pt-2 border-t border-primary/10">
+            <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Son Oturum:
+            </div>
+            <div className="text-sm font-medium">{stats.last_roll_call.session_name}</div>
+            <div className="text-xs text-muted-foreground">
+              {new Date(stats.last_roll_call.date).toLocaleString("tr-TR")}
+            </div>
+          </div>
+        )}
+        
+        <Button asChild className="w-full" size="sm">
+          <Link href="/dashboard/committee/roll-call">
+            Yoklama Yönetimi <ArrowRight className="w-3 h-3 ml-2" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
 // --- Main Page Component ---
 
 export default function CommitteePage() {
   const { data: session } = useSession();
+  const isChairman = session?.user?.role === 'committee_chairman';
 
-  const { data: committeeData, isLoading } = useQuery<CommitteeData | null>({
+  // For chairmen, we fetch the specialized endpoint
+  const { data: chairmanData, isLoading: chairmanLoading } = useQuery({
+    queryKey: ["chairman-committee-stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/committee/my-committee");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: isChairman
+  });
+
+  // For participants, we fetch the standard endpoint
+  const { data: participantData, isLoading: participantLoading } = useQuery<CommitteeData | null>({
     queryKey: ["committee-data"],
     queryFn: async () => {
       const res = await fetch("/api/participant/me");
@@ -144,8 +211,17 @@ export default function CommitteePage() {
         can_write: json.committeeMember.can_write
       } : null;
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: !isChairman,
+    staleTime: 1000 * 60 * 5,
   });
+
+  const isLoading = isChairman ? chairmanLoading : participantLoading;
+  
+  // Unify data structure
+  const committee = isChairman ? chairmanData : participantData?.committee;
+  const topic = isChairman ? (chairmanData?.topic || null) : participantData?.topic;
+  // Chairmen always have write access to their own committee docs logically, unless handled by system
+  const canWrite = isChairman ? true : (participantData?.can_write ?? false); 
 
   if (isLoading) {
     return (
@@ -159,7 +235,7 @@ export default function CommitteePage() {
     );
   }
 
-  if (!committeeData) {
+  if (!committee) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
         <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
@@ -168,7 +244,7 @@ export default function CommitteePage() {
         <div>
           <h2 className="text-2xl font-bold font-display">Komite Bulunamadı</h2>
           <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-            Henüz bir komiteye atanmamış olabilirsiniz. Lütfen başvurunuzun onaylanmasını bekleyiniz veya yönetim ile iletişime geçiniz.
+            {isChairman ? "Yönettiğiniz bir komite bulunamadı." : "Henüz bir komiteye atanmamış olabilirsiniz."}
           </p>
         </div>
         <Button asChild variant="outline">
@@ -178,15 +254,13 @@ export default function CommitteePage() {
     );
   }
 
-  const isChairman = session?.user?.role === 'committee_chairman';
-
   return (
     <div className="animate-fade-in max-w-6xl mx-auto pb-20">
       
       {/* 1. Hero Section */}
       <CommitteeHero 
-        name={committeeData.committee.name} 
-        description={committeeData.committee.description} 
+        name={committee.name} 
+        description={committee.description} 
         role={session?.user?.role || 'applicant'}
       />
 
@@ -194,35 +268,41 @@ export default function CommitteePage() {
         
         {/* 2. Left Column: Context & Actions (4 cols) */}
         <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
-          <TopicCard topic={committeeData.topic} />
           
-          <QuickActions canWrite={committeeData.can_write} />
+          {/* Chairman Stats Widget */}
+          {isChairman && <ChairmanStatsCard stats={chairmanData?.stats} />}
 
-          {/* Metadata Card */}
-          <div className="rounded-xl border border-border/40 p-4 bg-muted/5 space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Oturum
-              </span>
-              <span className="font-medium">1. Gün / Sabah</span>
+          <TopicCard topic={topic} />
+          
+          <QuickActions canWrite={canWrite} />
+
+          {/* Metadata Card (For Participants) */}
+          {!isChairman && (
+            <div className="rounded-xl border border-border/40 p-4 bg-muted/5 space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Calendar className="w-4 h-4" /> Oturum
+                </span>
+                <span className="font-medium">Genel Oturum</span>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Users className="w-4 h-4" /> Durum
+                </span>
+                <span className="font-medium text-green-600 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  Aktif
+                </span>
+              </div>
             </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-2">
-                <Users className="w-4 h-4" /> Durum
-              </span>
-              <span className="font-medium text-green-600 flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                Aktif
-              </span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* 3. Right Column: Voting & Operations (8 cols) */}
         <div id="tour-voting" className="lg:col-span-8 space-y-6">
           <VotingSystem 
-            committeeId={committeeData.committee.id} 
+            committeeId={committee.id} 
             isChairman={isChairman} 
             userId={session?.user?.id || ""} 
           />
@@ -234,6 +314,6 @@ export default function CommitteePage() {
 }
 
 // Change Log:
-// - Removed the `CommitteeResources` component from this page as resources are now on their own dedicated page.
-// - Added a new button/link to the `QuickActions` component that directs users to `/dashboard/resources`.
-// - Updated the "read-only" description to specify it applies to the "Ortak çalışma belgesi".
+// - Added conditional data fetching for Chairmen to use `my-committee` API.
+// - Added `ChairmanStatsCard` to display the new statistics fields.
+// - Updated loading logic to handle both query states.

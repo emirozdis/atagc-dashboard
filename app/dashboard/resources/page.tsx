@@ -151,13 +151,15 @@ export default function ParticipantResourcesPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   
+  // Updated Query Key to be unique per user to prevent cache leakage
   const { data: resources = [], isLoading } = useQuery<Resource[]>({
-    queryKey: ["resources-participant"],
+    queryKey: ["resources-participant", session?.user?.id],
     queryFn: async () => {
       const res = await fetch("/api/resources");
       if (!res.ok) throw new Error("Failed");
       return res.json();
-    }
+    },
+    enabled: !!session?.user?.id
   });
 
   const isChairman = session?.user?.role === "committee_chairman";
@@ -192,7 +194,7 @@ export default function ParticipantResourcesPage() {
             
             {isChairman && (
               <ResourceUploadDialog 
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["resources-participant"] })} 
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["resources-participant", session?.user?.id] })} 
               />
             )}
           </div>
@@ -256,3 +258,7 @@ export default function ParticipantResourcesPage() {
     </div>
   );
 }
+
+// Change Log:
+// - Updated `useQuery` key to include `session?.user?.id` to ensure unique caching per user.
+// - Added `enabled: !!session?.user?.id` to prevent fetching before session is ready.

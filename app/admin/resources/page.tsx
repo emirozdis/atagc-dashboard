@@ -12,10 +12,11 @@ import {
   Filter,
   Building2,
   Globe,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -25,6 +26,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResourceUploadDialog } from "@/components/admin/ResourceUploadDialog";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
@@ -94,19 +101,79 @@ export default function AdminResourcesPage() {
     return <Badge variant="secondary">{map[cat] || cat}</Badge>;
   };
 
+  const renderMobileCard = (res: Resource) => (
+    <Card key={res.id} className="mb-4 last:mb-0">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1">
+            <h4 className="font-semibold text-sm line-clamp-1">{res.title}</h4>
+            <p className="text-xs text-muted-foreground line-clamp-2">{res.description}</p>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <a href={res.file_url} target="_blank" rel="noopener noreferrer">
+                  <Download className="w-4 h-4 mr-2" /> İndir
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-destructive focus:text-destructive"
+                onClick={() => {
+                  if(confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> Sil
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-xs">
+          {getCategoryBadge(res.category)}
+          {res.is_public ? 
+            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Herkese Açık</Badge> : 
+            <Badge variant="outline" className="text-muted-foreground">Gizli</Badge>
+          }
+        </div>
+
+        <div className="flex items-center justify-between pt-3 border-t text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            {res.committee ? (
+              <>
+                <Building2 className="w-3 h-3" />
+                <span className="truncate max-w-[100px]">{res.committee.name}</span>
+              </>
+            ) : (
+              <>
+                <Globe className="w-3 h-3" />
+                <span>Genel</span>
+              </>
+            )}
+          </div>
+          <div>{new Date(res.created_at).toLocaleDateString("tr-TR")}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-display font-bold text-foreground">Kaynak Kütüphanesi</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Kaynak Kütüphanesi</h2>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
             Delegeler için dosya ve doküman paylaşımı.
           </p>
         </div>
         <ResourceUploadDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-resources"] })} />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center bg-card p-4 rounded-xl border border-border/50">
+      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center bg-card p-4 rounded-xl border border-border/50">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
@@ -117,7 +184,7 @@ export default function AdminResourcesPage() {
           />
         </div>
         <Select value={committeeFilter} onValueChange={setCommitteeFilter}>
-          <SelectTrigger className="w-full sm:w-[240px]">
+          <SelectTrigger className="w-full md:w-[240px]">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4" />
               <SelectValue placeholder="Komite Filtrele" />
@@ -133,81 +200,91 @@ export default function AdminResourcesPage() {
         </Select>
       </div>
 
-      <Card className="bg-card border-border/50">
+      <Card className="bg-card border-border/50 bg-transparent shadow-none border-none">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6"><TableSkeleton /></div>
           ) : filteredResources.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border rounded-xl bg-card">
               <FolderOpen className="w-12 h-12 opacity-20 mb-3" />
               <p>Dosya bulunamadı.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dosya Adı</TableHead>
-                  <TableHead>Komite</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Erişim</TableHead>
-                  <TableHead>Yükleyen</TableHead>
-                  <TableHead className="text-right">İşlemler</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredResources.map((res) => (
-                  <TableRow key={res.id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{res.title}</span>
-                        <span className="text-xs text-muted-foreground truncate max-w-[200px]">{res.description}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {res.committee ? (
-                        <div className="flex items-center gap-2 text-xs">
-                          <Building2 className="w-3 h-3 text-muted-foreground" />
-                          <span className="font-medium">{res.committee.name}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Globe className="w-3 h-3" />
-                          <span>Genel</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>{getCategoryBadge(res.category)}</TableCell>
-                    <TableCell>
-                      {res.is_public ? 
-                        <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20">Herkese Açık</Badge> : 
-                        <Badge variant="outline">Gizli</Badge>
-                      }
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {res.uploader?.full_name} • {new Date(res.created_at).toLocaleDateString("tr-TR")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" asChild>
-                          <a href={res.file_url} target="_blank" rel="noopener noreferrer">
-                            <Download className="w-4 h-4 text-muted-foreground" />
-                          </a>
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => {
-                            if(confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive opacity-70 hover:opacity-100" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <>
+              {/* Mobile View */}
+              <div className="block md:hidden">
+                {filteredResources.map(renderMobileCard)}
+              </div>
+
+              {/* Desktop View */}
+              <div className="hidden md:block rounded-xl border border-border/50 bg-card overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Dosya Adı</TableHead>
+                      <TableHead>Komite</TableHead>
+                      <TableHead>Kategori</TableHead>
+                      <TableHead>Erişim</TableHead>
+                      <TableHead>Yükleyen</TableHead>
+                      <TableHead className="text-right">İşlemler</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredResources.map((res) => (
+                      <TableRow key={res.id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{res.title}</span>
+                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">{res.description}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {res.committee ? (
+                            <div className="flex items-center gap-2 text-xs">
+                              <Building2 className="w-3 h-3 text-muted-foreground" />
+                              <span className="font-medium">{res.committee.name}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Globe className="w-3 h-3" />
+                              <span>Genel</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>{getCategoryBadge(res.category)}</TableCell>
+                        <TableCell>
+                          {res.is_public ? 
+                            <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20">Herkese Açık</Badge> : 
+                            <Badge variant="outline">Gizli</Badge>
+                          }
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {res.uploader?.full_name} • {new Date(res.created_at).toLocaleDateString("tr-TR")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" asChild>
+                              <a href={res.file_url} target="_blank" rel="noopener noreferrer">
+                                <Download className="w-4 h-4 text-muted-foreground" />
+                              </a>
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => {
+                                if(confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive opacity-70 hover:opacity-100" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -216,7 +293,6 @@ export default function AdminResourcesPage() {
 }
 
 // Change Log:
-// - Added `committee` to the Resource interface and table display.
-// - Implemented a `<Select>` component to filter resources by committee or view general resources.
-// - Updated the `useQuery` key to include the filter state, triggering refetches on change.
-// - The `ResourceUploadDialog` is reused and will now support assigning a committee.
+// - Added mobile responsive view using Cards (`renderMobileCard`).
+// - Hid the Table on mobile devices and showed Cards instead.
+// - Adjusted filter section for mobile layout.

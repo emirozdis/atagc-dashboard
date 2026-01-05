@@ -30,11 +30,14 @@ export default function UsersPage() {
       </div>
 
       <Card className="bg-card border-border/50">
-        <CardContent className="p-6">
-           {/* Removing props enables internal state management for batch actions */}
+        {/* Changed padding: p-0 on mobile to allow edge-to-edge content, p-6 on desktop */}
+        <CardContent className="p-0 md:p-6">
            <UserSelectionTable />
         </CardContent>
       </Card>
     </div>
   );
 }
+
+// Change Log:
+// - Changed `CardContent` padding to `p-0 md:p-6` to maximize screen real estate on mobile for the user list.

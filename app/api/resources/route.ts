@@ -6,19 +6,29 @@ import { logAction } from "@/lib/logger";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
 
+// Schema for Metadata Validation
 const resourceSchema = z.object({
   title: z.string().min(3),
   description: z.string().optional(),
-  file_url: z.string().url(),
-  file_type: z.string(),
   category: z.enum(["general", "guide", "rules", "award", "schedule"]),
-  is_public: z.boolean().default(false),
-  committee_id: z.string().uuid().optional().nullable(),
+  is_public: z.preprocess((val) => val === 'true', z.boolean()),
+  committee_id: z.string().optional().nullable(),
 });
 
 // Read: 60/min, Write: 10/min
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
+
+// Allowed MIME types
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+  'application/msword', // doc
+  'image/jpeg',
+  'image/png'
+];
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
@@ -93,12 +103,43 @@ export const POST = apiHandler(async (request: Request) => {
   const session = auth.session;
   const userRole = session.user.role;
 
-  const body = await request.json();
-  const validData = resourceSchema.parse(body);
+  // 1. Parse FormData
+  const formData = await request.formData();
+  const file = formData.get("file") as File;
+  const rawBody: any = {};
+  formData.forEach((value, key) => {
+    if (key !== 'file') rawBody[key] = value;
+  });
 
-  // Security check for chairmen
+  // 2. Validate Metadata using Zod
+  if (rawBody.committee_id === 'null' || rawBody.committee_id === '') {
+    rawBody.committee_id = null;
+  }
+  
+  try {
+    resourceSchema.parse(rawBody);
+  } catch (zodError: any) {
+    return NextResponse.json({ error: "Eksik veya hatalı bilgi girildi." }, { status: 400 });
+  }
+  
+  const validData = resourceSchema.parse(rawBody);
+
+  // 3. Server-Side File Validation (Returns 400 instead of throwing Error)
+  if (!file) {
+    return NextResponse.json({ error: "Dosya yüklenmedi." }, { status: 400 });
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    return NextResponse.json({ error: "Dosya boyutu çok büyük (Max 10MB)." }, { status: 400 });
+  }
+
+  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    return NextResponse.json({ error: "Geçersiz dosya formatı. (PDF, DOCX, JPG, PNG kabul edilir)." }, { status: 400 });
+  }
+
+  // 4. Role-Based Security Checks
   if (userRole === 'committee_chairman') {
-    // 1. Find the committee this chairman manages
+    // Check managed committee
     const { data: managedCommittee } = await supabase
       .from('committees')
       .select('id')
@@ -106,23 +147,51 @@ export const POST = apiHandler(async (request: Request) => {
       .single();
 
     if (!managedCommittee) {
-      throw new Error("Forbidden: You do not manage any committee.");
+      return NextResponse.json({ error: "Herhangi bir komiteyi yönetmiyorsunuz." }, { status: 403 });
     }
     
-    // 2. Check if the upload is for their own committee
     if (validData.committee_id !== managedCommittee.id) {
-      throw new Error("Forbidden: You can only upload resources to your own committee.");
+      return NextResponse.json({ error: "Sadece kendi komitenize dosya yükleyebilirsiniz." }, { status: 403 });
     }
 
-    // 3. Enforce privacy for chairman uploads
+    // Force private for chairmen
     validData.is_public = false;
   }
 
+  // 5. Upload to Supabase Storage (Server-Side)
+  const fileExt = file.name.split('.').pop();
+  const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const fileName = `${Date.now()}-${sanitizedName}`;
+  const filePath = `uploads/${fileName}`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const fileBuffer = Buffer.from(arrayBuffer);
+
+  const { error: uploadError } = await supabase.storage
+    .from('resources')
+    .upload(filePath, fileBuffer, {
+      contentType: file.type,
+      upsert: false
+    });
+
+  if (uploadError) {
+    console.error("Storage upload failed:", uploadError);
+    return NextResponse.json({ error: "Dosya sunucuya kaydedilemedi." }, { status: 500 });
+  }
+
+  // 6. Get Public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('resources')
+    .getPublicUrl(filePath);
+
+  // 7. Insert DB Record
   const { data, error } = await supabase
     .from("resources")
     .insert({
       ...validData,
       committee_id: validData.committee_id || null,
+      file_url: publicUrl,
+      file_type: fileExt,
       uploaded_by: auth.session.user.id
     })
     .select()
@@ -139,32 +208,6 @@ export const POST = apiHandler(async (request: Request) => {
   return NextResponse.json({ success: true, data });
 });
 
-export const DELETE = apiHandler(async (request: Request) => {
-  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  await writeLimiter.check(10, ip);
-
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
-  if (!auth.ok || !auth.session) throw new Error("Forbidden");
-
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-  if (!id) throw new Error("Missing ID");
-
-  // Fetch info for logging
-  const { data: resource } = await supabase.from("resources").select("title").eq("id", id).single();
-
-  const { error } = await supabase.from("resources").delete().eq("id", id);
-  if (error) throw error;
-
-  await logAction(auth.session.user.id, "delete_resource", { 
-    resource_id: id, 
-    title: resource?.title 
-  }, request);
-
-  return NextResponse.json({ success: true });
-});
-
 // Change Log:
-// - Added security check in POST endpoint to ensure chairmen can only upload to their own committee.
-// - Enforced `is_public: false` for all uploads made by chairmen.
-// - Existing GET logic was already correct and did not require changes.
+// - Replaced `throw new Error(...)` with `return NextResponse.json({ error: "..." }, { status: 400 })` for user-facing validation errors (Validation, Size, Type).
+// - This ensures the frontend receives a clean error message instead of a generic 500 error.

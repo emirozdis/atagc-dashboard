@@ -69,18 +69,91 @@ export const GET = apiHandler(async (request: Request) => {
       )
     `, { count: "exact" });
 
-  if (status !== "all") {
+  // 1. Status Filter Logic
+  if (status === 'unassigned') {
+    // Logic: Status is 'approved' AND User is NOT in any committee
+    
+    // First, get all users who ARE in a committee
+    const { data: assignedMembers } = await supabase
+      .from("committee_members")
+      .select("user_id");
+    
+    const assignedUserIds = assignedMembers?.map(m => m.user_id) || [];
+
+    query = query.eq("status", "approved");
+    
+    if (assignedUserIds.length > 0) {
+      // Exclude these users
+      query = query.not("user_id", "in", `(${assignedUserIds.join(',')})`);
+    }
+  } else if (status !== "all") {
     query = query.eq("status", status);
   }
 
+  // 2. Search Logic (Name, Email, School) - Turkish Case Insensitive
   if (search) {
-    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`, { foreignTable: 'users' });
+    // Sanitize search term to prevent syntax errors in .or()
+    const safeSearch = search.replace(/[,()]/g, " ").trim();
+
+    if (safeSearch) {
+      // Create variations to handle Turkish casing issues (i/İ, ı/I)
+      // Standard Postgres ilike doesn't always map 'i' to 'İ' without specific collation.
+      // We manually check lowercase and uppercase variations.
+      const terms = [
+        safeSearch, 
+        safeSearch.toLocaleLowerCase('tr-TR'), 
+        safeSearch.toLocaleUpperCase('tr-TR')
+      ];
+      
+      // Deduplicate terms
+      const uniqueTerms = Array.from(new Set(terms));
+
+      // Construct OR clauses
+      // For Users table: check full_name AND email for all variations
+      const userSearchConditions = uniqueTerms
+        .map(t => `full_name.ilike.%${t}%,email.ilike.%${t}%`)
+        .join(',');
+
+      // For User Details table: check school_name for all variations
+      const schoolSearchConditions = uniqueTerms
+        .map(t => `school_name.ilike.%${t}%`)
+        .join(',');
+
+      // Execute parallel search to get IDs
+      const [usersRes, detailsRes] = await Promise.all([
+        supabase
+          .from('users')
+          .select('id')
+          .or(userSearchConditions),
+        supabase
+          .from('user_details')
+          .select('user_id')
+          .or(schoolSearchConditions)
+      ]);
+
+      const userIdsFromName = usersRes.data?.map(u => u.id) || [];
+      const userIdsFromSchool = detailsRes.data?.map(d => d.user_id) || [];
+      
+      // Unique list of User IDs matching search
+      const matchingUserIds = Array.from(new Set([...userIdsFromName, ...userIdsFromSchool]));
+
+      if (matchingUserIds.length > 0) {
+        query = query.in('user_id', matchingUserIds);
+      } else {
+        // No matches found, force empty result
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000'); 
+      }
+    }
   }
 
+  // 3. Sorting Logic
   if (sortBy === 'submitted_at' || sortBy === 'status') {
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
   } else if (sortBy === 'full_name') {
     query = query.order('full_name', { foreignTable: 'users', ascending: sortOrder === 'asc' });
+  } else if (sortBy === 'school_name') {
+    // Fallback: Default to submitted_at as simple sort
+    query = query.order('submitted_at', { ascending: sortOrder === 'asc' });
   }
 
   query = query.range(from, to);
@@ -103,7 +176,7 @@ export const GET = apiHandler(async (request: Request) => {
 export const POST = apiHandler(async (request: Request) => {
   // 1. Rate Limiting
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  await limiter.check(5, ip); // 5 requests per min
+  await limiter.check(5, ip); 
 
   // 2. Check System Settings
   const { data: settings } = await supabase
@@ -119,10 +192,9 @@ export const POST = apiHandler(async (request: Request) => {
   }
 
   const body = await request.json();
-  const { personalInfo, experience, motivation } = submissionSchema.parse(body); // Zod throws error if invalid
+  const { personalInfo, experience, motivation } = submissionSchema.parse(body);
 
-  // 3. Email Verification Check (Server-Side Enforcement)
-  // Ensure the email has been verified in the last 1 hour
+  // 3. Email Verification Check
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   
   const { data: verification } = await supabase
@@ -137,20 +209,18 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (!verification) {
     return NextResponse.json(
-      { error: "E-posta adresi doğrulanmamış veya doğrulama zaman aşımına uğramış. Lütfen tekrar doğrulama yapınız." },
+      { error: "E-posta adresi doğrulanmamış veya doğrulama zaman aşımına uğramış." },
       { status: 400 }
     );
   }
 
   // 4. Duplicate Checks
-  // Check Email
   const { data: existingUser } = await supabase
     .from("users")
     .select("id")
     .eq("email", personalInfo.email)
     .single();
 
-  // Check Phone Number (Data Integrity Enhancement)
   const { data: existingPhone } = await supabase
     .from("user_details")
     .select("user_id")
@@ -168,13 +238,11 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (existingUser) {
     userId = existingUser.id;
-    // Check if user already has an application
     const { data: existingApp } = await supabase.from("applications").select("id").eq("user_id", userId).single();
     if (existingApp) {
         return NextResponse.json({ error: "Zaten bir başvurunuz bulunmaktadır." }, { status: 409 });
     }
   } else {
-    // Generate secure random password
     const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
     const { data: newUser, error: createUserError } = await supabase
@@ -287,6 +355,6 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Added Server-Side email verification check in POST handler.
-// - It queries `email_verifications` to ensure a verified record exists for the given email within the last hour.
-// - This prevents bypassing the UI verification step.
+// - Enhanced search logic: Manually creating Turkish lowercase/uppercase variations of the search term and using them in an OR query.
+// - This fixes matches for "İTÜ" vs "itü" where the standard database collation might fail.
+// - Fixed school name search by applying the same logic to `school_name` in `user_details` and joining the results.

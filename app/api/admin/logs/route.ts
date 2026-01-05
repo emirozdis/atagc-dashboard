@@ -11,6 +11,9 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") || "20");
   const search = searchParams.get("search") || "";
   const action = searchParams.get("action") || "all";
+  const userId = searchParams.get("userId");
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
 
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -32,20 +35,33 @@ export async function GET(request: Request) {
     `, { count: "exact" })
     .order("created_at", { ascending: false });
 
+  // Filter by Action Type
   if (action !== "all") {
     query = query.ilike("action", `%${action}%`);
   }
 
+  // Filter by Specific User ID
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  // Filter by Date Range
+  if (startDate) {
+    query = query.gte("created_at", startDate);
+  }
+  if (endDate) {
+    // Add one day to include the end date fully (or handle time component)
+    // Assuming YYYY-MM-DD string
+    query = query.lte("created_at", `${endDate}T23:59:59`);
+  }
+
+  // Generic Search (IP or User Name/Email)
   if (search) {
-    // Search in user name/email or IP
-    // Note: Searching joined tables needs specific filter syntax or separate search
-    // Supabase allows simple OR filters across columns
-    query = query.or(`ip_address.ilike.%${search}%,user.full_name.ilike.%${search}%,user.email.ilike.%${search}%`, { foreignTable: "user" });
-    // Since we can't easily do OR across parent/child in one go cleanly without join, 
-    // a common pattern is to search logs columns OR search users and filter by user_id.
-    // For simplicity with Supabase JS client limitation on mixed table ORs:
-    // We'll stick to searching IP in logs table OR we rely on the PostgREST syntax if supported.
-    // Actually, referencing foreign table columns in .or() like above `user.full_name` is valid in recent supabase-js versions.
+    // Note: Cross-table OR filters with Supabase client are tricky.
+    // We prioritize searching logs columns (IP, Action) and potentially user info via relationship if supported syntax.
+    // For simplicity and performance, we stick to searching IP in logs or simple action matching if not handled above.
+    // Searching foreign table fields in OR is supported in newer PostgREST/Supabase versions:
+    query = query.or(`ip_address.ilike.%${search}%,user.full_name.ilike.%${search}%,user.email.ilike.%${search}%`, { foreignTable: 'user' });
   }
 
   query = query.range(from, to);
@@ -67,3 +83,6 @@ export async function GET(request: Request) {
     }
   });
 }
+
+// Change Log:
+// - Added handling for `userId`, `startDate`, and `endDate` parameters in the Supabase query.

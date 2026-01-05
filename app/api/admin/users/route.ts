@@ -14,6 +14,7 @@ export const GET = apiHandler(async (request: Request) => {
   const limit = parseInt(searchParams.get("limit") || "10");
   const search = searchParams.get("search") || "";
   const role = searchParams.get("role") || "all";
+  const status = searchParams.get("status") || "all"; // active, suspended
   const sortBy = searchParams.get("sort_by") || "created_at";
   const sortOrder = searchParams.get("sort_order") || "desc";
   const idsParam = searchParams.get("ids"); 
@@ -48,14 +49,24 @@ export const GET = apiHandler(async (request: Request) => {
       application:applications(id, status)
     `, { count: "exact" });
 
+  // Role Filter
   if (role !== "all") {
     query = query.eq("role", role);
   }
 
+  // Status Filter
+  if (status === "suspended") {
+    query = query.eq("is_suspended", true);
+  } else if (status === "active") {
+    query = query.eq("is_suspended", false);
+  }
+
+  // Search Filter
   if (search) {
     query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
   }
 
+  // Sorting
   query = query
     .order(sortBy, { ascending: sortOrder === 'asc' })
     .range(from, to);
@@ -80,49 +91,77 @@ export const PUT = apiHandler(async (request: Request) => {
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   const session = auth.session;
 
-  const { id, role, is_suspended } = await request.json();
+  const body = await request.json();
+  const { id, ids, role, is_suspended } = body;
 
-  if (session.user.id === id) {
-    return NextResponse.json({ error: "Cannot modify own account" }, { status: 400 });
+  // Mode 1: Single User Update
+  if (id) {
+    if (session.user.id === id) {
+        return NextResponse.json({ error: "Cannot modify own account" }, { status: 400 });
+    }
+
+    const { data: targetUser } = await supabase
+        .from("users")
+        .select("role, is_suspended")
+        .eq("id", id)
+        .single();
+
+    if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    if (!canManageRole(session.user.role, targetUser.role)) {
+        return NextResponse.json({ error: "Insufficient permissions to modify this user" }, { status: 403 });
+    }
+
+    if (role && !canManageRole(session.user.role, role)) {
+        return NextResponse.json({ error: "Insufficient permissions to assign this role" }, { status: 403 });
+    }
+
+    const updates: any = {};
+    if (role !== undefined) updates.role = role;
+    if (is_suspended !== undefined) updates.is_suspended = is_suspended;
+
+    const { error } = await supabase
+        .from("users")
+        .update(updates)
+        .eq("id", id);
+
+    if (error) throw error;
+
+    await logAction(session.user.id, "update_user", { 
+        target_user_id: id, 
+        updates,
+        previous_state: targetUser
+    }, request);
+
+    return NextResponse.json({ success: true });
   }
 
-  // 1. Fetch Target User to check hierarchy
-  const { data: targetUser } = await supabase
-    .from("users")
-    .select("role, is_suspended")
-    .eq("id", id)
-    .single();
+  // Mode 2: Batch User Update
+  if (ids && Array.isArray(ids) && ids.length > 0) {
+      if (role && !canManageRole(session.user.role, role)) {
+          return NextResponse.json({ error: "Insufficient permissions to assign this role" }, { status: 403 });
+      }
+      
+      const updates: any = {};
+      if (role !== undefined) updates.role = role;
+      
+      const { error } = await supabase
+          .from("users")
+          .update(updates)
+          .in("id", ids)
+          .neq("id", session.user.id);
 
-  if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
+      if (error) throw error;
 
-  // 2. Permission Check
-  if (!canManageRole(session.user.role, targetUser.role)) {
-    return NextResponse.json({ error: "Insufficient permissions to modify this user" }, { status: 403 });
+      await logAction(session.user.id, "batch_update_users", { 
+          target_ids: ids, 
+          updates
+      }, request);
+
+      return NextResponse.json({ success: true, count: ids.length });
   }
 
-  // If changing role, check if user can assign that new role
-  if (role && !canManageRole(session.user.role, role)) {
-    return NextResponse.json({ error: "Insufficient permissions to assign this role" }, { status: 403 });
-  }
-
-  const updates: any = {};
-  if (role !== undefined) updates.role = role;
-  if (is_suspended !== undefined) updates.is_suspended = is_suspended;
-
-  const { error } = await supabase
-    .from("users")
-    .update(updates)
-    .eq("id", id);
-
-  if (error) throw error;
-
-  await logAction(session.user.id, "update_user", { 
-      target_user_id: id, 
-      updates,
-      previous_state: targetUser
-  }, request);
-
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ error: "Invalid Request" }, { status: 400 });
 });
 
 export const DELETE = apiHandler(async (request: Request) => {
@@ -139,7 +178,6 @@ export const DELETE = apiHandler(async (request: Request) => {
         return NextResponse.json({ error: "Cannot delete self" }, { status: 400 });
     }
 
-    // 1. Fetch Target to check permissions
     const { data: targetUser } = await supabase
         .from("users")
         .select("id, email, role")
@@ -148,26 +186,21 @@ export const DELETE = apiHandler(async (request: Request) => {
 
     if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    // 2. Permission Check
     if (!canManageRole(session.user.role, targetUser.role)) {
         return NextResponse.json({ error: "Insufficient permissions to delete this user" }, { status: 403 });
     }
 
-    // 3. Cascade Deletions (Manual Integrity)
-    // We explicitly delete related records to prevent orphaned rows if FK constraints aren't set to CASCADE in DB
     const deletions = [
       supabase.from("user_details").delete().eq("user_id", id),
       supabase.from("applications").delete().eq("user_id", id),
       supabase.from("committee_members").delete().eq("user_id", id),
       supabase.from("roll_call_logs").delete().eq("user_id", id),
       supabase.from("vote_responses").delete().eq("user_id", id),
-      supabase.from("resources").delete().eq("uploaded_by", id), // New: Resources
-      // Notes: Logs are usually kept even if user is deleted, or set user_id to NULL
+      supabase.from("resources").delete().eq("uploaded_by", id),
     ];
 
     await Promise.all(deletions);
     
-    // 4. Delete user
     const { error } = await supabase.from("users").delete().eq("id", id);
 
     if (error) throw error;
@@ -181,8 +214,5 @@ export const DELETE = apiHandler(async (request: Request) => {
     return NextResponse.json({ success: true });
 });
 
-/* Change Log:
-- Wrapped in `apiHandler`.
-- Implemented `canManageRole` logic to enforce hierarchy (Admin cannot ban Superadmin).
-- Enhanced DELETE cascade to include `vote_responses` and `resources`.
-*/
+// Change Log:
+// - Added logic to handle `status` query parameter in GET request to filter by `active` or `suspended`.

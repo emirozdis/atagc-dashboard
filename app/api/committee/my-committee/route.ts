@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   // 1. Try to find committee by admin_id
   const { data: adminCommittee } = await supabase
     .from("committees")
-    .select("id, name")
+    .select("id, name, description")
     .eq("admin_id", session.user.id)
     .maybeSingle();
 
@@ -47,50 +47,76 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Committee not found" }, { status: 404 });
   }
 
-  // Fetch committee details using the found ID
-  const { data: committee, error: commError } = await supabase
-    .from("committees")
-    .select("id, name")
-    .eq("id", committeeId)
-    .single();
-    
-  if (commError) {
+  // Fetch committee details, members, and stats in parallel
+  const [committeeRes, membersRes, lastRollCallRes] = await Promise.all([
+    supabase
+        .from("committees")
+        .select("id, name, description")
+        .eq("id", committeeId)
+        .single(),
+    supabase
+        .from("committee_members")
+        .select(`
+          id,
+          can_write,
+          user:users (
+            id,
+            full_name,
+            email
+          )
+        `)
+        .eq("committee_id", committeeId),
+    supabase
+        .from("roll_calls")
+        .select(`
+            id, 
+            session_name, 
+            created_at, 
+            roll_call_logs(count)
+        `)
+        .eq("committee_id", committeeId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+  ]);
+
+  if (committeeRes.error) {
      return NextResponse.json({ error: "Failed to fetch committee details" }, { status: 500 });
   }
 
-  // 3. Fetch members of this committee
-  const { data: members, error: membersError } = await supabase
-    .from("committee_members")
-    .select(`
-      id,
-      can_write,
-      user:users (
-        id,
-        full_name,
-        email
-      )
-    `)
-    .eq("committee_id", committeeId);
-
-  if (membersError) {
-    console.error("Error fetching committee members:", membersError);
-  }
-  
-  const formattedMembers = members?.map((m: any) => {
-    // Handle potential array return from Supabase for one-to-many inference
+  const members = membersRes.data || [];
+  const formattedMembers = members.map((m: any) => {
     const userData = Array.isArray(m.user) ? m.user[0] : m.user;
-    
     return {
-      id: m.id, // UUID string of the membership record
-      userId: userData?.id, // UUID string of the user
+      id: m.id, 
+      userId: userData?.id, 
       full_name: userData?.full_name || "İsimsiz Üye",
       email: userData?.email || "",
       can_edit: m.can_write
     };
-  }) || [];
+  });
 
-  return NextResponse.json({ ...committee, members: formattedMembers });
+  // Calculate Stats
+  const totalMembers = formattedMembers.length;
+  const lastRollCall = lastRollCallRes.data ? {
+      session_name: lastRollCallRes.data.session_name,
+      date: lastRollCallRes.data.created_at,
+      attendance_count: lastRollCallRes.data.roll_call_logs?.[0]?.count || 0,
+      attendance_rate: totalMembers > 0 
+        ? Math.round(((lastRollCallRes.data.roll_call_logs?.[0]?.count || 0) / totalMembers) * 100) 
+        : 0
+  } : null;
+
+  return NextResponse.json({ 
+      ...committeeRes.data, 
+      members: formattedMembers,
+      stats: {
+          total_members: totalMembers,
+          last_roll_call: lastRollCall
+      }
+  });
 }
 
 // Change Log:
-// - Added rate limiting (60/min).
+// - Added logic to fetch `last_roll_call` stats and `total_members`.
+// - Returns a combined object with a `stats` field for the chairman dashboard.
