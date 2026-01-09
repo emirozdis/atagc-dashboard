@@ -97,7 +97,6 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.picture = user.image;
-        // Fix: Ensure sessionId is a string using fallback
         token.sessionId = user.sessionId || ""; 
       }
       if (trigger === "update" && session?.user?.image) {
@@ -110,19 +109,37 @@ export const authOptions: NextAuthOptions = {
       if (token && token.sessionId) {
         const { data: activeSession } = await supabase
           .from("active_sessions")
-          .select("id, last_active")
+          .select(`
+            id, 
+            last_active,
+            user:users (
+              is_suspended,
+              role
+            )
+          `)
           .eq("id", token.sessionId)
           .single();
 
-        // If session deleted from DB (signed out from another device), kill session here
+        // Check if session exists in DB
         if (!activeSession) {
-          // Returning null forces NextAuth client to see user as unauthenticated
           return null as any; 
         }
 
+        // Fix: Supabase might return relation as array or single object depending on types
+        // Safely extract the user object
+        const user = Array.isArray(activeSession.user) 
+          ? activeSession.user[0] 
+          : activeSession.user;
+
+        // Check if user exists and is not suspended
+        if (!user || user.is_suspended) {
+          return null as any; 
+        }
+
+        // Apply to session object
         if (session.user) {
           session.user.id = token.id;
-          session.user.role = token.role as any;
+          session.user.role = user.role as any; // Sync role from DB
           session.user.image = token.picture;
           session.user.sessionId = token.sessionId;
         }
@@ -142,5 +159,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Fixed TypeScript error by providing a default empty string for `sessionId` in the `jwt` callback.
-// - Updated `session` callback to return `null` instead of `{}` when session validation fails, correctly triggering unauthenticated state.
+// - Fixed TypeScript error in `session` callback by handling `activeSession.user` as potentially an array.
+// - Added specific check `Array.isArray(activeSession.user) ? activeSession.user[0] : activeSession.user` to safely access user properties.

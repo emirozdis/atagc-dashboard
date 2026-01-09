@@ -72,9 +72,7 @@ export const GET = apiHandler(async (request: Request) => {
   });
 });
 
-// [PUT and DELETE remain unchanged except imports if necessary]
 export const PUT = apiHandler(async (request: Request) => {
-  // ... existing PUT implementation
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   const session = auth.session;
@@ -91,7 +89,13 @@ export const PUT = apiHandler(async (request: Request) => {
 
     const updates: any = {};
     if (role !== undefined) updates.role = role;
-    if (is_suspended !== undefined) updates.is_suspended = is_suspended;
+    if (is_suspended !== undefined) {
+        updates.is_suspended = is_suspended;
+        // If suspending, optionally clear active sessions to enforce immediate logout physically
+        if (is_suspended === true) {
+            await supabase.from("active_sessions").delete().eq("user_id", id);
+        }
+    }
 
     const { error } = await supabase.from("users").update(updates).eq("id", id);
     if (error) throw error;
@@ -112,7 +116,6 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 export const DELETE = apiHandler(async (request: Request) => {
-  // ... existing DELETE implementation
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   const session = auth.session;
@@ -125,6 +128,7 @@ export const DELETE = apiHandler(async (request: Request) => {
   if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
   if (!canManageRole(session.user.role, targetUser.role)) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
 
+  // Clean up all related data
   const deletions = [
     supabase.from("user_details").delete().eq("user_id", id),
     supabase.from("applications").delete().eq("user_id", id),
@@ -132,6 +136,7 @@ export const DELETE = apiHandler(async (request: Request) => {
     supabase.from("roll_call_logs").delete().eq("user_id", id),
     supabase.from("vote_responses").delete().eq("user_id", id),
     supabase.from("resources").delete().eq("uploaded_by", id),
+    supabase.from("active_sessions").delete().eq("user_id", id), // Clean up sessions
   ];
   await Promise.all(deletions);
   const { error } = await supabase.from("users").delete().eq("id", id);
@@ -141,4 +146,5 @@ export const DELETE = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Added `user_details(profile_picture_url)` to the select list in GET.
+// - PUT: Added logic to delete `active_sessions` for the user if `is_suspended` is set to true.
+// - DELETE: Added `active_sessions` to the cleanup list.
