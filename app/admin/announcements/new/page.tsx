@@ -43,6 +43,7 @@ import { Committee } from "@/types/admin";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function NewAnnouncementPage() {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function NewAnnouncementPage() {
 
   // Committee selection tracking
   const [selectedCommitteeIds, setSelectedCommitteeIds] = useState<string[]>([]);
-  
+
   // Queries
   const { data: committees = [] } = useQuery<Committee[]>({
     queryKey: ['committees'],
@@ -79,11 +80,11 @@ export default function NewAnnouncementPage() {
   const { data: previewUsers = [], isLoading: loadingPreview } = useQuery({
     queryKey: ['preview-users', selectedUserIds],
     queryFn: async () => {
-        const idsToFetch = selectedUserIds.slice(0, 50).join(",");
-        const res = await fetch(`/api/admin/users?ids=${idsToFetch}`);
-        if (!res.ok) throw new Error("Failed");
-        const json = await res.json();
-        return json.data || [];
+      const idsToFetch = selectedUserIds.slice(0, 50).join(",");
+      const res = await fetch(`/api/admin/users?ids=${idsToFetch}`);
+      if (!res.ok) throw new Error("Failed");
+      const json = await res.json();
+      return json.data || [];
     },
     enabled: currentStep === 3 && selectedUserIds.length > 0
   });
@@ -91,29 +92,29 @@ export default function NewAnnouncementPage() {
   // Mutations
   const createMutation = useMutation({
     mutationFn: async () => {
-        const payload: any = { title, content };
+      const payload: any = { title, content };
 
-        if (activePreset === 'all') {
-            payload.targetType = 'all';
-        } else if (activePreset === 'committee') {
-            payload.targetType = 'committee';
-            payload.committeeIds = selectedCommitteeIds;
-        } else {
-            payload.targetType = 'user';
-            payload.userIds = selectedUserIds;
-        }
+      if (activePreset === 'all') {
+        payload.targetType = 'all';
+      } else if (activePreset === 'committee') {
+        payload.targetType = 'committee';
+        payload.committeeIds = selectedCommitteeIds;
+      } else {
+        payload.targetType = 'user';
+        payload.userIds = selectedUserIds;
+      }
 
-        const res = await fetch("/api/announcements", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
+      const res = await fetch("/api/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-        if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-        toast.success("Duyuru başarıyla oluşturuldu.");
-        router.push("/admin/announcements");
+      toast.success("Duyuru başarıyla oluşturuldu.");
+      router.push("/admin/announcements");
     },
     onError: () => toast.error("Duyuru oluşturulamadı.")
   });
@@ -185,6 +186,7 @@ export default function NewAnnouncementPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
+      <Breadcrumbs items={[{ label: "Duyurular", href: "/admin/announcements" }, { label: "Yeni Duyuru" }]} />
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/admin/announcements">

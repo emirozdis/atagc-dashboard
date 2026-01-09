@@ -15,6 +15,7 @@ import { Circle, Lock, UserCog, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 import { EditorToolbar } from '@/components/dashboard/collaboration/EditorToolbar';
 import { JoinRoomCard } from '@/components/dashboard/collaboration/JoinRoomCard';
@@ -229,70 +230,73 @@ export default function CollaborativeEditorPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-120px)] gap-6 animate-fade-in relative overflow-hidden">
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${showChairmanPanel ? 'mr-[350px]' : ''}`}>
-        <div className="flex flex-col md:flex-row justify-between gap-4 mb-4 shrink-0">
-          <div>
-            <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-              Ortak Çalışma
-              {session?.user?.role === 'committee_chairman' && (
-                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Yönetici</span>
-              )}
-            </h2>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-sm font-medium text-muted-foreground">{committeeInfo?.name}</span>
-              <div className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${status === 'connected' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
-                <Circle className="w-2 h-2 fill-current" /> {status === 'connected' ? 'Canlı' : 'Bağlantı Koptu'}
-              </div>
-              {(!editor?.isEditable || !canWrite) && (
-                <div className="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                  <Lock className="w-3 h-3" /> Salt Okunur
+    <div className="flex flex-col gap-6 h-[calc(100vh-120px)] animate-fade-in relative overflow-hidden">
+      <Breadcrumbs items={[{ label: "Ortak Çalışma" }]} />
+      <div className="flex h-full gap-6 relative overflow-hidden">
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${showChairmanPanel ? 'mr-[350px]' : ''}`}>
+          <div className="flex flex-col md:flex-row justify-between gap-4 mb-4 shrink-0">
+            <div>
+              <h2 className="text-2xl font-display font-bold flex items-center gap-2">
+                Ortak Çalışma
+                {session?.user?.role === 'committee_chairman' && (
+                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Yönetici</span>
+                )}
+              </h2>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-sm font-medium text-muted-foreground">{committeeInfo?.name}</span>
+                <div className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${status === 'connected' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                  <Circle className="w-2 h-2 fill-current" /> {status === 'connected' ? 'Canlı' : 'Bağlantı Koptu'}
                 </div>
+                {(!editor?.isEditable || !canWrite) && (
+                  <div className="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+                    <Lock className="w-3 h-3" /> Salt Okunur
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {session?.user?.role === 'committee_chairman' && (
+                <Button
+                  variant={showChairmanPanel ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setShowChairmanPanel(!showChairmanPanel)}
+                  className="gap-2"
+                >
+                  <UserCog className="w-4 h-4" />
+                  {showChairmanPanel ? "Paneli Gizle" : "Üye Yönetimi"}
+                </Button>
               )}
+              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => window.location.reload()}>
+                <X className="w-5 h-5" />
+              </Button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {session?.user?.role === 'committee_chairman' && (
-              <Button
-                variant={showChairmanPanel ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setShowChairmanPanel(!showChairmanPanel)}
-                className="gap-2"
-              >
-                <UserCog className="w-4 h-4" />
-                {showChairmanPanel ? "Paneli Gizle" : "Üye Yönetimi"}
-              </Button>
+          <Card className="flex-1 bg-card border-card/50 flex flex-col overflow-hidden relative">
+            <EditorToolbar editor={editor} />
+            <div className="flex-1 overflow-y-auto">
+              <EditorContent editor={editor} className="h-full w-full" />
+            </div>
+
+            {!canWrite && (
+              <div className="absolute bottom-4 left-4 right-4 bg-destructive/10 text-destructive border border-destructive/20 p-2 rounded text-center text-sm font-medium backdrop-blur-md animate-in slide-in-from-bottom-2">
+                <Lock className="w-4 h-4 inline mr-2" />
+                Yazma izniniz bulunmamaktadır. Yalnızca görüntüleyebilirsiniz.
+              </div>
             )}
-            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => window.location.reload()}>
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
+          </Card>
         </div>
 
-        <Card className="flex-1 bg-card border-card/50 flex flex-col overflow-hidden relative">
-          <EditorToolbar editor={editor} />
-          <div className="flex-1 overflow-y-auto">
-            <EditorContent editor={editor} className="h-full w-full" />
-          </div>
-
-          {!canWrite && (
-            <div className="absolute bottom-4 left-4 right-4 bg-destructive/10 text-destructive border border-destructive/20 p-2 rounded text-center text-sm font-medium backdrop-blur-md animate-in slide-in-from-bottom-2">
-              <Lock className="w-4 h-4 inline mr-2" />
-              Yazma izniniz bulunmamaktadır. Yalnızca görüntüleyebilirsiniz.
-            </div>
-          )}
-        </Card>
+        {session?.user?.role === 'committee_chairman' && (
+          <ChairmanPanel
+            isOpen={showChairmanPanel}
+            // Filter out the current user (chairman) from the members list
+            members={members.filter(m => m.userId !== session?.user?.id)}
+            onTogglePermission={handleToggleMemberPermission}
+          />
+        )}
       </div>
-
-      {session?.user?.role === 'committee_chairman' && (
-        <ChairmanPanel
-          isOpen={showChairmanPanel}
-          // Filter out the current user (chairman) from the members list
-          members={members.filter(m => m.userId !== session?.user?.id)}
-          onTogglePermission={handleToggleMemberPermission}
-        />
-      )}
     </div>
   );
 }

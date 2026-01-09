@@ -7,6 +7,7 @@ import { FileText, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Committee } from "@/types/admin";
 import { CardSkeleton } from "@/components/ui/skeleton-loader";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AdminDocumentsPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function AdminDocumentsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <Breadcrumbs items={[{ label: "Belgeler" }]} />
       <h2 className="text-3xl font-display font-bold text-foreground">Komite Belgeleri</h2>
       <p className="text-muted-foreground">
         Görüntülemek veya yorum yapmak istediğiniz komiteyi seçin.

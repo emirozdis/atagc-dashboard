@@ -15,8 +15,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ATAGC - Panel",
-  description: "ATAGÇ Çalıştay Paneli",
+  title: "ATAGÇ 2026 - Panel",
+  description: "ATAGÇ 2026 Etkinlik Paneli",
+  keywords: ["ATAGÇ", "2026", "İTÜ GVO", "İzmir", "Atatürk Gençliği Çalıştayı"],
+  authors: [{ name: "ATAGÇ" }],
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
+  openGraph: {
+    title: "ATAGÇ 2026 - Panel",
+    description: "ATAGÇ 2026 Etkinlik Paneli",
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({

@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 import { ResourceUploadDialog } from "@/components/admin/ResourceUploadDialog";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 interface Resource {
   id: string;
@@ -30,11 +31,11 @@ const categoryConfig = {
 
 function ResourceCard({ resource }: { resource: Resource }) {
   const fileExtension = resource.file_url.split('.').pop()?.toUpperCase() || 'FILE';
-  
+
   return (
     <Card className="group relative overflow-hidden border border-border/40 bg-card hover:border-primary/30 hover:shadow-lg transition-all duration-300">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      
+
       <CardHeader className="relative pb-3">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -47,10 +48,10 @@ function ResourceCard({ resource }: { resource: Resource }) {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="w-3 h-3" />
               <time dateTime={resource.created_at}>
-                {new Date(resource.created_at).toLocaleDateString("tr-TR", { 
-                  day: 'numeric', 
-                  month: 'short', 
-                  year: 'numeric' 
+                {new Date(resource.created_at).toLocaleDateString("tr-TR", {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
                 })}
               </time>
               <span className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground font-medium ml-auto">
@@ -65,15 +66,15 @@ function ResourceCard({ resource }: { resource: Resource }) {
           </CardDescription>
         )}
       </CardHeader>
-      
+
       <CardContent className="relative pt-0">
-        <Button 
-          size="sm" 
-          asChild 
+        <Button
+          size="sm"
+          asChild
           className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all"
         >
           <a href={resource.file_url} target="_blank" rel="noopener noreferrer">
-            <Download className="w-4 h-4 mr-2" /> 
+            <Download className="w-4 h-4 mr-2" />
             Görüntüle / İndir
           </a>
         </Button>
@@ -82,19 +83,19 @@ function ResourceCard({ resource }: { resource: Resource }) {
   );
 }
 
-function ResourceSection({ 
-  title, 
-  icon: Icon, 
-  resources, 
-  badge 
-}: { 
+function ResourceSection({
+  title,
+  icon: Icon,
+  resources,
+  badge
+}: {
   title: string;
   icon: React.ElementType;
   resources: Resource[];
   badge?: string;
 }) {
   if (resources.length === 0) return null;
-  
+
   return (
     <section className="space-y-5">
       <div className="flex items-center gap-3 pb-2 border-b border-border/50">
@@ -124,7 +125,7 @@ function LoadingSkeleton() {
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-5 w-96" />
       </div>
-      
+
       <div className="space-y-6">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -133,7 +134,7 @@ function LoadingSkeleton() {
           ))}
         </div>
       </div>
-      
+
       <div className="space-y-6">
         <Skeleton className="h-12 w-56" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -150,7 +151,7 @@ export default function ParticipantResourcesPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Updated Query Key to be unique per user to prevent cache leakage
   const { data: resources = [], isLoading } = useQuery<Resource[]>({
     queryKey: ["resources-participant", session?.user?.id],
@@ -164,8 +165,8 @@ export default function ParticipantResourcesPage() {
 
   const isChairman = session?.user?.role === "committee_chairman";
 
-  const filteredResources = resources.filter(resource => 
-    searchQuery === "" || 
+  const filteredResources = resources.filter(resource =>
+    searchQuery === "" ||
     resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     resource.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -180,6 +181,7 @@ export default function ParticipantResourcesPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <Breadcrumbs items={[{ label: "Kaynaklar" }]} />
         {/* Header Section */}
         <div className="space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
@@ -191,10 +193,10 @@ export default function ParticipantResourcesPage() {
                 Etkinlik süresince ihtiyaç duyacağınız tüm dokümanlar ve materyaller
               </p>
             </div>
-            
+
             {isChairman && (
-              <ResourceUploadDialog 
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["resources-participant", session?.user?.id] })} 
+              <ResourceUploadDialog
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["resources-participant", session?.user?.id] })}
               />
             )}
           </div>
@@ -239,16 +241,16 @@ export default function ParticipantResourcesPage() {
           </Card>
         ) : (
           <div className="space-y-12">
-            <ResourceSection 
-              title="Komite Kaynakları" 
-              icon={Building2} 
+            <ResourceSection
+              title="Komite Kaynakları"
+              icon={Building2}
               resources={committeeResources}
               badge={committeeResources.length > 0 ? `${committeeResources.length}` : undefined}
             />
-            
-            <ResourceSection 
-              title="Genel Kaynaklar" 
-              icon={Globe} 
+
+            <ResourceSection
+              title="Genel Kaynaklar"
+              icon={Globe}
               resources={generalResources}
               badge={generalResources.length > 0 ? `${generalResources.length}` : undefined}
             />

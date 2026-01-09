@@ -5,18 +5,39 @@ import { v4 as uuidv4 } from 'uuid';
 import { logAction } from "@/lib/logger";
 
 export async function POST(request: Request) {
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin", "committee_chairman"] });
+  // Allow deputy_chair to create roll calls
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin", "committee_chairman", "deputy_chair"] });
   if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
   const session = auth.session;
 
   try {
-    const { committee_id, session_name } = await request.json();
+    const body = await request.json();
+    const session_name = body.session_name;
+    let committee_id = body.committee_id;
+
+    // Automatically find committee_id if not provided
+    if (!committee_id) {
+      const { data: adminCommittee } = await supabase.from("committees").select("id").eq("admin_id", session.user.id).maybeSingle();
+      if (adminCommittee) {
+        committee_id = adminCommittee.id;
+      } else {
+        const { data: memberCommittee } = await supabase.from("committee_members").select("committee_id").eq("user_id", session.user.id).maybeSingle();
+        if (memberCommittee) {
+          committee_id = memberCommittee.committee_id;
+        }
+      }
+    }
+
+    if (!committee_id) {
+      return NextResponse.json({ error: "Committee not found for this user" }, { status: 400 });
+    }
+
     const uniqueToken = uuidv4();
 
     const { data, error } = await supabase
       .from("roll_calls")
       .insert({
-        committee_id, // now expecting UUID string
+        committee_id,
         session_name,
         qr_code: uniqueToken
       })
@@ -33,6 +54,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
-// Change Log:
-// - Added `logAction` to log the creation of a roll call session.
-// - Updated allowed roles to include "committee_chairman" as they also use this endpoint.

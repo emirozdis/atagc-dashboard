@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { QrCode, Loader2, Info, Users, StopCircle, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { QRCodeSVG } from "qrcode.react";
+import { RollCallHistory } from "@/components/committee/RollCallHistory";
 
 export default function CommitteeRollCallPage() {
   const [sessionName, setSessionName] = useState("");
@@ -20,53 +23,56 @@ export default function CommitteeRollCallPage() {
   const { data: committee } = useQuery({
     queryKey: ['my-committee'],
     queryFn: async () => {
-        const res = await fetch("/api/committee/my-committee");
-        if (!res.ok) throw new Error("Failed");
-        return res.json();
+      const res = await fetch("/api/committee/my-committee");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
     }
   });
 
   const { data: stats = { scanned: 0, total: 0 } } = useQuery({
     queryKey: ['roll-call-stats', rollCallId],
     queryFn: async () => {
-        const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
-        
-        if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
-            isCompletedRef.current = true;
-            setIsCompleted(true);
-            toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
-        }
-        return data;
+      const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+
+      if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
+        isCompletedRef.current = true;
+        setIsCompleted(true);
+        toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
+      }
+      return data;
     },
     enabled: !!rollCallId && !isCompleted,
     refetchInterval: 3000
   });
 
+  const queryClient = useQueryClient();
+
   // Mutations
   const createMutation = useMutation({
     mutationFn: async () => {
-        if (!sessionName) throw new Error("Oturum adı giriniz");
-        
-        const res = await fetch("/api/roll-call/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session_name: sessionName }),
-        });
+      if (!sessionName) throw new Error("Oturum adı giriniz");
 
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || "Failed");
-        }
-        return res.json();
+      const res = await fetch("/api/roll-call/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_name: sessionName }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed");
+      }
+      return res.json();
     },
     onSuccess: (data) => {
-        setRollCallId(data.id);
-        setQrData(data.qr_code);
-        setIsCompleted(false);
-        isCompletedRef.current = false;
-        toast.success("QR Kod Oluşturuldu");
+      setRollCallId(data.id);
+      setQrData(data.qr_code);
+      setIsCompleted(false);
+      isCompletedRef.current = false;
+      toast.success("QR Kod Oluşturuldu");
+      queryClient.invalidateQueries({ queryKey: ["committee-roll-call-history"] });
     },
     onError: (e: any) => toast.error(e.message)
   });
@@ -88,6 +94,7 @@ export default function CommitteeRollCallPage() {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+      <Breadcrumbs items={[{ label: "Komitem", href: "/dashboard/committee" }, { label: "Yoklama" }]} />
       <div>
         <h2 className="text-3xl font-display font-bold text-foreground">Yoklama Oluştur</h2>
         <p className="text-muted-foreground mt-1">
@@ -163,9 +170,10 @@ export default function CommitteeRollCallPage() {
             /* Active QR Screen */
             <div className="text-center space-y-6 animate-in zoom-in fade-in w-full">
               <div className="bg-white p-4 rounded-xl shadow-lg inline-block">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}&bgcolor=ffffff`}
-                  alt="Session QR Code"
+                <QRCodeSVG
+                  value={qrData}
+                  size={256}
+                  level="M"
                   className="w-48 h-48 md:w-64 md:h-64 object-contain"
                 />
               </div>
@@ -231,6 +239,10 @@ export default function CommitteeRollCallPage() {
             </div>
           )}
         </Card>
+      </div>
+
+      <div className="pt-6">
+        <RollCallHistory variant="full" />
       </div>
     </div>
   );

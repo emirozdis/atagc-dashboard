@@ -9,12 +9,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PersonalInfoData, SINIF_OPTIONS } from "@/types/application";
+import { AvatarUpload } from "@/components/ui/avatar-upload";
 
 export function PersonalInfoStep({ form }: { form: UseFormReturn<PersonalInfoData> }) {
   const { register, formState: { errors }, setValue, watch } = form;
+  const currentImage = watch("profile_picture_url");
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Profile Picture Upload */}
+      <div className="flex flex-col items-center gap-4 mb-6">
+        <AvatarUpload 
+          currentImageUrl={currentImage}
+          onUploadComplete={(url) => setValue("profile_picture_url", url)}
+          size="large"
+        />
+        <div className="text-center space-y-1">
+          <Label className="text-foreground">Profil Fotoğrafı</Label>
+          <p className="text-xs text-muted-foreground">İsteğe bağlı. Yüzünüzün net göründüğü bir fotoğraf yükleyiniz.</p>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="telefon" className="text-foreground">
           Telefon Numarası <span className="text-destructive">*</span>
@@ -103,6 +118,3 @@ export function PersonalInfoStep({ form }: { form: UseFormReturn<PersonalInfoDat
     </div>
   );
 }
-
-// Change Log:
-// - Added missing `telefon` input field which was causing the form to get stuck due to validation errors.

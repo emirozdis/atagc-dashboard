@@ -27,11 +27,13 @@ export interface Application {
             phone_number: string;
             school_name: string;
             birth_date: string;
+            profile_picture_url?: string | null;
             additional_info: any;
         } | {
             phone_number: string;
             school_name: string;
             birth_date: string;
+            profile_picture_url?: string | null;
             additional_info: any;
         }[];
         committee_members?: {

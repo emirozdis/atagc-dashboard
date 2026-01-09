@@ -3,7 +3,6 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
 
-// Read: 60/min, Write: 10/min
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
@@ -15,7 +14,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
   }
 
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "superadmin"] });
+  // Allowed roles to CREATE a vote: Chairman and Co-Chair
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "deputy_chair", "superadmin"] });
   if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: 401 });
 
   try {
@@ -64,7 +64,6 @@ export async function GET(request: Request) {
 
   if (!committeeId) return NextResponse.json({ error: "Missing committee ID" }, { status: 400 });
 
-  // Update: fetching user_id in responses to check "Has Voted" status on frontend
   const { data, error } = await supabase
     .from("votes")
     .select(`
@@ -79,6 +78,3 @@ export async function GET(request: Request) {
 
   return NextResponse.json(data);
 }
-
-// Change Log:
-// - Added rate limiting: GET (60/min), POST (10/min).

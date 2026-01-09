@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { SessionExpiredDialog } from "@/components/auth/SessionExpiredDialog";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -18,12 +19,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} enableColorScheme>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} enableColorScheme>
           {children}
+          <SessionExpiredDialog />
         </ThemeProvider>
       </QueryClientProvider>
     </SessionProvider>
   );
 }
+
 // Change Log:
-// - Added QueryClient and QueryClientProvider setup.
+// - Added `SessionExpiredDialog` to the global provider tree.

@@ -6,7 +6,6 @@ import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
-// Strict limit: 3 password change attempts per minute per IP
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const POST = apiHandler(async (request: Request) => {
@@ -17,7 +16,7 @@ export const POST = apiHandler(async (request: Request) => {
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
     const session = auth.session;
 
-    const { currentPassword, newPassword } = await request.json();
+    const { currentPassword, newPassword, signOutOthers } = await request.json();
 
     if (!currentPassword || !newPassword) {
         throw new Error("Missing fields");
@@ -59,9 +58,27 @@ export const POST = apiHandler(async (request: Request) => {
 
     await logAction(session.user.id, "change_password", { method: "profile_settings" }, request);
 
-    return NextResponse.json({ success: true, message: "Şifreniz başarıyla güncellendi." });
+    // 5. Handle Device Sign Out Logic
+    let signOutMessage = "";
+    
+    // By default or if requested, we sign out OTHER devices for security.
+    if (signOutOthers !== false) {
+        const { error: deleteError } = await supabase
+            .from("active_sessions")
+            .delete()
+            .eq("user_id", session.user.id)
+            .neq("id", session.user.sessionId); // Keep CURRENT session alive so user isn't kicked immediately
+        
+        if (!deleteError) {
+            signOutMessage = " Diğer cihazlardan çıkış yapıldı.";
+        }
+    }
+
+    return NextResponse.json({ 
+        success: true, 
+        message: `Şifreniz başarıyla güncellendi.${signOutMessage}` 
+    });
 });
 
 // Change Log:
-// - New endpoint for authenticated password changes.
-// - Includes verification of the old password before changing.
+// - Added logic to delete from `active_sessions` excluding the current session ID upon password change.

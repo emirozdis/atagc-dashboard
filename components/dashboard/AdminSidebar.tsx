@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 const adminItems = [
     {
@@ -73,6 +73,16 @@ const adminItems = [
 
 export function AdminSidebar() {
     const pathname = usePathname();
+    const { data: session } = useSession();
+    const role = session?.user?.role;
+
+    const getRoleTag = () => {
+        if (role === 'superadmin' || role === 'admin') return "Yönetim";
+        if (role === 'committee_chairman' || role === 'deputy_chair') return "Akademi";
+        return null;
+    };
+
+    const roleTag = getRoleTag();
 
     return (
         <div className="flex flex-col h-full bg-sidebar border-r border-border w-64">
@@ -81,7 +91,11 @@ export function AdminSidebar() {
                     <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
                     <span className="font-display font-bold text-lg text-primary">
                         ATAGÇ
-                        <span className="text-xs ml-2 bg-primary/20 px-1.5 py-0.5 rounded text-primary-foreground">Yönetim</span>
+                        {roleTag && (
+                            <span className="text-xs ml-2 bg-primary/20 px-1.5 py-0.5 rounded text-primary-foreground">
+                                {roleTag}
+                            </span>
+                        )}
                     </span>
                 </Link>
             </div>
@@ -123,3 +137,4 @@ export function AdminSidebar() {
 
 // Change Log:
 // - Added "Profilim" link to the admin sidebar menu.
+// - Made the role tag dynamic (Yönetim/Akademi) based on user role.

@@ -6,34 +6,41 @@ import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription 
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { Plus, BarChart2, Loader2, Vote as VoteIcon, X, History, ChevronDown, ChevronUp, Clock, PieChart, CheckCircle2 } from "lucide-react";
+import { Plus, BarChart2, Loader2, Vote as VoteIcon, X, History, Clock, PieChart, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { VoteCard, Vote } from "./VoteCard"; 
+import { VoteCard, Vote } from "./VoteCard";
 import { VoteResults } from "./VoteResults";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
+import { Badge } from "@/components/ui/badge";
 
 interface VotingSystemProps {
   committeeId: string;
   isChairman: boolean;
   userId: string;
+  variant?: "sidebar" | "full"; // 'sidebar' = only active (widget), 'full' = management (dialog)
 }
 
-export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemProps) {
+export function VotingSystem({ committeeId, isChairman, userId, variant = "full" }: VotingSystemProps) {
   const supabase = useSupabaseRealtime();
   const queryClient = useQueryClient();
-  
+  const { data: session } = useSession();
+
+  // Can manage votes? (Chairman OR Co-Chair)
+  const canManage = session?.user?.role === 'committee_chairman' || session?.user?.role === 'deputy_chair';
+
   // UI States
   const [createOpen, setCreateOpen] = useState(false);
   const [activeVoteId, setActiveVoteId] = useState<string | null>(null);
   const [selectedOption, setSelectedOption] = useState<string>("");
-  const [showHistory, setShowHistory] = useState(false);
-  
+
   // Confirmation & Summary States
   const [voteToClose, setVoteToClose] = useState<Vote | null>(null);
   const [summaryVote, setSummaryVote] = useState<Vote | null>(null);
@@ -50,7 +57,7 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
       if (!res.ok) throw new Error("Failed to fetch votes");
       return res.json();
     },
-    staleTime: 1000 * 60, // 1 minute cache
+    staleTime: 1000 * 30, 
   });
 
   // --- 2. Realtime Subscription ---
@@ -84,24 +91,17 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
 
   // --- 3. Active Vote Popup Logic ---
   useEffect(() => {
-    if (!isChairman && votes.length > 0) {
-      // Find the LATEST open vote
+    // If not a manager (delegate), auto-popup active votes if not voted yet
+    if (!canManage && votes.length > 0) {
       const openVote = votes.find(v => v.status === 'open');
-      
       if (openVote) {
         const hasVoted = openVote.responses?.some(r => r.user_id === userId);
-        // Only open modal if vote is open AND user hasn't voted yet
         if (!hasVoted) {
           setActiveVoteId(openVote.id);
-        } else if (activeVoteId === openVote.id) {
-          // If modal is open but user just voted (via another tab?), close it
-          setActiveVoteId(null);
         }
-      } else {
-        setActiveVoteId(null);
       }
     }
-  }, [votes, isChairman, userId]);
+  }, [votes, canManage, userId]);
 
   // --- 4. Mutations ---
   const createVoteMutation = useMutation({
@@ -115,7 +115,7 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ committeeId, title: newTitle, options: validOptions })
       });
-      
+
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Oylama başlatılamadı");
@@ -138,7 +138,7 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voteId, optionId })
       });
-      
+
       if (!res.ok) {
         const err = await res.json();
         if (res.status === 409) throw new Error("Zaten oy kullandınız");
@@ -152,8 +152,8 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
       queryClient.invalidateQueries({ queryKey: ["votes", committeeId] });
     },
     onError: (err: any) => {
-        toast.error(err.message);
-        if (err.message.includes("Zaten")) setActiveVoteId(null);
+      toast.error(err.message);
+      if (err.message.includes("Zaten")) setActiveVoteId(null);
     }
   });
 
@@ -171,12 +171,10 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
       }
     },
     onMutate: async (vote) => {
-      // OPTIMISTIC UPDATE: Update UI immediately before server responds
       await queryClient.cancelQueries({ queryKey: ["votes", committeeId] });
       const previousVotes = queryClient.getQueryData<Vote[]>(["votes", committeeId]);
-
       if (previousVotes) {
-        queryClient.setQueryData<Vote[]>(["votes", committeeId], (old) => 
+        queryClient.setQueryData<Vote[]>(["votes", committeeId], (old) =>
           old?.map(v => v.id === vote.id ? { ...v, status: 'closed' as const } : v) || []
         );
       }
@@ -184,15 +182,11 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
     },
     onSuccess: (data, vote) => {
       toast.success("Oylama kapatıldı");
-      
-      // Update summary using the passed vote object (updated status)
       setSummaryVote({ ...vote, status: 'closed' });
       setVoteToClose(null);
-      
       queryClient.invalidateQueries({ queryKey: ["votes", committeeId] });
     },
     onError: (err: any, variables, context) => {
-      // Revert if failed
       if (context?.previousVotes) {
         queryClient.setQueryData(["votes", committeeId], context.previousVotes);
       }
@@ -214,133 +208,156 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
   const activePolls = votes.filter(v => v.status === "open");
   const closedPolls = votes.filter(v => v.status === "closed");
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center bg-card p-4 rounded-xl border border-border/50 shadow-sm">
-        <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-                <BarChart2 className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-                <h3 className="font-bold text-foreground">Komite Oylamaları</h3>
-                <p className="text-xs text-muted-foreground hidden sm:block">Aktif ve geçmiş oylamaları yönetin.</p>
-            </div>
-        </div>
-        {isChairman && (
-          <Button onClick={() => setCreateOpen(true)} className="shadow-md" size="sm">
-            <Plus className="w-4 h-4 mr-2" /> <span className="hidden sm:inline">Yeni Oylama</span>
-            <span className="sm:hidden">Yeni</span>
-          </Button>
-        )}
-      </div>
+  // --- VARIANT: SIDEBAR WIDGET ---
+  // If sidebar mode and no active polls, show NOTHING.
+  if (variant === "sidebar") {
+    if (isLoading || activePolls.length === 0) return null;
 
-      {/* Loading State */}
-      {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}
-      
-      {/* Empty State */}
-      {!isLoading && votes.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
-            <VoteIcon className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>Henüz oylama kaydı bulunmuyor.</p>
+    return (
+      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+            Canlı Oylama
+          </span>
         </div>
-      )}
-
-      {/* ACTIVE POLLS LIST */}
-      <div className="space-y-4">
         {activePolls.map(vote => (
-          <VoteCard 
-            key={vote.id} 
-            vote={vote} 
-            userId={userId} 
-            isChairman={isChairman} 
+          <VoteCard
+            key={vote.id}
+            vote={vote}
+            userId={userId}
+            isChairman={canManage}
             onCloseVote={(v) => setVoteToClose(v)}
             onOpenVoteModal={(id) => { setActiveVoteId(id); setSelectedOption(""); }}
           />
         ))}
       </div>
+    );
+  }
 
-      {/* CLOSED POLLS (Collapsible) */}
-      {closedPolls.length > 0 && (
-        <div className="pt-4 border-t border-border/30">
-          <Button 
-            variant="ghost" 
-            className="w-full flex justify-between items-center text-muted-foreground hover:text-foreground mb-2 h-auto py-2"
-            onClick={() => setShowHistory(!showHistory)}
-          >
-            <span className="flex items-center gap-2 text-sm font-medium">
-              <History className="w-4 h-4" />
-              Geçmiş Oylamalar <span className="bg-secondary px-1.5 py-0.5 rounded-full text-xs">{closedPolls.length}</span>
-            </span>
-            {showHistory ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+  // --- VARIANT: FULL MANAGEMENT (Inside Dialog) ---
+  return (
+    <div className="space-y-6">
+      {/* Header / Actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/10 p-4 rounded-lg border border-border/50">
+        <div>
+          <h3 className="font-semibold text-foreground">Oylama Merkezi</h3>
+          <p className="text-xs text-muted-foreground">Aktif oylamalar ve geçmiş sonuçlar.</p>
+        </div>
+        {canManage && (
+          <Button onClick={() => setCreateOpen(true)} className="shadow-sm w-full sm:w-auto" size="sm">
+            <Plus className="w-4 h-4 mr-2" /> Yeni Oylama
           </Button>
+        )}
+      </div>
 
-          {showHistory && (
-            <div className="space-y-2 animate-in slide-in-from-top-2 fade-in duration-300">
-              {closedPolls.map(vote => (
-                <div 
-                  key={vote.id} 
-                  className="bg-card/50 border border-border/40 p-3 rounded-lg flex justify-between items-center hover:bg-card transition-colors cursor-pointer"
-                  onClick={() => setSummaryVote(vote)}
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-muted rounded-md text-muted-foreground">
-                            <Clock className="w-4 h-4" />
-                        </div>
-                        <div>
-                            <div className="font-medium text-sm">{vote.title}</div>
-                            <div className="text-xs text-muted-foreground">
-                                {new Date(vote.created_at).toLocaleDateString('tr-TR')} • {vote.responses.length} Oy
-                            </div>
-                        </div>
-                    </div>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs">Sonuçlar</Button>
-                </div>
-              ))}
-            </div>
-          )}
+      {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}
+
+      {!isLoading && votes.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl">
+          <VoteIcon className="w-10 h-10 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">Henüz bir oylama yapılmadı.</p>
         </div>
       )}
 
-      {/* --- DIALOGS --- */}
+      {/* Active Polls Section */}
+      {activePolls.length > 0 && (
+        <div className="space-y-3">
+          <div className="text-sm font-medium text-primary flex items-center gap-2">
+            <ActivityIcon /> Aktif Oylamalar
+          </div>
+          <div className="grid gap-4">
+            {activePolls.map(vote => (
+              <VoteCard
+                key={vote.id}
+                vote={vote}
+                userId={userId}
+                isChairman={canManage}
+                onCloseVote={(v) => setVoteToClose(v)}
+                onOpenVoteModal={(id) => { setActiveVoteId(id); setSelectedOption(""); }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* 1. Create Vote */}
+      {/* History Section */}
+      {closedPolls.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <History className="w-4 h-4" /> Geçmiş Oylamalar
+          </div>
+          <ScrollArea className="h-[300px] pr-3">
+            <div className="space-y-2">
+              {closedPolls.map(vote => (
+                <div
+                  key={vote.id}
+                  className="group bg-card border border-border/50 p-3 rounded-lg flex justify-between items-center hover:bg-muted/30 transition-colors cursor-pointer"
+                  onClick={() => setSummaryVote(vote)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-secondary/20 rounded-md text-muted-foreground group-hover:bg-secondary/40 transition-colors">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm text-foreground/90">{vote.title}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {new Date(vote.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="secondary" className="text-[10px] font-normal">{vote.responses.length} Oy</Badge>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <PieChart className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* --- DIALOGS (Managed by Parent/Self) --- */}
+      
+      {/* Create Vote */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Yeni Oylama Başlat</DialogTitle>
-            <DialogDescription>Komite üyeleri için yeni bir oylama oluşturun.</DialogDescription>
+            <DialogTitle>Yeni Oylama</DialogTitle>
+            <DialogDescription>Komite için yeni bir oylama başlatın.</DialogDescription>
           </DialogHeader>
           <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label>Oylama Konusu</Label>
-              <Input 
-                value={newTitle} 
-                onChange={e => setNewTitle(e.target.value)} 
-                placeholder="Örn: Karar Tasarısı 1.2 Oylaması" 
-                className="font-medium"
+              <Label>Konu</Label>
+              <Input
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                placeholder="Örn: Karar Tasarısı 1.2"
               />
             </div>
-            
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <Label>Seçenekler</Label>
-                <span className="text-xs text-muted-foreground">{newOptions.length} seçenek</span>
-              </div>
-              <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
+              <Label className="flex justify-between">
+                <span>Seçenekler</span>
+                <span className="text-xs text-muted-foreground font-normal">{newOptions.length} adet</span>
+              </Label>
+              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                 {newOptions.map((opt, i) => (
-                    <div key={i} className="flex gap-2 items-center animate-in slide-in-from-left-2 fade-in duration-200">
-                        <span className="text-xs text-muted-foreground w-4 text-center">{i+1}</span>
-                        <Input value={opt} onChange={e => updateOption(i, e.target.value)} className="h-9" />
-                        {newOptions.length > 2 && (
-                            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => removeOption(i)}>
-                                <X className="w-4 h-4" />
-                            </Button>
-                        )}
-                    </div>
+                  <div key={i} className="flex gap-2 items-center">
+                    <Input value={opt} onChange={e => updateOption(i, e.target.value)} className="h-8 text-sm" />
+                    {newOptions.length > 2 && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeOption(i)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 ))}
               </div>
-              <Button variant="outline" size="sm" onClick={addOption} className="w-full border-dashed">
+              <Button variant="outline" size="sm" onClick={addOption} className="w-full text-xs border-dashed h-8">
                 <Plus className="w-3 h-3 mr-2" /> Seçenek Ekle
               </Button>
             </div>
@@ -348,119 +365,89 @@ export function VotingSystem({ committeeId, isChairman, userId }: VotingSystemPr
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>İptal</Button>
             <Button onClick={() => createVoteMutation.mutate()} disabled={createVoteMutation.isPending}>
-                {createVoteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Oylamayı Başlat
+              {createVoteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Başlat"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 2. Cast Vote Modal */}
-      <Dialog open={!!activeVoteId && !isChairman} onOpenChange={(val) => !val && setActiveVoteId(null)}>
-        <DialogContent className="sm:max-w-[480px]">
+      {/* Cast Vote (For Delegates inside Full View if needed) */}
+      <Dialog open={!!activeVoteId && !canManage} onOpenChange={(val) => !val && setActiveVoteId(null)}>
+        <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <div className="flex items-center gap-2 mb-1 text-primary">
-                <VoteIcon className="w-5 h-5" />
-                <span className="text-sm font-bold uppercase tracking-wider">Aktif Oylama</span>
-            </div>
-            <DialogTitle className="text-xl">{activeVoteData?.title}</DialogTitle>
-            <DialogDescription>Lütfen oyunuzu kullanınız.</DialogDescription>
+            <DialogTitle>Oy Kullan</DialogTitle>
+            <DialogDescription>{activeVoteData?.title}</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 py-4">
-            {activeVoteData?.options.map(opt => {
-                const isSelected = selectedOption === opt.id;
-                return (
-                    <button 
-                        key={opt.id} 
-                        className={cn(
-                            "relative flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 text-left hover:shadow-md",
-                            isSelected 
-                                ? "border-primary bg-primary/5 text-primary shadow-sm" 
-                                : "border-muted bg-card hover:bg-muted/30 hover:border-muted-foreground/30"
-                        )}
-                        onClick={() => setSelectedOption(opt.id)}
-                    >
-                        <span className="font-semibold">{opt.label}</span>
-                        <div className={cn(
-                            "w-5 h-5 rounded-full border flex items-center justify-center transition-colors",
-                            isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30"
-                        )}>
-                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                        </div>
-                    </button>
-                );
-            })}
+          <div className="grid gap-2 py-4">
+            {activeVoteData?.options.map(opt => (
+              <Button
+                key={opt.id}
+                variant={selectedOption === opt.id ? "default" : "outline"}
+                className={cn("justify-start h-11", selectedOption === opt.id && "ring-2 ring-offset-1")}
+                onClick={() => setSelectedOption(opt.id)}
+              >
+                {opt.label}
+              </Button>
+            ))}
           </div>
           <DialogFooter>
-            <Button 
-                onClick={() => activeVoteId && selectedOption && castVoteMutation.mutate({ voteId: activeVoteId, optionId: selectedOption })} 
-                disabled={!selectedOption || castVoteMutation.isPending} 
-                className="w-full py-6 text-lg shadow-lg shadow-primary/20"
+            <Button
+              onClick={() => activeVoteId && selectedOption && castVoteMutation.mutate({ voteId: activeVoteId, optionId: selectedOption })}
+              disabled={!selectedOption || castVoteMutation.isPending}
+              className="w-full"
             >
-                {castVoteMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Oyumu Gönder"}
+              {castVoteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Gönder"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 3. Confirmation Dialog (Close Vote) */}
+      {/* Close Confirmation */}
       <AlertDialog open={!!voteToClose} onOpenChange={(val) => !val && setVoteToClose(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Oylamayı Bitir</AlertDialogTitle>
-            <AlertDialogDescription>
-              <strong>&quot;{voteToClose?.title}&quot;</strong> başlıklı oylama sonlandırılacaktır. 
-              Üyeler artık oy kullanamayacak ve sonuçlar kesinleşecektir.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Oylamayı Bitir?</AlertDialogTitle>
+            <AlertDialogDescription>"{voteToClose?.title}" sonlandırılacak ve sonuçlar yayınlanacaktır.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
-            <AlertDialogAction 
-                onClick={() => voteToClose && closeVoteMutation.mutate(voteToClose)} 
-                className="bg-destructive hover:bg-destructive/90 text-white"
-            >
-              {closeVoteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Bitir ve Sonuçları Gör"}
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={() => voteToClose && closeVoteMutation.mutate(voteToClose)} className="bg-destructive text-white hover:bg-destructive/90">
+              Bitir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 4. Summary Dialog */}
+      {/* Results Summary */}
       <Dialog open={!!summaryVote} onOpenChange={(val) => !val && setSummaryVote(null)}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <div className="flex items-center gap-2 mb-1 text-muted-foreground">
-                <PieChart className="w-5 h-5" />
-                <span className="text-sm font-bold uppercase tracking-wider">Oylama Sonucu</span>
-            </div>
-            <DialogTitle className="text-xl">{summaryVote?.title}</DialogTitle>
-            <DialogDescription>
-                Oylama tamamlanmıştır. Kesinleşmiş sonuçlar aşağıdadır.
-            </DialogDescription>
+            <DialogTitle>Sonuçlar</DialogTitle>
+            <DialogDescription>{summaryVote?.title}</DialogDescription>
           </DialogHeader>
-          
-          <div className="py-4">
+          <div className="py-2">
             {summaryVote && <VoteResults vote={summaryVote} userId={userId} />}
           </div>
-
-          <div className="bg-muted/30 p-3 rounded-lg flex justify-between text-sm text-muted-foreground border border-border/50">
-             <span>Toplam Katılım</span>
-             <span className="font-bold text-foreground">{summaryVote?.responses.length} Oy</span>
+          <div className="text-center text-xs text-muted-foreground border-t border-border pt-3">
+            Toplam {summaryVote?.responses.length} oy kullanıldı.
           </div>
-
-          <DialogFooter>
-            <Button onClick={() => setSummaryVote(null)} className="w-full">
-                Kapat
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
+function ActivityIcon() {
+  return (
+    <span className="relative flex h-2 w-2 mr-1">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+    </span>
+  )
+}
+
 // Change Log:
-// - Updated `castVoteMutation` to accept an object `{ voteId, optionId }` as argument to avoid relying on component state.
-// - Updated `closeVoteMutation` to accept the entire `Vote` object as argument. This fixes the bug where `voteToClose` state became null (due to dialog closing) before the async mutation function could read it.
-// - Updated the `AlertDialogAction` onClick handler to pass `voteToClose` directly to `closeVoteMutation.mutate(voteToClose)`.
-// - Updated `onSuccess` logic for closing votes to set `summaryVote` directly from the passed `vote` variable (updated with 'closed' status), ensuring correct data flow even if state clears.
+// - Added `variant` prop to toggle between 'sidebar' (widget) and 'full' (management) modes.
+// - Sidebar Mode: Only renders active votes. If no active votes, returns NULL (taking no space). No management controls.
+// - Full Mode: Renders "Oylama Merkezi" header, Create button (for chairs), active votes, and full history list.
+// - Moved Create/History dialogs to be children of the Full Mode view.

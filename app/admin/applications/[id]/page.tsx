@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 import { Application, Committee } from "@/types/admin";
 import {
@@ -85,39 +86,39 @@ export default function ApplicationDetailPage() {
   // Mutations
   const statusMutation = useMutation({
     mutationFn: async ({ status, notes }: { status: "approved" | "rejected", notes?: string }) => {
-        const res = await fetch("/api/applications", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: application?.id, status, review_notes: notes }),
-        });
-        if (!res.ok) throw new Error("Failed");
+      const res = await fetch("/api/applications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: application?.id, status, review_notes: notes }),
+      });
+      if (!res.ok) throw new Error("Failed");
     },
     onSuccess: (_, variables) => {
-        toast.success("İşlem Başarılı", {
-            description: `Başvuru ${variables.status === "approved" ? "onaylandı" : "reddedildi"}.`
-        });
-        queryClient.invalidateQueries({ queryKey: ['application', id] });
-        setRejectionMode(false);
-        setRejectionReason("");
+      toast.success("İşlem Başarılı", {
+        description: `Başvuru ${variables.status === "approved" ? "onaylandı" : "reddedildi"}.`
+      });
+      queryClient.invalidateQueries({ queryKey: ['application', id] });
+      setRejectionMode(false);
+      setRejectionReason("");
     },
     onError: () => toast.error("Durum güncellenemedi.")
   });
 
   const assignMutation = useMutation({
     mutationFn: async () => {
-        const res = await fetch("/api/admin/committee-assignment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                userId: application?.user.id, 
-                committeeId: selectedCommittee === "none" ? null : selectedCommittee 
-            })
-        });
-        if (!res.ok) throw new Error("Failed");
+      const res = await fetch("/api/admin/committee-assignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: application?.user.id,
+          committeeId: selectedCommittee === "none" ? null : selectedCommittee
+        })
+      });
+      if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-        toast.success("Komite ataması güncellendi");
-        queryClient.invalidateQueries({ queryKey: ['application', id] });
+      toast.success("Komite ataması güncellendi");
+      queryClient.invalidateQueries({ queryKey: ['application', id] });
     },
     onError: () => toast.error("Atama yapılamadı.")
   });
@@ -138,11 +139,11 @@ export default function ApplicationDetailPage() {
     return (
       <div className="grid grid-cols-12 gap-6 p-6 max-w-7xl mx-auto">
         <div className="col-span-12 lg:col-span-4 space-y-6">
-            <Skeleton className="h-[400px] w-full rounded-xl" />
+          <Skeleton className="h-[400px] w-full rounded-xl" />
         </div>
         <div className="col-span-12 lg:col-span-8 space-y-6">
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-[500px] w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
+          <Skeleton className="h-[500px] w-full rounded-xl" />
         </div>
       </div>
     );
@@ -168,6 +169,7 @@ export default function ApplicationDetailPage() {
 
   return (
     <div className="animate-fade-in pb-10">
+      <Breadcrumbs items={[{ label: "Başvurular", href: "/admin/applications" }, { label: "Başvuru Detayı" }]} />
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -193,7 +195,7 @@ export default function ApplicationDetailPage() {
           <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
             <div className="bg-muted/30 p-8 border-b border-border/50 flex flex-col items-center text-center">
               <Avatar className="w-32 h-32 mb-5 border-4 border-background shadow-lg">
-                <AvatarImage src={`https://avatar.vercel.sh/${application.user.email}`} />
+                <AvatarImage src={details?.profile_picture_url || undefined} className="object-cover" />
                 <AvatarFallback className="text-3xl font-bold bg-muted text-muted-foreground">{application.user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <h2 className="text-2xl font-bold tracking-tight mb-2">{application.user.full_name}</h2>
@@ -204,7 +206,7 @@ export default function ApplicationDetailPage() {
 
               <div className="flex flex-col items-center gap-3 w-full">
                 {getStatusBadge(application.status)}
-                
+
                 {/* Committee Badge in Profile */}
                 {application.status === 'approved' && (
                   assignedCommittee ? (
@@ -361,41 +363,41 @@ export default function ApplicationDetailPage() {
 
           {/* Committee Assignment Card (Only visible if Approved) */}
           {application.status === 'approved' && (
-             <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-4">
-                <div className="flex items-center gap-2 mb-4">
-                    <Building2 className="w-5 h-5 text-primary" />
-                    <h3 className="font-semibold text-lg">Komite Ataması</h3>
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Building2 className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-lg">Komite Ataması</h3>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full">
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
+                    Atanacak Komite
+                  </label>
+                  <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Komite Seçiniz" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">-- Atama Yok (Boş) --</SelectItem>
+                      {committees.map((committee) => (
+                        <SelectItem key={committee.id} value={committee.id}>
+                          {committee.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                
-                <div className="flex flex-col md:flex-row gap-4 items-end">
-                    <div className="flex-1 w-full">
-                        <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                            Atanacak Komite
-                        </label>
-                        <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
-                            <SelectTrigger className="bg-background">
-                                <SelectValue placeholder="Komite Seçiniz" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">-- Atama Yok (Boş) --</SelectItem>
-                                {committees.map((committee) => (
-                                    <SelectItem key={committee.id} value={committee.id}>
-                                        {committee.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <Button 
-                        onClick={() => assignMutation.mutate()} 
-                        disabled={assignMutation.isPending}
-                        className="w-full md:w-auto"
-                    >
-                        {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Briefcase className="w-4 h-4 mr-2" />}
-                        Atamayı Kaydet
-                    </Button>
-                </div>
-             </div>
+                <Button
+                  onClick={() => assignMutation.mutate()}
+                  disabled={assignMutation.isPending}
+                  className="w-full md:w-auto"
+                >
+                  {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Briefcase className="w-4 h-4 mr-2" />}
+                  Atamayı Kaydet
+                </Button>
+              </div>
+            </div>
           )}
 
           <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">

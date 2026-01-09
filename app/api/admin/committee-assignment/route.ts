@@ -15,6 +15,21 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "User ID missing" }, { status: 400 });
     }
 
+    // 0. Check if target user is superadmin
+    const { data: targetUser, error: userError } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", userId)
+        .single();
+    
+    if (userError || !targetUser) {
+        return NextResponse.json({ error: "Target user not found" }, { status: 404 });
+    }
+
+    if (targetUser.role === 'superadmin') {
+        return NextResponse.json({ error: "Süper yöneticiler komiteye atanamaz." }, { status: 403 });
+    }
+
     // 1. Check if user is already in a committee (Previous State)
     const { data: existing } = await supabase
         .from("committee_members")
@@ -74,4 +89,4 @@ export async function POST(request: Request) {
   }
 }
 // Change Log:
-// - Updated logging to include `previous_state` (the existing committee assignment) before updates or deletions.
+// - Added check to prevent 'superadmin' users from being assigned to a committee.

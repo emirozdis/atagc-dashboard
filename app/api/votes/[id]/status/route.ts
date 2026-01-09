@@ -6,7 +6,8 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "superadmin"] });
+  // Allow deputy_chair to close votes
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "deputy_chair", "superadmin"] });
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;

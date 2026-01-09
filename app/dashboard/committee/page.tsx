@@ -1,235 +1,436 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { 
-  Users, 
-  FileText, 
-  ArrowRight, 
-  ShieldCheck, 
-  PenTool, 
-  Calendar,
-  Globe,
-  Archive,
-  BarChart,
-  Clock,
-  UserCheck
-} from "lucide-react";
-
+import { Users, FileText, ArrowRight, PenTool, Calendar, Archive, BarChart, Clock, UserCheck, Layout, Info, CheckCircle2, Vote as VoteIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VotingSystem } from "@/components/committee/VotingSystem";
-import { CommitteeData } from "@/types/committee";
-import { TourButton } from "@/components/dashboard/TourButton";
+import { RollCallHistory } from "@/components/committee/RollCallHistory";
+import { CommitteeData, CommitteeMember } from "@/types/committee";
+import { cn } from "@/lib/utils";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 // --- Sub-Components ---
 
-const CommitteeHero = ({ name, description, role }: { name: string; description: string; role: string }) => (
-  <div id="tour-committee-hero" className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-secondary/20 border border-border/50 p-8 md:p-10 mb-8">
-    <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-      <Globe className="w-64 h-64" />
-    </div>
-    
-    <div className="relative z-10 space-y-4">
-      <div className="flex items-center gap-3">
-        <Badge variant="outline" className="bg-background/50 backdrop-blur-sm border-primary/20 text-primary px-3 py-1">
-          {role === 'committee_chairman' ? 'Komite Başkanı' : 'Delege'}
-        </Badge>
-        <Badge variant="secondary" className="bg-background/50 backdrop-blur-sm">
-          ATAGÇ 2026
+const SessionInfoPanel = ({ isManager, stats }: { isManager: boolean, stats: any }) => {
+  if (isManager) {
+    if (!stats) return <div className="h-20 w-48 bg-white/5 animate-pulse rounded-lg" />;
+
+    return (
+      <div className="flex flex-col gap-4 min-w-[200px] text-right md:text-left md:items-end">
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Üye</span>
+            <div className="text-2xl font-bold text-foreground flex items-center gap-1">
+              {stats.total_members}
+              <Users className="w-4 h-4 text-muted-foreground/50" />
+            </div>
+          </div>
+          <div className="h-8 w-px bg-border/50" />
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Katılım</span>
+            <div className="text-2xl font-bold text-foreground flex items-center gap-1">
+              %{stats.last_roll_call?.attendance_rate ?? 0}
+              <UserCheck className="w-4 h-4 text-muted-foreground/50" />
+            </div>
+          </div>
+        </div>
+
+        {stats.last_roll_call && (
+          <div className="inline-flex items-center gap-2 text-xs text-muted-foreground bg-background/40 px-3 py-1.5 rounded-full border border-border/50">
+            <Clock className="w-3 h-3" />
+            <span className="opacity-90">Son: {stats.last_roll_call.session_name}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Participant View
+  return (
+    <div className="flex flex-col items-start md:items-end gap-2 min-w-[200px]">
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="bg-emerald-500/5 text-emerald-600 border-emerald-500/20 px-2 py-0.5 gap-1.5 text-xs">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+          </span>
+          Oturum Aktif
         </Badge>
       </div>
-      
-      <div className="flex justify-between items-start">
-        <div className="space-y-2 max-w-3xl">
-          <h1 className="text-3xl md:text-5xl font-display font-bold tracking-tight text-foreground">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-foreground/80">
+        Genel Kurul
+        <span className="text-muted-foreground">•</span>
+        <span className="text-emerald-600 flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3" />
+          Yoklama Tamam
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const MembersWidget = ({ members }: { members?: any[] }) => {
+  const [showAll, setShowAll] = useState(false);
+
+  if (!members || members.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Komite Üyeleri
+          </span>
+          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium">--</Badge>
+        </div>
+        <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border/50 rounded-xl bg-muted/5">
+          Üye listesi görüntülenemiyor
+        </div>
+      </div>
+    );
+  }
+
+  const getUserData = (member: any) => {
+    const user = member.user || member.User;
+    const target = user || member;
+
+    const getImg = (u: any) => {
+      if (!u) return undefined;
+
+      // 1. Check user_details for profile picture (matches UserSelectionTable logic)
+      if (u.user_details) {
+        const details = Array.isArray(u.user_details) ? u.user_details[0] : u.user_details;
+        if (details?.profile_picture_url) return details.profile_picture_url;
+      }
+
+      // 2. Check standard properties
+      return u.image || u.avatar_url || u.profile_picture_url || undefined;
+    };
+
+    return {
+      name: target.full_name || target.name || "Bilinmeyen Üye",
+      image: getImg(target),
+      email: target.email,
+      role: target.role || "applicant"
+    };
+  };
+
+  const sortedMembers = [...members].sort((a, b) => {
+    const rank = (role: string) => {
+      if (role === 'committee_chairman') return 3;
+      if (role === 'deputy_chair') return 2;
+      return 1;
+    };
+    const roleA = a.role || a.user?.role || 'applicant';
+    const roleB = b.role || b.user?.role || 'applicant';
+    return rank(roleB) - rank(roleA);
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between px-1">
+        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Komite Üyeleri
+        </span>
+        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium">{members.length}</Badge>
+      </div>
+
+      <div className="space-y-3">
+        {sortedMembers.slice(0, 6).map(member => {
+          const { name, image, role } = getUserData(member);
+          const displayName = name || "Üye";
+
+          return (
+            <div key={member.id || Math.random()} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
+              <Avatar className="h-8 w-8 border border-transparent group-hover:border-border/50 transition-colors">
+                <AvatarImage src={image} className="object-cover" />
+                <AvatarFallback className="text-xs text-muted-foreground bg-secondary">
+                  {displayName[0]?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="overflow-hidden flex-1">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium truncate text-foreground/90">
+                    {displayName}
+                  </div>
+                  {role === 'committee_chairman' && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 bg-purple-500/10 text-purple-500 border-purple-500/20">Başkan</Badge>
+                  )}
+                  {role === 'deputy_chair' && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 bg-indigo-500/10 text-indigo-500 border-indigo-500/20">Bşk. Yrd.</Badge>
+                  )}
+                </div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  {role === 'committee_chairman' ? 'Committee Chairman' : role === 'deputy_chair' ? 'Başkan Yardımcısı' : 'Delege'}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {sortedMembers.length > 6 && (
+          <div className="pt-2 px-2">
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-xs text-muted-foreground hover:text-primary w-auto"
+              onClick={() => setShowAll(true)}
+            >
+              + {sortedMembers.length - 6} diğer üye
+            </Button>
+          </div>
+        )}
+
+        <Dialog open={showAll} onOpenChange={setShowAll}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Tüm Üyeler ({members.length})</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-3">
+                {sortedMembers.map(member => {
+                  const { name, image, role } = getUserData(member);
+                  return (
+                    <div key={member.id || Math.random()} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={image} className="object-cover" />
+                        <AvatarFallback className="text-xs">{name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 overflow-hidden">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium truncate">{name || "Bilinmeyen"}</span>
+                          {role === 'committee_chairman' && <Badge className="text-[9px] h-4 px-1 bg-purple-500/10 text-purple-600 border-purple-500/20 shadow-none">Başkan</Badge>}
+                          {role === 'deputy_chair' && <Badge className="text-[9px] h-4 px-1 bg-indigo-500/10 text-indigo-600 border-indigo-500/20 shadow-none">Bşk. Yrd.</Badge>}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {role === 'committee_chairman' ? 'Komite Başkanı' : role === 'deputy_chair' ? 'Başkan Yardımcısı' : 'Delege'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  )
+}
+
+const CommitteeHero = ({
+  name,
+  description,
+  role,
+  children
+}: {
+  name: string;
+  description: string;
+  role: string;
+  children?: React.ReactNode;
+}) => (
+  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-background via-muted/30 to-background border border-border/50 p-6 md:p-10 shadow-sm">
+    <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
+      <Layout className="w-96 h-96 -rotate-12" />
+    </div>
+
+    <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+      <div className="space-y-4 max-w-2xl">
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="outline" className="border-primary/20 text-primary px-3 py-1 text-xs uppercase tracking-wider">
+            {role === 'committee_chairman' ? 'Komite Başkanı' : role === 'deputy_chair' ? 'Başkan Yardımcısı' : 'Delege'}
+          </Badge>
+          <span className="text-xs text-muted-foreground font-medium">ATAGÇ 2026</span>
+        </div>
+
+        <div>
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold tracking-tight text-foreground leading-tight">
             {name}
           </h1>
-          <p className="text-lg text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed mt-2 line-clamp-2">
             {description}
           </p>
         </div>
-        <div className="hidden md:block">
-            <TourButton />
-        </div>
+      </div>
+
+      <div className="shrink-0 w-full md:w-auto border-t md:border-t-0 md:border-l border-border/50 pt-6 md:pt-0 md:pl-8">
+        {children}
       </div>
     </div>
   </div>
 );
 
 const TopicCard = ({ topic }: { topic: { title: string; description: string } | null }) => (
-  <Card id="tour-topic" className="bg-card/50 border-border/50 backdrop-blur-sm overflow-hidden h-full">
-    <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
-    <CardHeader className="pb-3">
-      <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
-        <FileText className="w-4 h-4" />
-        Gündem Maddesi
+  <Card className="group relative overflow-hidden bg-card border-border/50 shadow-sm flex flex-col h-full min-h-[250px] transition-all hover:shadow-md hover:border-primary/20">
+    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-50 pointer-events-none" />
+
+    <CardHeader className="pb-4 relative z-10">
+      <div className="flex items-center justify-between mb-3">
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase shadow-sm">
+          <FileText className="w-3.5 h-3.5" />
+          Gündem
+        </div>
+        {!topic && (
+          <Badge variant="secondary" className="text-[10px] bg-muted/80 text-muted-foreground hover:bg-muted font-normal">
+            Bekleniyor
+          </Badge>
+        )}
       </div>
-      <CardTitle className="text-xl font-bold leading-tight">
+      <CardTitle className="text-2xl md:text-3xl font-display font-bold leading-tight text-foreground tracking-tight">
         {topic?.title || "Gündem Belirlenmedi"}
       </CardTitle>
     </CardHeader>
-    <CardContent>
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        {topic?.description || "Henüz bir çalışma konusu (topic) girilmemiştir."}
-      </p>
-    </CardContent>
-  </Card>
-);
-
-const QuickActions = ({ canWrite }: { canWrite: boolean }) => (
-  <Card id="tour-actions" className="border-border/50 h-full">
-    <CardHeader>
-      <CardTitle className="text-lg flex items-center gap-2">
-        <ShieldCheck className="w-5 h-5 text-primary" />
-        Hızlı İşlemler
-      </CardTitle>
-    </CardHeader>
-    <CardContent className="space-y-3">
-      <Button asChild className="w-full justify-between group h-auto py-4" variant="secondary">
-        <Link href="/dashboard/editor">
-          <div className="flex items-center gap-3 text-left">
-            <div className="p-2 bg-background rounded-lg border border-border/50 group-hover:border-primary/30 transition-colors">
-              <PenTool className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <div className="font-semibold text-sm">Ortak Çalışma</div>
-              <div className="text-xs text-muted-foreground">Position paper & taslaklar</div>
-            </div>
+    <CardContent className="flex-grow relative z-10">
+      {topic ? (
+        <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed text-base">
+          {topic.description}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+            <Info className="w-6 h-6 text-muted-foreground/40" />
           </div>
-          <ArrowRight className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
-        </Link>
-      </Button>
-
-       <Button asChild className="w-full justify-between group h-auto py-4" variant="secondary">
-        <Link href="/dashboard/resources">
-          <div className="flex items-center gap-3 text-left">
-            <div className="p-2 bg-background rounded-lg border border-border/50 group-hover:border-primary/30 transition-colors">
-              <Archive className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <div className="font-semibold text-sm">Kaynaklar</div>
-              <div className="text-xs text-muted-foreground">Belgeler ve kılavuzlar</div>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
-        </Link>
-      </Button>
-
-      {!canWrite && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-600 flex gap-2 items-start">
-          <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>Ortak çalışma belgesinde yazma yetkiniz kısıtlanmıştır. Yalnızca görüntüleyebilirsiniz.</span>
+          <p className="text-muted-foreground font-medium">Henüz bir konu girilmemiştir.</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Komite başkanı tarafından belirlenecektir.</p>
         </div>
       )}
     </CardContent>
   </Card>
 );
 
-const ChairmanStatsCard = ({ stats }: { stats: any }) => {
-  if (!stats) return null;
-  
-  return (
-    <Card className="bg-primary/5 border-primary/10">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <BarChart className="w-5 h-5 text-primary" />
-          Komite İstatistikleri
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-background/60 p-3 rounded-lg border border-border/50">
-            <span className="text-xs text-muted-foreground block mb-1">Toplam Üye</span>
-            <div className="text-2xl font-bold text-foreground flex items-center gap-2">
-              {stats.total_members}
-              <Users className="w-4 h-4 text-muted-foreground" />
-            </div>
-          </div>
-          <div className="bg-background/60 p-3 rounded-lg border border-border/50">
-            <span className="text-xs text-muted-foreground block mb-1">Son Yoklama</span>
-            <div className="text-2xl font-bold text-foreground flex items-center gap-2">
-              %{stats.last_roll_call?.attendance_rate ?? 0}
-              <UserCheck className="w-4 h-4 text-muted-foreground" />
-            </div>
-          </div>
+const QuickActions = ({ onOpenVoting }: { onOpenVoting: () => void }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <Link href="/dashboard/editor" className="group">
+      <div className="h-full border border-border/50 bg-card rounded-xl p-4 flex items-center gap-4 hover:border-primary/30 hover:bg-muted/30 transition-all cursor-pointer shadow-sm hover:shadow-md">
+        <div className="p-3 bg-primary/5 text-primary rounded-lg group-hover:scale-105 transition-transform">
+          <PenTool className="w-5 h-5" />
         </div>
-        
-        {stats.last_roll_call && (
-          <div className="pt-2 border-t border-primary/10">
-            <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-              <Clock className="w-3 h-3" /> Son Oturum:
-            </div>
-            <div className="text-sm font-medium">{stats.last_roll_call.session_name}</div>
-            <div className="text-xs text-muted-foreground">
-              {new Date(stats.last_roll_call.date).toLocaleString("tr-TR")}
-            </div>
-          </div>
-        )}
-        
-        <Button asChild className="w-full" size="sm">
-          <Link href="/dashboard/committee/roll-call">
-            Yoklama Yönetimi <ArrowRight className="w-3 h-3 ml-2" />
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-};
+        <div className="flex-1">
+          <h3 className="font-semibold text-sm">Ortak Çalışma</h3>
+          <p className="text-xs text-muted-foreground">Resolution Paper</p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+      </div>
+    </Link>
 
-// --- Main Page Component ---
+    <div
+      onClick={onOpenVoting}
+      className="group h-full border border-border/50 bg-card rounded-xl p-4 flex items-center gap-4 hover:border-blue-500/30 hover:bg-muted/30 transition-all cursor-pointer shadow-sm hover:shadow-md"
+    >
+      <div className="p-3 bg-blue-500/5 text-blue-600 rounded-lg group-hover:scale-105 transition-transform">
+        <BarChart className="w-5 h-5" />
+      </div>
+      <div className="flex-1">
+        <h3 className="font-semibold text-sm">Oylama Merkezi</h3>
+        <p className="text-xs text-muted-foreground">Geçmiş & Yeni Oylamalar</p>
+      </div>
+      <ArrowRight className="w-4 h-4 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+    </div>
+
+    <Link href="/dashboard/resources" className="group">
+      <div className="h-full border border-border/50 bg-card rounded-xl p-4 flex items-center gap-4 hover:border-purple-500/30 hover:bg-muted/30 transition-all cursor-pointer shadow-sm hover:shadow-md">
+        <div className="p-3 bg-purple-500/5 text-purple-600 rounded-lg group-hover:scale-105 transition-transform">
+          <Archive className="w-5 h-5" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-sm">Kaynaklar</h3>
+          <p className="text-xs text-muted-foreground">Dosyalar & Kılavuzlar</p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+      </div>
+    </Link>
+  </div>
+);
 
 export default function CommitteePage() {
   const { data: session } = useSession();
-  const isChairman = session?.user?.role === 'committee_chairman';
+  const [isVotingOpen, setIsVotingOpen] = useState(false);
+  const role = session?.user?.role;
+  const isManager = role === 'committee_chairman' || role === 'deputy_chair';
 
-  // For chairmen, we fetch the specialized endpoint
-  const { data: chairmanData, isLoading: chairmanLoading } = useQuery({
-    queryKey: ["chairman-committee-stats"],
+  const { data: managerData, isLoading: managerLoading } = useQuery({
+    queryKey: ["manager-committee-stats"],
     queryFn: async () => {
       const res = await fetch("/api/committee/my-committee");
       if (!res.ok) throw new Error("Failed");
-      return res.json();
+      const data = await res.json();
+
+      if (session?.user && role === 'committee_chairman') {
+        const chairmanUser = {
+          id: "me-chairman",
+          userId: session.user.id,
+          full_name: session.user.name || "Ben (Başkan)",
+          email: session.user.email || "",
+          image: session.user.image, // Ensure current user image is used
+          role: "committee_chairman",
+          can_edit: true
+        };
+        if (!data.members.find((m: any) => m.userId === session.user.id)) {
+          data.members = [chairmanUser, ...data.members];
+        }
+      }
+      return data;
     },
-    enabled: isChairman
+    enabled: !!isManager
   });
 
-  // For participants, we fetch the standard endpoint
   const { data: participantData, isLoading: participantLoading } = useQuery<CommitteeData | null>({
     queryKey: ["committee-data"],
     queryFn: async () => {
-      const res = await fetch("/api/participant/me");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.committeeMember ? {
-        committee: json.committeeMember.committee,
-        topic: json.topic,
-        can_write: json.committeeMember.can_write
-      } : null;
+      const resMe = await fetch("/api/participant/me");
+      if (!resMe.ok) throw new Error("Failed");
+      const jsonMe = await resMe.json();
+
+      if (!jsonMe.committeeMember) return null;
+
+      const basicCommittee = jsonMe.committeeMember.committee;
+      const adminUser = basicCommittee.admin;
+
+      let members = jsonMe.committeeMembers || [];
+
+      if (adminUser) {
+        const chairmanMember = {
+          ...adminUser, // Spread adminUser to capture user_details or image if present
+          id: "chairman-" + adminUser.id,
+          userId: adminUser.id,
+          full_name: adminUser.full_name,
+          email: adminUser.email,
+          role: adminUser.role || "committee_chairman",
+          can_edit: true
+        };
+        members = [chairmanMember, ...members.filter((m: any) => m.userId !== adminUser.id)];
+      }
+
+      return {
+        committee: basicCommittee,
+        topic: jsonMe.topic,
+        can_write: jsonMe.committeeMember.can_write,
+        committeeMembers: members,
+        recentRollCalls: jsonMe.recentRollCalls
+      };
     },
-    enabled: !isChairman,
+    enabled: !isManager,
     staleTime: 1000 * 60 * 5,
   });
 
-  const isLoading = isChairman ? chairmanLoading : participantLoading;
-  
-  // Unify data structure
-  const committee = isChairman ? chairmanData : participantData?.committee;
-  const topic = isChairman ? (chairmanData?.topic || null) : participantData?.topic;
-  // Chairmen always have write access to their own committee docs logically, unless handled by system
-  const canWrite = isChairman ? true : (participantData?.can_write ?? false); 
+  const isLoading = isManager ? managerLoading : participantLoading;
+  const committee = isManager ? managerData : participantData?.committee;
+  const topic = isManager ? (managerData?.topic || null) : participantData?.topic;
+  const stats = managerData?.stats;
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto space-y-8 p-6">
+      <div className="max-w-7xl mx-auto space-y-8 p-6">
         <Skeleton className="h-64 w-full rounded-3xl" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <Skeleton className="h-96 w-full lg:col-span-2 rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-96 w-full lg:col-span-1 rounded-xl" />
         </div>
       </div>
     );
@@ -238,13 +439,15 @@ export default function CommitteePage() {
   if (!committee) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+        <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center border border-border">
           <Users className="w-10 h-10 text-muted-foreground" />
         </div>
         <div>
           <h2 className="text-2xl font-bold font-display">Komite Bulunamadı</h2>
           <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-            {isChairman ? "Yönettiğiniz bir komite bulunamadı." : "Henüz bir komiteye atanmamış olabilirsiniz."}
+            {isManager
+              ? "Yönettiğiniz bir komite bulunamadı."
+              : "Henüz bir komiteye atanmamış olabilirsiniz."}
           </p>
         </div>
         <Button asChild variant="outline">
@@ -254,66 +457,79 @@ export default function CommitteePage() {
     );
   }
 
+  // Strictly typed members access
+  const members: CommitteeMember[] = isManager
+    ? (managerData as any)?.members || []
+    : participantData?.committeeMembers || [];
+
   return (
-    <div className="animate-fade-in max-w-6xl mx-auto pb-20">
-      
-      {/* 1. Hero Section */}
-      <CommitteeHero 
-        name={committee.name} 
-        description={committee.description} 
-        role={session?.user?.role || 'applicant'}
-      />
+    <div className="animate-fade-in max-w-7xl mx-auto pb-20 space-y-6">
+      <Breadcrumbs items={[{ label: "Komitem" }]} />
+
+      <CommitteeHero
+        name={committee.name}
+        description={committee.description}
+        role={role || 'applicant'}
+      >
+        <SessionInfoPanel isManager={isManager} stats={stats} />
+      </CommitteeHero>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* 2. Left Column: Context & Actions (4 cols) */}
-        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
-          
-          {/* Chairman Stats Widget */}
-          {isChairman && <ChairmanStatsCard stats={chairmanData?.stats} />}
-
+        <div className="lg:col-span-8 space-y-8 order-1">
           <TopicCard topic={topic} />
-          
-          <QuickActions canWrite={canWrite} />
 
-          {/* Metadata Card (For Participants) */}
-          {!isChairman && (
-            <div className="rounded-xl border border-border/40 p-4 bg-muted/5 space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4" /> Oturum
-                </span>
-                <span className="font-medium">Genel Oturum</span>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <Users className="w-4 h-4" /> Durum
-                </span>
-                <span className="font-medium text-green-600 flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  Aktif
-                </span>
-              </div>
-            </div>
-          )}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-1">
+              Hızlı İşlemler
+            </h3>
+            <QuickActions onOpenVoting={() => setIsVotingOpen(true)} />
+          </div>
         </div>
 
-        {/* 3. Right Column: Voting & Operations (8 cols) */}
-        <div id="tour-voting" className="lg:col-span-8 space-y-6">
-          <VotingSystem 
-            committeeId={committee.id} 
-            isChairman={isChairman} 
-            userId={session?.user?.id || ""} 
+        <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-6 lg:self-start order-2">
+          {/* Active Poll Widget: Only shows if there is an active poll */}
+          <VotingSystem
+            committeeId={committee.id}
+            isChairman={isManager}
+            userId={session?.user?.id || ""}
+            variant="sidebar"
           />
-        </div>
 
+          <MembersWidget members={members} />
+
+          {isManager && (
+            <>
+              <RollCallHistory variant="compact" />
+              <Button asChild className="w-full bg-background hover:bg-muted text-foreground border border-border/50 shadow-sm" variant="outline">
+                <Link href="/dashboard/committee/roll-call">
+                  <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                  Yoklama Yönetimi
+                </Link>
+              </Button>
+            </>
+          )}
+        </aside>
       </div>
+
+      {/* Full Voting Management Modal */}
+      <Dialog open={isVotingOpen} onOpenChange={setIsVotingOpen}>
+        <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
+          <ScrollArea className="flex-1 p-6">
+            <VotingSystem
+              committeeId={committee.id}
+              isChairman={isManager}
+              userId={session?.user?.id || ""}
+              variant="full"
+            />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 // Change Log:
-// - Added conditional data fetching for Chairmen to use `my-committee` API.
-// - Added `ChairmanStatsCard` to display the new statistics fields.
-// - Updated loading logic to handle both query states.
+// - Updated `getUserData` in `MembersWidget` to correctly extract profile pictures from `user_details`, aligning with how data is stored.
+// - Added `className="object-cover"` to `AvatarImage` in `MembersWidget` to correct aspect ratio issues.
+// - Explicitly added `image: session.user.image` to the constructed chairman user object in `managerData` query to ensure the current user's avatar displays correctly.
+// - Spread `adminUser` props in `participantData` query to ensure any available `user_details` are passed to the member object.

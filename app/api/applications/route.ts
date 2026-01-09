@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import {
+  accountCreationSchema, // Import this
   personalInfoSchema,
   experienceSchema,
   motivationSchema
@@ -14,7 +15,9 @@ import { rateLimit } from "@/lib/rate-limit";
 // Limit: 5 requests per minute per IP
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
+// Updated schema to include accountCreation
 const submissionSchema = z.object({
+  accountCreation: accountCreationSchema,
   personalInfo: personalInfoSchema,
   experience: experienceSchema,
   motivation: motivationSchema,
@@ -57,6 +60,7 @@ export const GET = apiHandler(async (request: Request) => {
           phone_number,
           school_name,
           birth_date,
+          profile_picture_url,
           additional_info
         ),
         committee_members (
@@ -71,9 +75,6 @@ export const GET = apiHandler(async (request: Request) => {
 
   // 1. Status Filter Logic
   if (status === 'unassigned') {
-    // Logic: Status is 'approved' AND User is NOT in any committee
-    
-    // First, get all users who ARE in a committee
     const { data: assignedMembers } = await supabase
       .from("committee_members")
       .select("user_id");
@@ -83,64 +84,43 @@ export const GET = apiHandler(async (request: Request) => {
     query = query.eq("status", "approved");
     
     if (assignedUserIds.length > 0) {
-      // Exclude these users
       query = query.not("user_id", "in", `(${assignedUserIds.join(',')})`);
     }
   } else if (status !== "all") {
     query = query.eq("status", status);
   }
 
-  // 2. Search Logic (Name, Email, School) - Turkish Case Insensitive
+  // 2. Search Logic
   if (search) {
-    // Sanitize search term to prevent syntax errors in .or()
     const safeSearch = search.replace(/[,()]/g, " ").trim();
-
     if (safeSearch) {
-      // Create variations to handle Turkish casing issues (i/İ, ı/I)
-      // Standard Postgres ilike doesn't always map 'i' to 'İ' without specific collation.
-      // We manually check lowercase and uppercase variations.
       const terms = [
         safeSearch, 
         safeSearch.toLocaleLowerCase('tr-TR'), 
         safeSearch.toLocaleUpperCase('tr-TR')
       ];
-      
-      // Deduplicate terms
       const uniqueTerms = Array.from(new Set(terms));
 
-      // Construct OR clauses
-      // For Users table: check full_name AND email for all variations
       const userSearchConditions = uniqueTerms
         .map(t => `full_name.ilike.%${t}%,email.ilike.%${t}%`)
         .join(',');
 
-      // For User Details table: check school_name for all variations
       const schoolSearchConditions = uniqueTerms
         .map(t => `school_name.ilike.%${t}%`)
         .join(',');
 
-      // Execute parallel search to get IDs
       const [usersRes, detailsRes] = await Promise.all([
-        supabase
-          .from('users')
-          .select('id')
-          .or(userSearchConditions),
-        supabase
-          .from('user_details')
-          .select('user_id')
-          .or(schoolSearchConditions)
+        supabase.from('users').select('id').or(userSearchConditions),
+        supabase.from('user_details').select('user_id').or(schoolSearchConditions)
       ]);
 
       const userIdsFromName = usersRes.data?.map(u => u.id) || [];
       const userIdsFromSchool = detailsRes.data?.map(d => d.user_id) || [];
-      
-      // Unique list of User IDs matching search
       const matchingUserIds = Array.from(new Set([...userIdsFromName, ...userIdsFromSchool]));
 
       if (matchingUserIds.length > 0) {
         query = query.in('user_id', matchingUserIds);
       } else {
-        // No matches found, force empty result
         query = query.eq('id', '00000000-0000-0000-0000-000000000000'); 
       }
     }
@@ -151,8 +131,7 @@ export const GET = apiHandler(async (request: Request) => {
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
   } else if (sortBy === 'full_name') {
     query = query.order('full_name', { foreignTable: 'users', ascending: sortOrder === 'asc' });
-  } else if (sortBy === 'school_name') {
-    // Fallback: Default to submitted_at as simple sort
+  } else {
     query = query.order('submitted_at', { ascending: sortOrder === 'asc' });
   }
 
@@ -174,11 +153,9 @@ export const GET = apiHandler(async (request: Request) => {
 });
 
 export const POST = apiHandler(async (request: Request) => {
-  // 1. Rate Limiting
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await limiter.check(5, ip); 
 
-  // 2. Check System Settings
   const { data: settings } = await supabase
     .from("system_settings")
     .select("applications_open")
@@ -192,15 +169,17 @@ export const POST = apiHandler(async (request: Request) => {
   }
 
   const body = await request.json();
-  const { personalInfo, experience, motivation } = submissionSchema.parse(body);
+  
+  // Destructure accountCreation from the body validation
+  const { accountCreation, personalInfo, experience, motivation } = submissionSchema.parse(body);
 
-  // 3. Email Verification Check
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   
+  // Use accountCreation.email
   const { data: verification } = await supabase
     .from("email_verifications")
     .select("id")
-    .eq("email", personalInfo.email)
+    .eq("email", accountCreation.email)
     .eq("verified", true)
     .gt("created_at", oneHourAgo)
     .order("created_at", { ascending: false })
@@ -214,11 +193,10 @@ export const POST = apiHandler(async (request: Request) => {
     );
   }
 
-  // 4. Duplicate Checks
   const { data: existingUser } = await supabase
     .from("users")
     .select("id")
-    .eq("email", personalInfo.email)
+    .eq("email", accountCreation.email)
     .single();
 
   const { data: existingPhone } = await supabase
@@ -244,12 +222,11 @@ export const POST = apiHandler(async (request: Request) => {
     }
   } else {
     const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-
     const { data: newUser, error: createUserError } = await supabase
       .from("users")
       .insert({
-        full_name: personalInfo.adSoyad,
-        email: personalInfo.email,
+        full_name: accountCreation.adSoyad, // Use accountCreation.adSoyad
+        email: accountCreation.email,       // Use accountCreation.email
         password_hash: randomHash, 
         role: 'applicant'
       })
@@ -280,6 +257,7 @@ export const POST = apiHandler(async (request: Request) => {
     birth_date: personalInfo.dogumTarihi,
     phone_number: personalInfo.telefon,
     school_name: personalInfo.okul,
+    profile_picture_url: personalInfo.profile_picture_url || null,
     additional_info: additionalInfo,
   };
 
@@ -306,7 +284,7 @@ export const POST = apiHandler(async (request: Request) => {
   if (appError) throw appError;
 
   await logAction(userId, "submit_application", { 
-      email: personalInfo.email,
+      email: accountCreation.email,
       previous_state: null
   }, request);
 
@@ -355,6 +333,7 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Enhanced search logic: Manually creating Turkish lowercase/uppercase variations of the search term and using them in an OR query.
-// - This fixes matches for "İTÜ" vs "itü" where the standard database collation might fail.
-// - Fixed school name search by applying the same logic to `school_name` in `user_details` and joining the results.
+// - Imported `accountCreationSchema`.
+// - Added `accountCreation` to `submissionSchema`.
+// - Correctly destructured `accountCreation` from the parsed body.
+// - Replaced usages of `personalInfo.email` and `personalInfo.adSoyad` with `accountCreation.email` and `accountCreation.adSoyad` to resolve TypeScript errors.

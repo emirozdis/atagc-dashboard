@@ -35,6 +35,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResourceUploadDialog } from "@/components/admin/ResourceUploadDialog";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Committee } from "@/types/admin";
 
 interface Resource {
@@ -86,7 +87,7 @@ export default function AdminResourcesPage() {
     onError: () => toast.error("Silme başarısız")
   });
 
-  const filteredResources = resources.filter(r => 
+  const filteredResources = resources.filter(r =>
     r.title.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -121,10 +122,10 @@ export default function AdminResourcesPage() {
                   <Download className="w-4 h-4 mr-2" /> İndir
                 </a>
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => {
-                  if(confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
+                  if (confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-2" /> Sil
@@ -135,8 +136,8 @@ export default function AdminResourcesPage() {
 
         <div className="flex flex-wrap gap-2 text-xs">
           {getCategoryBadge(res.category)}
-          {res.is_public ? 
-            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Herkese Açık</Badge> : 
+          {res.is_public ?
+            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Herkese Açık</Badge> :
             <Badge variant="outline" className="text-muted-foreground">Gizli</Badge>
           }
         </div>
@@ -163,6 +164,7 @@ export default function AdminResourcesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <Breadcrumbs items={[{ label: "Kaynaklar" }]} />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Kaynak Kütüphanesi</h2>
@@ -176,8 +178,8 @@ export default function AdminResourcesPage() {
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center bg-card p-4 rounded-xl border border-border/50">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Dosya ara..." 
+          <Input
+            placeholder="Dosya ara..."
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -253,8 +255,8 @@ export default function AdminResourcesPage() {
                         </TableCell>
                         <TableCell>{getCategoryBadge(res.category)}</TableCell>
                         <TableCell>
-                          {res.is_public ? 
-                            <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20">Herkese Açık</Badge> : 
+                          {res.is_public ?
+                            <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20">Herkese Açık</Badge> :
                             <Badge variant="outline">Gizli</Badge>
                           }
                         </TableCell>
@@ -268,11 +270,11 @@ export default function AdminResourcesPage() {
                                 <Download className="w-4 h-4 text-muted-foreground" />
                               </a>
                             </Button>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="icon"
                               onClick={() => {
-                                if(confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
+                                if (confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
                               }}
                             >
                               <Trash2 className="w-4 h-4 text-destructive opacity-70 hover:opacity-100" />

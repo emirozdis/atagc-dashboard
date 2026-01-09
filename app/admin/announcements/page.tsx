@@ -8,6 +8,7 @@ import { AnnouncementFeed } from "@/components/dashboard/announcements/Announcem
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CardSkeleton } from "@/components/ui/skeleton-loader";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AdminAnnouncementsPage() {
     const queryClient = useQueryClient();
@@ -41,6 +42,7 @@ export default function AdminAnnouncementsPage() {
 
     return (
         <div className="space-y-6">
+            <Breadcrumbs items={[{ label: "Duyurular" }]} />
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Duyurular</h1>

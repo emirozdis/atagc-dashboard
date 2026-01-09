@@ -5,14 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { 
-    ArrowLeft, 
-    Mail, 
-    Phone, 
-    GraduationCap, 
-    Shield, 
-    ShieldAlert, 
-    ShieldCheck, 
+import {
+    ArrowLeft,
+    Mail,
+    Phone,
+    GraduationCap,
+    Shield,
+    ShieldAlert,
+    ShieldCheck,
     User as UserIcon,
     MoreVertical,
     FileText,
@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ManageUserDialog } from "@/components/admin/UserManagementDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { User, UserDetail } from "@/types/user";
 
 export default function UserDetailPage() {
@@ -127,7 +128,7 @@ export default function UserDetailPage() {
 
     const details = getFirstItem<UserDetail>(user.user_details);
     const additional = details?.additional_info || {};
-    
+
     // Logic: If chairman, check managed committees. Else check membership.
     const managedCommittee = user.managed_committees?.[0];
     const memberCommittee = user.committee_members?.[0]?.committee;
@@ -137,7 +138,7 @@ export default function UserDetailPage() {
     const application = getFirstItem(user.application);
 
     const getRoleBadge = (role: string) => {
-        switch(role) {
+        switch (role) {
             case "superadmin": return <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><ShieldAlert className="w-3 h-3 mr-1" /> Yönetici</Badge>;
             case "committee_chairman": return <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20"><ShieldCheck className="w-3 h-3 mr-1" /> Başkan</Badge>;
             case "staff": return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20"><Shield className="w-3 h-3 mr-1" /> Personel</Badge>;
@@ -147,6 +148,7 @@ export default function UserDetailPage() {
 
     return (
         <div className="space-y-6 animate-fade-in pb-10">
+            <Breadcrumbs items={[{ label: "Kullanıcılar", href: "/admin/users" }, { label: "Kullanıcı Detayı" }]} />
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -173,7 +175,7 @@ export default function UserDetailPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* Left Column: Overview */}
                 <div className="space-y-6">
                     <Card className="overflow-hidden border-border/50">
@@ -181,7 +183,7 @@ export default function UserDetailPage() {
                         <CardContent className="pt-0 relative">
                             <div className="flex justify-between items-start">
                                 <Avatar className="w-20 h-20 border-4 border-background -mt-10 shadow-lg">
-                                    <AvatarImage src={`https://avatar.vercel.sh/${user.email}`} />
+                                    <AvatarImage src={details?.profile_picture_url || undefined} className="object-cover" />
                                     <AvatarFallback className="text-lg bg-primary/20 text-primary font-bold">
                                         {user.full_name.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
@@ -191,7 +193,7 @@ export default function UserDetailPage() {
                                     {user.is_suspended && <Badge variant="destructive" className="animate-pulse">Askıya Alındı</Badge>}
                                 </div>
                             </div>
-                            
+
                             <div className="mt-4 space-y-4">
                                 <div className="space-y-1">
                                     <h3 className="font-semibold text-lg">{user.full_name}</h3>
@@ -249,7 +251,7 @@ export default function UserDetailPage() {
                                         <div className="text-sm font-medium capitalize">
                                             {application ? (
                                                 <Link href={`/admin/applications/${application.id}`} className="hover:underline flex items-center gap-1 group">
-                                                    {application.status} 
+                                                    {application.status}
                                                     <ArrowUpRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
                                                 </Link>
                                             ) : "Başvuru Yok"}
@@ -329,7 +331,7 @@ export default function UserDetailPage() {
                                             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
                                                 <FileText className="w-4 h-4 text-primary" /> Motivasyon
                                             </h4>
-                                            
+
                                             {additional.reason_for_joining && (
                                                 <div className="space-y-1">
                                                     <span className="text-xs text-muted-foreground">Katılım Nedeni</span>
@@ -364,7 +366,7 @@ export default function UserDetailPage() {
                 </div>
             </div>
 
-            <ManageUserDialog 
+            <ManageUserDialog
                 user={user}
                 open={isManageOpen}
                 onOpenChange={setIsManageOpen}

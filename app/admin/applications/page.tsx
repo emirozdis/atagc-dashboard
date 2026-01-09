@@ -18,6 +18,7 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import {
   Table,
   TableBody,
@@ -127,7 +128,7 @@ export default function ApplicationsPage() {
     const assignedCommittee = app.user.committee_members?.[0]?.committee;
 
     return (
-      <Card 
+      <Card
         className="mb-4 bg-card border-border/50 hover:border-primary/20 transition-all active:scale-[0.99] cursor-pointer"
         onClick={() => router.push(`/admin/applications/${app.id}`)}
       >
@@ -135,7 +136,7 @@ export default function ApplicationsPage() {
           <div className="flex justify-between items-start gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <Avatar className="w-10 h-10 border border-border/50">
-                <AvatarImage src={`https://avatar.vercel.sh/${app.user.email}`} />
+                <AvatarImage src={details?.profile_picture_url || undefined} className="object-cover" />
                 <AvatarFallback>{app.user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
@@ -175,6 +176,7 @@ export default function ApplicationsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
+      <Breadcrumbs items={[{ label: "Başvurular" }]} />
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Başvurular</h2>
         <p className="text-muted-foreground text-sm md:text-base">
@@ -252,7 +254,7 @@ export default function ApplicationsPage() {
             <TableSkeleton cols={6} rows={5} />
           </div>
           <div className="md:hidden space-y-4">
-             {[1,2,3].map(i => <div key={i} className="h-40 bg-muted/20 animate-pulse rounded-xl border border-border/30" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-40 bg-muted/20 animate-pulse rounded-xl border border-border/30" />)}
           </div>
         </div>
       ) : applications.length === 0 ? (
@@ -260,7 +262,7 @@ export default function ApplicationsPage() {
           <Search className="w-12 h-12 mb-3 opacity-20" />
           <p>Kriterlere uygun başvuru bulunamadı.</p>
           {(filterStatus !== 'all' || searchQuery) && (
-            <Button variant="link" onClick={() => {setFilterStatus('all'); setSearchQuery('');}} className="mt-2">
+            <Button variant="link" onClick={() => { setFilterStatus('all'); setSearchQuery(''); }} className="mt-2">
               Filtreleri Temizle
             </Button>
           )}
@@ -294,7 +296,7 @@ export default function ApplicationsPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="w-8 h-8 border border-border/50">
-                            <AvatarImage src={`https://avatar.vercel.sh/${app.user.email}`} />
+                            <AvatarImage src={details?.profile_picture_url || undefined} className="object-cover" />
                             <AvatarFallback>{app.user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
                           </Avatar>
                           <div>

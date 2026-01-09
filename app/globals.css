@@ -45,42 +45,42 @@
 
 :root {
   --radius: 0.625rem;
-  
+
   /* Light Theme Colors */
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
-  
+
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
-  
+
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  
+
   --primary: oklch(0.7 0.18 75);
   --primary-foreground: oklch(0.985 0 0);
-  
+
   --secondary: oklch(0.961 0.006 264.695);
   --secondary-foreground: oklch(0.205 0.042 264.695);
-  
+
   --muted: oklch(0.961 0.006 264.695);
   --muted-foreground: oklch(0.556 0.042 264.695);
-  
+
   --accent: oklch(0.961 0.006 264.695);
   --accent-foreground: oklch(0.205 0.042 264.695);
-  
+
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  
+
   --border: oklch(0.898 0.01 264.695);
   --input: oklch(0.898 0.01 264.695);
   --ring: oklch(0.7 0.18 75);
-  
+
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  
+
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
   --sidebar-primary: oklch(0.7 0.18 75);
@@ -95,38 +95,38 @@
   /* Dark Theme Colors (lighter / more gray) */
   --background: oklch(0.16 0 0);
   --foreground: oklch(0.985 0 0);
-  
+
   --card: oklch(0.22 0 0);
   --card-foreground: oklch(0.985 0 0);
-  
+
   --popover: oklch(0.18 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  
+
   --primary: oklch(0.85 0.15 85);
   --primary-foreground: oklch(0.1 0 0);
-  
+
   --secondary: oklch(0.2 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-  
+
   --muted: oklch(0.2 0 0);
   --muted-foreground: oklch(0.7 0 0);
-  
+
   --accent: oklch(0.2 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  
+
   --destructive: oklch(0.6 0.25 25);
   --destructive-foreground: oklch(0.985 0 0);
-  
+
   --border: oklch(1 0 0 / 15%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.85 0.15 85);
-  
+
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  
+
   --sidebar: oklch(0.16 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.85 0.15 85);
@@ -141,8 +141,9 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary-foreground overflow-x-hidden;
   }
 }
 
@@ -162,6 +163,11 @@
   .gold-gradient {
     @apply bg-gradient-to-r from-[#D4AF37] via-[#F4E29E] to-[#D4AF37] bg-clip-text text-transparent;
   }
+
+  /* Overflow prevention utility */
+  .overflow-safe {
+    @apply overflow-x-hidden max-w-full;
+  }
 }
 
 @layer components {
@@ -170,15 +176,19 @@
   }
 
   .collaboration-cursor__label {
-    @apply rounded-[3px_3px_3px_0] text-white font-sans text-[11px] font-semibold left-[-1px] px-[0.4rem] py-[0.1rem] absolute top-[-1.4em] select-none whitespace-nowrap z-10 shadow-[0_1px_3px_rgba(0,0,0,0.3)] leading-normal;
+    @apply rounded-[3px_3px_3px_0] text-white font-sans text-[11px] font-semibold left-[-1px] px-[0.4rem] py-[0.1rem] absolute top-[-1.4em] select-none whitespace-nowrap z-10 leading-normal;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
 }
 
 /* Hide scrollbars visually while preserving scroll functionality everywhere */
 /* Works across WebKit, Firefox, and IE/Edge */
-:root, * {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE 10+ */
+:root,
+* {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE 10+ */
 }
 
 *::-webkit-scrollbar {

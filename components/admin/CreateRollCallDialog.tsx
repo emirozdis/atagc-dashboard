@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QrCode, Loader2, Plus, Users, StopCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
 
 interface Committee {
-  id: string;
-  name: string;
+    id: string;
+    name: string;
 }
 
 interface CreateRollCallDialogProps {
@@ -24,7 +25,7 @@ type Step = 'form' | 'live' | 'success';
 export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState<Step>('form');
-    
+
     // Dialog control states for safe exit
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [showFinishConfirm, setShowFinishConfirm] = useState(false);
@@ -39,7 +40,7 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
     const [qrData, setQrData] = useState<string | null>(null);
     const [rollCallId, setRollCallId] = useState<string | null>(null);
     const [stats, setStats] = useState<{ scanned: number, total: number }>({ scanned: 0, total: 0 });
-    
+
     const isCompletedRef = useRef(false);
 
     useEffect(() => {
@@ -114,14 +115,14 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                 const err = await res.json();
                 throw new Error(err.error || "Failed");
             }
-            
+
             const data = await res.json();
-            
+
             setQrData(data.qr_code);
             setRollCallId(data.id);
             setStats({ scanned: 0, total: 0 });
             isCompletedRef.current = false;
-            
+
             toast.success("QR Kod Oluşturuldu");
             setStep('live');
         } catch (e) {
@@ -229,9 +230,10 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
 
                             <div className="flex justify-center">
                                 <div className="bg-white p-4 rounded-xl shadow-sm inline-block">
-                                    <img 
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}&bgcolor=ffffff`} 
-                                        alt="Session QR Code" 
+                                    <QRCodeSVG
+                                        value={qrData}
+                                        size={256}
+                                        level="M"
                                         className="w-48 h-48 object-contain"
                                     />
                                 </div>
@@ -287,7 +289,7 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                                     <CheckCircle className="w-16 h-16" />
                                 </div>
                             </div>
-                            
+
                             <div className="space-y-2">
                                 <h3 className="font-bold text-2xl text-green-500">Yoklama Tamamlandı</h3>
                                 <p className="text-muted-foreground font-medium text-lg">{sessionName}</p>
@@ -325,8 +327,8 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                 </AlertDialogContent>
             </AlertDialog>
 
-             {/* Manual Finish Confirmation Dialog */}
-             <AlertDialog open={showFinishConfirm} onOpenChange={setShowFinishConfirm}>
+            {/* Manual Finish Confirmation Dialog */}
+            <AlertDialog open={showFinishConfirm} onOpenChange={setShowFinishConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Yoklamayı Bitir</AlertDialogTitle>

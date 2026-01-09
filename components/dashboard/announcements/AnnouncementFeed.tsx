@@ -38,14 +38,16 @@ export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedPr
                                     {item.title}
                                 </CardTitle>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     {item.committee_ids && item.committee_ids.length > 0 ? (
-                                        <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 whitespace-nowrap">
-                                            <Users className="w-3 h-3 mr-1" />
-                                            {item.committees_list && item.committees_list.length > 0
-                                                ? item.committees_list.map(c => c.name).join(", ")
-                                                : `${item.committee_ids.length} Komiteye Özel`
-                                            }
+                                        <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 whitespace-nowrap max-w-[200px] truncate">
+                                            <Users className="w-3 h-3 mr-1 shrink-0" />
+                                            <span className="truncate">
+                                                {item.committees_list && item.committees_list.length > 0
+                                                    ? item.committees_list.map(c => c.name).join(", ")
+                                                    : `${item.committee_ids.length} Komiteye Özel`
+                                                }
+                                            </span>
                                         </Badge>
                                     ) : (item.target_user_ids && item.target_user_ids.length > 0) ? (
                                         <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">
@@ -95,8 +97,8 @@ export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedPr
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div 
-                            className="text-base leading-relaxed text-muted-foreground font-normal whitespace-pre-wrap"
+                        <div
+                            className="text-base leading-relaxed text-muted-foreground font-normal whitespace-pre-wrap break-words"
                             dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.content) }}
                         />
                         {(item.target_user_ids && item.target_user_ids.length > 0) && (

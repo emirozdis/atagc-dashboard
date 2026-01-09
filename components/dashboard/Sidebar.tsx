@@ -16,56 +16,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
-const participantItems = [
-  {
-    title: "Genel Durum",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    roles: ["applicant", "committee_chairman", "superadmin", "staff", "staffleader"]
-  },
-  {
-    title: "Komitem",
-    href: "/dashboard/committee",
-    icon: Briefcase,
-    roles: ["applicant", "committee_chairman", "superadmin"]
-  },
-  {
-    title: "Ortak Çalışma",
-    href: "/dashboard/editor",
-    icon: PenTool,
-    roles: ["applicant", "committee_chairman", "superadmin"]
-  },
-  {
-    title: "Yoklama Oluştur",
-    href: "/dashboard/committee/roll-call",
-    icon: QrCode,
-    roles: ["committee_chairman"]
-  },
-  {
-    title: "Yoklama Ver",
-    href: "/dashboard/scan",
-    icon: ScanLine,
-    roles: ["applicant", "committee_chairman", "superadmin"]
-  },
-  {
-    title: "Kaynaklar",
-    href: "/dashboard/resources",
-    icon: FolderOpen,
-    roles: ["applicant", "committee_chairman", "superadmin", "staff", "staffleader"]
-  },
-  {
-    title: "Duyurular",
-    href: "/dashboard/announcements",
-    icon: Megaphone,
-    roles: ["applicant", "committee_chairman", "superadmin", "staff", "staffleader"]
-  },
-  {
-    title: "Profilim",
-    href: "/dashboard/profile",
-    icon: User,
-    roles: ["applicant", "committee_chairman", "superadmin", "staff", "staffleader"]
-  },
-];
+import { participantItems } from "@/lib/navigation";
 
 interface SidebarProps {
   className?: string;
@@ -76,8 +27,13 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role;
-
   const items = participantItems.filter(item => !item.roles || (role && item.roles.includes(role)));
+
+  const roleTag = (() => {
+    if (role === 'superadmin' || role === 'admin') return "Yönetim";
+    if (role === 'committee_chairman' || role === 'deputy_chair') return "Akademi";
+    return null;
+  })();
 
   return (
     <div className={cn("flex flex-col h-full bg-sidebar border-r border-border w-64", className)}>
@@ -86,6 +42,11 @@ export function Sidebar({ className, onClose }: SidebarProps) {
           <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
           <span className="font-display font-bold text-lg text-primary">
             ATAGÇ
+            {roleTag && (
+              <span className="text-xs ml-2 bg-primary/20 px-1.5 py-0.5 rounded text-primary-foreground">
+                {roleTag}
+              </span>
+            )}
           </span>
         </Link>
       </div>
@@ -127,5 +88,6 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 }
 
 // Change Log:
-// - Re-added the "Kaynaklar" (Resources) link to the sidebar.
-// - Retained the "Ortak Çalışma" link as requested implicitly by not asking for its removal again.
+// - Updated role visibility for sidebar items.
+// - Added 'deputy_chair' to allowed roles for relevant links including 'Yoklama Oluştur'.
+// - Removed 'staff' and 'staffleader'.

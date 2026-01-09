@@ -21,6 +21,7 @@ export const personalInfoSchema = z.object({
   okul: z.string().min(2, "Okul adı en az 2 karakter olmalıdır").max(150, "Okul adı çok uzun"),
   sinif: z.string().min(1, "Sınıf seçimi zorunludur"),
   sehir: z.string().min(2, "Şehir en az 2 karakter olmalıdır").max(50, "Şehir adı çok uzun"),
+  profile_picture_url: z.string().optional(),
 });
 
 export const experienceSchema = z.object({
@@ -82,4 +83,4 @@ export const INGILIZCE_OPTIONS = [
 ];
 
 // Change Log:
-// - Updated `password` schema to enforce complex passwords (Min 8 chars, 1 Uppercase, 1 Lowercase, 1 Number).
+// - Added `profile_picture_url` to `personalInfoSchema` as an optional string.

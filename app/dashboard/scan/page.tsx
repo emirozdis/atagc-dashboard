@@ -3,24 +3,26 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  ScanLine,
   Loader2,
   CheckCircle2,
   AlertTriangle,
   Camera,
   CameraOff,
   XCircle,
-  RotateCcw
+  RotateCcw,
+  Sparkles,
+  ShieldCheck
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Scanner, IDetectedBarcode } from '@yudiel/react-qr-scanner';
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { ScannerOverlay } from "@/components/dashboard/ScannerOverlay";
+import { motion, AnimatePresence } from "framer-motion";
 
 type ScanState = 'idle' | 'scanning' | 'processing' | 'success' | 'duplicate' | 'error';
 
 export default function ScanPage() {
-  const [token, setToken] = useState("");
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [resultMessage, setResultMessage] = useState<string>("");
@@ -33,7 +35,6 @@ export default function ScanPage() {
 
       if (scannedValue && scanState !== 'processing' && scanState !== 'success' && scanState !== 'duplicate') {
         setIsCameraActive(false); // Turn off camera
-        setToken(scannedValue);   // Set the value in input
         await processScan(scannedValue); // Trigger API
       }
     }
@@ -70,160 +71,191 @@ export default function ScanPage() {
     }
   };
 
-  // Handle manual form submission
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (token) {
-      await processScan(token);
-    }
-  };
-
   const resetScan = () => {
-    setToken("");
     setScanState('idle');
     setResultMessage("");
     setSessionName("");
-    setIsCameraActive(false);
+    setIsCameraActive(true);
   };
 
-  // Render different states
-  if (scanState === 'success') {
-    return (
-      <div className="max-w-md mx-auto py-12 animate-in zoom-in-95 duration-300">
-        <Card className="bg-green-500/10 border-green-500/20 text-center p-8">
-          <div className="flex justify-center mb-6">
-            <div className="p-4 bg-green-500/20 rounded-full">
-              <CheckCircle2 className="w-16 h-16 text-green-500" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-green-500 mb-2">Yoklama Alındı!</h2>
-          <p className="text-lg font-medium text-foreground mb-4">{sessionName}</p>
-          <p className="text-muted-foreground mb-8">Katılımınız başarıyla kaydedilmiştir.</p>
-          <Button onClick={resetScan} variant="outline" className="w-full">
-            <RotateCcw className="w-4 h-4 mr-2" /> Yeni İşlem
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (scanState === 'duplicate') {
-    return (
-      <div className="max-w-md mx-auto py-12 animate-in zoom-in-95 duration-300">
-        <Card className="bg-yellow-500/10 border-yellow-500/20 text-center p-8">
-          <div className="flex justify-center mb-6">
-            <div className="p-4 bg-yellow-500/20 rounded-full">
-              <AlertTriangle className="w-16 h-16 text-yellow-500" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-yellow-500 mb-2">Zaten Kayıtlı</h2>
-          <p className="text-muted-foreground mb-8">{resultMessage}</p>
-          <Button onClick={resetScan} variant="outline" className="w-full border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
-            <RotateCcw className="w-4 h-4 mr-2" /> Geri Dön
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (scanState === 'error') {
-    return (
-      <div className="max-w-md mx-auto py-12 animate-in zoom-in-95 duration-300">
-        <Card className="bg-red-500/10 border-red-500/20 text-center p-8">
-          <div className="flex justify-center mb-6">
-            <div className="p-4 bg-red-500/20 rounded-full">
-              <XCircle className="w-16 h-16 text-red-500" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-red-500 mb-2">İşlem Başarısız</h2>
-          <p className="text-muted-foreground mb-8">{resultMessage}</p>
-          <Button onClick={resetScan} variant="outline" className="w-full border-red-500/30 hover:bg-red-500/10 text-red-500">
-            <RotateCcw className="w-4 h-4 mr-2" /> Tekrar Dene
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-md mx-auto space-y-6 animate-fade-in py-8">
-      <div className="text-center space-y-2">
-        <h2 className="text-3xl font-display font-bold text-foreground">Yoklama Ver</h2>
-        <p className="text-muted-foreground">
-          Komite başkanınızın gösterdiği QR kodu okutun veya kodu girin.
+    <div className="max-w-xl mx-auto space-y-6 md:space-y-8 animate-fade-in py-4 md:py-6 px-4 pb-20 overflow-hidden">
+      <Breadcrumbs items={[{ label: "Yoklama Ver" }]} />
+
+      <div className="space-y-2 text-center">
+        <h2 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground">Yoklama Ver</h2>
+        <p className="text-muted-foreground text-sm md:text-base max-w-sm mx-auto">
+          Başkanınızın gösterdiği QR kodu okutarak katılımınızı onaylayın.
         </p>
       </div>
 
-      <Card className="bg-card border-border/50 overflow-hidden">
-        {/* Camera Section */}
-        <div className="aspect-square relative bg-black flex flex-col items-center justify-center border-b border-border/50 overflow-hidden">
-          {isCameraActive ? (
-            <div className="w-full h-full relative">
-              <Scanner
-                onScan={handleScan}
-                onError={(error) => console.error(error)}
-                components={{
-                  finder: true,
-                  torch: false
-                }}
-                styles={{
-                  container: { width: "100%", height: "100%" },
-                  video: { width: "100%", height: "100%", objectFit: "cover" }
-                }}
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center text-muted-foreground/50">
-              <ScanLine className="w-24 h-24 mb-4" />
-              <p className="text-sm">Kamera kapalı</p>
-            </div>
-          )}
-
-          <Button
-            variant="secondary"
-            size="sm"
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 gap-2 shadow-lg"
-            onClick={() => setIsCameraActive(!isCameraActive)}
-            type="button"
-            disabled={scanState === 'processing'}
+      <AnimatePresence mode="wait">
+        {scanState === 'processing' ? (
+          <motion.div
+            key="processing"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="flex flex-col items-center justify-center py-12 md:py-20 space-y-6"
           >
-            {isCameraActive ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
-            {isCameraActive ? "Kamerayı Kapat" : "Kamerayı Aç"}
-          </Button>
-        </div>
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
+              <Loader2 className="w-12 h-12 md:w-16 md:h-16 text-primary animate-spin relative z-10" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-lg md:text-xl font-semibold">Kod İşleniyor</h3>
+              <p className="text-muted-foreground text-sm">Lütfen bekleyin...</p>
+            </div>
+          </motion.div>
+        ) : scanState === 'success' ? (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="space-y-6"
+          >
+            <Card className="bg-green-500/5 border-green-500/20 text-center p-6 md:p-10 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4">
+                <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-green-500/40" />
+              </div>
+              <div className="flex justify-center mb-6 md:mb-8">
+                <div className="relative">
+                  <motion.div
+                    className="absolute inset-0 bg-green-500/30 blur-2xl rounded-full"
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                  <div className="p-4 md:p-5 bg-green-500/20 rounded-full relative z-10">
+                    <CheckCircle2 className="w-12 h-12 md:w-16 md:h-16 text-green-500" />
+                  </div>
+                </div>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-green-500 mb-2">Başarılı!</h2>
+              <p className="text-base md:text-lg font-medium text-foreground mb-4">{sessionName}</p>
+              <p className="text-sm md:text-muted-foreground mb-6 md:mb-8 text-balance">
+                Katılımınız başarıyla sisteme kaydedilmiştir. İyi çalışmalar dileriz.
+              </p>
+              <Button onClick={() => window.location.href = '/dashboard'} variant="outline" className="w-full h-11 md:h-12 text-base md:text-lg">
+                Panoya Dön
+              </Button>
+            </Card>
+          </motion.div>
+        ) : scanState === 'duplicate' ? (
+          <motion.div
+            key="duplicate"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="space-y-6"
+          >
+            <Card className="bg-yellow-500/5 border-yellow-500/20 text-center p-6 md:p-10">
+              <div className="flex justify-center mb-6 md:mb-8">
+                <div className="p-4 md:p-5 bg-yellow-500/20 rounded-full">
+                  <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-yellow-500" />
+                </div>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-yellow-500 mb-2">Zaten Kayıtlı</h2>
+              <p className="text-muted-foreground mb-6 md:mb-8 text-base md:text-lg">{resultMessage}</p>
+              <Button onClick={() => window.location.href = '/dashboard'} variant="outline" className="w-full h-11 md:h-12 text-base md:text-lg border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
+                Panoya Dön
+              </Button>
+            </Card>
+          </motion.div>
+        ) : scanState === 'error' ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="space-y-6"
+          >
+            <Card className="bg-red-500/5 border-red-500/20 text-center p-6 md:p-10">
+              <div className="flex justify-center mb-6 md:mb-8">
+                <div className="p-4 md:p-5 bg-red-500/20 rounded-full">
+                  <XCircle className="w-12 h-12 md:w-16 md:h-16 text-red-500" />
+                </div>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-red-500 mb-2">Bir Hata Oluştu</h2>
+              <p className="text-muted-foreground mb-6 md:mb-8 text-base md:text-lg">{resultMessage}</p>
+              <Button onClick={resetScan} variant="outline" className="w-full h-11 md:h-12 text-base md:text-lg border-red-500/30 hover:bg-red-500/10 text-red-500">
+                <RotateCcw className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3" /> Tekrar Dene
+              </Button>
+            </Card>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="scanner"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="relative group overflow-hidden rounded-3xl"
+          >
+            <div className="aspect-[3/4] md:aspect-square relative rounded-3xl overflow-hidden bg-zinc-950 border border-border/50 shadow-2xl">
+              {isCameraActive ? (
+                <div className="w-full h-full relative">
+                  <Scanner
+                    onScan={handleScan}
+                    onError={(error) => console.error(error)}
+                    components={{
+                      finder: false, // Using our custom overlay
+                      torch: false
+                    }}
+                    styles={{
+                      container: { width: "100%", height: "100%" },
+                      video: { width: "100%", height: "100%", objectFit: "cover" }
+                    }}
+                  />
+                  <ScannerOverlay />
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground bg-grid-white/[0.02]">
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-primary/10 blur-xl rounded-full" />
+                    <div className="p-6 bg-secondary/50 rounded-full relative border border-white/5">
+                      <CameraOff className="w-12 h-12 md:w-16 md:h-16 opacity-40" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg md:text-xl font-medium text-white mb-2">Kamera Kapalı</h3>
+                  <p className="text-muted-foreground text-xs md:text-sm max-w-[240px] text-center">
+                    QR kodunu okutmak için kamerayı aktif etmelisiniz.
+                  </p>
+                </div>
+              )}
 
-        {/* Manual Input Section */}
-        <CardHeader>
-          <CardTitle className="text-lg">Manuel Kod Girişi</CardTitle>
-          <CardDescription>
-            Kamera çalışmıyorsa kodu buraya yazın.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <form onSubmit={handleManualSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                placeholder="QR Kod Değeri"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                className="font-mono text-center tracking-wider"
-                autoComplete="off"
-                disabled={scanState === 'processing'}
-              />
+              <div className="absolute bottom-4 md:bottom-8 left-0 right-0 flex justify-center z-30 px-6">
+                <Button
+                  variant={isCameraActive ? "secondary" : "default"}
+                  size="lg"
+                  className="w-full max-w-xs h-12 md:h-14 rounded-full gap-2 md:gap-3 shadow-xl backdrop-blur-sm transition-all active:scale-95 text-sm md:text-base"
+                  onClick={() => setIsCameraActive(!isCameraActive)}
+                >
+                  {isCameraActive ? <CameraOff className="w-4 h-4 md:w-5 md:h-5" /> : <Camera className="w-4 h-4 md:w-5 md:h-5" />}
+                  {isCameraActive ? "Kamerayı Durdur" : "Taramayı Başlat"}
+                </Button>
+              </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={scanState === 'processing' || !token}>
-              {scanState === 'processing' ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-              Yoklamayı Onayla
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+            {/* Aesthetic Glow Decor - Wrapped to ensure no overflow */}
+            <div className="absolute inset-0 pointer-events-none -z-10">
+              <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 blur-[100px] rounded-full" />
+              <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary/5 blur-[100px] rounded-full" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 md:p-6 flex items-start gap-3 md:gap-4">
+        <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg shrink-0">
+          <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+        </div>
+        <div className="space-y-1">
+          <h4 className="font-semibold text-xs md:text-sm">Yardımcı Bilgi</h4>
+          <p className="text-[10px] md:text-xs text-muted-foreground leading-relaxed">
+            Eğer kamera açılmıyorsa tarayıcı ayarlarından kamera izni verdiğinizden emin olun. Kod okunamıyorsa ekran parlaklığını artırmayı deneyin.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
-// Change Log:
-// - Implemented full state handling: `success`, `duplicate`, and `error` states are now distinctive full-card views.
-// - Replaced the simple toast-based feedback with proper UI feedback screens as requested.
-// - Added logic to capture `sessionName` from the API response for the success screen.

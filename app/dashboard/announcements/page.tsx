@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Announcement } from "@/types/announcement";
 import { AnnouncementFeed } from "@/components/dashboard/announcements/AnnouncementFeed";
 import { CardSkeleton } from "@/components/ui/skeleton-loader";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AnnouncementsPage() {
   const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
     queryKey: ['announcements-public'],
     queryFn: async () => {
-        const res = await fetch("/api/announcements");
-        if (!res.ok) throw new Error("Failed");
-        return res.json();
+      const res = await fetch("/api/announcements");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
     }
   });
 
@@ -19,6 +20,7 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+      <Breadcrumbs items={[{ label: "Duyurular" }]} />
       <div>
         <h2 className="text-3xl font-display font-bold text-foreground">Duyurular</h2>
         <p className="text-muted-foreground mt-1">

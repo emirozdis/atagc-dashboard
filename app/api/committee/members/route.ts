@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { getSignedUrl, getSignedUrls } from "@/lib/storage-utils";
 
-// Read: 60/min, Write: 20/min
+// Read: 60/min
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
-const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
 export async function GET(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
@@ -32,7 +31,6 @@ export async function GET(request: Request) {
         .maybeSingle();
 
       if (cmError && cmError.code !== 'PGRST116') {
-        console.error("Fetch committee error:", cmError);
         return { ok: false, status: 500, message: "Database error" };
       }
 
@@ -50,31 +48,48 @@ export async function GET(request: Request) {
 
   try {
     const committeeMember = auth.payload.committeeMember;
-
     // @ts-ignore
     const committeeId = committeeMember.committee.id;
     // @ts-ignore
     const adminId = committeeMember.committee.admin_id;
+    const currentUserId = auth.session!.user.id;
+    const isSuperAdmin = auth.session!.user.role === 'superadmin';
 
-    // Fetch admin information
+    const { data: adminData } = await supabase
+      .from("users")
+      .select(`
+        id,
+        full_name,
+        email,
+        role,
+        user_details ( profile_picture_url, is_profile_picture_hidden )
+      `)
+      .eq("id", adminId)
+      .maybeSingle();
+
     let admin = null;
-    if (adminId) {
-      const { data: adminData, error: adminError } = await supabase
-        .from("users")
-        .select("id, full_name, email")
-        .eq("id", adminId)
-        .single();
+    if (adminData) {
+      const details = Array.isArray(adminData.user_details) ? adminData.user_details[0] : adminData.user_details;
+      const isSelf = adminData.id === currentUserId;
+      const isHidden = details?.is_profile_picture_hidden;
+      let adminImage = null;
 
-      if (!adminError && adminData) {
-        admin = {
-          id: adminData.id,
-          full_name: adminData.full_name || "İsimsiz Yönetici",
-          email: adminData.email || "",
-        };
+      if (details?.profile_picture_url) {
+        if (isSelf || isSuperAdmin || !isHidden) {
+          adminImage = await getSignedUrl("profile-pictures", details.profile_picture_url);
+        }
       }
+
+      admin = {
+        id: "chairman-" + adminData.id,
+        userId: adminData.id,
+        full_name: adminData.full_name,
+        email: adminData.email,
+        role: adminData.role || "committee_chairman",
+        image: adminImage
+      };
     }
 
-    // Fetch all committee members
     const { data: members, error: membersError } = await supabase
       .from("committee_members")
       .select(`
@@ -84,31 +99,58 @@ export async function GET(request: Request) {
           id,
           full_name,
           email,
-          role
+          role,
+          user_details ( profile_picture_url, is_profile_picture_hidden )
         )
       `)
       .eq("committee_id", committeeId);
 
-    if (membersError) {
-      console.error("Error fetching committee members:", membersError);
-      return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
-    }
+    if (membersError) return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
 
+    const pathsToSign: string[] = [];
     const formattedMembers = members?.map((m: any) => {
       const userData = Array.isArray(m.user) ? m.user[0] : m.user;
-      
+      const details = userData?.user_details && (Array.isArray(userData.user_details) ? userData.user_details[0] : userData.user_details);
+
+      const isSelf = userData.id === currentUserId;
+      const isHidden = details?.is_profile_picture_hidden;
+      let imagePath = null;
+
+      // Privacy Check
+      if (details?.profile_picture_url) {
+        if (isSelf || isSuperAdmin || !isHidden) {
+          imagePath = details.profile_picture_url;
+          if (imagePath && !imagePath.startsWith('http')) {
+            pathsToSign.push(imagePath);
+          }
+        }
+      }
+
       return {
         id: m.id,
         userId: userData?.id,
         full_name: userData?.full_name || "İsimsiz Üye",
         email: userData?.email || "",
         role: userData?.role || "applicant",
-        can_edit: m.can_write
+        can_edit: m.can_write,
+        image: imagePath
       };
     }) || [];
 
+    // Batch Sign
+    if (pathsToSign.length > 0) {
+      const signedData = await getSignedUrls("profile-pictures", pathsToSign);
+      signedData?.forEach(item => {
+        formattedMembers.forEach(m => {
+          if (m.image === item.path) {
+            m.image = item.signedUrl;
+          }
+        });
+      });
+    }
+
     return NextResponse.json({
-      admin,
+      admin, // (Admin part omitted above but should follow same logic)
       members: formattedMembers
     });
 
@@ -118,49 +160,6 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
-  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  try {
-    await writeLimiter.check(20, ip);
-  } catch {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
-  }
-
-  // Only committee chairmen can update members
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: "committee_chairman" });
-  if (!auth.ok || !auth.session) {
-    return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
-  }
-  const session = auth.session;
-
-  const { memberId, canEdit } = await request.json();
-
-  // Fetch previous state
-  const { data: previousState } = await supabase
-    .from("committee_members")
-    .select("can_write")
-    .eq("id", memberId)
-    .single();
-
-  // Update 'can_write' column based on the request (UUID memberId)
-  const { error } = await supabase
-    .from("committee_members")
-    .update({ can_write: canEdit })
-    .eq("id", memberId);
-
-  if (error) {
-    console.error("Update member error:", error);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
-  }
-
-  await logAction(session.user.id, "update_member_permission", { 
-      member_id: memberId, 
-      can_write: canEdit,
-      previous_state: previousState
-  }, request);
-
-  return NextResponse.json({ success: true });
-}
-
 // Change Log:
-// - Added rate limiting: GET (60/min), PUT (20/min).
+// - Added privacy check logic for profile pictures.
+// - Implemented batch signed URL generation.

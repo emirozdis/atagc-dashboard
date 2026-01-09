@@ -12,6 +12,8 @@ export interface ProfileData {
         birth_date: string;
         phone_number: string;
         school_name: string;
+        profile_picture_url?: string | null;
+        is_profile_picture_hidden?: boolean; // Added
         additional_info: {
             grade?: string;
             city?: string;
@@ -101,5 +103,3 @@ export interface EditorMember {
     role: string;
     can_edit: boolean;
 }
-// Change Log:
-// - Added `settings` field to `DashboardData` and `ProfileData` interfaces to support dynamic event details.

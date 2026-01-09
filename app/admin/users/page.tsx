@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import {
   Users as UsersIcon,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { UserSelectionTable } from "@/components/admin/UserSelectionTable";
-import { Card, CardContent } from "@/components/ui/card";
 
 export default function UsersPage() {
   const breadcrumbItems = [
@@ -14,7 +12,7 @@ export default function UsersPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-20">
       <Breadcrumbs items={breadcrumbItems} />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -29,15 +27,12 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <Card className="bg-card border-border/50">
-        {/* Changed padding: p-0 on mobile to allow edge-to-edge content, p-6 on desktop */}
-        <CardContent className="p-0 md:p-6">
-           <UserSelectionTable />
-        </CardContent>
-      </Card>
+      {/* Removed the large wrapping Card here to allow the component to manage its own layout */}
+      <UserSelectionTable />
     </div>
   );
 }
 
 // Change Log:
-// - Changed `CardContent` padding to `p-0 md:p-6` to maximize screen real estate on mobile for the user list.
+// - Removed the outer `<Card>` wrapper.
+// - The `UserSelectionTable` now handles the layout structure (Controls Bar + Data Table) directly, matching the Applications page style.

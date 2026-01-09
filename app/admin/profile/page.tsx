@@ -1,8 +1,14 @@
 import { ProfileView } from "@/components/dashboard/ProfileView";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AdminProfilePage() {
-  return <ProfileView />;
+  return (
+    <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Profil" }]} />
+      <ProfileView />
+    </div>
+  );
 }
 
 // Change Log:
-// - New admin profile page that reuses the `ProfileView` component.
+// - Added breadcrumbs and wrapper to the profile page.

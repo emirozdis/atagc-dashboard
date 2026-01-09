@@ -11,14 +11,15 @@ import { Button } from "@/components/ui/button";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 interface RollCall {
   id: string;
   session_name: string;
   created_at: string;
-  committee: { 
+  committee: {
     name: string;
-    committee_members: { count: number }[]; 
+    committee_members: { count: number }[];
   } | null;
   roll_call_logs: { count: number }[];
 }
@@ -64,7 +65,7 @@ export default function AdminRollCallsPage() {
                 {new Date(rc.created_at).toLocaleString("tr-TR", { dateStyle: 'medium', timeStyle: 'short' })}
               </div>
             </div>
-            
+
             <Badge variant="outline" className={`${ratio === 100 ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-secondary text-secondary-foreground'}`}>
               %{ratio}
             </Badge>
@@ -90,6 +91,7 @@ export default function AdminRollCallsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <Breadcrumbs items={[{ label: "Yoklama" }]} />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-display font-bold text-foreground">Yoklamalar</h2>
@@ -167,13 +169,13 @@ export default function AdminRollCallsPage() {
               </div>
             </>
           )}
-          
+
           <div className="px-0 md:px-4 py-4 md:border-t border-border/50">
-             <PaginationControls
-                currentPage={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-             />
+            <PaginationControls
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
           </div>
         </CardContent>
       </Card>

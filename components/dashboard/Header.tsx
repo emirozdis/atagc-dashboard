@@ -1,39 +1,82 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { Search, Moon, Sun, User, Settings, LogOut, ChevronDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, Moon, Sun, User, Settings, LogOut, ChevronDown, Menu } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { SearchCommand } from "./SearchCommand";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { MobileSidebar } from "./MobileSidebar";
+import { AdminMobileSidebar } from "./AdminMobileSidebar";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function Header() {
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
+  const pathname = usePathname();
   const [openSearch, setOpenSearch] = useState(false);
+  const [openMobileMenu, setOpenMobileMenu] = useState(false);
 
-  const initials = session?.user?.name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
+  const isAdminRoute = pathname?.startsWith("/admin");
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/participant/me");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const initials = session?.user?.name?.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
+  const userDetails = profile?.userDetails || (Array.isArray(profile?.user?.user_details) ? profile?.user?.user_details[0] : profile?.user?.user_details);
+  const profileImage = userDetails?.profile_picture_url || undefined;
+
+  const getRoleDisplayName = (role?: string) => {
+    switch (role) {
+      case "committee_chairman": return "Chairman";
+      case "deputy_chair": return "Deputy Chair";
+      case "superadmin":
+      case "admin": return "Admin";
+      case "applicant": return "Participant";
+      default: return role || "Misafir";
+    }
+  };
 
   return (
-    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-10 transition-colors">
+    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 transition-colors">
+      <div className="flex md:hidden mr-4">
+        <Sheet open={openMobileMenu} onOpenChange={setOpenMobileMenu}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Menüyü Aç</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 border-none w-72">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menü</SheetTitle>
+              <SheetDescription>
+                Navigasyon menüsü
+              </SheetDescription>
+            </SheetHeader>
+            {isAdminRoute ? (
+              <AdminMobileSidebar onClose={() => setOpenMobileMenu(false)} />
+            ) : (
+              <MobileSidebar onClose={() => setOpenMobileMenu(false)} />
+            )}
+          </SheetContent>
+        </Sheet>
+      </div>
 
-      {/* Search Trigger */}
       <div className="w-full max-w-md hidden md:block">
         <div className="relative">
           <Button
@@ -53,13 +96,12 @@ export function Header() {
 
       <SearchCommand open={openSearch} setOpen={setOpenSearch} />
 
-      {/* Right Side Actions */}
       <div className="flex items-center gap-2 ml-auto">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="rounded-full text-muted-foreground hover:text-foreground hidden sm:flex"
+          className="rounded-full text-muted-foreground hover:text-foreground flex"
         >
           <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -71,15 +113,14 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-full pl-0 hover:bg-transparent p-0 flex items-center gap-3">
                 <div className="hidden md:block text-right">
-                  <p className="text-sm font-medium text-foreground leading-none">
-                    {session?.user?.name || "Kullanıcı"}
-                  </p>
-                  <p className="text-xs text-muted-foreground capitalize mt-1">
-                    {session?.user?.role || "Misafir"}
-                  </p>
+                  <p className="text-sm font-medium text-foreground leading-none">{session?.user?.name || "Kullanıcı"}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{getRoleDisplayName(session?.user?.role)}</p>
                 </div>
                 <Avatar className="h-9 w-9 border border-border">
-                  <AvatarImage src={`https://avatar.vercel.sh/${session?.user?.email}`} />
+                  <AvatarImage
+                    src={profileImage}
+                    className="object-cover" // Added to prevent stretching
+                  />
                   <AvatarFallback>{initials || "U"}</AvatarFallback>
                 </Avatar>
                 <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
@@ -89,33 +130,21 @@ export function Header() {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {session?.user?.email}
-                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile" className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profilim</span>
-                  </Link>
+                  <Link href="/dashboard/profile" className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Profilim</span></Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile" className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Ayarlar</span>
-                  </Link>
+                  <Link href="/dashboard/profile" className="cursor-pointer"><Settings className="mr-2 h-4 w-4" /><span>Ayarlar</span></Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20 cursor-pointer"
-                onClick={() => signOut({ callbackUrl: "/login" })}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Çıkış Yap</span>
+              <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20 cursor-pointer" onClick={() => signOut({ callbackUrl: "/login" })}>
+                <LogOut className="mr-2 h-4 w-4" /><span>Çıkış Yap</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -126,7 +155,4 @@ export function Header() {
 }
 
 // Change Log:
-// - Replaced the dummy Input with a trigger Button for `SearchCommand`.
-// - Implemented `DropdownMenu` for the user profile section.
-// - Added styling for the Sign Out button (destructive color).
-// - Added desktop/mobile responsive adjustments.
+// - Added `className="object-cover"` to `AvatarImage` to fix aspect ratio distortion for non-square profile pictures.

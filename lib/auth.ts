@@ -19,6 +19,8 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials, req) {
         // 0. Rate Limiting
         const ip = (req?.headers as any)?.["x-forwarded-for"] || "127.0.0.1";
+        const userAgent = (req?.headers as any)?.["user-agent"] || "Unknown";
+
         try {
           await loginLimiter.check(5, ip);
         } catch {
@@ -29,10 +31,10 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // 1. Fetch user from public.users table
+        // 1. Fetch user
         const { data: user, error } = await supabase
           .from("users")
-          .select("*")
+          .select("*, user_details(profile_picture_url)")
           .eq("email", credentials.email)
           .single();
 
@@ -40,62 +42,98 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // 2. Check if user is suspended
         if (user.is_suspended) {
-          throw new Error("Hesabınız askıya alınmıştır. Lütfen yönetim ile iletişime geçiniz.");
+          throw new Error("Hesabınız askıya alınmıştır.");
         }
 
-        // 3. Check System Maintenance Mode
+        // 2. Check Maintenance Mode
         const { data: settings } = await supabase
           .from("system_settings")
           .select("maintenance_mode")
           .single();
 
-        if (settings?.maintenance_mode) {
-          // Allow login only for admins and superadmins
-          if (user.role !== "superadmin" && user.role !== "admin") {
-            return null;
-          }
-        }
-
-        // 4. Verify password
-        const isValid = await bcrypt.compare(credentials.password, user.password_hash);
-
-        if (!isValid) {
+        if (settings?.maintenance_mode && user.role !== "superadmin" && user.role !== "admin") {
           return null;
         }
 
-        // 5. Log Successful Login
-        await logAction(user.id, "login_success", { role: user.role });
+        // 3. Verify password
+        const isValid = await bcrypt.compare(credentials.password, user.password_hash);
+        if (!isValid) return null;
 
+        // 4. Create Active Session in DB
+        const { data: sessionData, error: sessionError } = await supabase
+          .from("active_sessions")
+          .insert({
+            user_id: user.id,
+            ip_address: ip,
+            user_agent: userAgent,
+            last_active: new Date().toISOString()
+          })
+          .select("id")
+          .single();
+
+        if (sessionError || !sessionData) {
+          throw new Error("Oturum başlatılamadı (DB Error).");
+        }
+
+        await logAction(user.id, "login_success", { role: user.role, session_id: sessionData.id });
+
+        const userDetails = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
+        
         return {
           id: user.id,
           name: user.full_name,
           email: user.email,
           role: user.role,
+          image: userDetails?.profile_picture_url || null,
+          sessionId: sessionData.id, 
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.picture = user.image;
+        // Fix: Ensure sessionId is a string using fallback
+        token.sessionId = user.sessionId || ""; 
+      }
+      if (trigger === "update" && session?.user?.image) {
+        token.picture = session.user.image;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role as any;
+      // 5. VALIDATE SESSION ON EVERY REQUEST
+      if (token && token.sessionId) {
+        const { data: activeSession } = await supabase
+          .from("active_sessions")
+          .select("id, last_active")
+          .eq("id", token.sessionId)
+          .single();
+
+        // If session deleted from DB (signed out from another device), kill session here
+        if (!activeSession) {
+          // Returning null forces NextAuth client to see user as unauthenticated
+          return null as any; 
+        }
+
+        if (session.user) {
+          session.user.id = token.id;
+          session.user.role = token.role as any;
+          session.user.image = token.picture;
+          session.user.sessionId = token.sessionId;
+        }
+        return session;
       }
-      return session;
+      return session; 
     },
   },
   pages: {
     signIn: "/login",
-    error: "/login", // Redirect to login on error
+    error: "/login",
   },
   session: {
     strategy: "jwt",
@@ -104,5 +142,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Implemented rate limiting (5 attempts/min) in `authorize` callback.
-// - Added error throwing for rate limit exceeded.
+// - Fixed TypeScript error by providing a default empty string for `sessionId` in the `jwt` callback.
+// - Updated `session` callback to return `null` instead of `{}` when session validation fails, correctly triggering unauthenticated state.

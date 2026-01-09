@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 interface LogEntry {
   id: string;
@@ -133,7 +134,7 @@ export default function AdminLogsPage() {
         <div className="flex justify-between items-start gap-3 mb-2">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <Avatar className="w-8 h-8 border border-border/50 shrink-0">
-              <AvatarImage src={`https://avatar.vercel.sh/${log.user?.email || 'system'}`} />
+              <AvatarImage src={undefined} />
               <AvatarFallback className="text-[10px] bg-secondary">{(log.user?.full_name || "S").substring(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0 flex-1">
@@ -177,7 +178,7 @@ export default function AdminLogsPage() {
       <TableCell className="py-2">
         <div className="flex items-center gap-2">
           <Avatar className="w-5 h-5 border border-white/10">
-            <AvatarImage src={`https://avatar.vercel.sh/${log.user?.email || 'system'}`} />
+            <AvatarImage src={undefined} />
             <AvatarFallback className="text-[9px]">{(log.user?.full_name || "S").substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
@@ -210,6 +211,7 @@ export default function AdminLogsPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      <Breadcrumbs items={[{ label: "Sistem Logları" }]} />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-display font-bold text-foreground">Sistem Kayıtları</h2>
