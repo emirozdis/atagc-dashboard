@@ -2,9 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, Clock, FileText, Info, MapPin, XCircle, FileQuestion, ArrowRight, Users } from "lucide-react";
+import { Calendar, CheckCircle, Clock, Info, MapPin, XCircle, FileQuestion, Users, FileText, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
 
 import { ParticipantDashboardProps, DashboardData } from "@/types/dashboard";
 
@@ -33,7 +34,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     );
   }
 
-  const { application, committeeMember, topic, settings } = data || {};
+  const { application, committeeMember, topic, settings, user: userData } = data || {};
 
   if (!application) {
     return (
@@ -98,10 +99,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
         
         if (endDate) {
-            // Check if valid dates
             if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "Tarih Belirlenmedi";
-
-            // If same month and year
             if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
                 return `${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`;
             }
@@ -128,7 +126,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
           </p>
         </div>
         
-        {/* Dynamic Term Name Badge */}
         {settings?.term_name && (
             <Badge variant="outline" className="w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider bg-secondary/50">
             {settings.term_name}
@@ -136,9 +133,10 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3 items-start">
-        {/* Status Card */}
-        <div className="lg:col-span-2">
+      {/* Top Grid: Status, Event Info, Digital ID */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Left Column: Status & Event */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
           <Card className={`border ${statusContent.borderColor} bg-card shadow-sm`}>
             <div className="p-6 flex flex-col sm:flex-row gap-5 items-start">
               <div className={`p-3 rounded-xl ${statusContent.bgColor} shrink-0`}>
@@ -173,49 +171,58 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
               </div>
             </div>
           </Card>
+
+          {/* Event Info Card */}
+          <Card className="bg-card border-border/50 shadow-sm flex flex-col flex-1">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                Etkinlik Detayları
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 flex-1">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                  <Calendar className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-xs font-medium text-foreground">Tarih</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDateRange(settings?.event_start_date, settings?.event_end_date)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                  <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-xs font-medium text-foreground">Konum</div>
+                    <div className="text-xs text-muted-foreground">
+                      {settings?.location || "Konum Belirlenmedi"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border/50 mt-auto">
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <Info className="w-3 h-3" />
+                  Detaylı program yakında açıklanacaktır.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Event Info Card */}
-        <Card className="bg-card border-border/50 shadow-sm flex flex-col">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-primary" />
-              Etkinlik Detayları
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
-                <Calendar className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-xs font-medium text-foreground">Tarih</div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatDateRange(settings?.event_start_date, settings?.event_end_date)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
-                <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-xs font-medium text-foreground">Konum</div>
-                  <div className="text-xs text-muted-foreground">
-                    {settings?.location || "Konum Belirlenmedi"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-border/50">
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <Info className="w-3 h-3" />
-                Detaylı program yakında açıklanacaktır.
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Right Column: Digital ID */}
+        {userData && (
+          <div className="lg:col-span-1 h-full">
+            {/* Added uniqueId="dashboard" to separate layout scope */}
+            <DigitalIdCard user={userData} className="h-full" uniqueId="dashboard" />
+          </div>
+        )}
       </div>
 
+      {/* Committee & Topic Section (Restored) */}
       {status === "approved" && (
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
@@ -299,5 +306,4 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 }
 
 // Change Log:
-// - Refactored to use `useQuery`.
-// - Implemented Skeleton loaders.
+// - Added `uniqueId="dashboard"` to the `DigitalIdCard` component call to isolate it from the profile page card animations.

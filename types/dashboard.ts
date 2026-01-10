@@ -13,7 +13,7 @@ export interface ProfileData {
         phone_number: string;
         school_name: string;
         profile_picture_url?: string | null;
-        is_profile_picture_hidden?: boolean; // Added
+        is_profile_picture_hidden?: boolean;
         additional_info: {
             grade?: string;
             city?: string;
@@ -65,6 +65,14 @@ export interface ParticipantDashboardProps {
 }
 
 export interface DashboardData {
+    // Added user field to match API response for Digital ID
+    user: {
+        id: string;
+        full_name: string;
+        email: string;
+        role: string;
+        created_at: string;
+    };
     application: {
         id: string; // UUID
         status: "pending" | "approved" | "rejected";
