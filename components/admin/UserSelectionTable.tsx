@@ -146,7 +146,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
       case 'committee_chairman': return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 whitespace-nowrap">Başkan</Badge>;
       case 'deputy_chair': return <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20 whitespace-nowrap">Başkan Yrd.</Badge>;
       case 'admin': return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20 whitespace-nowrap">Yönetici</Badge>;
-      case 'superadmin': return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 whitespace-nowrap">Süper Admin</Badge>;
+      case 'superadmin': return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 whitespace-nowrap">Süper Yönetici</Badge>;
       default: return <Badge variant="outline" className="bg-secondary/50 whitespace-nowrap">Katılımcı</Badge>;
     }
   };
@@ -173,6 +173,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
               <SelectItem value="deputy_chair">Başkan Yrd.</SelectItem>
               <SelectItem value="committee_chairman">Başkan</SelectItem>
               <SelectItem value="admin">Yönetici</SelectItem>
+              <SelectItem value="superadmin">Süper Yönetici</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -203,7 +204,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
             <TableSkeleton rows={5} />
           </div>
           <div className="md:hidden space-y-4">
-             {[1,2,3].map(i => <div key={i} className="h-24 bg-muted/20 animate-pulse rounded-xl border border-border/30" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted/20 animate-pulse rounded-xl border border-border/30" />)}
           </div>
         </div>
       ) : users.length === 0 ? (
@@ -268,8 +269,8 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
             {users.map(user => {
               const isSelected = selectedIds.includes(user.id);
               return (
-                <Card 
-                  key={user.id} 
+                <Card
+                  key={user.id}
                   className={cn(
                     "border border-border/50 transition-all active:scale-[0.99] cursor-pointer relative overflow-hidden",
                     isSelected ? "border-primary/50 bg-primary/5 shadow-[0_0_0_1px_rgba(var(--primary))]" : "bg-card"
@@ -280,7 +281,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                   {isSelected && (
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
                   )}
-                  
+
                   <CardContent className="p-4 pl-5">
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex items-center gap-3 min-w-0">
@@ -327,11 +328,11 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
           </div>
         </>
       )}
-      
+
       {/* Floating Selection Bar */}
       <AnimatePresence>
         {selectedIds.length > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ y: 100, opacity: 0, scale: 0.9 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 100, opacity: 0, scale: 0.9 }}
@@ -339,10 +340,10 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
             className="fixed z-50 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-auto bottom-20 md:bottom-8"
           >
             <div className="bg-white/95 dark:bg-zinc-900/95 text-foreground px-4 py-3 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/50 flex items-center justify-between gap-3 md:gap-6 backdrop-blur-lg border border-border/50 ring-1 ring-black/5 dark:ring-white/5">
-              
+
               {/* Count Indicator */}
               <div className="flex items-center gap-3 pl-1 pr-2">
-                <motion.div 
+                <motion.div
                   key={selectedIds.length}
                   initial={{ scale: 0.8 }}
                   animate={{ scale: 1 }}
@@ -363,9 +364,9 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
               <div className="flex items-center gap-1.5 md:gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       className="h-8 px-2 md:px-3 hover:bg-secondary/80"
                     >
                       <Shield className="w-4 h-4 md:mr-2" />
@@ -381,11 +382,11 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  disabled={deleteMutation.isPending} 
-                  className="h-8 px-2 md:px-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors" 
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={deleteMutation.isPending}
+                  className="h-8 px-2 md:px-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors"
                   onClick={handleDelete}
                 >
                   <Trash2 className="w-4 h-4 md:mr-2" />
@@ -394,10 +395,10 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
 
                 <div className="h-4 w-px bg-border mx-1" />
 
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="h-8 w-8 md:w-auto md:px-3 rounded-full md:rounded-md hover:bg-secondary p-0 md:p-2" 
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 md:w-auto md:px-3 rounded-full md:rounded-md hover:bg-secondary p-0 md:p-2"
                   onClick={() => handleSelectionChange([])}
                 >
                   <X className="w-4 h-4 md:hidden" />

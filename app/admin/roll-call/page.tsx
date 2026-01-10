@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users, QrCode, Calendar, BarChart, MoreVertical, Trash2 } from "lucide-react";
+import { Users, QrCode, Calendar, BarChart, MoreVertical, Trash2, Search, ArrowUpDown, X, Filter, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CreateRollCallDialog } from "@/components/admin/CreateRollCallDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -27,13 +30,46 @@ interface RollCall {
 export default function AdminRollCallsPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [committeeFilter, setCommitteeFilter] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [ratioFilter, setRatioFilter] = useState("all"); // all, full, high, low
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  const { data: committeesData } = useQuery({
+    queryKey: ['admin-committees-list'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/committees');
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    }
+  });
+
+  const committees = committeesData || [];
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['admin-roll-calls', page, limit],
+    queryKey: ['admin-roll-calls', page, limit, debouncedSearch, committeeFilter, startDate, endDate, sortBy, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
+        search: debouncedSearch,
+        committee_id: committeeFilter,
+        start_date: startDate,
+        end_date: endDate,
+        sort_by: sortBy === 'ratio' ? 'created_at' : sortBy, // Ratio sorting handled client-side if needed or fallback to date
+        sort_order: sortOrder,
       });
       const res = await fetch(`/api/admin/roll-calls?${params}`);
       if (!res.ok) throw new Error("Failed");
@@ -42,8 +78,44 @@ export default function AdminRollCallsPage() {
     placeholderData: (prev) => prev
   });
 
-  const rollCalls: RollCall[] = data?.data || [];
+  const rawRollCalls: RollCall[] = data?.data || [];
+
+  // Calculate and Filter/Sort client-side if needed
+  const processedRollCalls = useMemo(() => {
+    let list = rawRollCalls.map(rc => {
+      const attendedCount = rc.roll_call_logs?.[0]?.count || 0;
+      const totalMembers = rc.committee?.committee_members?.[0]?.count || 0;
+      const ratio = totalMembers > 0 ? Math.round((attendedCount / totalMembers) * 100) : 0;
+      return { ...rc, _ratio: ratio };
+    });
+
+    if (ratioFilter !== "all") {
+      if (ratioFilter === "full") list = list.filter(rc => rc._ratio === 100);
+      else if (ratioFilter === "high") list = list.filter(rc => rc._ratio >= 75);
+      else if (ratioFilter === "low") list = list.filter(rc => rc._ratio < 50);
+    }
+
+    if (sortBy === "ratio") {
+      list.sort((a, b) => {
+        return sortOrder === "asc" ? a._ratio! - b._ratio! : b._ratio! - a._ratio!;
+      });
+    }
+
+    return list;
+  }, [rawRollCalls, ratioFilter, sortBy, sortOrder]);
+
   const totalPages = data?.meta?.totalPages || 1;
+
+  const resetFilters = () => {
+    setSearch("");
+    setCommitteeFilter("all");
+    setStartDate("");
+    setEndDate("");
+    setRatioFilter("all");
+    setSortBy("created_at");
+    setSortOrder("desc");
+    setPage(1);
+  };
 
   const renderMobileCard = (rc: RollCall) => {
     const attendedCount = rc.roll_call_logs?.[0]?.count || 0;
@@ -102,26 +174,169 @@ export default function AdminRollCallsPage() {
         <CreateRollCallDialog onSuccess={refetch} />
       </div>
 
+      {/* Controls Toolbar */}
+      <div className="flex flex-col xl:flex-row gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Oturum ismine göre ara..."
+            className="pl-9 h-10 w-full bg-background border-border/50"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex gap-2 items-center">
+          <Select value={committeeFilter} onValueChange={setCommitteeFilter}>
+            <SelectTrigger className="w-full lg:w-[150px] h-10 bg-background border-border/50">
+              <SelectValue placeholder="Komite" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tüm Komiteler</SelectItem>
+              {committees.map((c: any) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={ratioFilter} onValueChange={setRatioFilter}>
+            <SelectTrigger className="w-full lg:w-[130px] h-10 bg-background border-border/50">
+              <SelectValue placeholder="Katılım Oranı" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tüm Oranlar</SelectItem>
+              <SelectItem value="full">Tam (%100)</SelectItem>
+              <SelectItem value="high">Yüksek (%75+)</SelectItem>
+              <SelectItem value="low">Düşük (%50'den az)</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 text-xs w-full lg:w-auto">
+                <CalendarDays className="w-4 h-4" />
+                <span>{startDate || endDate ? "Tarih Seçildi" : "Tarih Aralığı"}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-4" align="center">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Başlangıç Tarihi</label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Bitiş Tarihi</label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button variant="secondary" size="sm" onClick={() => { setStartDate(""); setEndDate(""); }}>Temizle</Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 w-full lg:w-auto">
+                <ArrowUpDown className="w-4 h-4" />
+                <span>Sırala</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2" align="end">
+              <div className="space-y-1">
+                <Button
+                  variant={sortBy === 'created_at' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="w-full justify-start h-8 text-xs"
+                  onClick={() => setSortBy('created_at')}
+                >
+                  Tarih
+                </Button>
+                <Button
+                  variant={sortBy === 'session_name' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="w-full justify-start h-8 text-xs"
+                  onClick={() => setSortBy('session_name')}
+                >
+                  Oturum İsmi
+                </Button>
+                <Button
+                  variant={sortBy === 'ratio' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="w-full justify-start h-8 text-xs"
+                  onClick={() => setSortBy('ratio')}
+                >
+                  Katılım Oranı
+                </Button>
+                <div className="h-px bg-border my-1" />
+                <Button
+                  variant={sortOrder === 'asc' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="w-full justify-start h-8 text-xs"
+                  onClick={() => setSortOrder('asc')}
+                >
+                  Artan (A-Z veya Oran)
+                </Button>
+                <Button
+                  variant={sortOrder === 'desc' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="w-full justify-start h-8 text-xs"
+                  onClick={() => setSortOrder('desc')}
+                >
+                  Azalan (Z-A veya Oran)
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          {(search !== "" || committeeFilter !== "all" || ratioFilter !== "all" || startDate !== "" || endDate !== "" || sortBy !== "created_at" || sortOrder !== "desc") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0"
+              onClick={resetFilters}
+              title="Filtreleri Temizle"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
       <Card className="bg-card border-border/50 bg-transparent shadow-none border-none">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6"><TableSkeleton rows={5} cols={5} /></div>
-          ) : rollCalls.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border rounded-xl bg-card">
-              <BarChart className="w-12 h-12 opacity-20 mb-3" />
-              <p>Henüz yoklama kaydı bulunmuyor.</p>
+          ) : processedRollCalls.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
+              <Filter className="w-12 h-12 opacity-20 mb-3" />
+              <p>Kriterlere uygun yoklama bulunamadı.</p>
+              {(search !== "" || committeeFilter !== "all" || ratioFilter !== "all" || startDate !== "" || endDate !== "" || sortBy !== "created_at" || sortOrder !== "desc") && (
+                <Button variant="link" onClick={resetFilters} className="mt-2">
+                  Filtreleri Temizle
+                </Button>
+              )}
             </div>
           ) : (
             <>
               {/* Mobile View */}
               <div className="block md:hidden">
-                {rollCalls.map(renderMobileCard)}
+                {processedRollCalls.map(renderMobileCard)}
               </div>
 
               {/* Desktop View */}
               <div className="hidden md:block rounded-xl border border-border/50 bg-card overflow-hidden">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-muted/30">
                     <TableRow>
                       <TableHead>Oturum</TableHead>
                       <TableHead>Komite</TableHead>
@@ -131,7 +346,7 @@ export default function AdminRollCallsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rollCalls.map((rc) => {
+                    {processedRollCalls.map((rc: any) => {
                       const attendedCount = rc.roll_call_logs?.[0]?.count || 0;
                       const totalMembers = rc.committee?.committee_members?.[0]?.count || 0;
                       const ratio = totalMembers > 0 ? Math.round((attendedCount / totalMembers) * 100) : 0;

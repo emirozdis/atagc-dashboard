@@ -10,6 +10,12 @@ export const GET = apiHandler(async (request: Request) => {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "10");
+  const search = searchParams.get("search") || "";
+  const committeeId = searchParams.get("committee_id") || "all";
+  const startDate = searchParams.get("start_date");
+  const endDate = searchParams.get("end_date");
+  const sortBy = searchParams.get("sort_by") || "created_at";
+  const sortOrder = searchParams.get("sort_order") || "desc";
 
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -17,8 +23,8 @@ export const GET = apiHandler(async (request: Request) => {
   // We explicitly select the count for the sub-resources.
   // Note: committee_members(count) relies on PostgREST aggregate functions.
   // We perform a left join on committees to ensure we get the roll call even if committee is missing (though it shouldn't be).
-  
-  const { data, error, count } = await supabase
+
+  let query = supabase
     .from("roll_calls")
     .select(`
       id,
@@ -30,8 +36,28 @@ export const GET = apiHandler(async (request: Request) => {
         committee_members:committee_members(count)
       ),
       roll_call_logs:roll_call_logs(count)
-    `, { count: 'exact' })
-    .order('created_at', { ascending: false })
+    `, { count: 'exact' });
+
+  if (search) {
+    query = query.ilike("session_name", `%${search}%`);
+  }
+
+  if (committeeId !== "all") {
+    query = query.eq("committee_id", committeeId);
+  }
+
+  if (startDate) {
+    query = query.gte("created_at", startDate);
+  }
+  if (endDate) {
+    // Add time to end date to include the whole day
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    query = query.lte("created_at", end.toISOString());
+  }
+
+  const { data, error, count } = await query
+    .order(sortBy, { ascending: sortOrder === 'asc' })
     .range(from, to);
 
   if (error) {

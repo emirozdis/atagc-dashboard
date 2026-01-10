@@ -133,16 +133,17 @@ export default function UserDetailPage() {
     const managedCommittee = user.managed_committees?.[0];
     const memberCommittee = user.committee_members?.[0]?.committee;
     const activeCommittee = managedCommittee || memberCommittee;
-    const isChairman = user.role === 'committee_chairman';
+    const isCommitteeExecutive = user.role === 'committee_chairman' || user.role === 'deputy_chair';
 
     const application = getFirstItem(user.application);
 
     const getRoleBadge = (role: string) => {
         switch (role) {
-            case "superadmin": return <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><ShieldAlert className="w-3 h-3 mr-1" /> Yönetici</Badge>;
-            case "committee_chairman": return <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20"><ShieldCheck className="w-3 h-3 mr-1" /> Başkan</Badge>;
-            case "staff": return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20"><Shield className="w-3 h-3 mr-1" /> Personel</Badge>;
-            default: return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20"><UserIcon className="w-3 h-3 mr-1" /> Katılımcı</Badge>;
+            case "superadmin": return <Badge className="bg-red-500/10 text-red-600 border-red-500/20"><ShieldAlert className="w-3 h-3 mr-1" /> Süper Yönetici</Badge>;
+            case "admin": return <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20"><ShieldAlert className="w-3 h-3 mr-1" /> Yönetici</Badge>;
+            case "committee_chairman": return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20"><ShieldCheck className="w-3 h-3 mr-1" /> Başkan</Badge>;
+            case "deputy_chair": return <Badge className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20"><Shield className="w-3 h-3 mr-1" /> Başkan Yrd.</Badge>;
+            default: return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20"><UserIcon className="w-3 h-3 mr-1" /> Katılımcı</Badge>;
         }
     };
 
@@ -234,7 +235,7 @@ export default function UserDetailPage() {
                                     </div>
                                     <div>
                                         <div className="text-xs text-muted-foreground">
-                                            {isChairman ? "Yönettiği Komite" : "Üye Olduğu Komite"}
+                                            {isCommitteeExecutive ? "Yönettiği Komite" : "Üye Olduğu Komite"}
                                         </div>
                                         <div className="text-sm font-medium">{activeCommittee?.name || "Atanmamış"}</div>
                                     </div>
