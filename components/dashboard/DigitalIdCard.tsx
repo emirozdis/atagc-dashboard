@@ -23,10 +23,12 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Role Formatting
   const roleName = user.role === 'applicant' ? 'DELEGE' : user.role.toUpperCase().replace('_', ' ');
   const shortId = user.id.split('-')[0].toUpperCase();
   const joinDate = new Date(user.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  // Generate a payload that identifies this as a User ID, not a Roll Call
+  const qrPayload = JSON.stringify({ t: "u", id: user.id });
 
   useEffect(() => {
     setMounted(true);
@@ -38,14 +40,11 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
-  // Clean spring transition for structural morphing
-  // Cast as const to ensure 'type' is treated as literal "spring" not string
   const transition = { type: "spring", damping: 25, stiffness: 300 } as const;
   const layoutKey = `${uniqueId}-${user.id}`;
 
   return (
     <>
-      {/* --- Minimized Card --- */}
       <motion.div
         layoutId={`card-container-${layoutKey}`}
         className={cn(
@@ -56,7 +55,6 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
         style={{ borderRadius: 16 }}
       >
         <div className="p-5 flex flex-col h-full relative z-10">
-          {/* Header */}
           <div className="flex justify-between items-start mb-4">
             <motion.div 
               layout="position" 
@@ -70,18 +68,15 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
             </motion.div>
           </div>
 
-          {/* Content */}
           <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-            {/* QR Code Container */}
             <motion.div 
               layoutId={`card-qr-container-${layoutKey}`}
               className="bg-white p-2 rounded-lg"
               style={{ borderRadius: 12 }}
             >
-              <QRCodeSVG value={user.id} size={90} level="M" />
+              <QRCodeSVG value={qrPayload} size={90} level="M" />
             </motion.div>
 
-            {/* Text Content (Fade Only - No Morph to prevent stretch) */}
             <motion.div 
               layout="position"
               className="text-center space-y-1.5"
@@ -100,7 +95,6 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
             </motion.div>
           </div>
 
-          {/* Footer */}
           <motion.div 
             layout="position" 
             className="mt-4 pt-3 border-t border-border flex justify-between items-center text-[10px] font-mono text-muted-foreground"
@@ -114,13 +108,10 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
         </div>
       </motion.div>
 
-      {/* --- Maximized Overlay (Portal) --- */}
       {mounted && createPortal(
         <AnimatePresence>
           {isOpen && (
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
-              
-              {/* Backdrop */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -129,7 +120,6 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
                 onClick={() => setIsOpen(false)}
               />
 
-              {/* Expanded Card */}
               <motion.div
                 layoutId={`card-container-${layoutKey}`}
                 className="relative w-full max-w-[360px] bg-card border border-border shadow-2xl overflow-hidden flex flex-col"
@@ -137,7 +127,6 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
                 style={{ borderRadius: 24 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Close Button */}
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -150,7 +139,6 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
 
                 <div className="p-8 flex flex-col items-center text-center space-y-8 h-full bg-card">
                   
-                  {/* Header Info */}
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -166,16 +154,14 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
                     </Badge>
                   </motion.div>
 
-                  {/* QR Code - Shared Element */}
                   <motion.div 
                     layoutId={`card-qr-container-${layoutKey}`}
                     className="bg-white p-4 rounded-xl shadow-sm ring-1 ring-black/5"
                     style={{ borderRadius: 16 }}
                   >
-                    <QRCodeSVG value={user.id} size={200} level="H" className="w-full h-auto max-w-[200px]" />
+                    <QRCodeSVG value={qrPayload} size={200} level="H" className="w-full h-auto max-w-[200px]" />
                   </motion.div>
 
-                  {/* Details List */}
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -204,7 +190,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
                     transition={{ delay: 0.3 }}
                     className="text-[10px] text-muted-foreground max-w-xs leading-relaxed pt-2"
                   >
-                    Bu QR kod etkinlik alanına giriş ve yoklama işlemleri için kullanılabilir.
+                    Bu QR kod etkinlik alanına giriş, yoklama ve diğer katılımcılarla bağlantı kurmak için kullanılır.
                   </motion.div>
 
                 </div>
@@ -229,6 +215,5 @@ function DetailRow({ icon: Icon, label, value, mono = false }: { icon: any, labe
     </div>
   );
 }
-
 // Change Log:
-// - Added `as const` to the `transition` object to fix the TypeScript error regarding `AnimationGeneratorType`.
+// - Updated QR Payload to be `JSON.stringify({ t: "u", id: user.id })` to allow differentiation in scanner.

@@ -32,7 +32,8 @@ export const GET = apiHandler(async (request: Request) => {
     { data: settingsData, error: settingsError }
   ] = await Promise.all([
     supabase.from("users").select("id, full_name, email, role, created_at, updated_at").eq("id", userId).maybeSingle(),
-    supabase.from("user_details").select("id, birth_date, phone_number, school_name, profile_picture_url, is_profile_picture_hidden, additional_info").eq("user_id", userId).maybeSingle(),
+    // Added allow_connections to the select query
+    supabase.from("user_details").select("id, birth_date, phone_number, school_name, profile_picture_url, is_profile_picture_hidden, allow_connections, additional_info").eq("user_id", userId).maybeSingle(),
     supabase.from("applications").select("id, status, submitted_at, review_notes").eq("user_id", userId).maybeSingle(),
     supabase.from("committee_members").select(`
         can_write, 
@@ -74,13 +75,10 @@ export const GET = apiHandler(async (request: Request) => {
 
       let signedUrl = null;
       if (adminDetails?.profile_picture_url) {
-        // Logic: Superadmin sees everything. Others see if not hidden or if self.
-        // Actually, in participant view, we only show if NOT hidden (unless self).
         if (isAdminSelf || user.role === 'superadmin' || !isHidden) {
           signedUrl = await getSignedUrl("profile-pictures", adminDetails.profile_picture_url);
         }
       }
-      // Attach the signed URL to the admin object for the frontend
       (adminUser as any).profile_picture_url = signedUrl;
     }
   }
@@ -114,13 +112,11 @@ export const GET = apiHandler(async (request: Request) => {
     ]);
 
     if (membersRes.data) {
-      // 2a. Batch Sign Committee Member Pictures
-      // Logic: If hidden, hide (unless self/admin). If not hidden, sign.
       const rawMembers = membersRes.data;
       const isAdminOrChair = user.role === 'superadmin' || user.role === 'admin' || user.role === 'committee_chairman';
 
       const pathsToSign: string[] = [];
-      const memberMap = new Map(); // Map to store formatted members
+      const memberMap = new Map();
 
       rawMembers.forEach((m: any) => {
         const u = Array.isArray(m.user) ? m.user[0] : m.user;
@@ -130,11 +126,9 @@ export const GET = apiHandler(async (request: Request) => {
         const isHidden = details?.is_profile_picture_hidden;
         let imagePath = null;
 
-        // Visibility Logic
         if (details?.profile_picture_url) {
           if (isSelf || isAdminOrChair || !isHidden) {
             imagePath = details.profile_picture_url;
-            // Only add to signing queue if it's a path (not legacy url)
             if (imagePath && !imagePath.startsWith('http')) {
               pathsToSign.push(imagePath);
             }
@@ -148,19 +142,16 @@ export const GET = apiHandler(async (request: Request) => {
           email: u?.email || "",
           role: u?.role || "applicant",
           can_edit: m.can_write,
-          image: imagePath // Will replace with signed url later
+          image: imagePath 
         };
         memberMap.set(u.id, memberObj);
       });
 
-      // Execute Batch Sign
       if (pathsToSign.length > 0) {
         const signedData = await getSignedUrls("profile-pictures", pathsToSign);
-        // Apply signed URLs
         signedData?.forEach(item => {
-          // Find members with this path and update
           for (const member of memberMap.values()) {
-            if (member.image === item.path) { // path in response matches input path
+            if (member.image === item.path) { 
               member.image = item.signedUrl;
             }
           }
@@ -227,7 +218,10 @@ export const PUT = apiHandler(async (request: Request) => {
   const session = auth.session;
 
   const body = await request.json();
-  const { full_name, phone_number, school_name, birth_date, city, profile_picture_url, is_profile_picture_hidden } = body;
+  const { 
+    full_name, phone_number, school_name, birth_date, city, 
+    profile_picture_url, is_profile_picture_hidden, allow_connections 
+  } = body;
 
   // 1. Update basic user info
   if (full_name) {
@@ -245,6 +239,9 @@ export const PUT = apiHandler(async (request: Request) => {
   if (birth_date) detailsUpdate.birth_date = birth_date;
   if (profile_picture_url !== undefined) detailsUpdate.profile_picture_url = profile_picture_url;
   if (is_profile_picture_hidden !== undefined) detailsUpdate.is_profile_picture_hidden = is_profile_picture_hidden;
+  
+  // Update privacy setting
+  if (allow_connections !== undefined) detailsUpdate.allow_connections = allow_connections;
 
   // Handling additional info (JSONB) merge for City
   const { data: existingDetails } = await supabase
@@ -282,7 +279,5 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Updated GET: Added `getSignedUrl` for own profile picture.
-// - Updated GET: Added logic to filter hidden pictures for committee members.
-// - Updated GET: Added batch signing for member pictures.
-// - Updated PUT: Added handling for `is_profile_picture_hidden`.
+// - Added `allow_connections` field to the selection in GET.
+// - Added `allow_connections` field handling in PUT for updating privacy settings.

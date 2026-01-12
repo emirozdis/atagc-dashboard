@@ -12,7 +12,7 @@ import {
   Loader2, Mail, MapPin, Phone, GraduationCap, Building2,
   Lock, Laptop, Smartphone, LogOut, Globe, EyeOff, Shield,
   User as UserIcon, Calendar,
-  QrCode
+  QrCode, UserPlus
 } from "lucide-react";
 import { ProfileData } from "@/types/dashboard";
 import { toast } from "sonner";
@@ -35,12 +35,19 @@ interface DeviceSession {
   };
 }
 
+// Extension for ProfileData to include allow_connections if not already in type
+interface ExtendedProfileData extends Omit<ProfileData, 'userDetails'> {
+  userDetails: NonNullable<ProfileData['userDetails']> & {
+    allow_connections?: boolean;
+  } | null;
+}
+
 export function ProfileView() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [resetLoading, setResetLoading] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<ProfileData>({
+  const { data: profile, isLoading } = useQuery<ExtendedProfileData>({
     queryKey: ["profile"],
     queryFn: async () => {
       const res = await fetch("/api/participant/me");
@@ -90,6 +97,22 @@ export function ProfileView() {
     onError: () => toast.error("Hata oluştu")
   });
 
+  const toggleConnectionPrivacyMutation = useMutation({
+    mutationFn: async (allow: boolean) => {
+      const res = await fetch("/api/participant/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allow_connections: allow })
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Bağlantı ayarı güncellendi");
+    },
+    onError: () => toast.error("Hata oluştu")
+  });
+
   const revokeSessionMutation = useMutation({
     mutationFn: async (sessionId?: string) => {
       const params = sessionId ? `id=${sessionId}` : `type=all_others`;
@@ -128,6 +151,7 @@ export function ProfileView() {
   const additional = userDetails?.additional_info || ({} as any);
   const profilePic = userDetails?.profile_picture_url || null;
   const isHidden = userDetails?.is_profile_picture_hidden || false;
+  const allowConnections = userDetails?.allow_connections !== false; // Default true
 
   const getRoleBadge = (role: string) => {
     const styles: Record<string, string> = {
@@ -183,15 +207,19 @@ export function ProfileView() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-secondary/30 p-2 rounded-lg border border-border/50">
-              <div className="text-xs font-medium mr-2">Profil Gizliliği</div>
-              <Switch
-                checked={isHidden}
-                onCheckedChange={(val) => togglePrivacyMutation.mutate(val)}
-                disabled={togglePrivacyMutation.isPending}
-                aria-label="Profil Gizliliği"
-              />
-              <EyeOff className={cn("w-4 h-4 transition-colors", isHidden ? "text-primary" : "text-muted-foreground")} />
+            
+            {/* Status indicators */}
+            <div className="flex gap-2">
+                {isHidden && (
+                    <div className="flex items-center gap-1.5 text-[10px] bg-secondary/50 text-muted-foreground px-2 py-1 rounded-md border border-border/50">
+                        <EyeOff className="w-3 h-3" /> Gizli Profil
+                    </div>
+                )}
+                {!allowConnections && (
+                    <div className="flex items-center gap-1.5 text-[10px] bg-red-500/5 text-red-500 px-2 py-1 rounded-md border border-red-500/20">
+                        <UserPlus className="w-3 h-3" /> İstekler Kapalı
+                    </div>
+                )}
             </div>
           </div>
         </CardContent>
@@ -216,14 +244,54 @@ export function ProfileView() {
             </CardContent>
           </Card>
 
-          {/* Security Section */}
+          {/* Security & Privacy Section */}
           <Card className="border-border/50">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="w-4 h-4 text-primary" /> Hesap Güvenliği
+                <Shield className="w-4 h-4 text-primary" /> Gizlilik ve Güvenlik
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-6">
+              
+              {/* Privacy Toggles */}
+              <div className="space-y-4">
+                {/* Connection Privacy Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
+                    <div className="space-y-0.5">
+                        <div className="text-sm font-medium flex items-center gap-2">
+                            <UserPlus className="w-4 h-4 text-muted-foreground" />
+                            Bağlantı İstekleri
+                        </div>
+                        <div className="text-xs text-muted-foreground max-w-[250px]">
+                            Diğer katılımcıların QR kodunuzu tarayarak size bağlantı isteği göndermesine izin verin.
+                        </div>
+                    </div>
+                    <Switch 
+                        checked={allowConnections}
+                        onCheckedChange={(val) => toggleConnectionPrivacyMutation.mutate(val)}
+                        disabled={toggleConnectionPrivacyMutation.isPending}
+                    />
+                </div>
+
+                {/* Profile Pic Privacy Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
+                    <div className="space-y-0.5">
+                        <div className="text-sm font-medium flex items-center gap-2">
+                            <EyeOff className="w-4 h-4 text-muted-foreground" />
+                            Profil Fotoğrafı
+                        </div>
+                        <div className="text-xs text-muted-foreground max-w-[250px]">
+                            Fotoğrafınızı diğer katılımcılardan gizleyin (Yöneticiler görmeye devam eder).
+                        </div>
+                    </div>
+                    <Switch
+                        checked={isHidden}
+                        onCheckedChange={(val) => togglePrivacyMutation.mutate(val)}
+                        disabled={togglePrivacyMutation.isPending}
+                    />
+                </div>
+              </div>
+
               <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                 <div className="space-y-0.5">
                   <div className="text-sm font-medium">Şifre Değişikliği</div>
@@ -293,7 +361,7 @@ export function ProfileView() {
           <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed shrink-0">
             <p className="flex gap-2">
               <QrCode className="w-4 h-4 text-primary shrink-0" />
-              Bu QR kod etkinlik alanına girişlerde ve yoklamalarda kullanılabilir. Kartın üzerine tıklayarak büyütebilirsiniz.
+              Bu QR kod etkinlik alanına girişlerde, yoklamalarda ve diğer katılımcılarla bağlantı kurmak için kullanılır. Kartın üzerine tıklayarak büyütebilirsiniz.
             </p>
           </div>
         </div>
@@ -333,8 +401,7 @@ function ProfileSkeleton() {
 }
 
 // Change Log:
-// - Updated `DigitalIdCard` usage: Passed `uniqueId="profile"` to ensure separate layout animations from the dashboard.
-// - Updated Right Column Layout: 
-//   - Changed to `flex flex-col gap-6 h-full`.
-//   - Passed `className="flex-1"` to `DigitalIdCard`.
-// - Updated Top Grid: Added `items-stretch` to align the bottom of the left and right columns.
+// - Added `allow_connections` fetching and display in `ExtendedProfileData`.
+// - Added `toggleConnectionPrivacyMutation` to handle updating the setting.
+// - Added UI switch for "Bağlantı İstekleri" in the Security card.
+// - Added indicators in the header card for active privacy settings.

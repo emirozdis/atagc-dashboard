@@ -3,8 +3,20 @@ export interface UserDetail {
     phone_number?: string;
     birth_date?: string;
     profile_picture_url?: string | null;
-    is_profile_picture_hidden?: boolean; // Added
+    is_profile_picture_hidden?: boolean;
     additional_info?: any;
+    allow_connections?: boolean;
+}
+
+export interface Warning {
+    id: string;
+    reason: string;
+    created_at: string;
+    issuer: {
+        id: string;
+        full_name: string;
+        role: string;
+    };
 }
 
 export interface User {
@@ -15,9 +27,9 @@ export interface User {
     is_suspended: boolean;
     created_at: string;
 
-    // Supabase returns arrays for relations by default unless .single() is used
+    // Relations
     user_details?: UserDetail | UserDetail[] | null;
-
+    
     committee_members?: {
         committee: {
             id: string;
@@ -42,4 +54,8 @@ export interface User {
         submitted_at: string;
         review_notes?: string;
     }[] | null;
+
+    // Warnings
+    user_warnings?: Warning[]; // For detail view
+    warnings_count?: number;   // For table view (mapped from user_warnings array length usually)
 }

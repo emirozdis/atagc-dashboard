@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { MobileNav } from "@/components/dashboard/MobileNav";
+import { ConnectionNotification } from "@/components/dashboard/ConnectionNotification";
 
 export default function DashboardLayout({
   children,
@@ -26,9 +27,8 @@ export default function DashboardLayout({
         </main>
         <MobileNav />
       </div>
+      
+      <ConnectionNotification />
     </div>
   );
 }
-
-// Change Log:
-// - Reduced mobile padding from `p-6` to `p-4` to match admin layout adjustments.

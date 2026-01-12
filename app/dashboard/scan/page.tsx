@@ -11,7 +11,8 @@ import {
   XCircle,
   RotateCcw,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  UserPlus
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,28 +22,87 @@ import { ScannerOverlay } from "@/components/dashboard/ScannerOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 
 type ScanState = 'idle' | 'scanning' | 'processing' | 'success' | 'duplicate' | 'error';
+type ScanType = 'roll-call' | 'connection';
 
 export default function ScanPage() {
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [resultMessage, setResultMessage] = useState<string>("");
   const [sessionName, setSessionName] = useState<string>("");
+  const [scanType, setScanType] = useState<ScanType>('roll-call');
 
-  // Handle successful scan from the camera
   const handleScan = async (detectedCodes: IDetectedBarcode[]) => {
     if (detectedCodes && detectedCodes.length > 0) {
       const scannedValue = detectedCodes[0].rawValue;
 
       if (scannedValue && scanState !== 'processing' && scanState !== 'success' && scanState !== 'duplicate') {
-        setIsCameraActive(false); // Turn off camera
-        await processScan(scannedValue); // Trigger API
+        setIsCameraActive(false); 
+        await processScan(scannedValue); 
       }
     }
   };
 
-  // Process the scan (API Call)
   const processScan = async (code: string) => {
     setScanState('processing');
+    
+    // Determine type (User Connection vs Roll Call)
+    let isUserQr = false;
+    let targetId = code;
+
+    try {
+      // Try parsing as JSON to see if it's a User QR
+      const parsed = JSON.parse(code);
+      if (parsed.t === 'u' && parsed.id) {
+        isUserQr = true;
+        targetId = parsed.id;
+      }
+    } catch (e) {
+      // Not JSON, assume simple UUID string = Roll Call (or legacy format)
+      isUserQr = false;
+    }
+
+    if (isUserQr) {
+      setScanType('connection');
+      await handleConnectionScan(targetId);
+    } else {
+      setScanType('roll-call');
+      await handleRollCallScan(code);
+    }
+  };
+
+  const handleConnectionScan = async (targetId: string) => {
+    try {
+      const res = await fetch("/api/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: targetId }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        if (data.status === 'already_connected') {
+           setResultMessage(data.message || "Zaten bağlantınız var.");
+           setScanState('duplicate');
+        } else if (data.status === 'pending') {
+           setResultMessage(data.message || "İstek zaten gönderildi.");
+           setScanState('duplicate');
+        } else {
+           setSessionName("Bağlantı İsteği");
+           setResultMessage(data.message || "İstek gönderildi.");
+           setScanState('success');
+           toast.success("İstek Gönderildi");
+        }
+      } else {
+        throw new Error(data.error || "İşlem başarısız");
+      }
+    } catch (err: any) {
+      setResultMessage(err.message || "Bilinmeyen bir hata oluştu.");
+      setScanState('error');
+    }
+  };
+
+  const handleRollCallScan = async (code: string) => {
     try {
       const res = await fetch("/api/roll-call/scan", {
         method: "POST",
@@ -67,7 +127,6 @@ export default function ScanPage() {
     } catch (err: any) {
       setResultMessage(err.message || "Bilinmeyen bir hata oluştu.");
       setScanState('error');
-      toast.error("Hata", { description: err.message });
     }
   };
 
@@ -80,12 +139,12 @@ export default function ScanPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6 md:space-y-8 animate-fade-in py-4 md:py-6 px-4 pb-20 overflow-hidden">
-      <Breadcrumbs items={[{ label: "Yoklama Ver" }]} />
+      <Breadcrumbs items={[{ label: "Tara" }]} />
 
       <div className="space-y-2 text-center">
-        <h2 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground">Yoklama Ver</h2>
+        <h2 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground">QR Tara</h2>
         <p className="text-muted-foreground text-sm md:text-base max-w-sm mx-auto">
-          Başkanınızın gösterdiği QR kodu okutarak katılımınızı onaylayın.
+          Yoklama QR kodunu veya başka bir delegenin kimlik kartını okutun.
         </p>
       </div>
 
@@ -127,18 +186,23 @@ export default function ScanPage() {
                     transition={{ duration: 2, repeat: Infinity }}
                   />
                   <div className="p-4 md:p-5 bg-green-500/20 rounded-full relative z-10">
-                    <CheckCircle2 className="w-12 h-12 md:w-16 md:h-16 text-green-500" />
+                    {scanType === 'connection' ? <UserPlus className="w-12 h-12 text-green-500" /> : <CheckCircle2 className="w-12 h-12 text-green-500" />}
                   </div>
                 </div>
               </div>
               <h2 className="text-2xl md:text-3xl font-bold text-green-500 mb-2">Başarılı!</h2>
               <p className="text-base md:text-lg font-medium text-foreground mb-4">{sessionName}</p>
               <p className="text-sm md:text-muted-foreground mb-6 md:mb-8 text-balance">
-                Katılımınız başarıyla sisteme kaydedilmiştir. İyi çalışmalar dileriz.
+                {resultMessage}
               </p>
-              <Button onClick={() => window.location.href = '/dashboard'} variant="outline" className="w-full h-11 md:h-12 text-base md:text-lg">
-                Panoya Dön
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button onClick={resetScan} variant="outline">
+                    Tekrar Tara
+                </Button>
+                <Button onClick={() => window.location.href = scanType === 'connection' ? '/dashboard/connections' : '/dashboard'} variant="default">
+                    {scanType === 'connection' ? 'Bağlantılarım' : 'Panoya Dön'}
+                </Button>
+              </div>
             </Card>
           </motion.div>
         ) : scanState === 'duplicate' ? (
@@ -155,11 +219,16 @@ export default function ScanPage() {
                   <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-yellow-500" />
                 </div>
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-yellow-500 mb-2">Zaten Kayıtlı</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-yellow-500 mb-2">Bilgi</h2>
               <p className="text-muted-foreground mb-6 md:mb-8 text-base md:text-lg">{resultMessage}</p>
-              <Button onClick={() => window.location.href = '/dashboard'} variant="outline" className="w-full h-11 md:h-12 text-base md:text-lg border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
-                Panoya Dön
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button onClick={resetScan} variant="outline" className="border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
+                    Tekrar Tara
+                </Button>
+                <Button onClick={() => window.location.href = '/dashboard'} variant="outline" className="border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
+                    Panoya Dön
+                </Button>
+              </div>
             </Card>
           </motion.div>
         ) : scanState === 'error' ? (
@@ -197,10 +266,7 @@ export default function ScanPage() {
                   <Scanner
                     onScan={handleScan}
                     onError={(error) => console.error(error)}
-                    components={{
-                      finder: false, // Using our custom overlay
-                      torch: false
-                    }}
+                    components={{ finder: false, torch: false }}
                     styles={{
                       container: { width: "100%", height: "100%" },
                       video: { width: "100%", height: "100%", objectFit: "cover" }
@@ -235,27 +301,13 @@ export default function ScanPage() {
                 </Button>
               </div>
             </div>
-
-            {/* Aesthetic Glow Decor - Wrapped to ensure no overflow */}
-            <div className="absolute inset-0 pointer-events-none -z-10">
-              <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/10 blur-[100px] rounded-full" />
-              <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary/5 blur-[100px] rounded-full" />
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 md:p-6 flex items-start gap-3 md:gap-4">
-        <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg shrink-0">
-          <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-        </div>
-        <div className="space-y-1">
-          <h4 className="font-semibold text-xs md:text-sm">Yardımcı Bilgi</h4>
-          <p className="text-[10px] md:text-xs text-muted-foreground leading-relaxed">
-            Eğer kamera açılmıyorsa tarayıcı ayarlarından kamera izni verdiğinizden emin olun. Kod okunamıyorsa ekran parlaklığını artırmayı deneyin.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
+// Change Log:
+// - Added logic to parse JSON QR codes.
+// - Routes scan result to either `handleConnectionScan` or `handleRollCallScan`.
+// - Updated result UI to handle connection outcomes.

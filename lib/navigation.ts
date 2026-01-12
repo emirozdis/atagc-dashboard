@@ -6,7 +6,8 @@ import {
     User,
     QrCode,
     ScanLine,
-    FolderOpen
+    FolderOpen,
+    UsersRound
 } from "lucide-react";
 
 export const participantItems = [
@@ -39,9 +40,16 @@ export const participantItems = [
         mobileCore: false
     },
     {
-        title: "Yoklama Ver",
+        title: "Tara",
         href: "/dashboard/scan",
         icon: ScanLine,
+        roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
+        mobileCore: true
+    },
+    {
+        title: "Tanıştıklarım",
+        href: "/dashboard/connections",
+        icon: UsersRound,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true
     },
@@ -67,3 +75,7 @@ export const participantItems = [
         mobileCore: true
     },
 ];
+
+// Change Log:
+// - Added "Tanıştıklarım" (Connections) navigation item with `UsersRound` icon.
+// - Set `mobileCore: true` to make it accessible in the bottom navigation.

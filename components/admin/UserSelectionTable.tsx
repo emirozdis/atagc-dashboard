@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, ChevronUp, CheckCircle2, Calendar, Mail } from "lucide-react";
+import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, ChevronUp, CheckCircle2, Calendar, Mail, AlertTriangle } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { toast } from "sonner";
 import { User } from "@/types/user";
@@ -49,6 +49,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [warningFilter, setWarningFilter] = useState("all");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
   const limit = 10;
@@ -62,7 +63,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   }, [search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["users", page, debouncedSearch, roleFilter, statusFilter, sortBy, sortOrder],
+    queryKey: ["users", page, debouncedSearch, roleFilter, statusFilter, warningFilter, sortBy, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -70,6 +71,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         search: debouncedSearch,
         role: roleFilter,
         status: statusFilter,
+        warnings: warningFilter,
         sort_by: sortBy,
         sort_order: sortOrder
       });
@@ -136,6 +138,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
     setSearch("");
     setRoleFilter("all");
     setStatusFilter("all");
+    setWarningFilter("all");
     setSortBy("created_at");
     setSortOrder("desc");
     setPage(1);
@@ -176,23 +179,39 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
               <SelectItem value="superadmin">Süper Yönetici</SelectItem>
             </SelectContent>
           </Select>
+          
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-[130px] h-10 bg-background border-border/50"><SelectValue placeholder="Durum" /></SelectTrigger>
             <SelectContent><SelectItem value="all">Tümü</SelectItem><SelectItem value="active">Aktif</SelectItem><SelectItem value="suspended">Askıda</SelectItem></SelectContent>
           </Select>
+
+          <Select value={warningFilter} onValueChange={setWarningFilter}>
+            <SelectTrigger className="w-full sm:w-[130px] h-10 bg-background border-border/50">
+                <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <SelectValue placeholder="Uyarı" />
+                </div>
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">Tümü</SelectItem>
+                <SelectItem value="has_warnings">Uyarı Alanlar</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Popover>
             <PopoverTrigger asChild><Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50" title="Sıralama"><ArrowUpDown className="w-4 h-4" /><span className="hidden sm:inline">Sırala</span></Button></PopoverTrigger>
             <PopoverContent className="w-48 p-2" align="end">
               <div className="space-y-1">
                 <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Kayıt Tarihi</Button>
                 <Button variant={sortBy === 'full_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('full_name')}>İsim</Button>
+                <Button variant={sortBy === 'warnings_count' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('warnings_count')}>Uyarı Sayısı</Button>
                 <div className="h-px bg-border my-1" />
                 <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Artan (A-Z)</Button>
                 <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Azalan (Z-A)</Button>
               </div>
             </PopoverContent>
           </Popover>
-          {(roleFilter !== "all" || statusFilter !== "all" || search !== "") && (
+          {(roleFilter !== "all" || statusFilter !== "all" || warningFilter !== "all" || search !== "") && (
             <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive" onClick={resetFilters} title="Filtreleri Temizle"><X className="w-4 h-4" /></Button>
           )}
         </div>
@@ -211,7 +230,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
           <Filter className="w-12 h-12 opacity-20 mb-3" />
           <p>Kriterlere uygun kullanıcı bulunamadı.</p>
-          {(roleFilter !== "all" || statusFilter !== "all" || search !== "") && (
+          {(roleFilter !== "all" || statusFilter !== "all" || warningFilter !== "all" || search !== "") && (
             <Button variant="link" onClick={resetFilters} className="mt-2">
               Filtreleri Temizle
             </Button>
@@ -227,6 +246,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                   <TableHead className="w-[50px] text-center"><Checkbox checked={users.length > 0 && users.every(u => selectedIds.includes(u.id))} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead className="w-[300px]">Kullanıcı</TableHead>
                   <TableHead>Rol</TableHead>
+                  <TableHead>Uyarı</TableHead>
                   <TableHead>Durum</TableHead>
                   <TableHead className="text-right">Kayıt Tarihi</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
@@ -249,6 +269,15 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                       </div>
                     </TableCell>
                     <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>
+                        {user.warnings_count && user.warnings_count > 0 ? (
+                            <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                                <AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}
+                            </Badge>
+                        ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                    </TableCell>
                     <TableCell>
                       {user.is_suspended ? <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge> : <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600 hover:bg-green-500/20">Aktif</Badge>}
                     </TableCell>
@@ -311,6 +340,11 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                       <div className="flex flex-wrap gap-2">
                         {getRoleBadge(user.role)}
                         {user.is_suspended ? <Badge variant="destructive" className="text-[10px] h-5 px-1.5">Askıda</Badge> : null}
+                        {user.warnings_count && user.warnings_count > 0 ? (
+                            <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-[10px] h-5 px-1.5">
+                                <AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}
+                            </Badge>
+                        ) : null}
                       </div>
                       <div className="text-[10px] text-muted-foreground flex items-center gap-1 bg-secondary/20 px-2 py-1 rounded-md">
                         <Calendar className="w-3 h-3" />
@@ -412,12 +446,3 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
     </div>
   );
 }
-
-// Change Log:
-// - Redesigned structure: Separated Filters into a standalone Card style toolbar.
-// - Redesigned Table container: Wrapped in a separate Card.
-// - Mobile View Overhaul: Replaced the flat list with individual `Card` components for each user to match the `ApplicationsPage` layout style.
-// - Mobile Card features:
-//   - Visual selection state (border color, background tint, check icon).
-//   - Clean layout with Avatar, Name, Email, Roles, and Date.
-//   - Click-to-select interaction.

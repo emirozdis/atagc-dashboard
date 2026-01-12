@@ -15,17 +15,13 @@ export function canManageRole(actorRole: string, targetRole: string): boolean {
   const actorRank = getRoleRank(actorRole);
   const targetRank = getRoleRank(targetRole);
   
-  // Superadmin can manage everyone (except maybe other superadmins depending on strictness, but we allow it here)
+  // Superadmin can manage everyone (except theoretically other superadmins, but usually allowed)
   if (actorRole === 'superadmin') return true;
   
+  // Actor must be strictly higher rank to manage (warn/ban/edit)
   return actorRank > targetRank;
 }
 
 export function isAuthorized(userRole: string, requiredRole: string): boolean {
   return getRoleRank(userRole) >= getRoleRank(requiredRole);
 }
-
-// Change Log:
-// - Removed 'staff' and 'staffleader' roles.
-// - Added 'deputy_chair' role with rank 2 (above applicant, below chairman).
-// - Adjusted ranks for chairman and admin accordingly.

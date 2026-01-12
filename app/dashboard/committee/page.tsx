@@ -17,6 +17,7 @@ import { RollCallHistory } from "@/components/committee/RollCallHistory";
 import { CommitteeData, CommitteeMember } from "@/types/committee";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { CommitteeMemberDetailDialog } from "@/components/committee/CommitteeMemberDetailDialog";
 
 // --- Sub-Components ---
 
@@ -78,7 +79,13 @@ const SessionInfoPanel = ({ isManager, stats }: { isManager: boolean, stats: any
   );
 };
 
-const MembersWidget = ({ members }: { members?: any[] }) => {
+interface MembersWidgetProps {
+  members?: any[];
+  isManager?: boolean;
+  onMemberClick?: (id: string) => void;
+}
+
+const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps) => {
   const [showAll, setShowAll] = useState(false);
 
   if (!members || members.length === 0) {
@@ -103,18 +110,19 @@ const MembersWidget = ({ members }: { members?: any[] }) => {
 
     const getImg = (u: any) => {
       if (!u) return undefined;
-
-      // 1. Check user_details for profile picture (matches UserSelectionTable logic)
       if (u.user_details) {
         const details = Array.isArray(u.user_details) ? u.user_details[0] : u.user_details;
         if (details?.profile_picture_url) return details.profile_picture_url;
       }
-
-      // 2. Check standard properties
       return u.image || u.avatar_url || u.profile_picture_url || undefined;
     };
 
+    // FIXED: Prioritize `member.userId` to ensure we get the User ID (UUID), not the CommitteeMember Row ID.
+    // The API sends formatted objects with `userId`.
+    const actualUserId = member.userId || user?.id || target.id;
+
     return {
+      id: actualUserId, 
       name: target.full_name || target.name || "Bilinmeyen Üye",
       image: getImg(target),
       email: target.email,
@@ -133,6 +141,12 @@ const MembersWidget = ({ members }: { members?: any[] }) => {
     return rank(roleB) - rank(roleA);
   });
 
+  const handleMemberClick = (id: string) => {
+    if (isManager && onMemberClick) {
+      onMemberClick(id);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
@@ -144,11 +158,18 @@ const MembersWidget = ({ members }: { members?: any[] }) => {
 
       <div className="space-y-3">
         {sortedMembers.slice(0, 6).map(member => {
-          const { name, image, role } = getUserData(member);
+          const { id, name, image, role } = getUserData(member);
           const displayName = name || "Üye";
 
           return (
-            <div key={member.id || Math.random()} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
+            <div 
+              key={member.id || Math.random()} 
+              className={cn(
+                "flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group",
+                isManager && "cursor-pointer active:bg-muted/70"
+              )}
+              onClick={() => handleMemberClick(id)}
+            >
               <Avatar className="h-8 w-8 border border-transparent group-hover:border-border/50 transition-colors">
                 <AvatarImage src={image} className="object-cover" />
                 <AvatarFallback className="text-xs text-muted-foreground bg-secondary">
@@ -195,9 +216,19 @@ const MembersWidget = ({ members }: { members?: any[] }) => {
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-3">
                 {sortedMembers.map(member => {
-                  const { name, image, role } = getUserData(member);
+                  const { id, name, image, role } = getUserData(member);
                   return (
-                    <div key={member.id || Math.random()} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div 
+                      key={member.id || Math.random()} 
+                      className={cn(
+                        "flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors",
+                        isManager && "cursor-pointer active:bg-muted/70"
+                      )}
+                      onClick={() => {
+                        setShowAll(false);
+                        handleMemberClick(id);
+                      }}
+                    >
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={image} className="object-cover" />
                         <AvatarFallback className="text-xs">{name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
@@ -351,6 +382,8 @@ const QuickActions = ({ onOpenVoting }: { onOpenVoting: () => void }) => (
 export default function CommitteePage() {
   const { data: session } = useSession();
   const [isVotingOpen, setIsVotingOpen] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  
   const role = session?.user?.role;
   const isManager = role === 'committee_chairman' || role === 'deputy_chair';
 
@@ -367,10 +400,11 @@ export default function CommitteePage() {
           userId: session.user.id,
           full_name: session.user.name || "Ben (Başkan)",
           email: session.user.email || "",
-          image: session.user.image, // Ensure current user image is used
+          image: session.user.image, 
           role: "committee_chairman",
           can_edit: true
         };
+        // Ensure not duplicating if backend already sends it
         if (!data.members.find((m: any) => m.userId === session.user.id)) {
           data.members = [chairmanUser, ...data.members];
         }
@@ -396,7 +430,7 @@ export default function CommitteePage() {
 
       if (adminUser) {
         const chairmanMember = {
-          ...adminUser, // Spread adminUser to capture user_details or image if present
+          ...adminUser,
           id: "chairman-" + adminUser.id,
           userId: adminUser.id,
           full_name: adminUser.full_name,
@@ -457,7 +491,6 @@ export default function CommitteePage() {
     );
   }
 
-  // Strictly typed members access
   const members: CommitteeMember[] = isManager
     ? (managerData as any)?.members || []
     : participantData?.committeeMembers || [];
@@ -487,7 +520,6 @@ export default function CommitteePage() {
         </div>
 
         <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-6 lg:self-start order-2">
-          {/* Active Poll Widget: Only shows if there is an active poll */}
           <VotingSystem
             committeeId={committee.id}
             isChairman={isManager}
@@ -495,7 +527,11 @@ export default function CommitteePage() {
             variant="sidebar"
           />
 
-          <MembersWidget members={members} />
+          <MembersWidget 
+            members={members} 
+            isManager={isManager} 
+            onMemberClick={setSelectedMemberId} 
+          />
 
           {isManager && (
             <>
@@ -511,7 +547,6 @@ export default function CommitteePage() {
         </aside>
       </div>
 
-      {/* Full Voting Management Modal */}
       <Dialog open={isVotingOpen} onOpenChange={setIsVotingOpen}>
         <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
           <ScrollArea className="flex-1 p-6">
@@ -524,12 +559,17 @@ export default function CommitteePage() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Member Management Dialog for Chairman */}
+      <CommitteeMemberDetailDialog 
+        memberId={selectedMemberId} 
+        open={!!selectedMemberId} 
+        onOpenChange={(open) => !open && setSelectedMemberId(null)}
+      />
     </div>
   );
 }
 
 // Change Log:
-// - Updated `getUserData` in `MembersWidget` to correctly extract profile pictures from `user_details`, aligning with how data is stored.
-// - Added `className="object-cover"` to `AvatarImage` in `MembersWidget` to correct aspect ratio issues.
-// - Explicitly added `image: session.user.image` to the constructed chairman user object in `managerData` query to ensure the current user's avatar displays correctly.
-// - Spread `adminUser` props in `participantData` query to ensure any available `user_details` are passed to the member object.
+// - Fixed `getUserData` to prioritize `member.userId` to ensure the correct User UUID is passed to the dialog.
+// - This resolves the 403 error where the system was looking up a Committee Member Row ID in the Users table.

@@ -30,6 +30,7 @@ import { ManageUserDialog } from "@/components/admin/UserManagementDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { User, UserDetail } from "@/types/user";
+import { WarningManager } from "@/components/admin/WarningManager";
 
 export default function UserDetailPage() {
     const params = useParams();
@@ -119,7 +120,6 @@ export default function UserDetailPage() {
         );
     }
 
-    // Helper to safely unwrap arrays or objects
     const getFirstItem = <T,>(item: T | T[] | undefined | null): T | null => {
         if (!item) return null;
         if (Array.isArray(item)) return item.length > 0 ? item[0] : null;
@@ -129,7 +129,6 @@ export default function UserDetailPage() {
     const details = getFirstItem<UserDetail>(user.user_details);
     const additional = details?.additional_info || {};
 
-    // Logic: If chairman, check managed committees. Else check membership.
     const managedCommittee = user.managed_committees?.[0];
     const memberCommittee = user.committee_members?.[0]?.committee;
     const activeCommittee = managedCommittee || memberCommittee;
@@ -177,8 +176,8 @@ export default function UserDetailPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {/* Left Column: Overview */}
-                <div className="space-y-6">
+                {/* Left Column: Overview & Warnings */}
+                <div className="space-y-6 flex flex-col">
                     <Card className="overflow-hidden border-border/50">
                         <div className="h-24 bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border/50" />
                         <CardContent className="pt-0 relative">
@@ -222,50 +221,57 @@ export default function UserDetailPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Quick Stats / System Info */}
+                    {/* Warning Manager */}
+                    <div className="flex-1">
+                        <WarningManager user={user} />
+                    </div>
+                </div>
+
+                {/* Right Column: Detailed Info */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* System Status Card */}
                     <Card className="border-border/50">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-base">Sistem Durumu</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-background rounded-full border border-border/50">
-                                        <Building2 className="w-4 h-4 text-primary" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {isCommitteeExecutive ? "Yönettiği Komite" : "Üye Olduğu Komite"}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-background rounded-full border border-border/50">
+                                            <Building2 className="w-4 h-4 text-primary" />
                                         </div>
-                                        <div className="text-sm font-medium">{activeCommittee?.name || "Atanmamış"}</div>
+                                        <div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {isCommitteeExecutive ? "Yönettiği Komite" : "Üye Olduğu Komite"}
+                                            </div>
+                                            <div className="text-sm font-medium">{activeCommittee?.name || "Atanmamış"}</div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-background rounded-full border border-border/50">
-                                        <FileText className="w-4 h-4 text-primary" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-muted-foreground">Başvuru Durumu</div>
-                                        <div className="text-sm font-medium capitalize">
-                                            {application ? (
-                                                <Link href={`/admin/applications/${application.id}`} className="hover:underline flex items-center gap-1 group">
-                                                    {application.status}
-                                                    <ArrowUpRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
-                                                </Link>
-                                            ) : "Başvuru Yok"}
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-background rounded-full border border-border/50">
+                                            <FileText className="w-4 h-4 text-primary" />
+                                        </div>
+                                        <div>
+                                            <div className="text-xs text-muted-foreground">Başvuru Durumu</div>
+                                            <div className="text-sm font-medium capitalize">
+                                                {application ? (
+                                                    <Link href={`/admin/applications/${application.id}`} className="hover:underline flex items-center gap-1 group">
+                                                        {application.status}
+                                                        <ArrowUpRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                                                    </Link>
+                                                ) : "Başvuru Yok"}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
-                </div>
 
-                {/* Right Column: Detailed Info */}
-                <div className="lg:col-span-2 space-y-6">
                     <Card className="border-border/50 h-full">
                         <CardHeader>
                             <CardTitle>Detaylı Bilgiler</CardTitle>
@@ -378,7 +384,3 @@ export default function UserDetailPage() {
         </div>
     );
 }
-
-// Change Log:
-// - Refactored to `useQuery` and `useMutation`.
-// - Uses `Skeleton`.

@@ -1,22 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Megaphone,
-  Briefcase,
-  PenTool,
-  User,
-  LogOut,
-  QrCode,
-  ScanLine,
-  FolderOpen
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-
 import { participantItems } from "@/lib/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { ConnectionState } from "@/types/connection";
 
 interface SidebarProps {
   className?: string;
@@ -34,6 +25,22 @@ export function Sidebar({ className, onClose }: SidebarProps) {
     if (role === 'committee_chairman' || role === 'deputy_chair') return "Akademi";
     return null;
   })();
+
+  // Poll for connection requests (Lightweight query usually, but using main endpoint due to architecture)
+  const { data: connectionData } = useQuery<ConnectionState>({
+    queryKey: ['connections'],
+    queryFn: async () => {
+      const res = await fetch("/api/connections");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    // Don't block UI or overfetch, simple cache policy
+    staleTime: 1000 * 60,
+    refetchInterval: 60000, 
+    enabled: !!session // Only fetch if logged in
+  });
+
+  const pendingCount = connectionData?.pending?.length || 0;
 
   return (
     <div className={cn("flex flex-col h-full bg-sidebar border-r border-border w-64", className)}>
@@ -62,14 +69,22 @@ export function Sidebar({ className, onClose }: SidebarProps) {
             href={item.href}
             onClick={onClose}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              "flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
               pathname === item.href
                 ? "bg-sidebar-accent text-sidebar-primary border border-sidebar-primary/20"
                 : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground border border-transparent"
             )}
           >
-            <item.icon className="w-4 h-4" />
-            {item.title}
+            <div className="flex items-center gap-3">
+              <item.icon className="w-4 h-4" />
+              {item.title}
+            </div>
+            
+            {item.href === "/dashboard/connections" && pendingCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                {pendingCount > 9 ? '9+' : pendingCount}
+              </span>
+            )}
           </Link>
         ))}
       </nav>
@@ -88,6 +103,5 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 }
 
 // Change Log:
-// - Updated role visibility for sidebar items.
-// - Added 'deputy_chair' to allowed roles for relevant links including 'Yoklama Oluştur'.
-// - Removed 'staff' and 'staffleader'.
+// - Added logic to fetch connection stats and display a red badge next to "Tanıştıklarım".
+// - Styled the badge to be circular and prominent.
