@@ -31,7 +31,8 @@ export const POST = apiHandler(async (request: Request) => {
   const token = uuidv4();
   // Hash token before storage for security
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 30).toISOString(); // 30 mins
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 1000 * 60 * 30).toISOString(); // 30 mins
 
   // 3. Store in DB
   const { error } = await supabase
@@ -40,7 +41,8 @@ export const POST = apiHandler(async (request: Request) => {
       email,
       token_hash: tokenHash,
       expires_at: expiresAt,
-      used: false
+      used: false,
+      created_at: now.toISOString() // Explicit timestamp
     });
 
   if (error) throw error;
@@ -62,3 +64,6 @@ export const POST = apiHandler(async (request: Request) => {
 
   return NextResponse.json({ success: true, message: "Reset email sent." });
 });
+
+// Change Log:
+// - Explicitly added `created_at` to the password reset token insertion to prevent NULL values if DB defaults are missing.

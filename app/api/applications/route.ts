@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import {
-  accountCreationSchema, // Import this
+  accountCreationSchema, 
   personalInfoSchema,
   experienceSchema,
   motivationSchema
@@ -73,7 +73,6 @@ export const GET = apiHandler(async (request: Request) => {
       )
     `, { count: "exact" });
 
-  // 1. Status Filter Logic
   if (status === 'unassigned') {
     const { data: assignedMembers } = await supabase
       .from("committee_members")
@@ -90,7 +89,6 @@ export const GET = apiHandler(async (request: Request) => {
     query = query.eq("status", status);
   }
 
-  // 2. Search Logic
   if (search) {
     const safeSearch = search.replace(/[,()]/g, " ").trim();
     if (safeSearch) {
@@ -126,7 +124,6 @@ export const GET = apiHandler(async (request: Request) => {
     }
   }
 
-  // 3. Sorting Logic
   if (sortBy === 'submitted_at' || sortBy === 'status') {
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
   } else if (sortBy === 'full_name') {
@@ -169,13 +166,10 @@ export const POST = apiHandler(async (request: Request) => {
   }
 
   const body = await request.json();
-  
-  // Destructure accountCreation from the body validation
   const { accountCreation, personalInfo, experience, motivation } = submissionSchema.parse(body);
 
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   
-  // Use accountCreation.email
   const { data: verification } = await supabase
     .from("email_verifications")
     .select("id")
@@ -222,13 +216,17 @@ export const POST = apiHandler(async (request: Request) => {
     }
   } else {
     const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const now = new Date().toISOString();
+    
     const { data: newUser, error: createUserError } = await supabase
       .from("users")
       .insert({
-        full_name: accountCreation.adSoyad, // Use accountCreation.adSoyad
-        email: accountCreation.email,       // Use accountCreation.email
+        full_name: accountCreation.adSoyad,
+        email: accountCreation.email, 
         password_hash: randomHash, 
-        role: 'applicant'
+        role: 'applicant',
+        created_at: now, // Explicit timestamp
+        updated_at: now  // Explicit timestamp
       })
       .select("id")
       .single();
@@ -333,7 +331,4 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Imported `accountCreationSchema`.
-// - Added `accountCreation` to `submissionSchema`.
-// - Correctly destructured `accountCreation` from the parsed body.
-// - Replaced usages of `personalInfo.email` and `personalInfo.adSoyad` with `accountCreation.email` and `accountCreation.adSoyad` to resolve TypeScript errors.
+// - Explicitly added `created_at` and `updated_at` to the user insertion logic within the application submission flow.

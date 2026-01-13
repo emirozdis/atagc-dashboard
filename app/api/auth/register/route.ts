@@ -63,6 +63,7 @@ export const POST = apiHandler(async (request: Request) => {
   const passwordHash = await bcrypt.hash(password, salt);
 
   // 5. Create User
+  const now = new Date().toISOString();
   const { data: newUser, error: createUserError } = await supabase
     .from("users")
     .insert({
@@ -70,6 +71,8 @@ export const POST = apiHandler(async (request: Request) => {
       email: email,
       password_hash: passwordHash,
       role: 'applicant',
+      created_at: now, // Explicit timestamp
+      updated_at: now  // Explicit timestamp
     })
     .select("id, email, role")
     .single();
@@ -87,5 +90,4 @@ export const POST = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Added `token` extraction from request body.
-// - Added `verifyTurnstileToken` check at the beginning of the handler.
+// - Explicitly added `created_at` and `updated_at` to the user insertion to prevent NULL values if DB defaults are missing.

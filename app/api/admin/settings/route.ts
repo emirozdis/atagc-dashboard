@@ -28,19 +28,25 @@ export async function GET() {
         return NextResponse.json(defaults);
     }
 
-    // Use the first record if exists
     const data = records && records.length > 0 ? records[0] : null;
 
     if (!data) {
         return NextResponse.json(defaults);
     }
 
+    // Helper to safely extract YYYY-MM-DD from an ISO timestamptz string
+    const toDateString = (isoString: string | null) => {
+        if (!isoString) return "";
+        // Take first 10 characters (YYYY-MM-DD) safely regardless of time/zone parts
+        return isoString.substring(0, 10);
+    };
+
     return NextResponse.json({
         ...data,
         term_name: data.term_name ?? defaults.term_name,
         location: data.location ?? defaults.location,
-        event_start_date: data.event_start_date ?? defaults.event_start_date,
-        event_end_date: data.event_end_date ?? defaults.event_end_date,
+        event_start_date: toDateString(data.event_start_date) || defaults.event_start_date,
+        event_end_date: toDateString(data.event_end_date) || defaults.event_end_date,
     });
 }
 
@@ -52,7 +58,6 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         
-        // Robust check for existence
         const { data: existingRecords } = await supabase
             .from("system_settings")
             .select("id")
@@ -66,25 +71,22 @@ export async function POST(request: Request) {
             term_name: body.term_name,
             contact_email: body.contact_email,
             location: body.location,
-            event_start_date: body.event_start_date || null,
-            event_end_date: body.event_end_date || null,
+            // Allow null or valid ISO strings
+            event_start_date: body.event_start_date ? new Date(body.event_start_date).toISOString() : null,
+            event_end_date: body.event_end_date ? new Date(body.event_end_date).toISOString() : null,
             updated_at: new Date().toISOString()
         };
 
         if (existing) {
-            // Update the single existing record
             const { error } = await supabase
                 .from("system_settings")
                 .update(updateData)
                 .eq("id", existing.id);
-                
             if (error) throw error;
         } else {
-            // Create the first record
             const { error } = await supabase
                 .from("system_settings")
                 .insert(updateData);
-                
             if (error) throw error;
         }
 
@@ -101,5 +103,5 @@ export async function POST(request: Request) {
 }
 
 // Change Log:
-// - Updated GET to use `.limit(1)` and extract the first element array to robustly handle the "single record" requirement, avoiding `maybeSingle` issues if multiple records exist by accident.
-// - Updated POST to perform the same check: fetch `.limit(1)`, check existence, and then Update vs Insert. This ensures we don't accidentally create duplicate settings records.
+// - GET: Updated date extraction to use `substring(0, 10)` which correctly extracts YYYY-MM-DD from `timestamptz` ISO strings without timezone shifting artifacts from Date parsing.
+// - POST: Explicitly converting incoming date strings to `toISOString()` to ensure `timestamptz` compatibility in Postgres.

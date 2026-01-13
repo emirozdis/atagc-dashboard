@@ -20,10 +20,6 @@ export const GET = apiHandler(async (request: Request) => {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  // We explicitly select the count for the sub-resources.
-  // Note: committee_members(count) relies on PostgREST aggregate functions.
-  // We perform a left join on committees to ensure we get the roll call even if committee is missing (though it shouldn't be).
-
   let query = supabase
     .from("roll_calls")
     .select(`
@@ -46,11 +42,13 @@ export const GET = apiHandler(async (request: Request) => {
     query = query.eq("committee_id", committeeId);
   }
 
+  // Date Filtering for timestamptz
   if (startDate) {
-    query = query.gte("created_at", startDate);
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    query = query.gte("created_at", start.toISOString());
   }
   if (endDate) {
-    // Add time to end date to include the whole day
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
     query = query.lte("created_at", end.toISOString());
@@ -65,7 +63,7 @@ export const GET = apiHandler(async (request: Request) => {
     throw error;
   }
 
-  // Debugging: Log if committee is null for any row
+  // Debugging: Log if committee is null for any row (Data integrity check)
   if (data) {
     const nullCommittees = data.filter(r => !r.committee);
     if (nullCommittees.length > 0) {
@@ -85,7 +83,4 @@ export const GET = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Wrapped in `apiHandler` for consistent error handling.
-// - Explicitly used the relationship alias `committee:committees` and sub-select `committee_members:committee_members(count)` to clarify the intent to Supabase PostgREST.
-// - Added logging server-side if committees are returned as null to help debug data consistency issues.
-// - Note: If `committee` returns null, it usually means the `committee_id` in `roll_calls` does not match any ID in `committees` table, or the FK constraint is violated/missing (though schema says it exists).
+// - Updated Date filtering to use `new Date()` objects with `setHours` and `toISOString()` to handle `timestamptz` ranges precisely.

@@ -13,24 +13,24 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ['participant-me'],
     queryFn: async () => {
-        const res = await fetch("/api/participant/me");
-        if (!res.ok) throw new Error("Failed");
-        return res.json();
+      const res = await fetch("/api/participant/me");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
     }
   });
 
   if (isLoading) {
     return (
-        <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-12 p-4">
-            <div className="flex flex-col gap-2">
-                <Skeleton className="h-10 w-[300px]" />
-                <Skeleton className="h-4 w-[200px]" />
-            </div>
-            <div className="grid gap-6 lg:grid-cols-3">
-                <Skeleton className="h-[200px] lg:col-span-2 rounded-xl" />
-                <Skeleton className="h-[200px] rounded-xl" />
-            </div>
+      <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-12 p-4">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-10 w-[300px]" />
+          <Skeleton className="h-4 w-[200px]" />
         </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Skeleton className="h-[200px] lg:col-span-2 rounded-xl" />
+          <Skeleton className="h-[200px] rounded-xl" />
+        </div>
+      </div>
     );
   }
 
@@ -90,26 +90,28 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   const statusContent = getStatusContent();
   const StatusIcon = statusContent.icon;
 
+  // Format Helper for Date Strings (YYYY-MM-DD)
   const formatDateRange = (start: string | null | undefined, end: string | null | undefined) => {
     if (!start) return "Tarih Belirlenmedi";
     try {
-        const startDate = new Date(start);
-        const endDate = end ? new Date(end) : null;
-        
-        const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-        
-        if (endDate) {
-            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "Tarih Belirlenmedi";
-            if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
-                return `${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`;
-            }
-            return `${startDate.toLocaleDateString('tr-TR', options)} - ${endDate.toLocaleDateString('tr-TR', options)}`;
+      // Safe parsing for "YYYY-MM-DD"
+      const startDate = new Date(start);
+      const endDate = end ? new Date(end) : null;
+
+      const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+
+      if (endDate) {
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "Tarih Belirlenmedi";
+        if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
+          return `${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`;
         }
-        
-        if (isNaN(startDate.getTime())) return "Tarih Belirlenmedi";
-        return startDate.toLocaleDateString('tr-TR', options);
+        return `${startDate.toLocaleDateString('tr-TR', options)} - ${endDate.toLocaleDateString('tr-TR', options)}`;
+      }
+
+      if (isNaN(startDate.getTime())) return "Tarih Belirlenmedi";
+      return startDate.toLocaleDateString('tr-TR', options);
     } catch (e) {
-        return "Tarih Formatı Hatalı";
+      return "Tarih Formatı Hatalı";
     }
   };
 
@@ -125,11 +127,11 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
             Başvuru durumunu ve etkinlik detaylarını yönetin.
           </p>
         </div>
-        
+
         {settings?.term_name && (
-            <Badge variant="outline" className="w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider bg-secondary/50">
+          <Badge variant="outline" className="w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider bg-secondary/50">
             {settings.term_name}
-            </Badge>
+          </Badge>
         )}
       </div>
 
@@ -222,7 +224,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         )}
       </div>
 
-      {/* Committee & Topic Section (Restored) */}
+      {/* Committee & Topic Section */}
       {status === "approved" && (
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
@@ -306,4 +308,4 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 }
 
 // Change Log:
-// - Added `uniqueId="dashboard"` to the `DigitalIdCard` component call to isolate it from the profile page card animations.
+// - Verified `formatDateRange` handles valid ISO dates correctly regardless of time zone offsets since the `settings` API returns truncated date strings.

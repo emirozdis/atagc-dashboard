@@ -25,12 +25,19 @@ export const POST = apiHandler(async (request: Request) => {
 
   // Generate 6 digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString(); // 10 mins
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 1000 * 60 * 10).toISOString(); // 10 mins
 
   // Store in DB
+  // Explicitly setting created_at because DB default might be missing
   const { error } = await supabase
     .from("email_verifications")
-    .insert({ email, code, expires_at: expiresAt });
+    .insert({ 
+      email, 
+      code, 
+      expires_at: expiresAt,
+      created_at: now.toISOString() 
+    });
 
   if (error) throw error;
 
@@ -86,5 +93,4 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Updated POST handler to extract and verify `token` (Cloudflare Turnstile).
-// - Returns 403 if Turnstile verification fails.
+// - Explicitly added `created_at: now.toISOString()` to the insert payload in POST handler to fix NULL timestamp issue.

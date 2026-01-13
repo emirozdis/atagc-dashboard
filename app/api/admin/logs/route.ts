@@ -45,22 +45,22 @@ export async function GET(request: Request) {
     query = query.eq("user_id", userId);
   }
 
-  // Filter by Date Range
+  // Filter by Date Range (Robust timestamptz handling)
   if (startDate) {
-    query = query.gte("created_at", startDate);
+    // Ensure we compare from the start of the day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    query = query.gte("created_at", start.toISOString());
   }
   if (endDate) {
-    // Add one day to include the end date fully (or handle time component)
-    // Assuming YYYY-MM-DD string
-    query = query.lte("created_at", `${endDate}T23:59:59`);
+    // Ensure we compare until the very end of the day
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    query = query.lte("created_at", end.toISOString());
   }
 
-  // Generic Search (IP or User Name/Email)
+  // Generic Search
   if (search) {
-    // Note: Cross-table OR filters with Supabase client are tricky.
-    // We prioritize searching logs columns (IP, Action) and potentially user info via relationship if supported syntax.
-    // For simplicity and performance, we stick to searching IP in logs or simple action matching if not handled above.
-    // Searching foreign table fields in OR is supported in newer PostgREST/Supabase versions:
     query = query.or(`ip_address.ilike.%${search}%,user.full_name.ilike.%${search}%,user.email.ilike.%${search}%`, { foreignTable: 'user' });
   }
 
@@ -85,4 +85,5 @@ export async function GET(request: Request) {
 }
 
 // Change Log:
-// - Added handling for `userId`, `startDate`, and `endDate` parameters in the Supabase query.
+// - Updated Date Range logic to use `Date` objects and `toISOString()` for precise `timestamptz` comparison.
+// - Ensures `startDate` starts at 00:00:00 and `endDate` covers up to 23:59:59.999.
