@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import Link from "next/link";
+import { Turnstile } from "@/components/ui/turnstile";
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -20,18 +22,23 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!turnstileToken) {
+      toast.error("Lütfen doğrulamayı tamamlayın.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // NOTE: We don't rely on redirect: true here because we want to check the role first
       const result = await signIn("credentials", {
         redirect: false,
         email: formData.email,
         password: formData.password,
+        token: turnstileToken, // Pass token to NextAuth
       });
 
       if (result?.error) {
-        // Display specific error message from server (e.g. Rate Limit, Suspension) or fallback
         const errorMessage = result.error === "CredentialsSignin" 
             ? "E-posta veya şifre hatalı." 
             : result.error;
@@ -39,14 +46,16 @@ export default function LoginPage() {
         toast.error("Giriş Başarısız", {
           description: errorMessage,
         });
+        
+        // Reset turnstile on failure to force re-verification if needed, 
+        // though typically Turnstile handles this. 
+        // Ideally we reset the widget, but simple error toast is standard.
         setLoading(false);
       } else {
         toast.success("Giriş Başarılı", {
           description: "Yönlendiriliyorsunuz...",
         });
 
-        // Fetch session to determine where to redirect
-        // This is a quick client-side check. Middleware will also enforce this.
         const sessionRes = await fetch("/api/auth/session");
         const session = await sessionRes.json();
 
@@ -61,14 +70,12 @@ export default function LoginPage() {
       toast.error("Hata", {
         description: "Bir sorun oluştu.",
       });
-      console.error(error);
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Background decoration */}
       <div className="fixed inset-0 -z-10 bg-background">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl" />
@@ -135,6 +142,13 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <div className="py-2">
+              <Turnstile 
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                onVerify={(token) => setTurnstileToken(token)}
+              />
+            </div>
+
             <Button
               type="submit"
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-2"
@@ -157,5 +171,6 @@ export default function LoginPage() {
 }
 
 // Change Log:
-// - Added "Forgot Password" link next to the Password label.
-// - Updated layout to accommodate the link.
+// - Added `Turnstile` component to the login form.
+// - Added client-side validation to ensure token exists before submitting.
+// - Passed `token` to the `signIn` function.

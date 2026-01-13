@@ -39,6 +39,7 @@ export function ApplicationForm() {
   // Flow Control States
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   const accountCreationForm = useForm<AccountCreationData>({
     resolver: zodResolver(accountCreationSchema),
@@ -68,6 +69,11 @@ export function ApplicationForm() {
     if (currentStep === 1) {
       const values = accountCreationForm.getValues();
 
+      if (!turnstileToken) {
+        toast.error("Lütfen doğrulamayı tamamlayın.");
+        return;
+      }
+
       if (authMode === 'register') {
         // Validate Full Registration Form
         if (!isEmailVerified) {
@@ -87,6 +93,7 @@ export function ApplicationForm() {
               email: values.email,
               password: values.password,
               fullName: values.adSoyad,
+              token: turnstileToken, // Pass token
             }),
           });
 
@@ -95,11 +102,13 @@ export function ApplicationForm() {
             throw new Error(data.error || "Kayıt oluşturulamadı.");
           }
 
-          // 2. Login
+          // 2. Login (Also passes token implicitly to next-auth if needed, but usually redundant after registration success, 
+          // however, since we protected login too, we pass it again to be safe)
           const loginRes = await signIn("credentials", {
             redirect: false,
             email: values.email,
             password: values.password,
+            token: turnstileToken,
           });
 
           if (loginRes?.error) throw new Error("Giriş yapılamadı.");
@@ -126,6 +135,7 @@ export function ApplicationForm() {
             redirect: false,
             email: values.email,
             password: values.password,
+            token: turnstileToken,
           });
 
           if (loginRes?.error) throw new Error("E-posta veya şifre hatalı.");
@@ -226,6 +236,7 @@ export function ApplicationForm() {
             isEmailVerified={isEmailVerified}
             onVerify={setIsEmailVerified}
             onModeChange={setAuthMode}
+            onTokenChange={setTurnstileToken}
           />
         )}
         {currentStep === 2 && <PersonalInfoStep form={personalInfoForm} />}
@@ -258,5 +269,6 @@ export function ApplicationForm() {
 }
 
 // Change Log:
-// - Added error toasts on `handleNext` when validation fails, preventing the "silent stuck" feeling.
-// - This ensures the user knows why they can't proceed (e.g. if they missed a field).
+// - Updated `handleNext` to check for `turnstileToken`.
+// - Passed `turnstileToken` to `AccountCreationStep`.
+// - Included `token` in the API call body for registration and credentials for login.

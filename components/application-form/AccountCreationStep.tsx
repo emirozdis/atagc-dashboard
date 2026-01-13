@@ -9,23 +9,23 @@ import {
   Loader2, 
   Mail, 
   ArrowRight, 
-  Lock, 
   User, 
   RefreshCcw,
-  Check, 
-  X 
+  Check
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Turnstile } from "@/components/ui/turnstile";
 
 interface AccountCreationStepProps {
     form: UseFormReturn<AccountCreationData>;
     isEmailVerified: boolean;
     onVerify: (status: boolean) => void;
     onModeChange: (mode: 'register' | 'login') => void;
+    onTokenChange: (token: string) => void; // Added prop to pass token up
 }
 
-export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeChange }: AccountCreationStepProps) {
+export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeChange, onTokenChange }: AccountCreationStepProps) {
     const { register, formState: { errors }, watch, getValues, trigger, setValue } = form;
     
     // States
@@ -34,6 +34,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     const [loading, setLoading] = useState(false);
     const [emailCheckLoading, setEmailCheckLoading] = useState(false);
     const [resumeName, setResumeName] = useState("");
+    const [turnstileToken, setTurnstileToken] = useState("");
 
     const email = watch("email");
     const password = watch("password");
@@ -43,6 +44,11 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     const hasUpper = /[A-Z]/.test(password || "");
     const hasLower = /[a-z]/.test(password || "");
     const hasNumber = /[0-9]/.test(password || "");
+
+    // Propagate token changes
+    useEffect(() => {
+        onTokenChange(turnstileToken);
+    }, [turnstileToken, onTokenChange]);
 
     const handleCheckEmail = async () => {
         const isEmailFormatValid = await trigger("email");
@@ -125,6 +131,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         setValue("password", "");
         setValue("confirmPassword", "");
         setValue("adSoyad", "");
+        setTurnstileToken("");
     };
 
     return (
@@ -194,6 +201,13 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             <a href="/forgot-password" target="_blank" className="text-xs text-primary hover:underline">Şifremi Unuttum</a>
                         </div>
                     </div>
+
+                    <div className="pt-2">
+                        <Turnstile 
+                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            onVerify={setTurnstileToken}
+                        />
+                    </div>
                 </div>
             )}
 
@@ -252,6 +266,13 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
                         </div>
                     </div>
+
+                    <div className="pt-2">
+                        <Turnstile 
+                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            onVerify={setTurnstileToken}
+                        />
+                    </div>
                 </div>
             )}
         </div>
@@ -268,7 +289,6 @@ function Requirement({ label, met }: { label: string, met: boolean }) {
 }
 
 // Change Log:
-// - UX Overhaul: Implemented a progressive flow (Email -> Check -> Verify/Login -> Details).
-// - Added "Resume" logic: Checks DB if user exists but has no application, switching to 'login' mode.
-// - Enhanced Password UI: Added visual checklist for complexity requirements.
-// - Cleaned up verification code input UI.
+// - Added `onTokenChange` prop to communicate the Turnstile token to the parent component.
+// - Rendered `<Turnstile />` in both 'login' (resume) and 'details' (register) steps.
+// - Managed local `turnstileToken` state.

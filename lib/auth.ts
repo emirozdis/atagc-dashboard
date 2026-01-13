@@ -4,6 +4,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 // Rate limit: 5 attempts per minute per IP
 const loginLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
@@ -15,6 +16,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        token: { label: "Turnstile Token", type: "text" }, // Added token field
       },
       async authorize(credentials, req) {
         // 0. Rate Limiting
@@ -31,7 +33,14 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // 1. Fetch user
+        // 1. Turnstile Verification
+        // Note: verifyTurnstileToken handles environment checks internally
+        const isHuman = await verifyTurnstileToken(credentials.token as string);
+        if (!isHuman) {
+          throw new Error("Doğrulama başarısız. Lütfen sayfayı yenileyip tekrar deneyin.");
+        }
+
+        // 2. Fetch user
         const { data: user, error } = await supabase
           .from("users")
           .select("*, user_details(profile_picture_url)")
@@ -46,7 +55,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Hesabınız askıya alınmıştır.");
         }
 
-        // 2. Check Maintenance Mode
+        // 3. Check Maintenance Mode
         const { data: settings } = await supabase
           .from("system_settings")
           .select("maintenance_mode")
@@ -56,11 +65,11 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // 3. Verify password
+        // 4. Verify password
         const isValid = await bcrypt.compare(credentials.password, user.password_hash);
         if (!isValid) return null;
 
-        // 4. Create Active Session in DB
+        // 5. Create Active Session in DB
         const { data: sessionData, error: sessionError } = await supabase
           .from("active_sessions")
           .insert({
@@ -105,7 +114,6 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      // 5. VALIDATE SESSION ON EVERY REQUEST
       if (token && token.sessionId) {
         const { data: activeSession } = await supabase
           .from("active_sessions")
@@ -120,26 +128,21 @@ export const authOptions: NextAuthOptions = {
           .eq("id", token.sessionId)
           .single();
 
-        // Check if session exists in DB
         if (!activeSession) {
           return null as any; 
         }
 
-        // Fix: Supabase might return relation as array or single object depending on types
-        // Safely extract the user object
         const user = Array.isArray(activeSession.user) 
           ? activeSession.user[0] 
           : activeSession.user;
 
-        // Check if user exists and is not suspended
         if (!user || user.is_suspended) {
           return null as any; 
         }
 
-        // Apply to session object
         if (session.user) {
           session.user.id = token.id;
-          session.user.role = user.role as any; // Sync role from DB
+          session.user.role = user.role as any;
           session.user.image = token.picture;
           session.user.sessionId = token.sessionId;
         }
@@ -159,5 +162,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Fixed TypeScript error in `session` callback by handling `activeSession.user` as potentially an array.
-// - Added specific check `Array.isArray(activeSession.user) ? activeSession.user[0] : activeSession.user` to safely access user properties.
+// - Added `token` to credentials schema.
+// - Added `verifyTurnstileToken` call before DB lookup to prevent bot traffic hitting the DB.

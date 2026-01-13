@@ -4,6 +4,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/logger";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const registerLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
@@ -11,13 +12,19 @@ export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await registerLimiter.check(5, ip); // 5 attempts per minute per IP
 
-  const { email, password, fullName } = await request.json();
+  const { email, password, fullName, token } = await request.json();
 
   if (!email || !password || !fullName) {
     return NextResponse.json({ error: "E-posta, şifre ve ad soyad gereklidir." }, { status: 400 });
   }
 
-  // 1. Check if Email is Verified
+  // 1. Verify Turnstile
+  const isHuman = await verifyTurnstileToken(token);
+  if (!isHuman) {
+    return NextResponse.json({ error: "Doğrulama başarısız." }, { status: 403 });
+  }
+
+  // 2. Check if Email is Verified
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   
   const { data: verification } = await supabase
@@ -37,7 +44,7 @@ export const POST = apiHandler(async (request: Request) => {
     );
   }
 
-  // 2. Check if User Already Exists
+  // 3. Check if User Already Exists
   const { data: existingUser } = await supabase
     .from("users")
     .select("id")
@@ -51,11 +58,11 @@ export const POST = apiHandler(async (request: Request) => {
     );
   }
 
-  // 3. Hash Password
+  // 4. Hash Password
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
-  // 4. Create User
+  // 5. Create User
   const { data: newUser, error: createUserError } = await supabase
     .from("users")
     .insert({
@@ -69,7 +76,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (createUserError) throw createUserError;
 
-  // 5. Log Action
+  // 6. Log Action
   await logAction(newUser.id, "register", { email: newUser.email });
 
   return NextResponse.json({
@@ -78,3 +85,7 @@ export const POST = apiHandler(async (request: Request) => {
     user: newUser
   });
 });
+
+// Change Log:
+// - Added `token` extraction from request body.
+// - Added `verifyTurnstileToken` check at the beginning of the handler.
