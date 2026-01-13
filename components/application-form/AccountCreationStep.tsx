@@ -35,6 +35,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     const [emailCheckLoading, setEmailCheckLoading] = useState(false);
     const [resumeName, setResumeName] = useState("");
     const [turnstileToken, setTurnstileToken] = useState("");
+    
+    // Key to force reset of Turnstile widget if needed (e.g. token expired/used in failed request)
+    const [turnstileKey, setTurnstileKey] = useState(0);
 
     const email = watch("email");
     const password = watch("password");
@@ -53,13 +56,14 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     // Clear token when switching steps to ensure fresh validation for next protected action
     useEffect(() => {
         setTurnstileToken("");
+        setTurnstileKey(prev => prev + 1); // Reset widget
     }, [stepState]);
 
     const handleCheckEmail = async () => {
         const isEmailFormatValid = await trigger("email");
         if (!isEmailFormatValid) return;
 
-        // Require Turnstile token for the initial check to prevent bot spam on user-status/verify endpoints
+        // Require Turnstile token for the initial check to prevent bot spam
         if (!turnstileToken) {
             toast.error("Lütfen doğrulamayı tamamlayın.");
             return;
@@ -88,6 +92,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             }
         } catch (e) {
             toast.error("Bağlantı hatası");
+            // If request failed but consumed token on server (unlikely for user-status but possible), reset
+            setTurnstileToken("");
+            setTurnstileKey(prev => prev + 1);
         } finally {
             setEmailCheckLoading(false);
         }
@@ -115,6 +122,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             toast.success("Doğrulama Kodu Gönderildi");
         } catch (e: any) {
             toast.error("Kod gönderilemedi.", { description: e.message });
+            // Token likely consumed by failed request, force reset
+            setTurnstileToken("");
+            setTurnstileKey(prev => prev + 1);
         } finally {
             setLoading(false);
         }
@@ -150,6 +160,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         setValue("confirmPassword", "");
         setValue("adSoyad", "");
         setTurnstileToken("");
+        setTurnstileKey(prev => prev + 1);
     };
 
     return (
@@ -186,6 +197,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                         {/* Turnstile Widget for Email Step */}
                         <div className="flex justify-center sm:justify-start">
                             <Turnstile 
+                                key={`turnstile-email-${turnstileKey}`}
                                 siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                                 onVerify={setTurnstileToken}
                             />
@@ -244,6 +256,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
 
                     <div className="pt-2">
                         <Turnstile 
+                            key={`turnstile-login-${turnstileKey}`}
                             siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                             onVerify={setTurnstileToken}
                         />
@@ -309,6 +322,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
 
                     <div className="pt-2">
                         <Turnstile 
+                            key={`turnstile-details-${turnstileKey}`}
                             siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                             onVerify={setTurnstileToken}
                         />
@@ -329,7 +343,5 @@ function Requirement({ label, met }: { label: string, met: boolean }) {
 }
 
 // Change Log:
-// - Added Turnstile to the 'email' step view.
-// - Added logic to clear `turnstileToken` when changing steps.
-// - Added validation to prevent email check without Turnstile token.
-// - Updated `sendVerificationCode` to include `token` in the body.
+// - Added `turnstileKey` to force re-render/reset of Turnstile widget when token consumption fails or step changes.
+// - Added error handling blocks to reset Turnstile if API calls fail.

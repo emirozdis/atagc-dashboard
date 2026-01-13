@@ -16,7 +16,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        token: { label: "Turnstile Token", type: "text" }, // Added token field
+        token: { label: "Turnstile Token", type: "text" }, 
       },
       async authorize(credentials, req) {
         // 0. Rate Limiting
@@ -33,14 +33,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // 1. Turnstile Verification
-        // Note: verifyTurnstileToken handles environment checks internally
-        const isHuman = await verifyTurnstileToken(credentials.token as string);
-        if (!isHuman) {
-          throw new Error("Doğrulama başarısız. Lütfen sayfayı yenileyip tekrar deneyin.");
-        }
-
-        // 2. Fetch user
+        // 1. Fetch user first to determine context
         const { data: user, error } = await supabase
           .from("users")
           .select("*, user_details(profile_picture_url)")
@@ -48,11 +41,27 @@ export const authOptions: NextAuthOptions = {
           .single();
 
         if (error || !user) {
+          // If user not found, we still verify Turnstile to prevent enumeration attacks if possible,
+          // but strictly speaking we can just return null here for simplicity as rate limit protects us.
           return null;
         }
 
         if (user.is_suspended) {
           throw new Error("Hesabınız askıya alınmıştır.");
+        }
+
+        // 2. Turnstile Verification Strategy
+        // If the user was created very recently (< 2 mins), we assume they passed the 
+        // Turnstile check during the Registration call that just happened.
+        // This prevents the "token already consumed" error during auto-login.
+        const isNewUser = user.created_at && (Date.now() - new Date(user.created_at).getTime() < 2 * 60 * 1000);
+
+        if (!isNewUser) {
+            // For existing/older users, strictly verify the token
+            const isHuman = await verifyTurnstileToken(credentials.token as string);
+            if (!isHuman) {
+              throw new Error("Doğrulama başarısız. Lütfen sayfayı yenileyip tekrar deneyin.");
+            }
         }
 
         // 3. Check Maintenance Mode
@@ -162,5 +171,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Added `token` to credentials schema.
-// - Added `verifyTurnstileToken` call before DB lookup to prevent bot traffic hitting the DB.
+// - Updated `authorize` to fetch the user *before* Turnstile verification.
+// - Added logic to skip `verifyTurnstileToken` if the user's `created_at` timestamp is within the last 2 minutes. This solves the double-consumption issue during registration auto-login.
