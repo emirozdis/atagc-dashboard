@@ -23,23 +23,38 @@ export function Turnstile({ siteKey, onVerify, onError, onExpire, theme = "auto"
   const { theme: systemTheme } = useTheme();
 
   useEffect(() => {
-    // If turnstile is already loaded, render
-    if (window.turnstile) {
-      renderWidget();
-    } else {
-      // Load script
-      const script = document.createElement("script");
+    // Check if script is already present
+    const scriptId = "cf-turnstile-script";
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
       script.async = true;
       script.defer = true;
-      script.onload = () => renderWidget();
       document.body.appendChild(script);
     }
 
+    const initWidget = () => {
+      if (window.turnstile) {
+        renderWidget();
+      } else {
+        // If script exists but not loaded, wait for it
+        script.addEventListener("load", renderWidget);
+      }
+    };
+
+    initWidget();
+
     return () => {
-      // Cleanup if needed (reset widget)
+      script.removeEventListener("load", renderWidget);
       if (widgetId && window.turnstile) {
-        window.turnstile.remove(widgetId);
+        try {
+          window.turnstile.remove(widgetId);
+        } catch (e) {
+          // Ignore removal errors if widget already gone
+        }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -48,8 +63,11 @@ export function Turnstile({ siteKey, onVerify, onError, onExpire, theme = "auto"
   const renderWidget = () => {
     if (!ref.current || !window.turnstile) return;
 
-    // Avoid double rendering
-    if (ref.current.innerHTML !== "") return;
+    // Avoid double rendering if widget ID already exists
+    if (widgetId) return;
+
+    // Clear content just in case
+    ref.current.innerHTML = "";
 
     try {
       const id = window.turnstile.render(ref.current, {
@@ -69,5 +87,6 @@ export function Turnstile({ siteKey, onVerify, onError, onExpire, theme = "auto"
 }
 
 // Change Log:
-// - Created a reusable React component for Cloudflare Turnstile.
-// - Handles script loading and widget rendering dynamically.
+// - Added check for existing script tag to prevent "Turnstile already has been loaded" warning.
+// - Added cleanup logic for event listeners.
+// - Improved widget ID tracking to prevent double rendering.

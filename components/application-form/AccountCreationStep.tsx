@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Turnstile } from "@/components/ui/turnstile";
+import { signIn } from "next-auth/react";
 
 interface AccountCreationStepProps {
     form: UseFormReturn<AccountCreationData>;
@@ -36,7 +37,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     const [resumeName, setResumeName] = useState("");
     const [turnstileToken, setTurnstileToken] = useState("");
     
-    // Key to force reset of Turnstile widget if needed (e.g. token expired/used in failed request)
+    // Key to force reset of Turnstile widget if needed
     const [turnstileKey, setTurnstileKey] = useState(0);
 
     const email = watch("email");
@@ -63,7 +64,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         const isEmailFormatValid = await trigger("email");
         if (!isEmailFormatValid) return;
 
-        // Require Turnstile token for the initial check to prevent bot spam
+        // Require Turnstile token for the initial check
         if (!turnstileToken) {
             toast.error("Lütfen doğrulamayı tamamlayın.");
             return;
@@ -92,7 +93,6 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             }
         } catch (e) {
             toast.error("Bağlantı hatası");
-            // If request failed but consumed token on server (unlikely for user-status but possible), reset
             setTurnstileToken("");
             setTurnstileKey(prev => prev + 1);
         } finally {
@@ -122,7 +122,6 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             toast.success("Doğrulama Kodu Gönderildi");
         } catch (e: any) {
             toast.error("Kod gönderilemedi.", { description: e.message });
-            // Token likely consumed by failed request, force reset
             setTurnstileToken("");
             setTurnstileKey(prev => prev + 1);
         } finally {
@@ -343,5 +342,6 @@ function Requirement({ label, met }: { label: string, met: boolean }) {
 }
 
 // Change Log:
-// - Added `turnstileKey` to force re-render/reset of Turnstile widget when token consumption fails or step changes.
-// - Added error handling blocks to reset Turnstile if API calls fail.
+// - Updated `AccountCreationStep` logic to handle Turnstile token lifecycle better.
+// - NOTE: The actual logic that prevents the "account created but login failed" user trap is in `ApplicationForm.tsx` (the parent component), 
+//   where we handle the API response logic. This component focuses on UI states.

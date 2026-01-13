@@ -84,6 +84,8 @@ export function ApplicationForm() {
         if (!isValid) return;
 
         setIsSubmitting(true);
+        let accountCreated = false;
+
         try {
           // 1. Create Account
           const registerRes = await fetch("/api/auth/register", {
@@ -93,25 +95,52 @@ export function ApplicationForm() {
               email: values.email,
               password: values.password,
               fullName: values.adSoyad,
-              token: turnstileToken, // Pass token
+              token: turnstileToken, // Pass token for registration verification
             }),
           });
 
           if (!registerRes.ok) {
             const data = await registerRes.json();
-            throw new Error(data.error || "Kayıt oluşturulamadı.");
+            // If account already exists (409), but we are in register mode (e.g. user refreshed or retried),
+            // and we know they passed email verification steps, we can try to log them in directly
+            if (registerRes.status === 409) {
+                // Account exists, try login instead of throwing error
+                console.log("Account already exists, switching to login attempt.");
+                accountCreated = true;
+            } else {
+                throw new Error(data.error || "Kayıt oluşturulamadı.");
+            }
+          } else {
+            accountCreated = true;
           }
 
-          // 2. Login (Also passes token implicitly to next-auth if needed, but usually redundant after registration success, 
-          // however, since we protected login too, we pass it again to be safe)
+          // 2. Login
+          // Important: We send a specific dummy token for auto-login to prevent "token used" errors
+          // The backend `authorize` function will check `isNewUser` based on `created_at` timestamp.
           const loginRes = await signIn("credentials", {
             redirect: false,
             email: values.email,
             password: values.password,
-            token: turnstileToken,
+            token: "SKIPPED_AUTO_LOGIN", 
           });
 
-          if (loginRes?.error) throw new Error("Giriş yapılamadı.");
+          if (loginRes?.error) {
+             // If login failed but account was created, we shouldn't trap the user in the register form.
+             // They should proceed or be told to login manually.
+             // However, for this flow, we will assume success if account created, 
+             // but show a toast that login failed and maybe they need to re-login later.
+             // Ideally, we just proceed if we can confirm account exists.
+             console.error("Auto-login failed:", loginRes.error);
+             
+             if (accountCreated) {
+                 toast.success("Hesap oluşturuldu, lütfen giriş yapınız.");
+                 // Force switch to login mode so they can try again if needed, or redirect
+                 window.location.href = "/login";
+                 return;
+             } else {
+                 throw new Error("Giriş yapılamadı.");
+             }
+          }
 
           toast.success("Hesap Oluşturuldu");
           proceedToStep2(values);
@@ -135,7 +164,7 @@ export function ApplicationForm() {
             redirect: false,
             email: values.email,
             password: values.password,
-            token: turnstileToken,
+            token: turnstileToken, // Normal login needs verification
           });
 
           if (loginRes?.error) throw new Error("E-posta veya şifre hatalı.");
@@ -269,6 +298,6 @@ export function ApplicationForm() {
 }
 
 // Change Log:
-// - Updated `handleNext` to check for `turnstileToken`.
-// - Passed `turnstileToken` to `AccountCreationStep`.
-// - Included `token` in the API call body for registration and credentials for login.
+// - Updated `handleNext` logic to use a special token "SKIPPED_AUTO_LOGIN" for the auto-login step after registration.
+// - Added fallback: if account creation succeeds but auto-login fails, redirect to login page instead of showing an error state that traps the user.
+// - Handled 409 (Account Exists) gracefully in registration flow if it was a race condition/retry.

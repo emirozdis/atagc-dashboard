@@ -41,8 +41,8 @@ export const authOptions: NextAuthOptions = {
           .single();
 
         if (error || !user) {
-          // If user not found, we still verify Turnstile to prevent enumeration attacks if possible,
-          // but strictly speaking we can just return null here for simplicity as rate limit protects us.
+          // If user not found, we generally fail.
+          // To prevent enumeration, we could still verify captcha, but simplicity is preferred here.
           return null;
         }
 
@@ -51,14 +51,29 @@ export const authOptions: NextAuthOptions = {
         }
 
         // 2. Turnstile Verification Strategy
-        // If the user was created very recently (< 2 mins), we assume they passed the 
-        // Turnstile check during the Registration call that just happened.
-        // This prevents the "token already consumed" error during auto-login.
-        const isNewUser = user.created_at && (Date.now() - new Date(user.created_at).getTime() < 2 * 60 * 1000);
+        // We calculate time difference carefully to avoid clock skew issues.
+        // We use Math.abs to handle if DB time is slightly ahead of App Server time.
+        // Window increased to 5 minutes to be safe.
+        let isNewUser = false;
+        if (user.created_at) {
+            const createdTime = new Date(user.created_at).getTime();
+            const now = Date.now();
+            const diff = Math.abs(now - createdTime);
+            if (diff < 5 * 60 * 1000) { // 5 minutes tolerance
+                isNewUser = true;
+            }
+        }
 
         if (!isNewUser) {
             // For existing/older users, strictly verify the token
-            const isHuman = await verifyTurnstileToken(credentials.token as string);
+            const token = credentials.token as string;
+            // If token is missing or explicit skip string (from failed frontend logic), fail
+            if (!token || token === "SKIPPED_AUTO_LOGIN") {
+                 // Silent fail or throw specific error
+                 throw new Error("Doğrulama eksik.");
+            }
+
+            const isHuman = await verifyTurnstileToken(token);
             if (!isHuman) {
               throw new Error("Doğrulama başarısız. Lütfen sayfayı yenileyip tekrar deneyin.");
             }
@@ -124,6 +139,7 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token && token.sessionId) {
+        // Optimization: Use maybeSingle to avoid errors if session deleted
         const { data: activeSession } = await supabase
           .from("active_sessions")
           .select(`
@@ -135,7 +151,7 @@ export const authOptions: NextAuthOptions = {
             )
           `)
           .eq("id", token.sessionId)
-          .single();
+          .maybeSingle();
 
         if (!activeSession) {
           return null as any; 
@@ -171,5 +187,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Updated `authorize` to fetch the user *before* Turnstile verification.
-// - Added logic to skip `verifyTurnstileToken` if the user's `created_at` timestamp is within the last 2 minutes. This solves the double-consumption issue during registration auto-login.
+// - Updated `isNewUser` logic to use `Math.abs` and a 5-minute window for better tolerance of clock skew.
+// - Added check to ensure `credentials.token` exists before verifying for existing users.
