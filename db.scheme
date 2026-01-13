@@ -1,12 +1,22 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.active_sessions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  user_agent text,
+  ip_address text,
+  last_active timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT active_sessions_pkey PRIMARY KEY (id),
+  CONSTRAINT active_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.announcements (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   title character varying NOT NULL,
   content text NOT NULL,
   author_id uuid,
-  created_at timestamp without time zone DEFAULT now(),
+  created_at timestamp with time zone,
   is_public boolean DEFAULT true,
   target_user_ids ARRAY,
   committee_ids ARRAY,
@@ -17,8 +27,8 @@ CREATE TABLE public.applications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
   status character varying DEFAULT 'pending'::character varying,
-  submitted_at timestamp without time zone DEFAULT now(),
-  reviewed_at timestamp without time zone,
+  submitted_at timestamp with time zone,
+  reviewed_at timestamp with time zone,
   review_notes text,
   CONSTRAINT applications_pkey PRIMARY KEY (id),
   CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -28,7 +38,7 @@ CREATE TABLE public.committee_documents (
   committee_id uuid NOT NULL UNIQUE,
   document_blob bytea,
   is_locked boolean DEFAULT false,
-  updated_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp with time zone,
   CONSTRAINT committee_documents_pkey PRIMARY KEY (id),
   CONSTRAINT committee_documents_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
@@ -36,7 +46,7 @@ CREATE TABLE public.committee_members (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   committee_id uuid,
   user_id uuid,
-  joined_at timestamp without time zone DEFAULT now(),
+  joined_at timestamp with time zone,
   can_write boolean DEFAULT false,
   CONSTRAINT committee_members_pkey PRIMARY KEY (id),
   CONSTRAINT committee_members_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id),
@@ -47,8 +57,8 @@ CREATE TABLE public.committees (
   name character varying NOT NULL,
   description text,
   admin_id uuid,
-  created_at timestamp without time zone DEFAULT now(),
-  updated_at timestamp without time zone DEFAULT now(),
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
   CONSTRAINT committees_pkey PRIMARY KEY (id),
   CONSTRAINT committees_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES public.users(id)
 );
@@ -56,9 +66,9 @@ CREATE TABLE public.email_verifications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   email character varying NOT NULL,
   code character varying NOT NULL,
-  expires_at timestamp without time zone NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
   verified boolean DEFAULT false,
-  created_at timestamp without time zone DEFAULT now(),
+  created_at timestamp with time zone,
   CONSTRAINT email_verifications_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.logs (
@@ -68,7 +78,7 @@ CREATE TABLE public.logs (
   details jsonb,
   ip_address character varying,
   user_agent character varying,
-  created_at timestamp without time zone DEFAULT now(),
+  created_at timestamp with time zone,
   CONSTRAINT logs_pkey PRIMARY KEY (id),
   CONSTRAINT logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -76,8 +86,8 @@ CREATE TABLE public.password_resets (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   email character varying NOT NULL,
   token_hash character varying NOT NULL,
-  expires_at timestamp without time zone NOT NULL,
-  created_at timestamp without time zone DEFAULT now(),
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone,
   used boolean DEFAULT false,
   CONSTRAINT password_resets_pkey PRIMARY KEY (id)
 );
@@ -90,8 +100,9 @@ CREATE TABLE public.resources (
   category character varying DEFAULT 'general'::character varying,
   uploaded_by uuid,
   is_public boolean DEFAULT false,
-  created_at timestamp without time zone DEFAULT now(),
+  created_at timestamp with time zone,
   committee_id uuid,
+  storage_path text,
   CONSTRAINT resources_pkey PRIMARY KEY (id),
   CONSTRAINT resources_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.users(id),
   CONSTRAINT resources_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
@@ -100,7 +111,7 @@ CREATE TABLE public.roll_call_logs (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   roll_call_id uuid,
   user_id uuid,
-  scanned_at timestamp without time zone DEFAULT now(),
+  scanned_at timestamp with time zone,
   CONSTRAINT roll_call_logs_pkey PRIMARY KEY (id),
   CONSTRAINT roll_call_logs_roll_call_id_fkey FOREIGN KEY (roll_call_id) REFERENCES public.roll_calls(id),
   CONSTRAINT roll_call_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -110,8 +121,8 @@ CREATE TABLE public.roll_calls (
   committee_id uuid,
   session_name character varying NOT NULL,
   qr_code character varying NOT NULL UNIQUE,
-  session_date timestamp without time zone DEFAULT now(),
-  created_at timestamp without time zone DEFAULT now(),
+  session_date timestamp with time zone,
+  created_at timestamp with time zone,
   CONSTRAINT roll_calls_pkey PRIMARY KEY (id),
   CONSTRAINT roll_calls_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
@@ -121,9 +132,9 @@ CREATE TABLE public.system_settings (
   maintenance_mode boolean DEFAULT false,
   term_name character varying DEFAULT 'ATAGÇ 2026'::character varying,
   contact_email character varying DEFAULT 'info@atagc.com.tr'::character varying,
-  updated_at timestamp without time zone DEFAULT now(),
-  event_start_date timestamp without time zone,
-  event_end_date timestamp without time zone,
+  updated_at timestamp with time zone,
+  event_start_date timestamp with time zone,
+  event_end_date timestamp with time zone,
   location text DEFAULT 'İTÜ GVO İzmir NESAN Yerleşkesi'::text,
   CONSTRAINT system_settings_pkey PRIMARY KEY (id)
 );
@@ -132,10 +143,22 @@ CREATE TABLE public.topics (
   committee_id uuid,
   title character varying NOT NULL,
   description text,
-  created_at timestamp without time zone DEFAULT now(),
-  updated_at timestamp without time zone DEFAULT now(),
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
   CONSTRAINT topics_pkey PRIMARY KEY (id),
   CONSTRAINT topics_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
+);
+CREATE TABLE public.user_connections (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  requester_id uuid NOT NULL,
+  recipient_id uuid NOT NULL,
+  status character varying NOT NULL DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'connected'::character varying, 'rejected'::character varying, 'blocked'::character varying]::text[])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  note text,
+  CONSTRAINT user_connections_pkey PRIMARY KEY (id),
+  CONSTRAINT user_connections_requester_id_fkey FOREIGN KEY (requester_id) REFERENCES public.users(id),
+  CONSTRAINT user_connections_recipient_id_fkey FOREIGN KEY (recipient_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.user_details (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -144,8 +167,21 @@ CREATE TABLE public.user_details (
   phone_number character varying,
   school_name text,
   additional_info jsonb,
+  profile_picture_url text,
+  is_profile_picture_hidden boolean DEFAULT false,
+  allow_connections boolean DEFAULT true,
   CONSTRAINT user_details_pkey PRIMARY KEY (id),
   CONSTRAINT user_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.user_warnings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  issued_by uuid NOT NULL,
+  reason text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_warnings_pkey PRIMARY KEY (id),
+  CONSTRAINT user_warnings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_warnings_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.users (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -153,8 +189,8 @@ CREATE TABLE public.users (
   email character varying NOT NULL UNIQUE,
   password_hash character varying NOT NULL,
   role character varying NOT NULL DEFAULT 'applicant'::character varying,
-  created_at timestamp without time zone DEFAULT now(),
-  updated_at timestamp without time zone DEFAULT now(),
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
   is_suspended boolean DEFAULT false,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );

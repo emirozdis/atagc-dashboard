@@ -41,8 +41,6 @@ export const authOptions: NextAuthOptions = {
           .single();
 
         if (error || !user) {
-          // If user not found, we generally fail.
-          // To prevent enumeration, we could still verify captcha, but simplicity is preferred here.
           return null;
         }
 
@@ -51,15 +49,18 @@ export const authOptions: NextAuthOptions = {
         }
 
         // 2. Turnstile Verification Strategy
-        // We calculate time difference carefully to avoid clock skew issues.
-        // We use Math.abs to handle if DB time is slightly ahead of App Server time.
-        // Window increased to 5 minutes to be safe.
         let isNewUser = false;
         if (user.created_at) {
+            // Since DB uses `timestamptz`, date string includes timezone offset (e.g. 2024-01-01T12:00:00+00:00)
+            // Parsing this creates a correct absolute timestamp regardless of server local time.
             const createdTime = new Date(user.created_at).getTime();
             const now = Date.now();
-            const diff = Math.abs(now - createdTime);
-            if (diff < 5 * 60 * 1000) { // 5 minutes tolerance
+            
+            // Standard 5 minute window for auto-login after registration
+            const fiveMinutes = 5 * 60 * 1000;
+            
+            // We use Math.abs to handle minor clock differences, but rely on correct TZ handling now
+            if (Math.abs(now - createdTime) < fiveMinutes) {
                 isNewUser = true;
             }
         }
@@ -69,7 +70,6 @@ export const authOptions: NextAuthOptions = {
             const token = credentials.token as string;
             // If token is missing or explicit skip string (from failed frontend logic), fail
             if (!token || token === "SKIPPED_AUTO_LOGIN") {
-                 // Silent fail or throw specific error
                  throw new Error("Doğrulama eksik.");
             }
 
@@ -139,7 +139,6 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token && token.sessionId) {
-        // Optimization: Use maybeSingle to avoid errors if session deleted
         const { data: activeSession } = await supabase
           .from("active_sessions")
           .select(`
@@ -187,5 +186,6 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Updated `isNewUser` logic to use `Math.abs` and a 5-minute window for better tolerance of clock skew.
-// - Added check to ensure `credentials.token` exists before verifying for existing users.
+// - Removed manual timezone offset checks and string manipulation.
+// - Reverted to standard date comparison, relying on `timestamptz` from the database to provide correct absolute time.
+// - Kept the 5-minute safety window for new user auto-login.
