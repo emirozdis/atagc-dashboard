@@ -22,7 +22,7 @@ interface AccountCreationStepProps {
     isEmailVerified: boolean;
     onVerify: (status: boolean) => void;
     onModeChange: (mode: 'register' | 'login') => void;
-    onTokenChange: (token: string) => void; // Added prop to pass token up
+    onTokenChange: (token: string) => void;
 }
 
 export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeChange, onTokenChange }: AccountCreationStepProps) {
@@ -45,14 +45,25 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     const hasLower = /[a-z]/.test(password || "");
     const hasNumber = /[0-9]/.test(password || "");
 
-    // Propagate token changes
+    // Propagate token changes to parent
     useEffect(() => {
         onTokenChange(turnstileToken);
     }, [turnstileToken, onTokenChange]);
 
+    // Clear token when switching steps to ensure fresh validation for next protected action
+    useEffect(() => {
+        setTurnstileToken("");
+    }, [stepState]);
+
     const handleCheckEmail = async () => {
         const isEmailFormatValid = await trigger("email");
         if (!isEmailFormatValid) return;
+
+        // Require Turnstile token for the initial check to prevent bot spam on user-status/verify endpoints
+        if (!turnstileToken) {
+            toast.error("Lütfen doğrulamayı tamamlayın.");
+            return;
+        }
 
         setEmailCheckLoading(true);
         try {
@@ -88,15 +99,22 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             const res = await fetch("/api/auth/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: getValues("email") }),
+                body: JSON.stringify({ 
+                    email: getValues("email"),
+                    token: turnstileToken // Pass token for verification
+                }),
             });
-            if (!res.ok) throw new Error("Failed");
+            
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed");
+            }
             
             setStepState('verifying');
             onModeChange('register');
             toast.success("Doğrulama Kodu Gönderildi");
-        } catch (e) {
-            toast.error("Kod gönderilemedi.");
+        } catch (e: any) {
+            toast.error("Kod gönderilemedi.", { description: e.message });
         } finally {
             setLoading(false);
         }
@@ -138,43 +156,65 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             {/* 1. Email Input Section */}
-            <div className="space-y-4">
-                <Label htmlFor="email" className={cn("text-base font-medium transition-colors", stepState !== 'email' ? "text-muted-foreground" : "text-foreground")}>
-                    E-posta Adresi
-                </Label>
-                <div className="flex gap-3">
-                    <div className="relative flex-1">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            id="email"
-                            placeholder="ornek@email.com"
-                            {...register("email")}
-                            disabled={stepState !== 'email'}
-                            className="pl-10 h-11 bg-background/50 border-border/50"
-                            onKeyDown={(e) => e.key === 'Enter' && stepState === 'email' && handleCheckEmail()}
-                        />
-                        {stepState !== 'email' && (
-                            <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-500 animate-in zoom-in" />
-                        )}
+            {stepState === 'email' && (
+                <div className="space-y-4">
+                    <Label htmlFor="email" className="text-base font-medium text-foreground">
+                        E-posta Adresi
+                    </Label>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex gap-3">
+                            <div className="relative flex-1">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    id="email"
+                                    placeholder="ornek@email.com"
+                                    {...register("email")}
+                                    className="pl-10 h-11 bg-background/50 border-border/50"
+                                    onKeyDown={(e) => e.key === 'Enter' && turnstileToken && handleCheckEmail()}
+                                />
+                            </div>
+                            <Button 
+                                type="button" 
+                                onClick={handleCheckEmail} 
+                                disabled={emailCheckLoading || !email || !turnstileToken}
+                                className="h-11 px-6 shadow-md"
+                            >
+                                {emailCheckLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                            </Button>
+                        </div>
+                        
+                        {/* Turnstile Widget for Email Step */}
+                        <div className="flex justify-center sm:justify-start">
+                            <Turnstile 
+                                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                                onVerify={setTurnstileToken}
+                            />
+                        </div>
                     </div>
-                    {stepState === 'email' && (
-                        <Button 
-                            type="button" 
-                            onClick={handleCheckEmail} 
-                            disabled={emailCheckLoading || !email}
-                            className="h-11 px-6 shadow-md"
-                        >
-                            {emailCheckLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                        </Button>
-                    )}
-                    {stepState !== 'email' && (
+                    {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                </div>
+            )}
+
+            {/* Read-Only Email Display for subsequent steps */}
+            {stepState !== 'email' && (
+                <div className="space-y-4">
+                    <Label className="text-base font-medium text-muted-foreground">E-posta Adresi</Label>
+                    <div className="flex gap-3">
+                        <div className="relative flex-1">
+                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                value={email}
+                                disabled
+                                className="pl-10 h-11 bg-background/50 border-border/50"
+                            />
+                            <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-500 animate-in zoom-in" />
+                        </div>
                         <Button variant="ghost" onClick={resetFlow} className="h-11 px-3 text-muted-foreground hover:text-destructive">
                             <RefreshCcw className="w-4 h-4" />
                         </Button>
-                    )}
+                    </div>
                 </div>
-                {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-            </div>
+            )}
 
             {/* 2. Resume / Login Mode */}
             {stepState === 'login' && (
@@ -289,6 +329,7 @@ function Requirement({ label, met }: { label: string, met: boolean }) {
 }
 
 // Change Log:
-// - Added `onTokenChange` prop to communicate the Turnstile token to the parent component.
-// - Rendered `<Turnstile />` in both 'login' (resume) and 'details' (register) steps.
-// - Managed local `turnstileToken` state.
+// - Added Turnstile to the 'email' step view.
+// - Added logic to clear `turnstileToken` when changing steps.
+// - Added validation to prevent email check without Turnstile token.
+// - Updated `sendVerificationCode` to include `token` in the body.

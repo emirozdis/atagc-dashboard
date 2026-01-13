@@ -3,31 +3,38 @@ import { supabase } from "@/lib/SERVER_supabase";
 import { apiHandler } from "@/lib/api-handler";
 import { sendEmail } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
-// Separate limiters for Sending and Verifying to prevent different attack vectors
+// Separate limiters for Sending and Verifying
 const sendLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 const verifyLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
-// Send Verification Code
+// Send Verification Code (Protected by Turnstile)
 export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  await sendLimiter.check(3, ip); // 3 sends per min
+  await sendLimiter.check(3, ip); // 3 sends per min limit still applies as fallback
 
-  const { email } = await request.json();
+  const { email, token } = await request.json();
   if (!email) throw new Error("Email required");
+
+  // Verify Turnstile Token
+  const isHuman = await verifyTurnstileToken(token);
+  if (!isHuman) {
+    return NextResponse.json({ error: "Doğrulama başarısız." }, { status: 403 });
+  }
 
   // Generate 6 digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString(); // 10 mins
 
-  // Store
+  // Store in DB
   const { error } = await supabase
     .from("email_verifications")
     .insert({ email, code, expires_at: expiresAt });
 
   if (error) throw error;
 
-  // Send
+  // Send Email
   await sendEmail(
     email,
     "ATAGÇ - E-posta Doğrulama Kodu",
@@ -42,10 +49,10 @@ export const POST = apiHandler(async (request: Request) => {
   return NextResponse.json({ success: true });
 });
 
-// Verify Code
+// Verify Code (Checking the digits entered by user)
 export const PUT = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  await verifyLimiter.check(10, ip); // 10 tries per min (allows for a few typos)
+  await verifyLimiter.check(10, ip); // 10 tries per min
 
   const { email, code } = await request.json();
 
@@ -60,7 +67,7 @@ export const PUT = apiHandler(async (request: Request) => {
     .limit(1)
     .single();
 
-  // Test Bypass
+  // Test Bypass (Optional - remove in production or use env var)
   if (code === "000000" && email.includes("test")) {
     return NextResponse.json({ success: true });
   }
@@ -79,5 +86,5 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Added rate limiting to PUT (Verify) endpoint (10/min) to prevent code brute-forcing.
-// - Kept POST (Send) endpoint rate limiting (3/min).
+// - Updated POST handler to extract and verify `token` (Cloudflare Turnstile).
+// - Returns 403 if Turnstile verification fails.

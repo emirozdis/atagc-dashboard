@@ -6,21 +6,26 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
 
   if (!secretKey) {
-    console.error("TURNSTILE_SECRET_KEY is not defined");
-    // Fail closed in production, maybe open in dev if needed, but safer to fail.
+    console.error("❌ Turnstile Error: TURNSTILE_SECRET_KEY is not defined in environment variables.");
     return false;
   }
 
-  // If we are in development and strictly want to bypass (optional flag)
+  // Optional bypass for local development
   if (process.env.NODE_ENV === "development" && process.env.TURNSTILE_BYPASS === "true") {
-    console.log("TURNSTILE_BYPASS is true, skipping verification");
+    console.log("⚠️ Turnstile bypassed via env var.");
     return true;
   }
 
-  if (!token) return false;
+  if (!token) {
+    console.error("❌ Turnstile Error: No token provided for verification.");
+    return false;
+  }
 
   try {
-    const ip = (await headers()).get("x-forwarded-for") || "127.0.0.1";
+    const headersList = await headers();
+    const forwardedFor = headersList.get("x-forwarded-for");
+    // Ensure we only send the first IP if multiple are present (Client IP)
+    const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : "127.0.0.1";
 
     const formData = new FormData();
     formData.append("secret", secretKey);
@@ -33,12 +38,21 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
     });
 
     const outcome = await result.json();
-    return outcome.success;
+
+    if (!outcome.success) {
+      console.error("❌ Turnstile Verification Failed. Error Codes:", outcome['error-codes']);
+      // invalid-input-secret: Check your TURNSTILE_SECRET_KEY in .env
+      // invalid-input-response: The token sent from frontend is invalid/expired
+      return false;
+    }
+
+    return true;
   } catch (e) {
-    console.error("Turnstile verification error:", e);
+    console.error("❌ Turnstile Network/System Error:", e);
     return false;
   }
 }
 
 // Change Log:
-// - Created utility to verify Cloudflare Turnstile tokens server-side.
+// - Added logic to parse the primary IP from `x-forwarded-for` to prevent format errors.
+// - Added explicit error logging for missing secrets and Cloudflare error codes.
