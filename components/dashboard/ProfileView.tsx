@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card, CardContent, CardHeader, CardTitle
@@ -12,7 +12,7 @@ import {
   Loader2, Mail, MapPin, Phone, GraduationCap, Building2,
   Lock, Laptop, Smartphone, LogOut, Globe, EyeOff, Shield,
   User as UserIcon, Calendar,
-  QrCode, UserPlus
+  QrCode, UserPlus, Bell
 } from "lucide-react";
 import { ProfileData } from "@/types/dashboard";
 import { toast } from "sonner";
@@ -22,7 +22,6 @@ import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { useSession } from "next-auth/react";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
 
-// Types for Device Management
 interface DeviceSession {
   id: string;
   ip: string;
@@ -35,10 +34,17 @@ interface DeviceSession {
   };
 }
 
-// Extension for ProfileData to include allow_connections if not already in type
+interface NotificationPrefs {
+    application: boolean;
+    committee: boolean;
+    social: boolean;
+    system: boolean;
+}
+
 interface ExtendedProfileData extends Omit<ProfileData, 'userDetails'> {
   userDetails: NonNullable<ProfileData['userDetails']> & {
     allow_connections?: boolean;
+    notification_preferences?: NotificationPrefs;
   } | null;
 }
 
@@ -64,6 +70,20 @@ export function ProfileView() {
       return res.json();
     }
   });
+
+  // Local state for instant UI update
+  const [prefs, setPrefs] = useState<NotificationPrefs>({
+      application: true,
+      committee: true,
+      social: true,
+      system: true
+  });
+
+  useEffect(() => {
+      if (profile?.userDetails?.notification_preferences) {
+          setPrefs(profile.userDetails.notification_preferences);
+      }
+  }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (url: string) => {
@@ -113,6 +133,27 @@ export function ProfileView() {
     onError: () => toast.error("Hata oluştu")
   });
 
+  const updatePrefsMutation = useMutation({
+      mutationFn: async (newPrefs: NotificationPrefs) => {
+          const res = await fetch("/api/participant/me", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ notification_preferences: newPrefs })
+          });
+          if (!res.ok) throw new Error("Failed");
+      },
+      onSuccess: () => {
+          toast.success("Tercihler kaydedildi");
+      },
+      onError: () => toast.error("Kayıt başarısız")
+  });
+
+  const handlePrefChange = (key: keyof NotificationPrefs, val: boolean) => {
+      const newPrefs = { ...prefs, [key]: val };
+      setPrefs(newPrefs);
+      updatePrefsMutation.mutate(newPrefs);
+  };
+
   const revokeSessionMutation = useMutation({
     mutationFn: async (sessionId?: string) => {
       const params = sessionId ? `id=${sessionId}` : `type=all_others`;
@@ -151,7 +192,7 @@ export function ProfileView() {
   const additional = userDetails?.additional_info || ({} as any);
   const profilePic = userDetails?.profile_picture_url || null;
   const isHidden = userDetails?.is_profile_picture_hidden || false;
-  const allowConnections = userDetails?.allow_connections !== false; // Default true
+  const allowConnections = userDetails?.allow_connections !== false;
 
   const getRoleBadge = (role: string) => {
     const styles: Record<string, string> = {
@@ -208,7 +249,6 @@ export function ProfileView() {
               </div>
             </div>
             
-            {/* Status indicators */}
             <div className="flex gap-2">
                 {isHidden && (
                     <div className="flex items-center gap-1.5 text-[10px] bg-secondary/50 text-muted-foreground px-2 py-1 rounded-md border border-border/50">
@@ -229,7 +269,6 @@ export function ProfileView() {
         
         {/* Left Column (Details & Security) */}
         <div className="lg:col-span-2 flex flex-col gap-6">
-          {/* Personal Information */}
           <Card className="border-border/50 flex-1">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
@@ -244,7 +283,6 @@ export function ProfileView() {
             </CardContent>
           </Card>
 
-          {/* Security & Privacy Section */}
           <Card className="border-border/50">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
@@ -253,9 +291,7 @@ export function ProfileView() {
             </CardHeader>
             <CardContent className="pt-4 space-y-6">
               
-              {/* Privacy Toggles */}
               <div className="space-y-4">
-                {/* Connection Privacy Toggle */}
                 <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                     <div className="space-y-0.5">
                         <div className="text-sm font-medium flex items-center gap-2">
@@ -263,7 +299,7 @@ export function ProfileView() {
                             Bağlantı İstekleri
                         </div>
                         <div className="text-xs text-muted-foreground max-w-[250px]">
-                            Diğer katılımcıların QR kodunuzu tarayarak size bağlantı isteği göndermesine izin verin.
+                            Diğer katılımcıların size bağlantı isteği göndermesine izin verin.
                         </div>
                     </div>
                     <Switch 
@@ -273,7 +309,6 @@ export function ProfileView() {
                     />
                 </div>
 
-                {/* Profile Pic Privacy Toggle */}
                 <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                     <div className="space-y-0.5">
                         <div className="text-sm font-medium flex items-center gap-2">
@@ -281,7 +316,7 @@ export function ProfileView() {
                             Profil Fotoğrafı
                         </div>
                         <div className="text-xs text-muted-foreground max-w-[250px]">
-                            Fotoğrafınızı diğer katılımcılardan gizleyin (Yöneticiler görmeye devam eder).
+                            Fotoğrafınızı diğer katılımcılardan gizleyin.
                         </div>
                     </div>
                     <Switch
@@ -303,7 +338,6 @@ export function ProfileView() {
                 </Button>
               </div>
 
-              {/* Active Sessions */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium flex items-center gap-2">
@@ -353,15 +387,43 @@ export function ProfileView() {
           </Card>
         </div>
 
-        {/* Right Column: Digital ID */}
-        <div className="lg:col-span-1 flex flex-col gap-6 h-full">
-          {/* Card Component handles stretching with flex-1 */}
+        {/* Right Column: E-posta Tercihleri + Digital ID */}
+        <div className="lg:col-span-1 flex flex-col gap-6">
+          <Card className="border-border/50">
+            <CardHeader className="pb-3 border-b border-border/50">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bell className="w-4 h-4 text-primary" /> E-posta Bildirimleri
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+               <div className="flex items-center justify-between">
+                   <span className="text-sm font-medium">Başvuru Durumu</span>
+                   <Switch checked={prefs.application} onCheckedChange={(v) => handlePrefChange('application', v)} />
+               </div>
+               <div className="flex items-center justify-between">
+                   <span className="text-sm font-medium">Komite Duyuruları</span>
+                   <Switch checked={prefs.committee} onCheckedChange={(v) => handlePrefChange('committee', v)} />
+               </div>
+               <div className="flex items-center justify-between">
+                   <span className="text-sm font-medium">Bağlantı İstekleri</span>
+                   <Switch checked={prefs.social} onCheckedChange={(v) => handlePrefChange('social', v)} />
+               </div>
+               <div className="flex items-center justify-between">
+                   <span className="text-sm font-medium">Sistem Uyarıları</span>
+                   <Switch checked={prefs.system} onCheckedChange={(v) => handlePrefChange('system', v)} />
+               </div>
+               <p className="text-[10px] text-muted-foreground pt-2 border-t border-border/50">
+                   Güvenlik (şifre, hesap) bildirimleri kapatılamaz.
+               </p>
+            </CardContent>
+          </Card>
+
           <DigitalIdCard user={user} className="flex-1" uniqueId="profile" />
           
-          <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed shrink-0">
+          <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed">
             <p className="flex gap-2">
               <QrCode className="w-4 h-4 text-primary shrink-0" />
-              Bu QR kod etkinlik alanına girişlerde, yoklamalarda ve diğer katılımcılarla bağlantı kurmak için kullanılır. Kartın üzerine tıklayarak büyütebilirsiniz.
+              Bu QR kod etkinlik alanına girişlerde, yoklamalarda ve diğer katılımcılarla bağlantı kurmak için kullanılır.
             </p>
           </div>
         </div>
@@ -401,7 +463,5 @@ function ProfileSkeleton() {
 }
 
 // Change Log:
-// - Added `allow_connections` fetching and display in `ExtendedProfileData`.
-// - Added `toggleConnectionPrivacyMutation` to handle updating the setting.
-// - Added UI switch for "Bağlantı İstekleri" in the Security card.
-// - Added indicators in the header card for active privacy settings.
+// - Added Notification Preferences card to the UI.
+// - Implemented `updatePrefsMutation` to persist settings via `api/participant/me`.

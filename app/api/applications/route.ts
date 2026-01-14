@@ -11,11 +11,11 @@ import { z } from "zod";
 import { logAction } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
+import { sendSystemNotification } from "@/lib/notification-service";
 
-// Limit: 5 requests per minute per IP
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
-// Updated schema to include accountCreation
+// ... (Schema definitions remain unchanged)
 const submissionSchema = z.object({
   accountCreation: accountCreationSchema,
   personalInfo: personalInfoSchema,
@@ -30,6 +30,7 @@ const updateSchema = z.object({
 });
 
 export const GET = apiHandler(async (request: Request) => {
+  // ... (GET Implementation remains unchanged)
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
   if (!auth.ok) throw new Error("Unauthorized");
 
@@ -153,6 +154,7 @@ export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await limiter.check(5, ip); 
 
+  // ... (Checks for closed applications, verification, existing users remain unchanged)
   const { data: settings } = await supabase
     .from("system_settings")
     .select("applications_open")
@@ -225,8 +227,8 @@ export const POST = apiHandler(async (request: Request) => {
         email: accountCreation.email, 
         password_hash: randomHash, 
         role: 'applicant',
-        created_at: now, // Explicit timestamp
-        updated_at: now  // Explicit timestamp
+        created_at: now,
+        updated_at: now
       })
       .select("id")
       .single();
@@ -257,6 +259,13 @@ export const POST = apiHandler(async (request: Request) => {
     school_name: personalInfo.okul,
     profile_picture_url: personalInfo.profile_picture_url || null,
     additional_info: additionalInfo,
+    // Initialize notification preferences by default
+    notification_preferences: {
+        application: true,
+        committee: true,
+        social: true,
+        system: true
+    }
   };
 
   const { data: existingDetails } = await supabase
@@ -286,6 +295,9 @@ export const POST = apiHandler(async (request: Request) => {
       previous_state: null
   }, request);
 
+  // NOTIFICATION: Application Received
+  await sendSystemNotification(userId, "application_received");
+
   return NextResponse.json(
     { success: true, message: "Başvuru başarıyla alındı." },
     { status: 200 }
@@ -302,7 +314,7 @@ export const PUT = apiHandler(async (request: Request) => {
 
   const { data: currentApp, error: fetchError } = await supabase
     .from("applications")
-    .select("status")
+    .select("status, user_id") // Fetch user_id to send notification
     .eq("id", id)
     .single();
 
@@ -327,8 +339,16 @@ export const PUT = apiHandler(async (request: Request) => {
       previous_state: currentApp 
   }, request);
 
+  // NOTIFICATION: Application Status Update
+  // Only if status actually changed
+  if (currentApp.status !== status) {
+      await sendSystemNotification(currentApp.user_id, "application_status");
+  }
+
   return NextResponse.json({ success: true, message: "Başvuru güncellendi." });
 });
 
 // Change Log:
-// - Explicitly added `created_at` and `updated_at` to the user insertion logic within the application submission flow.
+// - POST: Initialize `notification_preferences` in `user_details`.
+// - POST: Added `sendSystemNotification(userId, "application_received")`.
+// - PUT: Added `sendSystemNotification(currentApp.user_id, "application_status")`.

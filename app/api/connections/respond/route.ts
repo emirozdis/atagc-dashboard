@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
+import { sendSystemNotification } from "@/lib/notification-service";
 
 export async function PUT(request: Request) {
   // Enforce Approved status
@@ -43,6 +44,11 @@ export async function PUT(request: Request) {
 
     await logAction(userId, `connection_${action}`, { connection_id: connectionId, requester_id: connection.requester_id }, request);
 
+    // NOTIFICATION (Only on Accept)
+    if (action === 'accept') {
+        await sendSystemNotification(connection.requester_id, "connection_accepted");
+    }
+
     return NextResponse.json({ success: true });
 
   } catch (error) {
@@ -78,4 +84,4 @@ export async function DELETE(request: Request) {
 }
 
 // Change Log:
-// - Added `requireApproved: true` to `getAuthorization`.
+// - Added `sendSystemNotification` call when a connection is accepted.

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
+import { sendSystemNotification } from "@/lib/notification-service";
 
 export async function POST(request: Request) {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
 
     // If committeeId is provided, we are assigning/updating
     if (committeeId) {
+        let isNewAssignment = false;
         if (existing) {
             // Update existing assignment
              const { error } = await supabase
@@ -52,6 +54,8 @@ export async function POST(request: Request) {
                  new_committee_id: committeeId,
                  previous_state: existing 
              }, request);
+             
+             if (existing.committee_id !== committeeId) isNewAssignment = true;
         } else {
             // Insert new assignment
             const { error } = await supabase
@@ -64,7 +68,14 @@ export async function POST(request: Request) {
                 committee_id: committeeId,
                 previous_state: null
             }, request);
+            isNewAssignment = true;
         }
+
+        // NOTIFICATION: Committee Assignment
+        if (isNewAssignment) {
+            await sendSystemNotification(userId, "committee_assignment");
+        }
+
     } else {
         // If committeeId is null/empty/undefined, remove assignment
         if (existing) {
@@ -88,5 +99,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
 // Change Log:
-// - Added check to prevent 'superadmin' users from being assigned to a committee.
+// - Added `sendSystemNotification(userId, "committee_assignment")` when a user is assigned or changed committees.

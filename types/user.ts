@@ -6,6 +6,12 @@ export interface UserDetail {
     is_profile_picture_hidden?: boolean;
     additional_info?: any;
     allow_connections?: boolean;
+    notification_preferences?: {
+        application: boolean;
+        committee: boolean;
+        social: boolean;
+        system: boolean;
+    };
 }
 
 export interface Warning {
@@ -56,6 +62,9 @@ export interface User {
     }[] | null;
 
     // Warnings
-    user_warnings?: Warning[]; // For detail view
-    warnings_count?: number;   // For table view (mapped from user_warnings array length usually)
+    user_warnings?: Warning[]; 
+    warnings_count?: number;   
 }
+
+// Change Log:
+// - Added `notification_preferences` to `UserDetail` interface.

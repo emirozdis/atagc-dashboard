@@ -4,9 +4,11 @@ import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
 import { logAction } from "@/lib/logger";
 import { getSignedUrl } from "@/lib/storage-utils";
+import { sendSystemNotification } from "@/lib/notification-service";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
+// ... GET implementation remains unchanged ...
 export async function GET(request: Request) {
   // Enforce Approved status for connections
   const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
@@ -159,6 +161,10 @@ export async function POST(request: Request) {
           if (updateError) throw updateError;
 
           await logAction(requesterId, "connection_request_resend", { target_id: targetUserId }, request);
+          
+          // NOTIFICATION (Resend)
+          await sendSystemNotification(targetUserId, "connection_request");
+
           return NextResponse.json({ success: true, message: "İstek tekrar gönderildi." });
         } else {
           await supabase.from("user_connections").delete().eq("id", existing.id);
@@ -182,6 +188,9 @@ export async function POST(request: Request) {
 
     await logAction(requesterId, "connection_request", { target_id: targetUserId }, request);
 
+    // NOTIFICATION (New Request)
+    await sendSystemNotification(targetUserId, "connection_request");
+
     return NextResponse.json({ 
       success: true, 
       message: `Bağlantı isteği gönderildi: ${targetUser?.full_name}` 
@@ -194,5 +203,4 @@ export async function POST(request: Request) {
 }
 
 // Change Log:
-// - Added `requireApproved: true` to `getAuthorization` in both GET and POST.
-// - Ensured `created_at` in POST uses `new Date().toISOString()`.
+// - Added `sendSystemNotification(targetUserId, "connection_request")` when a new or resent request occurs.

@@ -5,6 +5,7 @@ import getAuthorization from "@/lib/getAuthorization";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { sendSystemNotification } from "@/lib/notification-service";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
@@ -58,16 +59,18 @@ export const POST = apiHandler(async (request: Request) => {
 
     await logAction(session.user.id, "change_password", { method: "profile_settings" }, request);
 
+    // NOTIFICATION: Password Changed (Mandatory)
+    await sendSystemNotification(session.user.id, "password_changed");
+
     // 5. Handle Device Sign Out Logic
     let signOutMessage = "";
     
-    // By default or if requested, we sign out OTHER devices for security.
     if (signOutOthers !== false) {
         const { error: deleteError } = await supabase
             .from("active_sessions")
             .delete()
             .eq("user_id", session.user.id)
-            .neq("id", session.user.sessionId); // Keep CURRENT session alive so user isn't kicked immediately
+            .neq("id", session.user.sessionId); 
         
         if (!deleteError) {
             signOutMessage = " Diğer cihazlardan çıkış yapıldı.";
@@ -81,4 +84,4 @@ export const POST = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Added logic to delete from `active_sessions` excluding the current session ID upon password change.
+// - Added `sendSystemNotification` call for password change security alert.

@@ -3,6 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
 import { canManageRole } from "@/lib/permissions";
+import { sendSystemNotification } from "@/lib/notification-service";
 
 export async function POST(request: Request) {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin", "committee_chairman"] });
@@ -40,6 +41,9 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     await logAction(session.user.id, "issue_warning", { target_id: userId, reason }, request);
+
+    // NOTIFICATION: Warning Issued
+    await sendSystemNotification(userId, "warning_issued");
 
     return NextResponse.json({ success: true });
 
@@ -91,3 +95,6 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: "Delete failed" }, { status: 500 });
     }
 }
+
+// Change Log:
+// - Added `sendSystemNotification(userId, "warning_issued")` when creating a warning.

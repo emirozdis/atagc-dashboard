@@ -25,6 +25,7 @@ export const GET = apiHandler(async (request: Request) => {
 
   const [
     { data: user, error: userError },
+    // Added `notification_preferences` to selection
     { data: userDetails, error: detailsError },
     { data: application, error: appError },
     { data: committeeMember, error: cmError },
@@ -32,8 +33,7 @@ export const GET = apiHandler(async (request: Request) => {
     { data: settingsData, error: settingsError }
   ] = await Promise.all([
     supabase.from("users").select("id, full_name, email, role, created_at, updated_at").eq("id", userId).maybeSingle(),
-    // Added allow_connections to the select query
-    supabase.from("user_details").select("id, birth_date, phone_number, school_name, profile_picture_url, is_profile_picture_hidden, allow_connections, additional_info").eq("user_id", userId).maybeSingle(),
+    supabase.from("user_details").select("id, birth_date, phone_number, school_name, profile_picture_url, is_profile_picture_hidden, allow_connections, notification_preferences, additional_info").eq("user_id", userId).maybeSingle(),
     supabase.from("applications").select("id, status, submitted_at, review_notes").eq("user_id", userId).maybeSingle(),
     supabase.from("committee_members").select(`
         can_write, 
@@ -63,7 +63,7 @@ export const GET = apiHandler(async (request: Request) => {
     userDetails.profile_picture_url = await getSignedUrl("profile-pictures", userDetails.profile_picture_url) || userDetails.profile_picture_url;
   }
 
-  // 2. Sign and Filter Committee Chairman Profile Picture (for Participant View)
+  // 2. Sign and Filter Committee Chairman Profile Picture
   if (committeeMember?.committee) {
     const c = Array.isArray(committeeMember.committee) ? committeeMember.committee[0] : committeeMember.committee;
     const adminUser = Array.isArray(c?.admin) ? c.admin[0] : c?.admin;
@@ -83,7 +83,7 @@ export const GET = apiHandler(async (request: Request) => {
     }
   }
 
-  // 3. Process Committee Members (If exists)
+  // 3. Process Committee Members
   let membersData = null;
   let recentRollCalls = null;
   let targetCommitteeId = null;
@@ -220,7 +220,8 @@ export const PUT = apiHandler(async (request: Request) => {
   const body = await request.json();
   const { 
     full_name, phone_number, school_name, birth_date, city, 
-    profile_picture_url, is_profile_picture_hidden, allow_connections 
+    profile_picture_url, is_profile_picture_hidden, allow_connections,
+    notification_preferences // Added
   } = body;
 
   // 1. Update basic user info
@@ -239,9 +240,8 @@ export const PUT = apiHandler(async (request: Request) => {
   if (birth_date) detailsUpdate.birth_date = birth_date;
   if (profile_picture_url !== undefined) detailsUpdate.profile_picture_url = profile_picture_url;
   if (is_profile_picture_hidden !== undefined) detailsUpdate.is_profile_picture_hidden = is_profile_picture_hidden;
-  
-  // Update privacy setting
   if (allow_connections !== undefined) detailsUpdate.allow_connections = allow_connections;
+  if (notification_preferences !== undefined) detailsUpdate.notification_preferences = notification_preferences;
 
   // Handling additional info (JSONB) merge for City
   const { data: existingDetails } = await supabase
@@ -279,5 +279,4 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Added `allow_connections` field to the selection in GET.
-// - Added `allow_connections` field handling in PUT for updating privacy settings.
+// - Added `notification_preferences` to GET selection and PUT handler.

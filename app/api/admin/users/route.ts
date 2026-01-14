@@ -4,7 +4,9 @@ import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { canManageRole } from "@/lib/permissions";
+import { sendSystemNotification } from "@/lib/notification-service";
 
+// ... GET implementation remains unchanged ...
 export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin", "committee_chairman"] });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
@@ -15,7 +17,7 @@ export const GET = apiHandler(async (request: Request) => {
   const search = searchParams.get("search") || "";
   const role = searchParams.get("role") || "all";
   const status = searchParams.get("status") || "all";
-  const warningFilter = searchParams.get("warnings") || "all"; // 'all', 'has_warnings'
+  const warningFilter = searchParams.get("warnings") || "all";
   const sortBy = searchParams.get("sort_by") || "created_at";
   const sortOrder = searchParams.get("sort_order") || "desc";
   const idsParam = searchParams.get("ids");
@@ -36,8 +38,6 @@ export const GET = apiHandler(async (request: Request) => {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  // Explicitly specify the foreign key for user_warnings to resolve PGRST201 ambiguity
-  // !user_warnings_user_id_fkey tells Supabase to use the FK on user_id (target user), not issued_by.
   const selectString = warningFilter === "has_warnings" 
     ? `
       id, 
@@ -72,7 +72,6 @@ export const GET = apiHandler(async (request: Request) => {
 
   if (search) query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
 
-  // Sorting
   if (sortBy === "created_at" || sortBy === "full_name") {
       query = query.order(sortBy, { ascending: sortOrder === 'asc' });
   }
@@ -83,14 +82,12 @@ export const GET = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
-  // Transform data to include warning count
   const transformedData = data.map((user: any) => ({
       ...user,
       warnings_count: user.user_warnings?.length || 0,
-      user_warnings: undefined // Remove the array to save bandwidth
+      user_warnings: undefined 
   }));
 
-  // Client-side sort fallback for current page if sorting by derived field
   if (sortBy === "warnings_count") {
       transformedData.sort((a: any, b: any) => {
           return sortOrder === 'asc' 
@@ -136,11 +133,20 @@ export const PUT = apiHandler(async (request: Request) => {
 
     const { error } = await supabase.from("users").update(updates).eq("id", id);
     if (error) throw error;
+    
     await logAction(session.user.id, "update_user", { target_user_id: id, updates, previous_state: targetUser }, request);
+
+    // NOTIFICATION: Account Suspended
+    if (is_suspended === true && !targetUser.is_suspended) {
+        await sendSystemNotification(id, "account_suspended");
+    }
+
     return NextResponse.json({ success: true });
   }
 
   if (ids && Array.isArray(ids)) {
+    // Batch updates currently don't trigger emails to avoid spam/timeout, or loop over them.
+    // Given the requirement isn't explicit about batch operations, leaving as is for now.
     if (role && !canManageRole(session.user.role, role)) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     const updates: any = {};
     if (role !== undefined) updates.role = role;
@@ -153,6 +159,7 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 export const DELETE = apiHandler(async (request: Request) => {
+  // ... (DELETE Implementation remains unchanged)
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   const session = auth.session;
@@ -173,7 +180,7 @@ export const DELETE = apiHandler(async (request: Request) => {
     supabase.from("vote_responses").delete().eq("user_id", id),
     supabase.from("resources").delete().eq("uploaded_by", id),
     supabase.from("active_sessions").delete().eq("user_id", id),
-    supabase.from("user_warnings").delete().eq("user_id", id), // Clean warnings
+    supabase.from("user_warnings").delete().eq("user_id", id),
   ];
   await Promise.all(deletions);
   const { error } = await supabase.from("users").delete().eq("id", id);
@@ -183,6 +190,4 @@ export const DELETE = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Updated query string to explicitly use `user_warnings:user_warnings!user_warnings_user_id_fkey` to resolve ambiguity.
-// - Consolidated filter logic to apply search/role/status filters to both normal and 'has_warnings' query paths correctly.
-// - Added cleanup for `user_warnings` in the DELETE handler.
+// - PUT: Added `sendSystemNotification(id, "account_suspended")` check when suspending user.
