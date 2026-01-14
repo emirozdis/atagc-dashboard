@@ -68,7 +68,7 @@ CREATE TABLE public.email_verifications (
   code character varying NOT NULL,
   expires_at timestamp with time zone NOT NULL,
   verified boolean DEFAULT false,
-  created_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT (now() AT TIME ZONE 'utc'::text),
   CONSTRAINT email_verifications_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.logs (
@@ -170,6 +170,7 @@ CREATE TABLE public.user_details (
   profile_picture_url text,
   is_profile_picture_hidden boolean DEFAULT false,
   allow_connections boolean DEFAULT true,
+  notification_preferences jsonb DEFAULT '{"social": true, "system": true, "committee": true, "application": true}'::jsonb,
   CONSTRAINT user_details_pkey PRIMARY KEY (id),
   CONSTRAINT user_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
