@@ -25,14 +25,20 @@ export const GET = apiHandler(async (request: Request) => {
 
   const [
     { data: user, error: userError },
-    // Added `notification_preferences` to selection
     { data: userDetails, error: detailsError },
     { data: application, error: appError },
     { data: committeeMember, error: cmError },
     { data: managedCommittee, error: managedError },
     { data: settingsData, error: settingsError }
   ] = await Promise.all([
-    supabase.from("users").select("id, full_name, email, role, created_at, updated_at").eq("id", userId).maybeSingle(),
+    // Fetches user core data + warnings
+    supabase.from("users").select(`
+        id, full_name, email, role, created_at, updated_at,
+        user_warnings:user_warnings!user_warnings_user_id_fkey (
+            id, reason, created_at,
+            issuer:users!user_warnings_issued_by_fkey ( full_name, role )
+        )
+    `).eq("id", userId).maybeSingle(),
     supabase.from("user_details").select("id, birth_date, phone_number, school_name, profile_picture_url, is_profile_picture_hidden, allow_connections, notification_preferences, additional_info").eq("user_id", userId).maybeSingle(),
     supabase.from("applications").select("id, status, submitted_at, review_notes").eq("user_id", userId).maybeSingle(),
     supabase.from("committee_members").select(`
@@ -221,7 +227,7 @@ export const PUT = apiHandler(async (request: Request) => {
   const { 
     full_name, phone_number, school_name, birth_date, city, 
     profile_picture_url, is_profile_picture_hidden, allow_connections,
-    notification_preferences // Added
+    notification_preferences 
   } = body;
 
   // 1. Update basic user info
@@ -279,4 +285,4 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Added `notification_preferences` to GET selection and PUT handler.
+// - Updated GET to fetch `user_warnings` relation for the user.

@@ -12,7 +12,7 @@ import {
   Loader2, Mail, MapPin, Phone, GraduationCap, Building2,
   Lock, Laptop, Smartphone, LogOut, Globe, EyeOff, Shield,
   User as UserIcon, Calendar,
-  QrCode, UserPlus, Bell
+  QrCode, UserPlus, Bell, AlertTriangle
 } from "lucide-react";
 import { ProfileData } from "@/types/dashboard";
 import { toast } from "sonner";
@@ -193,6 +193,7 @@ export function ProfileView() {
   const profilePic = userDetails?.profile_picture_url || null;
   const isHidden = userDetails?.is_profile_picture_hidden || false;
   const allowConnections = userDetails?.allow_connections !== false;
+  const warnings = user.user_warnings || [];
 
   const getRoleBadge = (role: string) => {
     const styles: Record<string, string> = {
@@ -282,6 +283,39 @@ export function ProfileView() {
               <InfoItem icon={MapPin} label="Şehir" value={additional.city} />
             </CardContent>
           </Card>
+
+          {/* Warnings Section (Visible only if warnings exist) */}
+          {warnings.length > 0 && (
+            <Card className="border-border/50 border-l-4 border-l-yellow-500/50">
+              <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" /> Disiplin Kaydı
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                {warnings.map((w) => (
+                  <div key={w.id} className="p-3 bg-secondary/10 border border-border/50 rounded-lg space-y-2">
+                    <div className="flex justify-between items-start">
+                        <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 px-1.5 py-0 text-[10px]">
+                            Uyarı
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                            {new Date(w.created_at).toLocaleDateString('tr-TR')}
+                        </span>
+                    </div>
+                    <p className="text-sm text-foreground/90 leading-relaxed font-medium">
+                        {w.reason}
+                    </p>
+                    {w.issuer && (
+                        <div className="text-[10px] text-muted-foreground text-right pt-1">
+                            Yetkili: {w.issuer.full_name}
+                        </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-border/50">
             <CardHeader className="pb-3 border-b border-border/50">
@@ -463,5 +497,6 @@ function ProfileSkeleton() {
 }
 
 // Change Log:
-// - Added Notification Preferences card to the UI.
-// - Implemented `updatePrefsMutation` to persist settings via `api/participant/me`.
+// - Added "Disiplin Kaydı" (Disciplinary Record) card to show active warnings if any.
+// - Card uses a distinct yellow left border to indicate alert status.
+// - Each warning displays the reason, date, and issuer.

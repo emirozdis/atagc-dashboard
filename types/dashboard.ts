@@ -6,6 +6,16 @@ export interface ProfileData {
         role: string;
         created_at: string;
         updated_at: string;
+        // Added user_warnings
+        user_warnings?: {
+            id: string;
+            reason: string;
+            created_at: string;
+            issuer?: {
+                full_name: string;
+                role: string;
+            };
+        }[];
     };
     userDetails: {
         id: string;
@@ -111,3 +121,5 @@ export interface EditorMember {
     role: string;
     can_edit: boolean;
 }
+// Change Log:
+// - Added `user_warnings` array to `ProfileData.user` interface.
