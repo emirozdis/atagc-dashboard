@@ -16,7 +16,6 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Turnstile } from "@/components/ui/turnstile";
-import { signIn } from "next-auth/react";
 
 interface AccountCreationStepProps {
     form: UseFormReturn<AccountCreationData>;
@@ -64,8 +63,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         const isEmailFormatValid = await trigger("email");
         if (!isEmailFormatValid) return;
 
-        // Require Turnstile token for the initial check
-        if (!turnstileToken) {
+        // In development, allow bypass
+        const isDev = process.env.NODE_ENV === "development";
+        if (!turnstileToken && !isDev) {
             toast.error("Lütfen doğrulamayı tamamlayın.");
             return;
         }
@@ -101,6 +101,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     };
 
     const sendVerificationCode = async () => {
+        const isDev = process.env.NODE_ENV === "development";
+        const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
+
         setLoading(true);
         try {
             const res = await fetch("/api/auth/verify", {
@@ -108,7 +111,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     email: getValues("email"),
-                    token: turnstileToken // Pass token for verification
+                    token: effectiveToken // Pass token for verification
                 }),
             });
             
@@ -162,6 +165,10 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         setTurnstileKey(prev => prev + 1);
     };
 
+    // Determine if button should be disabled
+    const isDev = process.env.NODE_ENV === "development";
+    const isEmailButtonDisabled = emailCheckLoading || !email || (!turnstileToken && !isDev);
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
@@ -180,13 +187,13 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                                     placeholder="ornek@email.com"
                                     {...register("email")}
                                     className="pl-10 h-11 bg-background/50 border-border/50"
-                                    onKeyDown={(e) => e.key === 'Enter' && turnstileToken && handleCheckEmail()}
+                                    onKeyDown={(e) => e.key === 'Enter' && !isEmailButtonDisabled && handleCheckEmail()}
                                 />
                             </div>
                             <Button 
                                 type="button" 
                                 onClick={handleCheckEmail} 
-                                disabled={emailCheckLoading || !email || !turnstileToken}
+                                disabled={isEmailButtonDisabled}
                                 className="h-11 px-6 shadow-md"
                             >
                                 {emailCheckLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
@@ -342,6 +349,6 @@ function Requirement({ label, met }: { label: string, met: boolean }) {
 }
 
 // Change Log:
-// - Updated `AccountCreationStep` logic to handle Turnstile token lifecycle better.
-// - NOTE: The actual logic that prevents the "account created but login failed" user trap is in `ApplicationForm.tsx` (the parent component), 
-//   where we handle the API response logic. This component focuses on UI states.
+// - Updated `handleCheckEmail` and `sendVerificationCode` to allow bypass if `process.env.NODE_ENV === "development"`.
+// - The UI button is now enabled if no token is present but we are in dev mode.
+// - Uses "DEV_BYPASS" token string in dev mode when calling the API.

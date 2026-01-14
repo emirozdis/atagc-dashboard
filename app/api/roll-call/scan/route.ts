@@ -4,11 +4,12 @@ import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
-// Rate limit: 20 scans per minute per IP (allows for quick sequential scanning if needed, but blocks abusive loops)
+// Rate limit: 20 scans per minute per IP
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export async function POST(request: Request) {
-    const auth = await getAuthorization({ requireAuth: true });
+    // Enforce Approved status for scanning
+    const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
     if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
     const session = auth.session;
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
         const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
         await limiter.check(20, ip);
 
-        const { token } = await request.json(); // The QR code string (UUID) 
+        const { token } = await request.json(); 
 
         if (!token) {
             return NextResponse.json({ error: "Token is required" }, { status: 400 });
@@ -41,7 +42,6 @@ export async function POST(request: Request) {
             .eq("committee_id", rollCall.committee_id)
             .maybeSingle();
 
-        // Allow Admins/Superadmins to bypass membership check
         const isAdmin = session.user.role === 'superadmin' || session.user.role === 'admin';
 
         if (!membership && !isAdmin) {
@@ -65,7 +65,8 @@ export async function POST(request: Request) {
             .from("roll_call_logs")
             .insert({
                 roll_call_id: rollCall.id,
-                user_id: session.user.id
+                user_id: session.user.id,
+                scanned_at: new Date().toISOString() // Explicit timestamp
             });
 
         if (insertError) throw insertError;
@@ -88,4 +89,5 @@ export async function POST(request: Request) {
 }
 
 // Change Log:
-// - Added rate limiting (20 requests/min).
+// - Added `requireApproved: true` to prevent pending users from scanning roll calls.
+// - Added explicit `scanned_at` timestamp.

@@ -3,8 +3,8 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization"; 
 import { logAction } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { sanitizeHtml } from "@/lib/sanitize";
 
-// Read Limit: 60/min, Write Limit: 10/min
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
 
@@ -16,8 +16,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
   }
 
-  const auth = await getAuthorization({ requireAuth: false });
+  // Require approved status to see internal announcements
+  // Public logic handles non-logged in if allowed, but strict mode implies restriction.
+  // We'll enforce requireApproved = true for authenticated applicants.
+  const auth = await getAuthorization({ requireAuth: false, requireApproved: true });
   const session = auth.session;
+
+  // However, getAuthorization might return 403 if requireApproved is true and user is pending.
+  // But wait, getAuthorization returns {ok: false} if check fails.
+  // We need to handle this manually because we allow unauthenticated access for PUBLIC announcements (if any)
+  // OR we enforce approval only if logged in.
+  
+  // Actually, if a user is 'pending', they shouldn't see announcements page at all per requirement.
+  // So if logged in AND pending, return 403.
+  if (session?.user?.role === 'applicant' && session.user.applicationStatus !== 'approved') {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   // Base query
   let query = supabase
@@ -28,14 +42,13 @@ export async function GET(request: Request) {
     `)
     .order("created_at", { ascending: false });
 
-  // If no session, only show public
   if (!session?.user) {
+     // If not logged in, only see public
      query = query.eq("is_public", true);
   } else {
      const role = session.user.role;
      const userId = session.user.id;
 
-     // Admins see all announcements
      if (role !== 'superadmin' && role !== 'admin') {
          // User logic: public + targeted
          const { data: memberData } = await supabase
@@ -45,6 +58,7 @@ export async function GET(request: Request) {
          
          const userCommitteeIds = memberData?.map(m => m.committee_id) || [];
          
+         // Using Postgres array operators for overlap
          let orFilter = `is_public.eq.true,target_user_ids.cs.{${userId}}`;
          
          if (userCommitteeIds.length > 0) {
@@ -108,11 +122,12 @@ export async function POST(request: Request) {
 
     const insertData: any = {
         title,
-        content,
+        content: sanitizeHtml(content),
         author_id: session.user.id,
         is_public: true, 
         committee_ids: null,
-        target_user_ids: null
+        target_user_ids: null,
+        created_at: new Date().toISOString() // Explicit timestamptz
     };
 
     if (targetType === 'committee' && committeeIds && committeeIds.length > 0) {
@@ -163,7 +178,6 @@ export async function DELETE(request: Request) {
 
         if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
 
-        // Fetch previous state
         const { data: previousState } = await supabase
             .from("announcements")
             .select("*")
@@ -186,4 +200,6 @@ export async function DELETE(request: Request) {
 }
 
 // Change Log:
-// - Implemented rate limiting for GET (60/min) and POST/DELETE (10-20/min).
+// - Added pending status check in GET: `if (session?.user?.role === 'applicant' && session.user.applicationStatus !== 'approved') return 403`.
+// - Ensured `created_at` in POST uses `new Date().toISOString()`.
+// - Sanitized content in POST.

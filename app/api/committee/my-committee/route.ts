@@ -14,26 +14,66 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
   }
 
-  // Allowed roles for management view: Chairman and Co-Chair
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "deputy_chair"] });
-  if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+  // Strictly enforce Approved status. Pending/Rejected cannot see committee internals.
+  const auth = await getAuthorization({ 
+      requireAuth: true, 
+      allowedRoles: ["committee_chairman", "deputy_chair", "applicant"], // Allowing applicant here for auth check but filtered below
+      requireApproved: true 
+  });
+  
+  if (!auth.ok || !auth.session) {
+    return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+  }
+  
   const session = auth.session;
+
+  // This endpoint returns detailed management stats. Applicants should not access this.
+  // They use /api/participant/me for their view.
+  if (session.user.role === 'applicant') {
+      return NextResponse.json({ error: "Forbidden: Management access only" }, { status: 403 });
+  }
 
   let committeeId: string | null = null;
 
-  // ... (Committee ID Finding Logic remains same) ...
-  const { data: adminCommittee } = await supabase.from("committees").select("id, name, description").eq("admin_id", session.user.id).maybeSingle();
-  if (adminCommittee) committeeId = adminCommittee.id;
-  else {
-    const { data: memberCommittee } = await supabase.from("committee_members").select("committee_id").eq("user_id", session.user.id).maybeSingle();
-    if (memberCommittee) committeeId = memberCommittee.committee_id;
+  // 1. Check if user is a Chairman (admin_id in committees table)
+  const { data: adminCommittee } = await supabase
+    .from("committees")
+    .select("id, name, description")
+    .eq("admin_id", session.user.id)
+    .maybeSingle();
+    
+  if (adminCommittee) {
+    committeeId = adminCommittee.id;
+  } else {
+    // 2. Check if user is a Deputy Chair (member in committee_members table)
+    const { data: memberCommittee } = await supabase
+      .from("committee_members")
+      .select("committee_id")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+      
+    if (memberCommittee) {
+      committeeId = memberCommittee.committee_id;
+    }
   }
 
-  if (!committeeId) return NextResponse.json({ error: "Committee not found" }, { status: 404 });
+  if (!committeeId) {
+    return NextResponse.json({ error: "Committee not found" }, { status: 404 });
+  }
 
+  // Parallel data fetching for performance
   const [committeeRes, membersRes, lastRollCallRes, topicRes, recentRollCallsRes] = await Promise.all([
-    supabase.from("committees").select("id, name, description").eq("id", committeeId).maybeSingle(), 
-    supabase.from("committee_members").select(`
+    // Committee Details
+    supabase
+      .from("committees")
+      .select("id, name, description")
+      .eq("id", committeeId)
+      .maybeSingle(), 
+    
+    // Members List
+    supabase
+      .from("committee_members")
+      .select(`
           id,
           can_write,
           user:users (
@@ -43,10 +83,33 @@ export async function GET(request: Request) {
             role,
             user_details ( profile_picture_url, is_profile_picture_hidden )
           )
-        `).eq("committee_id", committeeId),
-    supabase.from("roll_calls").select("id, session_name, created_at, roll_call_logs(count)").eq("committee_id", committeeId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("topics").select("title, description").eq("committee_id", committeeId).limit(1).maybeSingle(),
-    supabase.from("roll_calls").select("id, session_name, created_at").eq("committee_id", committeeId).order("created_at", { ascending: false }).limit(5)
+        `)
+      .eq("committee_id", committeeId),
+    
+    // Last Roll Call Stats
+    supabase
+      .from("roll_calls")
+      .select("id, session_name, created_at, roll_call_logs(count)")
+      .eq("committee_id", committeeId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    
+    // Topic Details
+    supabase
+      .from("topics")
+      .select("title, description")
+      .eq("committee_id", committeeId)
+      .limit(1)
+      .maybeSingle(),
+    
+    // Recent Roll Calls History
+    supabase
+      .from("roll_calls")
+      .select("id, session_name, created_at")
+      .eq("committee_id", committeeId)
+      .order("created_at", { ascending: false })
+      .limit(5)
   ]);
 
   if (committeeRes.error || !committeeRes.data) {
@@ -56,18 +119,18 @@ export async function GET(request: Request) {
   const members = membersRes.data || [];
   const pathsToSign: string[] = [];
 
+  // Format members and prepare for image signing
   const formattedMembers = members.map((m: any) => {
     const userData = Array.isArray(m.user) ? m.user[0] : m.user;
     const details = userData?.user_details ? (Array.isArray(userData.user_details) ? userData.user_details[0] : userData.user_details) : null;
 
-    // As Chairman/Deputy, I can see everyone's picture even if hidden?
-    // User requirement: "hide from everyone except the superadmins".
-    // So Chairs CANNOT see hidden pictures.
     const isSelf = userData.id === session.user.id;
     const isHidden = details?.is_profile_picture_hidden;
     let imagePath = null;
 
     if (details?.profile_picture_url) {
+        // Privacy logic: Only show if it's self or if user hasn't hidden it.
+        // Even Managers cannot see hidden profiles of members unless they are superadmin (handled elsewhere).
         if (isSelf || !isHidden) {
             imagePath = details.profile_picture_url;
             if (imagePath && !imagePath.startsWith('http')) {
@@ -87,6 +150,7 @@ export async function GET(request: Request) {
     };
   });
 
+  // Generate signed URLs for private images
   if (pathsToSign.length > 0) {
       const signedData = await getSignedUrls("profile-pictures", pathsToSign);
       signedData?.forEach(item => {
@@ -96,7 +160,7 @@ export async function GET(request: Request) {
       });
   }
 
-  // ... (Rest of logic: totalMembers, lastRollCall) ...
+  // Calculate statistics
   const totalMembers = formattedMembers.length;
   const lastRollCall = lastRollCallRes.data ? {
     session_name: lastRollCallRes.data.session_name,
@@ -118,5 +182,8 @@ export async function GET(request: Request) {
 }
 
 // Change Log:
-// - Implemented privacy logic: Chairs cannot see hidden pictures (only self or non-hidden).
-// - Implemented signed URLs.
+// - Added strict checks to prevent applicants from accessing management data.
+// - Implemented committee discovery logic for both Chairmen and Deputy Chairs.
+// - Implemented parallel fetching for committee details, members, stats, and topic.
+// - Added privacy filtering for member profile pictures.
+// - Added Signed URL generation for secure image access.

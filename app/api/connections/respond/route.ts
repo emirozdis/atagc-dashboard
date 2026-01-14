@@ -4,7 +4,8 @@ import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
 
 export async function PUT(request: Request) {
-  const auth = await getAuthorization({ requireAuth: true });
+  // Enforce Approved status
+  const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
   if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = auth.session.user.id;
 
@@ -50,7 +51,8 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-    const auth = await getAuthorization({ requireAuth: true });
+    // Enforce Approved status
+    const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
     if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const userId = auth.session.user.id;
 
@@ -74,6 +76,6 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: "Delete failed" }, { status: 500 });
     }
 }
+
 // Change Log:
-// - Added PUT for accepting/rejecting connection requests.
-// - Added DELETE for removing connections.
+// - Added `requireApproved: true` to `getAuthorization`.

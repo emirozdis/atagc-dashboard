@@ -6,14 +6,16 @@ declare module "next-auth" {
     user: {
       id: string;
       role: "superadmin" | "admin" | "committee_chairman" | "deputy_chair" | "applicant";
-      sessionId: string; // Added
+      sessionId: string;
+      applicationStatus?: "pending" | "approved" | "rejected"; // Added status
     } & DefaultSession["user"];
   }
 
   interface User {
     id: string;
     role: string;
-    sessionId?: string; // Added
+    sessionId?: string;
+    applicationStatus?: "pending" | "approved" | "rejected"; // Added status
   }
 }
 
@@ -21,9 +23,10 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
-    sessionId: string; // Added
+    sessionId: string;
+    applicationStatus?: "pending" | "approved" | "rejected"; // Added status
   }
 }
 
 // Change Log:
-// - Added `sessionId` to User, Session, and JWT interfaces.
+// - Added `applicationStatus` to Session, User, and JWT interfaces to track approval state.

@@ -32,7 +32,8 @@ export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await readLimiter.check(60, ip);
 
-  const auth = await getAuthorization({ requireAuth: true });
+  // Require approved status to access internal resources
+  const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   const session = auth.session;
 
@@ -55,6 +56,7 @@ export const GET = apiHandler(async (request: Request) => {
     }
   } else {
     // Participant Logic
+    // If not approved, auth check above already failed them.
     const { data: member } = await supabase.from("committee_members")
         .select('committee_id')
         .eq('user_id', session.user.id)
@@ -74,9 +76,7 @@ export const GET = apiHandler(async (request: Request) => {
   // Generate Signed URLs
   const pathsToSign: string[] = [];
   data.forEach((r: any) => {
-      // Prioritize storage_path if exists
       if (r.storage_path) pathsToSign.push(r.storage_path);
-      // Fallback to legacy check if file_url looks like a path (not http)
       else if (r.file_url && !r.file_url.startsWith("http")) pathsToSign.push(r.file_url);
   });
 
@@ -85,7 +85,7 @@ export const GET = apiHandler(async (request: Request) => {
       signedData?.forEach(item => {
           data.forEach((r: any) => {
               if (r.storage_path === item.path || r.file_url === item.path) {
-                  r.file_url = item.signedUrl; // Overwrite for frontend
+                  r.file_url = item.signedUrl; 
               }
           });
       });
@@ -156,16 +156,16 @@ export const POST = apiHandler(async (request: Request) => {
     return NextResponse.json({ error: "Dosya sunucuya kaydedilemedi." }, { status: 500 });
   }
 
-  // Save the internal path, not the public URL
   const { data, error } = await supabase
     .from("resources")
     .insert({
       ...validData,
       committee_id: validData.committee_id || null,
-      file_url: filePath, // Storing path in file_url for compatibility, or add storage_path
-      storage_path: filePath, // Explicitly storing path
+      file_url: filePath,
+      storage_path: filePath,
       file_type: fileExt,
-      uploaded_by: auth.session.user.id
+      uploaded_by: auth.session.user.id,
+      created_at: new Date().toISOString() // Explicit timestamptz
     })
     .select()
     .single();
@@ -182,5 +182,5 @@ export const POST = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - POST: Saves `storage_path` to the database.
-// - GET: Generates Signed URLs for resources based on `storage_path`.
+// - Added `requireApproved: true` to GET request to block access to resources for pending users.
+// - Ensured `created_at` in POST uses `new Date().toISOString()`.

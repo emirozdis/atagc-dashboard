@@ -16,6 +16,7 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const role = session?.user?.role;
+    const status = session?.user?.applicationStatus;
 
     const roleTag = (() => {
         if (role === 'superadmin' || role === 'admin') return "Yönetim";
@@ -23,9 +24,12 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
         return null;
     })();
 
-    const items = participantItems.filter(
-        (item) => !item.roles || (role && item.roles.includes(role))
-    );
+    // Filter items
+    const items = participantItems.filter((item) => {
+        if (item.roles && role && !item.roles.includes(role)) return false;
+        if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
+        return true;
+    });
 
     return (
         <div className="flex flex-col h-full bg-background border-r border-border">
@@ -80,3 +84,6 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
         </div>
     );
 }
+
+// Change Log:
+// - Implemented approval filtering for the mobile drawer menu.

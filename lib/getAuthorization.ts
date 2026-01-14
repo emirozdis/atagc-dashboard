@@ -7,6 +7,8 @@ type AuthOptions = {
   requireAuth?: boolean;
   /** One or more allowed roles (exact match against session.user.role) */
   allowedRoles?: string | string[];
+  /** If true, requires the user to have 'approved' application status (only applies to 'applicant' role) */
+  requireApproved?: boolean;
   /** Optional async custom check that receives the session and can perform resource checks
    *  Return { ok: true, payload? } on success or { ok: false, message?, status? } on failure
    */
@@ -21,7 +23,7 @@ type AuthOptions = {
  * Returns an object with { ok, session, payload?, message?, status? }.
  */
 export async function getAuthorization(opts: AuthOptions = {}) {
-  const { requireAuth = true, allowedRoles, customCheck } = opts;
+  const { requireAuth = true, allowedRoles, requireApproved = false, customCheck } = opts;
 
   const session: Session | null = await getServerSession(authOptions as any);
 
@@ -29,12 +31,23 @@ export async function getAuthorization(opts: AuthOptions = {}) {
     return { ok: false, status: 401, message: "Unauthorized" };
   }
 
-  if (allowedRoles) {
-    const allowed = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-    const userRole = session?.user?.role;
+  if (session?.user) {
+    // Role Check
+    if (allowedRoles) {
+      const allowed = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+      const userRole = session.user.role;
 
-    if (!userRole || !allowed.includes(userRole)) {
-      return { ok: false, status: 401, message: "Unauthorized" };
+      if (!userRole || !allowed.includes(userRole)) {
+        return { ok: false, status: 403, message: "Forbidden: Insufficient Permissions" };
+      }
+    }
+
+    // Approval Check (Pending State Restriction)
+    // Only applies if the user is an 'applicant'. Staff roles are implicitly approved/exempt.
+    if (requireApproved && session.user.role === 'applicant') {
+      if (session.user.applicationStatus !== 'approved') {
+        return { ok: false, status: 403, message: "Forbidden: Your application is not approved yet." };
+      }
     }
   }
 
@@ -57,4 +70,6 @@ export async function getAuthorization(opts: AuthOptions = {}) {
 export default getAuthorization;
 
 // Change Log:
-// - Removed optional modifier `?` from `supabaseClient` in `customCheck` type definition to fix "possibly undefined" TypeScript error in consumers.
+// - Added `requireApproved` option.
+// - Implemented logic to block `applicant` users if `applicationStatus` is not `approved`.
+// - Staff roles bypass this check automatically.

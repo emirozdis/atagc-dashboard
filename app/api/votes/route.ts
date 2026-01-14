@@ -24,7 +24,12 @@ export async function POST(request: Request) {
     // 1. Create Vote
     const { data: vote, error: voteError } = await supabase
       .from("votes")
-      .insert({ committee_id: committeeId, title, status: 'open' })
+      .insert({ 
+          committee_id: committeeId, 
+          title, 
+          status: 'open',
+          created_at: new Date().toISOString() 
+      })
       .select("id")
       .single();
 
@@ -56,7 +61,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
   }
 
-  const auth = await getAuthorization({ requireAuth: true });
+  // Enforce Approved status to see votes
+  const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
   if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
@@ -78,3 +84,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json(data);
 }
+
+// Change Log:
+// - Added `requireApproved: true` to GET to restrict vote viewing to approved users.
+// - Explicit `created_at: new Date().toISOString()` in POST.

@@ -12,12 +12,21 @@ export function MobileNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role;
+  const status = session?.user?.applicationStatus;
 
+  // Filter items based on role AND approval status
   const items = participantItems
     .filter(item => item.mobileCore)
-    .filter(item => !item.roles || (role && item.roles.includes(role)));
+    .filter(item => {
+        // Role check
+        if (item.roles && role && !item.roles.includes(role)) return false;
+        // Approval check
+        if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
+        return true;
+    });
 
-  // Re-use connection query logic for mobile badge
+  const shouldPollConnections = !!session && status === 'approved';
+
   const { data: connectionData } = useQuery<ConnectionState>({
     queryKey: ['connections'],
     queryFn: async () => {
@@ -27,7 +36,7 @@ export function MobileNav() {
     },
     staleTime: 1000 * 60,
     refetchInterval: 60000, 
-    enabled: !!session
+    enabled: shouldPollConnections
   });
 
   const pendingCount = connectionData?.pending?.length || 0;
@@ -64,5 +73,5 @@ export function MobileNav() {
 }
 
 // Change Log:
-// - Added red dot indicator on mobile nav icon for Connections if pending requests exist.
-// - Kept it as a small dot instead of number due to limited mobile space.
+// - Implemented approval filtering consistent with Sidebar.
+// - Only polling connections if approved.

@@ -68,8 +68,10 @@ export function ApplicationForm() {
     // --- Step 1: Account Logic (Register or Login) ---
     if (currentStep === 1) {
       const values = accountCreationForm.getValues();
+      const isDev = process.env.NODE_ENV === "development";
+      const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
 
-      if (!turnstileToken) {
+      if (!effectiveToken) {
         toast.error("Lütfen doğrulamayı tamamlayın.");
         return;
       }
@@ -95,14 +97,12 @@ export function ApplicationForm() {
               email: values.email,
               password: values.password,
               fullName: values.adSoyad,
-              token: turnstileToken, // Pass token for registration verification
+              token: effectiveToken, // Pass token for registration verification
             }),
           });
 
           if (!registerRes.ok) {
             const data = await registerRes.json();
-            // If account already exists (409), but we are in register mode (e.g. user refreshed or retried),
-            // and we know they passed email verification steps, we can try to log them in directly
             if (registerRes.status === 409) {
                 // Account exists, try login instead of throwing error
                 console.log("Account already exists, switching to login attempt.");
@@ -115,26 +115,18 @@ export function ApplicationForm() {
           }
 
           // 2. Login
-          // Important: We send a specific dummy token for auto-login to prevent "token used" errors
-          // The backend `authorize` function will check `isNewUser` based on `created_at` timestamp.
           const loginRes = await signIn("credentials", {
             redirect: false,
             email: values.email,
             password: values.password,
-            token: "SKIPPED_AUTO_LOGIN", 
+            token: "SKIPPED_AUTO_LOGIN", // Auto-login token
           });
 
           if (loginRes?.error) {
-             // If login failed but account was created, we shouldn't trap the user in the register form.
-             // They should proceed or be told to login manually.
-             // However, for this flow, we will assume success if account created, 
-             // but show a toast that login failed and maybe they need to re-login later.
-             // Ideally, we just proceed if we can confirm account exists.
              console.error("Auto-login failed:", loginRes.error);
              
              if (accountCreated) {
                  toast.success("Hesap oluşturuldu, lütfen giriş yapınız.");
-                 // Force switch to login mode so they can try again if needed, or redirect
                  window.location.href = "/login";
                  return;
              } else {
@@ -164,7 +156,7 @@ export function ApplicationForm() {
             redirect: false,
             email: values.email,
             password: values.password,
-            token: turnstileToken, // Normal login needs verification
+            token: effectiveToken, // Normal login needs verification
           });
 
           if (loginRes?.error) throw new Error("E-posta veya şifre hatalı.");
@@ -298,6 +290,5 @@ export function ApplicationForm() {
 }
 
 // Change Log:
-// - Updated `handleNext` logic to use a special token "SKIPPED_AUTO_LOGIN" for the auto-login step after registration.
-// - Added fallback: if account creation succeeds but auto-login fails, redirect to login page instead of showing an error state that traps the user.
-// - Handled 409 (Account Exists) gracefully in registration flow if it was a race condition/retry.
+// - Updated `handleNext` to check for development environment and bypass Turnstile if enabled.
+// - Uses `effectiveToken` to pass either real token or bypass string to authentication and registration APIs.

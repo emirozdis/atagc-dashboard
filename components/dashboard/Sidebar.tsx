@@ -18,7 +18,18 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role;
-  const items = participantItems.filter(item => !item.roles || (role && item.roles.includes(role)));
+  const status = session?.user?.applicationStatus;
+
+  // Filter items based on role AND approval status
+  const items = participantItems.filter(item => {
+    // Role check
+    if (item.roles && role && !item.roles.includes(role)) return false;
+    
+    // Approval check (only for applicants)
+    if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
+    
+    return true;
+  });
 
   const roleTag = (() => {
     if (role === 'superadmin' || role === 'admin') return "Yönetim";
@@ -26,7 +37,9 @@ export function Sidebar({ className, onClose }: SidebarProps) {
     return null;
   })();
 
-  // Poll for connection requests (Lightweight query usually, but using main endpoint due to architecture)
+  // Poll for connection requests only if approved
+  const shouldPollConnections = !!session && status === 'approved';
+  
   const { data: connectionData } = useQuery<ConnectionState>({
     queryKey: ['connections'],
     queryFn: async () => {
@@ -34,10 +47,9 @@ export function Sidebar({ className, onClose }: SidebarProps) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    // Don't block UI or overfetch, simple cache policy
     staleTime: 1000 * 60,
     refetchInterval: 60000, 
-    enabled: !!session // Only fetch if logged in
+    enabled: shouldPollConnections
   });
 
   const pendingCount = connectionData?.pending?.length || 0;
@@ -103,5 +115,5 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 }
 
 // Change Log:
-// - Added logic to fetch connection stats and display a red badge next to "Tanıştıklarım".
-// - Styled the badge to be circular and prominent.
+// - Implemented approval filtering: `if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;`.
+// - Only enabled connection polling if user is approved.

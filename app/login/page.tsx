@@ -23,7 +23,11 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!turnstileToken) {
+    // In development, allow bypassing the UI check if no token is present
+    const isDev = process.env.NODE_ENV === "development";
+    const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
+
+    if (!effectiveToken) {
       toast.error("Lütfen doğrulamayı tamamlayın.");
       return;
     }
@@ -35,7 +39,7 @@ export default function LoginPage() {
         redirect: false,
         email: formData.email,
         password: formData.password,
-        token: turnstileToken, // Pass token to NextAuth
+        token: effectiveToken, // Send the effective token (real or bypass)
       });
 
       if (result?.error) {
@@ -47,9 +51,6 @@ export default function LoginPage() {
           description: errorMessage,
         });
         
-        // Reset turnstile on failure to force re-verification if needed, 
-        // though typically Turnstile handles this. 
-        // Ideally we reset the widget, but simple error toast is standard.
         setLoading(false);
       } else {
         toast.success("Giriş Başarılı", {
@@ -171,6 +172,5 @@ export default function LoginPage() {
 }
 
 // Change Log:
-// - Added `Turnstile` component to the login form.
-// - Added client-side validation to ensure token exists before submitting.
-// - Passed `token` to the `signIn` function.
+// - Updated `handleSubmit` to check `process.env.NODE_ENV === "development"`.
+// - If in development and no token is present, it uses "DEV_BYPASS" as the token string, allowing the request to proceed to the server where the bypass logic exists.

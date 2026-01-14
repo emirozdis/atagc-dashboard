@@ -8,7 +8,8 @@ import { getSignedUrl } from "@/lib/storage-utils";
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export async function GET(request: Request) {
-  const auth = await getAuthorization({ requireAuth: true });
+  // Enforce Approved status for connections
+  const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
   if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = auth.session.user.id;
 
@@ -104,7 +105,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
   }
 
-  const auth = await getAuthorization({ requireAuth: true });
+  // Enforce Approved status
+  const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
   if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const requesterId = auth.session.user.id;
 
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Kullanıcı bağlantı isteklerini kapatmış." }, { status: 403 });
     }
 
-    // 2. Check Existing Connection (Any direction)
+    // 2. Check Existing Connection
     const { data: existing } = await supabase
       .from("user_connections")
       .select("*")
@@ -146,13 +148,11 @@ export async function POST(request: Request) {
       // Handle REJECTED case: Allow resending
       if (existing.status === 'rejected') {
         if (existing.requester_id === requesterId) {
-          // Case A: I sent it before, they rejected. I am persisting (sending again).
-          // Update the existing row status back to pending.
           const { error: updateError } = await supabase
             .from("user_connections")
             .update({ 
                 status: 'pending', 
-                updated_at: new Date().toISOString() // Bump timestamp so it appears recent
+                updated_at: new Date().toISOString() 
             })
             .eq("id", existing.id);
 
@@ -161,10 +161,7 @@ export async function POST(request: Request) {
           await logAction(requesterId, "connection_request_resend", { target_id: targetUserId }, request);
           return NextResponse.json({ success: true, message: "İstek tekrar gönderildi." });
         } else {
-          // Case B: They sent it before, I rejected. Now I changed my mind and want to add them.
-          // Delete the old record (where they were requester) so we can create a fresh one where I am requester.
           await supabase.from("user_connections").delete().eq("id", existing.id);
-          // Flow continues to Step 3 below...
         }
       }
     }
@@ -175,7 +172,8 @@ export async function POST(request: Request) {
       .insert({
         requester_id: requesterId,
         recipient_id: targetUserId,
-        status: 'pending'
+        status: 'pending',
+        created_at: new Date().toISOString()
       });
 
     if (error) throw error;
@@ -196,6 +194,5 @@ export async function POST(request: Request) {
 }
 
 // Change Log:
-// - Updated POST logic to handle `rejected` status.
-// - If requester matches, updates row to `pending` (Resend).
-// - If requester differs (reverse direction), deletes old row to allow new clean request creation.
+// - Added `requireApproved: true` to `getAuthorization` in both GET and POST.
+// - Ensured `created_at` in POST uses `new Date().toISOString()`.
