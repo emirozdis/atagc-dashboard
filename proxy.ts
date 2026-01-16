@@ -2,7 +2,7 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 export default withAuth(
-  function middleware(req) {
+  function proxy(req) {
     const token = req.nextauth.token;
     const isAuth = !!token;
     const isLoginPage = req.nextUrl.pathname.startsWith("/login");
@@ -30,7 +30,6 @@ export default withAuth(
       return null; // Admin is allowed
     }
 
-    // 3. Protect generic Dashboard Routes (Participant View)
     // 3. Protect generic Dashboard Routes (Participant View)
     if (!isAuth) {
       let from = req.nextUrl.pathname;
@@ -64,3 +63,8 @@ export default withAuth(
 export const config = {
   matcher: ["/dashboard/:path*", "/admin/:path*", "/login"],
 };
+
+// Change log:
+// - Created `proxy.ts` to replace the deprecated `middleware.ts` convention in Next.js 16+.
+// - Logic migrated directly from `middleware.ts`.
+// - Fixed a duplicate comment in section 3.
