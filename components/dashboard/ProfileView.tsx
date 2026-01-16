@@ -188,12 +188,15 @@ export function ProfileView() {
   if (isLoading) return <ProfileSkeleton />;
   if (!profile) return <div className="p-8 text-center text-muted-foreground">Profil verisi yüklenemedi.</div>;
 
-  const { user, userDetails } = profile;
+  const { user, userDetails, application } = profile;
   const additional = userDetails?.additional_info || ({} as any);
   const profilePic = userDetails?.profile_picture_url || null;
   const isHidden = userDetails?.is_profile_picture_hidden || false;
   const allowConnections = userDetails?.allow_connections !== false;
   const warnings = user.user_warnings || [];
+
+  // Logic: Show ID card only if Approved OR User is not an Applicant (e.g. Admin)
+  const showIdCard = user.role !== 'applicant' || application?.status === 'approved';
 
   const getRoleBadge = (role: string) => {
     const styles: Record<string, string> = {
@@ -452,14 +455,18 @@ export function ProfileView() {
             </CardContent>
           </Card>
 
-          <DigitalIdCard user={user} className="flex-1" uniqueId="profile" />
-          
-          <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed">
-            <p className="flex gap-2">
-              <QrCode className="w-4 h-4 text-primary shrink-0" />
-              Bu QR kod etkinlik alanına girişlerde, yoklamalarda ve diğer katılımcılarla bağlantı kurmak için kullanılır.
-            </p>
-          </div>
+          {showIdCard && (
+            <>
+              <DigitalIdCard user={user} className="flex-1" uniqueId="profile" />
+              
+              <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed">
+                <p className="flex gap-2">
+                  <QrCode className="w-4 h-4 text-primary shrink-0" />
+                  Bu QR kod etkinlik alanına girişlerde, yoklamalarda ve diğer katılımcılarla bağlantı kurmak için kullanılır.
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
       </div>
@@ -497,6 +504,5 @@ function ProfileSkeleton() {
 }
 
 // Change Log:
-// - Added "Disiplin Kaydı" (Disciplinary Record) card to show active warnings if any.
-// - Card uses a distinct yellow left border to indicate alert status.
-// - Each warning displays the reason, date, and issuer.
+// - Added logic to hide Digital ID Card if user is an 'applicant' with 'pending' or 'rejected' status.
+// - ID Card visibility is determined by `showIdCard` variable which checks role and application status.

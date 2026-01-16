@@ -2,10 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, Clock, Info, MapPin, XCircle, FileQuestion, Users, FileText, ArrowRight } from "lucide-react";
+import { Calendar, CheckCircle, Clock, Info, MapPin, XCircle, FileQuestion, Users} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
+import { cn } from "@/lib/utils";
 
 import { ParticipantDashboardProps, DashboardData } from "@/types/dashboard";
 
@@ -36,7 +37,8 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
   const { application, committeeMember, topic, settings, user: userData } = data || {};
 
-  if (!application) {
+  // If user is an applicant but has no application record, show "Not Found"
+  if (!application && userData?.role === 'applicant') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in py-12">
         <div className="w-24 h-24 rounded-full bg-secondary/30 flex items-center justify-center shadow-inner ring-1 ring-white/10">
@@ -52,7 +54,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     );
   }
 
-  const status = application.status || "pending";
+  const status = application?.status || "pending";
 
   const getStatusContent = () => {
     switch (status) {
@@ -90,14 +92,15 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   const statusContent = getStatusContent();
   const StatusIcon = statusContent.icon;
 
+  // Visibility Logic: Show ID card only if Approved OR User is not an Applicant (e.g. Admin)
+  const showIdCard = userData && (userData.role !== 'applicant' || status === 'approved');
+
   // Format Helper for Date Strings (YYYY-MM-DD)
   const formatDateRange = (start: string | null | undefined, end: string | null | undefined) => {
     if (!start) return "Tarih Belirlenmedi";
     try {
-      // Safe parsing for "YYYY-MM-DD"
       const startDate = new Date(start);
       const endDate = end ? new Date(end) : null;
-
       const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
 
       if (endDate) {
@@ -138,7 +141,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       {/* Top Grid: Status, Event Info, Digital ID */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left Column: Status & Event */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className={cn("flex flex-col gap-6", showIdCard ? "lg:col-span-2" : "lg:col-span-3")}>
           <Card className={`border ${statusContent.borderColor} bg-card shadow-sm`}>
             <div className="p-6 flex flex-col sm:flex-row gap-5 items-start">
               <div className={`p-3 rounded-xl ${statusContent.bgColor} shrink-0`}>
@@ -150,15 +153,17 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                   <h3 className={`text-xl font-semibold tracking-tight ${statusContent.color}`}>
                     {statusContent.title}
                   </h3>
-                  <Badge variant="secondary" className="font-mono text-[10px] text-muted-foreground/70">
-                    {application.id.slice(0, 8)}
-                  </Badge>
+                  {application && (
+                    <Badge variant="secondary" className="font-mono text-[10px] text-muted-foreground/70">
+                      {application.id.slice(0, 8)}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-muted-foreground text-sm">
                   {statusContent.description}
                 </p>
 
-                {status === "rejected" && application.review_notes && (
+                {status === "rejected" && application?.review_notes && (
                   <div className="mt-3 p-3 bg-secondary/30 rounded-lg text-sm border border-border/50">
                     <span className="font-medium block mb-1 text-foreground/90">Değerlendirme Notu:</span>
                     <span className="text-muted-foreground">{application.review_notes}</span>
@@ -216,9 +221,8 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         </div>
 
         {/* Right Column: Digital ID */}
-        {userData && (
+        {showIdCard && userData && (
           <div className="lg:col-span-1 h-full">
-            {/* Added uniqueId="dashboard" to separate layout scope */}
             <DigitalIdCard user={userData} className="h-full" uniqueId="dashboard" />
           </div>
         )}
@@ -258,7 +262,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2.5 text-lg">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
-                      <FileText className="w-5 h-5" />
+                      <FileQuestion className="w-5 h-5" />
                     </div>
                     Çalışma Konusu
                   </CardTitle>
@@ -270,11 +274,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
                         {topic.description}
                       </p>
-                      {topic.description && topic.description.length > 150 && (
-                        <button className="mt-2 text-xs text-primary font-medium hover:underline flex items-center gap-1">
-                          Devamını Oku <ArrowRight className="w-3 h-3" />
-                        </button>
-                      )}
                     </>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground/60 space-y-2">
@@ -308,4 +307,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 }
 
 // Change Log:
-// - Verified `formatDateRange` handles valid ISO dates correctly regardless of time zone offsets since the `settings` API returns truncated date strings.
+// - Added logic to hide Digital ID Card if user is an 'applicant' with 'pending' or 'rejected' status.
+// - Adjusted grid column spans to expand the Status/Event column when ID Card is hidden.
+// - Handled case where `application` might be null for non-applicant roles (ensuring dashboard still loads for admins/managers).
