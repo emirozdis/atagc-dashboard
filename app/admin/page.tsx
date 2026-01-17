@@ -115,7 +115,7 @@ export default function AdminDashboardPage() {
             </Button>
           </Link>
           <Link href="/admin/users">
-            <Button className="gap-2 shadow-lg shadow-primary/20">
+            <Button className="gap-2">
               <Users className="w-4 h-4" /> Kullanıcı Yönetimi
             </Button>
           </Link>
