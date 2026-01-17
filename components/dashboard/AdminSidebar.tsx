@@ -12,7 +12,8 @@ import {
     Megaphone,
     ScrollText,
     FolderOpen,
-    User
+    User,
+    CreditCard
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -48,6 +49,11 @@ const adminItems = [
         title: "Kaynaklar",
         href: "/admin/resources",
         icon: FolderOpen,
+    },
+        {
+        title: "Ödemeler", // New Item
+        href: "/admin/payments",
+        icon: CreditCard,
     },
     {
         title: "Duyurular",

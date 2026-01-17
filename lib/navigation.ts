@@ -7,7 +7,8 @@ import {
     QrCode,
     ScanLine,
     FolderOpen,
-    UsersRound
+    UsersRound,
+    CreditCard
 } from "lucide-react";
 
 export const participantItems = [
@@ -18,6 +19,14 @@ export const participantItems = [
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
         requiresApproved: false
+    },
+    {
+        title: "Ödeme",
+        href: "/dashboard/payment",
+        icon: CreditCard,
+        roles: ["applicant"], // Only applicants need to pay
+        mobileCore: false,
+        requiresApproved: true
     },
     {
         title: "Komitem",
@@ -41,7 +50,7 @@ export const participantItems = [
         icon: QrCode,
         roles: ["committee_chairman", "deputy_chair"],
         mobileCore: false,
-        requiresApproved: true // Implicit for staff, but good to mark
+        requiresApproved: true 
     },
     {
         title: "Tara",
@@ -86,6 +95,4 @@ export const participantItems = [
 ];
 
 // Change Log:
-// - Added `requiresApproved` flag to all items.
-// - `Genel Durum` (Dashboard) and `Profilim` (Profile) are `false` (Accessible by pending).
-// - All other advanced pages are `true`.
+// - Added "Ödeme" (Payment) item to the navigation list.

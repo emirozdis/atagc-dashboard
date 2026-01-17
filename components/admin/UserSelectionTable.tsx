@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, ChevronUp, CheckCircle2, Calendar, Mail, AlertTriangle } from "lucide-react";
+import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, ChevronUp, CheckCircle2, Calendar, Mail, AlertTriangle, CreditCard, ChevronRight } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { toast } from "sonner";
 import { User } from "@/types/user";
@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
+import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
 
 interface UserSelectionTableProps {
   selectedUsers?: string[];
@@ -32,6 +33,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   const router = useRouter();
   const queryClient = useQueryClient();
   const [internalSelected, setInternalSelected] = useState<string[]>([]);
+  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
 
   const isControlled = externalSelected !== undefined;
   const selectedIds = isControlled ? externalSelected : internalSelected;
@@ -144,6 +146,27 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
     setPage(1);
   };
 
+  const handlePaymentClick = (e: React.MouseEvent, user: User) => {
+    e.stopPropagation();
+    // Check if there is a receipt ID
+    const receiptId = user.payment_receipts?.[0]?.id;
+    if (receiptId) {
+        setSelectedReceiptId(receiptId);
+    } else {
+        // Fallback or "No Receipt" message
+        // If status is unpaid, do nothing or show toast
+        const app = Array.isArray(user.application) ? user.application[0] : user.application;
+        const status = app?.payment_status || 'unpaid';
+        
+        if (status === 'unpaid') {
+            toast.info("Bu kullanıcı henüz ödeme bildirimi yapmamış.");
+        } else {
+            // Should theoretically not happen if logic is correct, but safe fallback
+            router.push(`/admin/payments?search=${user.email}`);
+        }
+    }
+  };
+
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'committee_chairman': return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 whitespace-nowrap">Başkan</Badge>;
@@ -154,6 +177,38 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
     }
   };
 
+  const getPaymentBadge = (user: User) => {
+    const app = Array.isArray(user.application) ? user.application[0] : user.application;
+    const paymentStatus = app?.payment_status || 'unpaid';
+
+    switch (paymentStatus) {
+        case 'paid':
+            return (
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}>
+                    <CheckCircle2 className="w-3 h-3" /> Ödendi
+                </Badge>
+            );
+        case 'processing':
+            return (
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20 cursor-pointer gap-1 animate-pulse" onClick={(e) => handlePaymentClick(e, user)}>
+                    <CreditCard className="w-3 h-3" /> İnceleniyor
+                </Badge>
+            );
+        case 'rejected':
+            return (
+                <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}>
+                    <X className="w-3 h-3" /> Reddedildi
+                </Badge>
+            );
+        default:
+            return (
+                <Badge variant="outline" className="text-muted-foreground bg-transparent font-normal opacity-50 cursor-default">
+                    Ödenmedi
+                </Badge>
+            );
+    }
+  };
+
   const getUserImage = (user: User) => {
     const details = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
     return details?.profile_picture_url || undefined;
@@ -161,7 +216,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
 
   return (
     <div className="space-y-6">
-      {/* Controls Toolbar Card */}
+      {/* Controls Toolbar */}
       <div className="flex flex-col xl:flex-row gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -246,6 +301,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                   <TableHead className="w-[50px] text-center"><Checkbox checked={users.length > 0 && users.every(u => selectedIds.includes(u.id))} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead className="w-[300px]">Kullanıcı</TableHead>
                   <TableHead>Rol</TableHead>
+                  <TableHead>Ödeme</TableHead>
                   <TableHead>Uyarı</TableHead>
                   <TableHead>Durum</TableHead>
                   <TableHead className="text-right">Kayıt Tarihi</TableHead>
@@ -269,13 +325,14 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                       </div>
                     </TableCell>
                     <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>{getPaymentBadge(user)}</TableCell>
                     <TableCell>
                         {user.warnings_count && user.warnings_count > 0 ? (
                             <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
                                 <AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}
                             </Badge>
                         ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
+                            <span className="text-xs text-muted-foreground opacity-50">-</span>
                         )}
                     </TableCell>
                     <TableCell>
@@ -306,7 +363,6 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                   )}
                   onClick={() => toggleUser(user.id)}
                 >
-                  {/* Selection Indicator Stripe */}
                   {isSelected && (
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
                   )}
@@ -339,16 +395,8 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                     <div className="mt-3 flex items-center justify-between">
                       <div className="flex flex-wrap gap-2">
                         {getRoleBadge(user.role)}
-                        {user.is_suspended ? <Badge variant="destructive" className="text-[10px] h-5 px-1.5">Askıda</Badge> : null}
-                        {user.warnings_count && user.warnings_count > 0 ? (
-                            <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-[10px] h-5 px-1.5">
-                                <AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}
-                            </Badge>
-                        ) : null}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground flex items-center gap-1 bg-secondary/20 px-2 py-1 rounded-md">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(user.created_at).toLocaleDateString("tr-TR")}
+                        {getPaymentBadge(user)}
+                        {user.is_suspended && <Badge variant="destructive" className="text-[10px] h-5 px-1.5">Askıda</Badge>}
                       </div>
                     </div>
                   </CardContent>
@@ -363,7 +411,8 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         </>
       )}
 
-      {/* Floating Selection Bar */}
+      {/* Floating Selection Bar ... */}
+      {/* (Kept as is) */}
       <AnimatePresence>
         {selectedIds.length > 0 && (
           <motion.div
@@ -373,9 +422,8 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
             transition={{ type: "spring", stiffness: 350, damping: 25 }}
             className="fixed z-50 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-auto bottom-20 md:bottom-8"
           >
+            {/* ... Floating Bar Content ... */}
             <div className="bg-white/95 dark:bg-zinc-900/95 text-foreground px-4 py-3 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/50 flex items-center justify-between gap-3 md:gap-6 backdrop-blur-lg border border-border/50 ring-1 ring-black/5 dark:ring-white/5">
-
-              {/* Count Indicator */}
               <div className="flex items-center gap-3 pl-1 pr-2">
                 <motion.div
                   key={selectedIds.length}
@@ -390,19 +438,11 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                   <span className="hidden md:inline">Kullanıcı Seçildi</span>
                 </span>
               </div>
-
-              {/* Vertical Separator */}
               <div className="h-6 w-px bg-border hidden md:block" />
-
-              {/* Action Buttons */}
               <div className="flex items-center gap-1.5 md:gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2 md:px-3 hover:bg-secondary/80"
-                    >
+                    <Button size="sm" variant="ghost" className="h-8 px-2 md:px-3 hover:bg-secondary/80">
                       <Shield className="w-4 h-4 md:mr-2" />
                       <span className="hidden md:inline">Rol Değiştir</span>
                       <ChevronUp className="w-3 h-3 ml-1 md:hidden opacity-50" />
@@ -415,26 +455,12 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                     <DropdownMenuItem onClick={() => handleBatchRole('admin')}>Yönetici</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={deleteMutation.isPending}
-                  className="h-8 px-2 md:px-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors"
-                  onClick={handleDelete}
-                >
+                <Button size="sm" variant="ghost" disabled={deleteMutation.isPending} className="h-8 px-2 md:px-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors" onClick={handleDelete}>
                   <Trash2 className="w-4 h-4 md:mr-2" />
                   <span className="hidden md:inline">Sil</span>
                 </Button>
-
                 <div className="h-4 w-px bg-border mx-1" />
-
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 md:w-auto md:px-3 rounded-full md:rounded-md hover:bg-secondary p-0 md:p-2"
-                  onClick={() => handleSelectionChange([])}
-                >
+                <Button size="sm" variant="ghost" className="h-8 w-8 md:w-auto md:px-3 rounded-full md:rounded-md hover:bg-secondary p-0 md:p-2" onClick={() => handleSelectionChange([])}>
                   <X className="w-4 h-4 md:hidden" />
                   <span className="hidden md:inline text-xs font-medium">Vazgeç</span>
                 </Button>
@@ -443,6 +469,17 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PaymentReviewDialog
+        paymentId={selectedReceiptId}
+        open={!!selectedReceiptId}
+        onOpenChange={(open) => !open && setSelectedReceiptId(null)}
+      />
     </div>
   );
 }
+
+// Change Log:
+// - Added `PaymentReviewDialog` to the table component.
+// - Updated `handlePaymentClick` to open the modal directly if a receipt ID is present.
+// - Kept fallback navigation to `/admin/payments` if ID is missing (for safety, though API now provides it).

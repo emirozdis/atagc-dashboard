@@ -2,11 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle, Clock, Info, MapPin, XCircle, FileQuestion, Users} from "lucide-react";
+import { 
+  Calendar, CheckCircle2, Clock, Info, MapPin, 
+  XCircle, FileQuestion, Users, CreditCard, 
+  ChevronRight, AlertTriangle, Wallet
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 import { ParticipantDashboardProps, DashboardData } from "@/types/dashboard";
 
@@ -15,6 +21,15 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     queryKey: ['participant-me'],
     queryFn: async () => {
       const res = await fetch("/api/participant/me");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    }
+  });
+
+  const { data: paymentData, isLoading: paymentLoading } = useQuery({
+    queryKey: ['payment-status-dashboard'],
+    queryFn: async () => {
+      const res = await fetch("/api/payment/status");
       if (!res.ok) throw new Error("Failed");
       return res.json();
     }
@@ -36,8 +51,8 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   }
 
   const { application, committeeMember, topic, settings, user: userData } = data || {};
+  const paymentStatus = paymentData?.payment_status || 'unpaid';
 
-  // If user is an applicant but has no application record, show "Not Found"
   if (!application && userData?.role === 'applicant') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in py-12">
@@ -54,48 +69,48 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     );
   }
 
-  const status = application?.status || "pending";
+  const appStatus = application?.status || "pending";
+  const showIdCard = userData && (userData.role !== 'applicant' || (appStatus === 'approved' && paymentStatus === 'paid'));
 
-  const getStatusContent = () => {
-    switch (status) {
-      case "approved":
-        return {
-          color: "text-emerald-500",
-          bgColor: "bg-emerald-500/10",
-          borderColor: "border-emerald-500/20",
-          icon: CheckCircle,
-          title: "Başvurunuz Onaylandı!",
-          description: `${settings?.term_name || "Etkinliğe"} katılımınız kesinleşmiştir.`
-        };
-      case "rejected":
-        return {
-          color: "text-red-500",
-          bgColor: "bg-red-500/10",
-          borderColor: "border-red-500/20",
-          icon: XCircle,
-          title: "Başvurunuz Kabul Edilemedi",
-          description: "Maalesef başvurunuz olumlu değerlendirilememiştir."
-        };
-      case "pending":
-      default:
-        return {
-          color: "text-amber-500",
-          bgColor: "bg-amber-500/10",
-          borderColor: "border-amber-500/20",
-          icon: Clock,
-          title: "Değerlendirme Aşamasında",
-          description: "Başvurunuz ekibimiz tarafından incelenmektedir."
-        };
-    }
+  // Unified Status Card Config
+  const getStatusSteps = () => {
+    return [
+        {
+            id: 'application',
+            label: "Başvuru",
+            status: appStatus === 'approved' ? 'done' : appStatus === 'rejected' ? 'error' : 'processing',
+            date: application?.submitted_at
+        },
+        {
+            id: 'payment',
+            label: "Ödeme",
+            status: appStatus !== 'approved' ? 'waiting' : 
+                    paymentStatus === 'paid' ? 'done' : 
+                    paymentStatus === 'processing' ? 'processing' : 
+                    paymentStatus === 'rejected' ? 'error' : 'pending',
+            date: paymentData?.last_receipt?.created_at
+        },
+        {
+            id: 'committee',
+            label: "Komite",
+            status: !committeeMember ? 'waiting' : 'done',
+            text: committeeMember?.committee?.name
+        }
+    ];
   };
 
-  const statusContent = getStatusContent();
-  const StatusIcon = statusContent.icon;
+  const steps = getStatusSteps();
 
-  // Visibility Logic: Show ID card only if Approved OR User is not an Applicant (e.g. Admin)
-  const showIdCard = userData && (userData.role !== 'applicant' || status === 'approved');
+  const getStepIcon = (status: string) => {
+      switch (status) {
+          case 'done': return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
+          case 'error': return <XCircle className="w-5 h-5 text-red-500" />;
+          case 'processing': return <Clock className="w-5 h-5 text-amber-500 animate-pulse" />;
+          case 'pending': return <AlertTriangle className="w-5 h-5 text-primary" />;
+          default: return <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />;
+      }
+  };
 
-  // Format Helper for Date Strings (YYYY-MM-DD)
   const formatDateRange = (start: string | null | undefined, end: string | null | undefined) => {
     if (!start) return "Tarih Belirlenmedi";
     try {
@@ -120,14 +135,13 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-12">
-      {/* Hero Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
             Merhaba, <span className="text-primary">{user?.name?.split(" ")[0]}</span>
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Başvuru durumunu ve etkinlik detaylarını yönetin.
+            Kayıt sürecinizi buradan takip edebilirsiniz.
           </p>
         </div>
 
@@ -138,48 +152,72 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         )}
       </div>
 
-      {/* Top Grid: Status, Event Info, Digital ID */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column: Status & Event */}
+        {/* Left Column: Unified Status Card */}
         <div className={cn("flex flex-col gap-6", showIdCard ? "lg:col-span-2" : "lg:col-span-3")}>
-          <Card className={`border ${statusContent.borderColor} bg-card shadow-sm`}>
-            <div className="p-6 flex flex-col sm:flex-row gap-5 items-start">
-              <div className={`p-3 rounded-xl ${statusContent.bgColor} shrink-0`}>
-                <StatusIcon className={`h-8 w-8 ${statusContent.color}`} />
-              </div>
-
-              <div className="space-y-1 flex-1">
-                <div className="flex items-center justify-between">
-                  <h3 className={`text-xl font-semibold tracking-tight ${statusContent.color}`}>
-                    {statusContent.title}
-                  </h3>
-                  {application && (
-                    <Badge variant="secondary" className="font-mono text-[10px] text-muted-foreground/70">
-                      {application.id.slice(0, 8)}
-                    </Badge>
-                  )}
+          <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
+            <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
+                <CardTitle className="text-lg font-medium flex items-center gap-2">
+                    <Info className="w-4 h-4 text-primary" /> Kayıt Durumu
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+                <div className="divide-y divide-border/50">
+                    {steps.map((step, idx) => (
+                        <div key={step.id} className="flex items-center justify-between p-4 md:p-6 transition-colors hover:bg-muted/5">
+                            <div className="flex items-center gap-4">
+                                <div className="flex flex-col items-center gap-1">
+                                    {getStepIcon(step.status)}
+                                    {idx < steps.length - 1 && (
+                                        <div className={cn("w-px h-6 my-1", step.status === 'done' ? "bg-emerald-500/30" : "bg-border")} />
+                                    )}
+                                </div>
+                                <div>
+                                    <div className="font-medium text-sm md:text-base">{step.label}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {step.status === 'done' ? (step.text || "Tamamlandı") :
+                                         step.status === 'processing' ? "İnceleniyor" :
+                                         step.status === 'error' ? "Sorun Var" :
+                                         step.status === 'pending' ? "İşlem Bekliyor" : 
+                                         "Bekleniyor"}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-4">
+                                {step.date && (
+                                    <span className="text-[10px] text-muted-foreground hidden sm:inline-block bg-secondary/30 px-2 py-1 rounded">
+                                        {new Date(step.date).toLocaleDateString("tr-TR")}
+                                    </span>
+                                )}
+                                
+                                {/* Action Buttons Logic */}
+                                {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
+                                    <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
+                                        <Link href="/dashboard/payment">
+                                            {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
+                                        </Link>
+                                    </Button>
+                                )}
+                                {step.id === 'payment' && step.status === 'processing' && (
+                                    <Button size="sm" variant="outline" asChild className="h-8 text-xs">
+                                        <Link href="/dashboard/payment">Detay</Link>
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
-                <p className="text-muted-foreground text-sm">
-                  {statusContent.description}
-                </p>
-
-                {status === "rejected" && application?.review_notes && (
-                  <div className="mt-3 p-3 bg-secondary/30 rounded-lg text-sm border border-border/50">
-                    <span className="font-medium block mb-1 text-foreground/90">Değerlendirme Notu:</span>
-                    <span className="text-muted-foreground">{application.review_notes}</span>
-                  </div>
+                
+                {appStatus === 'rejected' && application?.review_notes && (
+                    <div className="p-4 bg-red-500/5 border-t border-red-500/10 text-sm">
+                        <div className="font-semibold text-red-600 mb-1">Başvuru Reddedildi:</div>
+                        <div className="text-muted-foreground">{application.review_notes}</div>
+                    </div>
                 )}
-                {status === "pending" && (
-                  <p className="text-xs text-muted-foreground/60 pt-2 flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5" />
-                    Sonuçlar panel üzerinden ve e-posta ile duyurulacaktır.
-                  </p>
-                )}
-              </div>
-            </div>
+            </CardContent>
           </Card>
 
-          {/* Event Info Card */}
           <Card className="bg-card border-border/50 shadow-sm flex flex-col flex-1">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -209,13 +247,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                   </div>
                 </div>
               </div>
-
-              <div className="pt-3 border-t border-border/50 mt-auto">
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <Info className="w-3 h-3" />
-                  Detaylı program yakında açıklanacaktır.
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -228,8 +259,8 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         )}
       </div>
 
-      {/* Committee & Topic Section */}
-      {status === "approved" && (
+      {/* Committee & Topic Section (Visible only if Approved & Paid) */}
+      {appStatus === "approved" && (
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/50"></div>
@@ -239,7 +270,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
           {committeeMember ? (
             <div className="grid gap-6 md:grid-cols-2">
-              {/* Committee Card */}
               <Card className="bg-card border-border/40 hover:bg-card/50 transition-colors group">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2.5 text-lg">
@@ -257,7 +287,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                 </CardContent>
               </Card>
 
-              {/* Topic Card */}
               <Card className="bg-card border-border/40 hover:bg-card/50 transition-colors group">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2.5 text-lg">
@@ -307,6 +336,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 }
 
 // Change Log:
-// - Added logic to hide Digital ID Card if user is an 'applicant' with 'pending' or 'rejected' status.
-// - Adjusted grid column spans to expand the Status/Event column when ID Card is hidden.
-// - Handled case where `application` might be null for non-applicant roles (ensuring dashboard still loads for admins/managers).
+// - Removed the separate PaymentSummaryCard.
+// - Replaced the Status Summary card with a unified "Kayıt Durumu" card containing a step list (Application -> Payment -> Committee).
+// - Payment Step includes direct action buttons (Pay/Fix/Detail) linking to the new dedicated page.
+// - Updated Digital ID logic to only show if Payment is Paid (or user is staff).

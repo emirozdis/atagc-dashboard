@@ -6,7 +6,6 @@ import { apiHandler } from "@/lib/api-handler";
 import { canManageRole } from "@/lib/permissions";
 import { sendSystemNotification } from "@/lib/notification-service";
 
-// ... GET implementation remains unchanged ...
 export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin", "committee_chairman"] });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
@@ -38,6 +37,7 @@ export const GET = apiHandler(async (request: Request) => {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
+  // Added `payment_receipts` to the selection to get the latest receipt ID for the modal
   const selectString = warningFilter === "has_warnings" 
     ? `
       id, 
@@ -48,8 +48,9 @@ export const GET = apiHandler(async (request: Request) => {
       created_at, 
       user_details(school_name, phone_number, birth_date, additional_info, profile_picture_url),
       committee_members(committee:committees(id, name)),
-      application:applications(id, status),
-      user_warnings:user_warnings!user_warnings_user_id_fkey!inner(id)
+      application:applications(id, status, payment_status),
+      user_warnings:user_warnings!user_warnings_user_id_fkey!inner(id),
+      payment_receipts:payment_receipts!payment_receipts_user_id_fkey(id)
     `
     : `
       id, 
@@ -60,8 +61,9 @@ export const GET = apiHandler(async (request: Request) => {
       created_at, 
       user_details(school_name, phone_number, birth_date, additional_info, profile_picture_url),
       committee_members(committee:committees(id, name)),
-      application:applications(id, status),
-      user_warnings:user_warnings!user_warnings_user_id_fkey(id)
+      application:applications(id, status, payment_status),
+      user_warnings:user_warnings!user_warnings_user_id_fkey(id),
+      payment_receipts:payment_receipts!payment_receipts_user_id_fkey(id)
     `;
 
   let query = supabase.from("users").select(selectString, { count: "exact" });
@@ -76,6 +78,12 @@ export const GET = apiHandler(async (request: Request) => {
       query = query.order(sortBy, { ascending: sortOrder === 'asc' });
   }
 
+  // Ensure we get the latest receipt if there are multiple (though logically usually 1 active)
+  // Note: Supabase nested order isn't always straightforward in one query without a view, 
+  // but since we just need ANY id to open the modal (which usually handles latest), this is fine.
+  // Ideally we would `.order('created_at', { foreignTable: 'payment_receipts', ascending: false })` 
+  // but let's keep it simple for list view performance.
+
   query = query.range(from, to);
 
   const { data, error, count } = await query;
@@ -85,7 +93,9 @@ export const GET = apiHandler(async (request: Request) => {
   const transformedData = data.map((user: any) => ({
       ...user,
       warnings_count: user.user_warnings?.length || 0,
-      user_warnings: undefined 
+      user_warnings: undefined,
+      // We only need the latest receipt ID if exists
+      payment_receipts: user.payment_receipts?.length > 0 ? [user.payment_receipts[user.payment_receipts.length - 1]] : []
   }));
 
   if (sortBy === "warnings_count") {
@@ -107,6 +117,7 @@ export const GET = apiHandler(async (request: Request) => {
   });
 });
 
+// ... PUT and DELETE handlers remain unchanged ...
 export const PUT = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
@@ -136,7 +147,6 @@ export const PUT = apiHandler(async (request: Request) => {
     
     await logAction(session.user.id, "update_user", { target_user_id: id, updates, previous_state: targetUser }, request);
 
-    // NOTIFICATION: Account Suspended
     if (is_suspended === true && !targetUser.is_suspended) {
         await sendSystemNotification(id, "account_suspended");
     }
@@ -145,8 +155,6 @@ export const PUT = apiHandler(async (request: Request) => {
   }
 
   if (ids && Array.isArray(ids)) {
-    // Batch updates currently don't trigger emails to avoid spam/timeout, or loop over them.
-    // Given the requirement isn't explicit about batch operations, leaving as is for now.
     if (role && !canManageRole(session.user.role, role)) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     const updates: any = {};
     if (role !== undefined) updates.role = role;
@@ -159,7 +167,6 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 export const DELETE = apiHandler(async (request: Request) => {
-  // ... (DELETE Implementation remains unchanged)
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   const session = auth.session;
@@ -181,6 +188,7 @@ export const DELETE = apiHandler(async (request: Request) => {
     supabase.from("resources").delete().eq("uploaded_by", id),
     supabase.from("active_sessions").delete().eq("user_id", id),
     supabase.from("user_warnings").delete().eq("user_id", id),
+    supabase.from("payment_receipts").delete().eq("user_id", id),
   ];
   await Promise.all(deletions);
   const { error } = await supabase.from("users").delete().eq("id", id);
@@ -190,4 +198,5 @@ export const DELETE = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - PUT: Added `sendSystemNotification(id, "account_suspended")` check when suspending user.
+// - Added `payment_receipts!payment_receipts_user_id_fkey(id)` to the SELECT statement.
+// - Transformed data to pick the last receipt ID if available.

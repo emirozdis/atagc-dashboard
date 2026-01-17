@@ -16,7 +16,8 @@ import {
     Megaphone,
     ScrollText,
     FolderOpen,
-    User
+    User,
+    CreditCard
 } from "lucide-react";
 
 interface AdminMobileSidebarProps {
@@ -53,6 +54,11 @@ const adminItems = [
         title: "Kaynaklar",
         href: "/admin/resources",
         icon: FolderOpen,
+    },
+    {
+        title: "Ödemeler",
+        href: "/admin/payments",
+        icon: CreditCard,
     },
     {
         title: "Duyurular",

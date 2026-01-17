@@ -13,25 +13,19 @@ export async function GET(
 
         const { id } = await params;
 
-        // Security Check for Chairmen/Deputies: Can only view members of their own committee
+        // Security Check for Chairmen/Deputies
         if (session.user.role === 'committee_chairman' || session.user.role === 'deputy_chair') {
-            // 1. Find which committee the requester manages/is part of
-            // Assuming one active committee per user for simplicity in this context
             let committeeId = null;
             
-            // Check managed
             const { data: managed } = await supabase.from("committees").select("id").eq("admin_id", session.user.id).maybeSingle();
             if (managed) committeeId = managed.id;
             else {
-                // Check membership
                 const { data: membership } = await supabase.from("committee_members").select("committee_id").eq("user_id", session.user.id).maybeSingle();
                 if (membership) committeeId = membership.committee_id;
             }
 
             if (!committeeId) return NextResponse.json({ error: "No committee found for requester" }, { status: 403 });
 
-            // 2. Check if the target user (id) is in that committee
-            // We check committee_members table
             const { data: isMember } = await supabase
                 .from("committee_members")
                 .select("id")
@@ -39,7 +33,6 @@ export async function GET(
                 .eq("user_id", id)
                 .maybeSingle();
             
-            // Also allow viewing the committee admin (themselves or the chair)
             const { data: isAdmin } = await supabase
                 .from("committees")
                 .select("id")
@@ -52,7 +45,6 @@ export async function GET(
             }
         }
 
-        // Use explicit relationship name for user_warnings to avoid ambiguity
         const { data, error } = await supabase
             .from("users")
             .select(`
@@ -83,6 +75,7 @@ export async function GET(
                 application:applications (
                     id,
                     status,
+                    payment_status,
                     submitted_at,
                     review_notes
                 ),
@@ -95,6 +88,9 @@ export async function GET(
                         full_name,
                         role
                     )
+                ),
+                payment_receipts:payment_receipts!payment_receipts_user_id_fkey (
+                    id, created_at
                 )
             `)
             .eq("id", id)
@@ -105,9 +101,14 @@ export async function GET(
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        // Sort warnings desc by created_at
+        // Sort warnings
         if (data.user_warnings && Array.isArray(data.user_warnings)) {
             data.user_warnings.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        }
+
+        // Sort receipts to get latest
+        if (data.payment_receipts && Array.isArray(data.payment_receipts)) {
+            data.payment_receipts.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         }
 
         return NextResponse.json(data);
@@ -118,5 +119,5 @@ export async function GET(
 }
 
 // Change Log:
-// - Added security check for `committee_chairman` and `deputy_chair` to ensure they can only fetch details of users within their own committee.
-// - Added `deputy_chair` to allowed roles.
+// - Added `payment_receipts` to selection.
+// - Added sorting logic for receipts to ensure the latest one is easily accessible.

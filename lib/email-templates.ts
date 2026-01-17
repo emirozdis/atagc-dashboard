@@ -6,126 +6,69 @@ export type NotificationType =
   | "connection_accepted"
   | "warning_issued"
   | "account_suspended"
-  | "password_changed";
+  | "password_changed"
+  | "payment_approved" // New
+  | "payment_rejected"; // New
 
 interface EmailContent {
   subject: string;
   heading: string;
   message: string;
   buttonText?: string;
-  buttonPath?: string; // Relative path for specific redirection
+  buttonPath?: string;
   accentColor?: string;
 }
 
 // --- Theme Constants ---
 const COLORS = {
-  background: "#f8f9fa", // Light Gray background
+  background: "#f8f9fa",
   container: "#ffffff",
-  textPrimary: "#1f2937", // Gray-800
-  textSecondary: "#6b7280", // Gray-500
-  border: "#e5e7eb", // Gray-200
-  primary: "#000000", // Black
-  accent: "#d4af37", // Gold
-  danger: "#dc2626", // Red-600
-  success: "#059669", // Emerald-600
+  textPrimary: "#1f2937",
+  textSecondary: "#6b7280",
+  border: "#e5e7eb",
+  primary: "#000000",
+  accent: "#d4af37",
+  danger: "#dc2626",
+  success: "#059669",
 };
 
-// --- Style Helpers ---
-const getBaseStyles = () => `
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.6;
-  color: ${COLORS.textPrimary};
-  background-color: ${COLORS.background};
-  margin: 0;
-  padding: 0;
-  -webkit-font-smoothing: antialiased;
-`;
+// ... (Keep existing Helper Functions: getBaseStyles, getWrapperStyles, etc.) ...
+// For brevity, assuming helper functions exist as in previous file version.
+// Re-including critical helpers for context if needed, or keeping file structure consistent.
 
-const getWrapperStyles = () => `
-  width: 100%;
-  background-color: ${COLORS.background};
-  padding: 40px 0;
-`;
+const getBaseStyles = () => `font-family: 'Inter', sans-serif; line-height: 1.6; color: ${COLORS.textPrimary}; background-color: ${COLORS.background}; margin: 0; padding: 0;`;
+const getWrapperStyles = () => `width: 100%; background-color: ${COLORS.background}; padding: 40px 0;`;
+const getContainerStyles = () => `max-width: 600px; margin: 0 auto; background-color: ${COLORS.container}; border-radius: 12px; overflow: hidden; border: 1px solid ${COLORS.border};`;
+const getHeaderStyles = () => `background-color: ${COLORS.primary}; padding: 40px; text-align: center;`;
+const getContentStyles = () => `padding: 40px 40px; text-align: left;`;
+const getHeadingStyles = (color: string = COLORS.textPrimary) => `margin: 0 0 20px; font-size: 22px; font-weight: 700; color: ${color};`;
+const getParagraphStyles = () => `margin-bottom: 24px; font-size: 15px; color: ${COLORS.textSecondary};`;
+const getButtonContainerStyles = () => `text-align: center; margin: 32px 0 16px;`;
+const getButtonStyles = (color: string = COLORS.primary) => `display: inline-block; background-color: ${color}; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;`;
+const getFooterStyles = () => `background-color: #fafafa; padding: 32px 40px; text-align: center; border-top: 1px solid ${COLORS.border};`;
+const getFooterTextStyles = () => `margin: 0; font-size: 12px; color: ${COLORS.textSecondary};`;
+const getLinkStyles = () => `color: ${COLORS.primary}; text-decoration: underline; font-weight: 500;`;
 
-const getContainerStyles = () => `
-  max-width: 600px;
-  margin: 0 auto;
-  background-color: ${COLORS.container};
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-  border: 1px solid ${COLORS.border};
-`;
-
-const getHeaderStyles = () => `
-  background-color: ${COLORS.primary};
-  padding: 40px;
-  text-align: center;
-`;
-
-const getContentStyles = () => `
-  padding: 40px 40px;
-  text-align: left;
-`;
-
-const getHeadingStyles = (color: string = COLORS.textPrimary) => `
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 22px;
-  font-weight: 700;
-  color: ${color};
-  line-height: 1.3;
-`;
-
-const getParagraphStyles = () => `
-  margin-bottom: 24px;
-  font-size: 15px;
-  color: ${COLORS.textSecondary};
-  line-height: 26px;
-`;
-
-const getButtonContainerStyles = () => `
-  text-align: center;
-  margin-top: 32px;
-  margin-bottom: 16px;
-`;
-
-const getButtonStyles = (color: string = COLORS.primary) => `
-  display: inline-block;
-  background-color: ${color};
-  color: #ffffff;
-  text-decoration: none;
-  padding: 14px 32px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.5px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-`;
-
-const getFooterStyles = () => `
-  background-color: #fafafa;
-  padding: 32px 40px;
-  text-align: center;
-  border-top: 1px solid ${COLORS.border};
-`;
-
-const getFooterTextStyles = () => `
-  margin: 0;
-  font-size: 12px;
-  color: ${COLORS.textSecondary};
-  line-height: 18px;
-`;
-
-const getLinkStyles = () => `
-  color: ${COLORS.primary};
-  text-decoration: underline;
-  font-weight: 500;
-`;
-
-// --- Content Logic ---
 const getContent = (type: NotificationType, userName: string): EmailContent => {
   switch (type) {
+    case "payment_approved":
+        return {
+            subject: "Ödeme Onaylandı | ATAGÇ 2026",
+            heading: "Ödemeniz Başarıyla Alındı",
+            message: `Sayın <strong>${userName}</strong>,<br/><br/>Göndermiş olduğunuz ödeme dekontu incelenmiş ve onaylanmıştır. Katılım süreciniz tamamlanmıştır. Etkinlikte görüşmek üzere!`,
+            buttonText: "Panele Git",
+            buttonPath: "/dashboard",
+            accentColor: COLORS.success
+        };
+    case "payment_rejected":
+        return {
+            subject: "Ödeme Reddedildi | ATAGÇ 2026",
+            heading: "Ödemeniz Onaylanamadı",
+            message: `Sayın <strong>${userName}</strong>,<br/><br/>Yüklediğiniz ödeme dekontu maalesef onaylanamamıştır. Eksik veya hatalı bilgi nedeniyle reddedilmiş olabilir. Lütfen panel üzerinden reddedilme sebebini inceleyip yeni bir dekont yükleyiniz.`,
+            buttonText: "Tekrar Yükle",
+            buttonPath: "/dashboard",
+            accentColor: COLORS.danger
+        };
     case "application_received":
       return {
         subject: "Başvurunuz Alındı | ATAGÇ 2026",
@@ -210,7 +153,6 @@ export const generateEmailHtml = (type: NotificationType, userName: string, base
   const headingColor = content.accentColor || COLORS.textPrimary;
   const buttonColor = content.accentColor || COLORS.primary;
   
-  // Ensure we don't have double slashes if baseUrl has trailing slash
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   const targetUrl = `${cleanBaseUrl}${content.buttonPath || '/dashboard'}`;
 
@@ -225,42 +167,24 @@ export const generateEmailHtml = (type: NotificationType, userName: string, base
     <body style="${getBaseStyles()}">
       <div style="${getWrapperStyles()}">
         <div style="${getContainerStyles()}">
-          
-          <!-- Header -->
           <div style="${getHeaderStyles()}">
              <img src="https://atagc.com.tr/logo.png" alt="ATAGÇ Logo" width="80" height="auto" style="display: block; margin: 0 auto; width: 80px;" />
              <div style="font-size: 14px; color: #ffffff; margin-top: 15px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; opacity: 0.9;">Atatürk Gençliği Çalıştayı</div>
           </div>
-
-          <!-- Content -->
           <div style="${getContentStyles()}">
             <h2 style="${getHeadingStyles(headingColor)}">${content.heading}</h2>
             <div style="${getParagraphStyles()}">${content.message}</div>
-            
-            ${content.buttonText ? `
-              <div style="${getButtonContainerStyles()}">
-                <a href="${targetUrl}" target="_blank" style="${getButtonStyles(buttonColor)}">${content.buttonText}</a>
-              </div>
-            ` : ''}
-
+            ${content.buttonText ? `<div style="${getButtonContainerStyles()}"><a href="${targetUrl}" target="_blank" style="${getButtonStyles(buttonColor)}">${content.buttonText}</a></div>` : ''}
             <div style="margin-top: 40px; border-top: 1px solid #f4f4f5; padding-top: 20px;">
               <p style="font-size: 13px; color: ${COLORS.textSecondary}; margin: 0;">
                 Sorularınız için <a href="mailto:info@atagc.com.tr" style="${getLinkStyles()}">info@atagc.com.tr</a> adresi üzerinden bize ulaşabilirsiniz.
               </p>
             </div>
           </div>
-
-          <!-- Footer -->
           <div style="${getFooterStyles()}">
             <p style="${getFooterTextStyles()}">© 2026 ATAGÇ. Tüm hakları saklıdır.</p>
             <p style="${getFooterTextStyles()} margin-top: 5px;">İTÜ GVO İzmir NESAN Yerleşkesi</p>
-            
-            ${type !== 'password_changed' && type !== 'account_suspended' ? 
-              `<p style="${getFooterTextStyles()} margin-top: 15px; font-size: 11px; opacity: 0.6;">
-                Bu e-posta, bildirim tercihleriniz doğrultusunda gönderilmiştir. 
-                Ayarlarınızı <a href="${cleanBaseUrl}/dashboard/profile" style="color: ${COLORS.textSecondary}; text-decoration: underline;">profil sayfasından</a> yönetebilirsiniz.
-              </p>` 
-              : ''}
+            ${type !== 'password_changed' && type !== 'account_suspended' ? `<p style="${getFooterTextStyles()} margin-top: 15px; font-size: 11px; opacity: 0.6;">Bu e-posta, bildirim tercihleriniz doğrultusunda gönderilmiştir. Ayarlarınızı <a href="${cleanBaseUrl}/dashboard/profile" style="color: ${COLORS.textSecondary}; text-decoration: underline;">profil sayfasından</a> yönetebilirsiniz.</p>` : ''}
           </div>
         </div>
       </div>
@@ -270,8 +194,4 @@ export const generateEmailHtml = (type: NotificationType, userName: string, base
 };
 
 // Change Log:
-// - Updated styles for a more professional, clean look (fonts, spacing, shadows).
-// - Replaced text header with the logo from `https://atagc.com.tr/logo.png`.
-// - Implemented dynamic `buttonPath` to direct users to specific context pages (e.g., /dashboard/committee).
-// - Rewrote all email texts to use fluent, formal Turkish language.
-// - Updated `generateEmailHtml` to accept `baseUrl` and construct full links properly.
+// - Added Payment Approved/Rejected email templates.

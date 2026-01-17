@@ -52,14 +52,21 @@ export interface User {
     application?: {
         id: string;
         status: string;
+        payment_status?: "unpaid" | "processing" | "paid" | "rejected";
         submitted_at: string;
         review_notes?: string;
     } | {
         id: string;
         status: string;
+        payment_status?: "unpaid" | "processing" | "paid" | "rejected";
         submitted_at: string;
         review_notes?: string;
     }[] | null;
+
+    // Latest payment receipt ID for quick access
+    payment_receipts?: {
+        id: string;
+    }[];
 
     // Warnings
     user_warnings?: Warning[]; 
@@ -67,4 +74,4 @@ export interface User {
 }
 
 // Change Log:
-// - Added `notification_preferences` to `UserDetail` interface.
+// - Added `payment_receipts` array to `User` interface to hold the ID of the latest receipt.

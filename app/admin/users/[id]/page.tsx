@@ -18,7 +18,12 @@ import {
     FileText,
     Building2,
     BookOpen,
-    ArrowUpRight
+    ArrowUpRight,
+    CreditCard,
+    CheckCircle2,
+    Clock,
+    XCircle,
+    Wallet
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { User, UserDetail } from "@/types/user";
 import { WarningManager } from "@/components/admin/WarningManager";
+import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
 
 export default function UserDetailPage() {
     const params = useParams();
@@ -38,8 +44,8 @@ export default function UserDetailPage() {
     const queryClient = useQueryClient();
     const id = params.id as string;
     const [isManageOpen, setIsManageOpen] = useState(false);
+    const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
 
-    // Query
     const { data: user, isLoading, error } = useQuery<User>({
         queryKey: ['user', id],
         queryFn: async () => {
@@ -49,7 +55,6 @@ export default function UserDetailPage() {
         }
     });
 
-    // Mutations
     const updateRoleMutation = useMutation({
         mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
             const res = await fetch("/api/admin/users", {
@@ -135,6 +140,19 @@ export default function UserDetailPage() {
     const isCommitteeExecutive = user.role === 'committee_chairman' || user.role === 'deputy_chair';
 
     const application = getFirstItem(user.application);
+    const paymentStatus = application?.payment_status || "unpaid";
+
+    // Handle payment click
+    const handlePaymentClick = () => {
+        const receiptId = user.payment_receipts?.[0]?.id;
+        if (receiptId) {
+            setSelectedReceiptId(receiptId);
+        } else {
+            if (paymentStatus !== 'unpaid') {
+                router.push(`/admin/payments?search=${user.email}`);
+            }
+        }
+    };
 
     const getRoleBadge = (role: string) => {
         switch (role) {
@@ -146,10 +164,39 @@ export default function UserDetailPage() {
         }
     };
 
+    const getPaymentStatusDisplay = (status: string) => {
+        switch (status) {
+            case 'paid': 
+                return (
+                    <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                        <CheckCircle2 className="w-4 h-4" /> Ödendi
+                    </div>
+                );
+            case 'processing': 
+                return (
+                    <div className="flex items-center gap-1.5 text-amber-600 font-medium">
+                        <Clock className="w-4 h-4 animate-pulse" /> İnceleniyor
+                    </div>
+                );
+            case 'rejected': 
+                return (
+                    <div className="flex items-center gap-1.5 text-red-600 font-medium">
+                        <XCircle className="w-4 h-4" /> Reddedildi
+                    </div>
+                );
+            default: 
+                return (
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Wallet className="w-4 h-4" /> Ödenmedi
+                    </div>
+                );
+        }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in pb-10">
             <Breadcrumbs items={[{ label: "Kullanıcılar", href: "/admin/users" }, { label: "Kullanıcı Detayı" }]} />
-            {/* Header */}
+            
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <Link href="/admin/users">
@@ -210,7 +257,7 @@ export default function UserDetailPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Okul</span>
-                                        <div className="text-sm font-medium leading-tight">{details?.school_name || "-"}</div>
+                                        <div className="text-sm font-medium leading-tight line-clamp-2" title={details?.school_name}>{details?.school_name || "-"}</div>
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Şehir</span>
@@ -221,7 +268,6 @@ export default function UserDetailPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Warning Manager */}
                     <div className="flex-1">
                         <WarningManager user={user} />
                     </div>
@@ -235,7 +281,7 @@ export default function UserDetailPage() {
                             <CardTitle className="text-base">Sistem Durumu</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-background rounded-full border border-border/50">
@@ -268,6 +314,27 @@ export default function UserDetailPage() {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Payment Status Row with Modal Trigger */}
+                                <div 
+                                    onClick={handlePaymentClick}
+                                    className="col-span-1 sm:col-span-2 flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50 hover:bg-secondary/20 transition-colors group cursor-pointer"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-background rounded-full border border-border/50">
+                                            <CreditCard className="w-4 h-4 text-primary" />
+                                        </div>
+                                        <div>
+                                            <div className="text-xs text-muted-foreground">Ödeme Durumu</div>
+                                            <div className="text-sm">
+                                                {getPaymentStatusDisplay(paymentStatus)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {paymentStatus !== 'unpaid' && (
+                                        <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    )}
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -282,7 +349,6 @@ export default function UserDetailPage() {
                         <CardContent className="space-y-8">
                             {details ? (
                                 <>
-                                    {/* Academic & Personal */}
                                     <section className="space-y-4">
                                         <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
                                             <GraduationCap className="w-4 h-4 text-primary" /> Akademik & Kişisel
@@ -301,7 +367,6 @@ export default function UserDetailPage() {
                                         </div>
                                     </section>
 
-                                    {/* Experience */}
                                     {(additional.mun_experience || additional.english_level) && (
                                         <section className="space-y-4">
                                             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
@@ -324,7 +389,8 @@ export default function UserDetailPage() {
                                             {additional.previous_conferences && (
                                                 <div className="space-y-1 mt-2">
                                                     <span className="text-xs text-muted-foreground">Önceki Konferanslar</span>
-                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed">
+                                                    {/* Fix for overflowing text */}
+                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
                                                         {additional.previous_conferences}
                                                     </div>
                                                 </div>
@@ -332,7 +398,6 @@ export default function UserDetailPage() {
                                         </section>
                                     )}
 
-                                    {/* Motivation */}
                                     {(additional.reason_for_joining || additional.expectations) && (
                                         <section className="space-y-4">
                                             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
@@ -342,7 +407,8 @@ export default function UserDetailPage() {
                                             {additional.reason_for_joining && (
                                                 <div className="space-y-1">
                                                     <span className="text-xs text-muted-foreground">Katılım Nedeni</span>
-                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap">
+                                                    {/* Fix for overflowing text */}
+                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
                                                         {additional.reason_for_joining}
                                                     </div>
                                                 </div>
@@ -351,7 +417,8 @@ export default function UserDetailPage() {
                                             {additional.expectations && (
                                                 <div className="space-y-1">
                                                     <span className="text-xs text-muted-foreground">Beklentiler</span>
-                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap">
+                                                    {/* Fix for overflowing text */}
+                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
                                                         {additional.expectations}
                                                     </div>
                                                 </div>
@@ -381,6 +448,17 @@ export default function UserDetailPage() {
                 onToggleSuspend={(id, suspended) => suspendMutation.mutateAsync({ userId: id, isSuspended: suspended })}
                 onDelete={(id) => deleteMutation.mutateAsync(id)}
             />
+
+            <PaymentReviewDialog
+                paymentId={selectedReceiptId}
+                open={!!selectedReceiptId}
+                onOpenChange={(open) => !open && setSelectedReceiptId(null)}
+            />
         </div>
     );
 }
+
+// Change Log:
+// - Added `PaymentReviewDialog` to the detail page.
+// - Updated `handlePaymentClick` logic to open the modal directly if a receipt ID is available.
+// - Replaced the standard Link for payment status with a div and onClick handler.
