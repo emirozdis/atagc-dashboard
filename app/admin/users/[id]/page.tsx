@@ -23,7 +23,8 @@ import {
     CheckCircle2,
     Clock,
     XCircle,
-    Wallet
+    Wallet,
+    UploadCloud
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { User, UserDetail } from "@/types/user";
 import { WarningManager } from "@/components/admin/WarningManager";
 import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
+import { cn } from "@/lib/utils";
+import { AdminPaymentUploadDialog } from "@/components/admin/AdminPaymentUploadDialog";
 
 export default function UserDetailPage() {
     const params = useParams();
@@ -45,6 +48,7 @@ export default function UserDetailPage() {
     const id = params.id as string;
     const [isManageOpen, setIsManageOpen] = useState(false);
     const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
+    const [isUploadReceiptOpen, setIsUploadReceiptOpen] = useState(false);
 
     const { data: user, isLoading, error } = useQuery<User>({
         queryKey: ['user', id],
@@ -315,24 +319,32 @@ export default function UserDetailPage() {
                                     </div>
                                 </div>
 
-                                {/* Payment Status Row with Modal Trigger */}
-                                <div 
-                                    onClick={handlePaymentClick}
-                                    className="col-span-1 sm:col-span-2 flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50 hover:bg-secondary/20 transition-colors group cursor-pointer"
-                                >
+                                <div className="col-span-1 sm:col-span-2 flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-background rounded-full border border-border/50">
                                             <CreditCard className="w-4 h-4 text-primary" />
                                         </div>
                                         <div>
                                             <div className="text-xs text-muted-foreground">Ödeme Durumu</div>
-                                            <div className="text-sm">
+                                            <div
+                                                onClick={handlePaymentClick}
+                                                className={cn(
+                                                    "text-sm flex items-center gap-1.5 group",
+                                                    paymentStatus !== 'unpaid' && "cursor-pointer"
+                                                )}
+                                            >
                                                 {getPaymentStatusDisplay(paymentStatus)}
+                                                {paymentStatus !== 'unpaid' && (
+                                                    <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-all" />
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                    {paymentStatus !== 'unpaid' && (
-                                        <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    {(paymentStatus === 'unpaid' || paymentStatus === 'rejected') && (
+                                        <Button size="sm" variant="outline" className="h-8 text-xs gap-2" onClick={() => setIsUploadReceiptOpen(true)}>
+                                            <UploadCloud className="w-3 h-3" />
+                                            Dekont Yükle
+                                        </Button>
                                     )}
                                 </div>
                             </div>
@@ -454,11 +466,25 @@ export default function UserDetailPage() {
                 open={!!selectedReceiptId}
                 onOpenChange={(open) => !open && setSelectedReceiptId(null)}
             />
+
+            <AdminPaymentUploadDialog
+                userId={user.id}
+                userFullName={user.full_name}
+                open={isUploadReceiptOpen}
+                onOpenChange={setIsUploadReceiptOpen}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['user', id] });
+                    queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
+                    queryClient.invalidateQueries({ queryKey: ['admin-payments-stats'] });
+                }}
+            />
         </div>
     );
 }
 
-// Change Log:
-// - Added `PaymentReviewDialog` to the detail page.
-// - Updated `handlePaymentClick` logic to open the modal directly if a receipt ID is available.
-// - Replaced the standard Link for payment status with a div and onClick handler.
+
+// Change log:
+// - Added a new state `isUploadReceiptOpen` to control the `AdminPaymentUploadDialog`.
+// - Added an "Upload Receipt" button to the Payment Status section, visible when payment is `unpaid` or `rejected`.
+// - Rendered the `AdminPaymentUploadDialog` component at the bottom of the page, passing necessary props and query invalidation logic.
+// - Refactored the layout of the payment status section for better UI/UX.
