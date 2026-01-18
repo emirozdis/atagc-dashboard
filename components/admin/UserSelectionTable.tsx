@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, ChevronUp, CheckCircle2, Calendar, Mail, AlertTriangle, CreditCard, ChevronRight } from "lucide-react";
+import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, ChevronUp, CheckCircle2, Calendar, Mail, AlertTriangle, CreditCard } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { toast } from "sonner";
 import { User } from "@/types/user";
@@ -23,11 +23,33 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
+import { MultiSelectPopover, MultiSelectOption } from "@/components/ui/multi-select-popover";
 
 interface UserSelectionTableProps {
   selectedUsers?: string[];
   onSelectionChange?: (ids: string[]) => void;
 }
+
+const roleOptions: MultiSelectOption[] = [
+    { value: "applicant", label: "Katılımcı" },
+    { value: "deputy_chair", label: "Başkan Yrd." },
+    { value: "committee_chairman", label: "Başkan" },
+    { value: "admin", label: "Yönetici" },
+    { value: "superadmin", label: "Süper Yönetici" },
+];
+
+const statusOptions: MultiSelectOption[] = [
+    { value: "active", label: "Aktif" },
+    { value: "suspended", label: "Askıda" },
+];
+
+const paymentStatusOptions: MultiSelectOption[] = [
+    { value: "paid", label: "Ödendi" },
+    { value: "processing", label: "İnceleniyor" },
+    { value: "rejected", label: "Reddedildi" },
+    { value: "unpaid", label: "Ödenmedi" },
+];
+
 
 export function UserSelectionTable({ selectedUsers: externalSelected, onSelectionChange }: UserSelectionTableProps) {
   const router = useRouter();
@@ -49,8 +71,9 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string[]>([]);
   const [warningFilter, setWarningFilter] = useState("all");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
@@ -65,18 +88,20 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   }, [search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["users", page, debouncedSearch, roleFilter, statusFilter, warningFilter, sortBy, sortOrder],
+    queryKey: ["users", page, debouncedSearch, roleFilter, statusFilter, paymentStatusFilter, warningFilter, sortBy, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         search: debouncedSearch,
-        role: roleFilter,
-        status: statusFilter,
         warnings: warningFilter,
         sort_by: sortBy,
         sort_order: sortOrder
       });
+      if (roleFilter.length > 0) params.append("role", roleFilter.join(','));
+      if (statusFilter.length > 0) params.append("status", statusFilter.join(','));
+      if (paymentStatusFilter.length > 0) params.append("payment_status", paymentStatusFilter.join(','));
+
       const res = await fetch(`/api/admin/users?${params}`);
       if (!res.ok) throw new Error("Failed");
       return res.json();
@@ -138,8 +163,9 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
 
   const resetFilters = () => {
     setSearch("");
-    setRoleFilter("all");
-    setStatusFilter("all");
+    setRoleFilter([]);
+    setStatusFilter([]);
+    setPaymentStatusFilter([]);
     setWarningFilter("all");
     setSortBy("created_at");
     setSortOrder("desc");
@@ -148,20 +174,15 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
 
   const handlePaymentClick = (e: React.MouseEvent, user: User) => {
     e.stopPropagation();
-    // Check if there is a receipt ID
     const receiptId = user.payment_receipts?.[0]?.id;
     if (receiptId) {
         setSelectedReceiptId(receiptId);
     } else {
-        // Fallback or "No Receipt" message
-        // If status is unpaid, do nothing or show toast
         const app = Array.isArray(user.application) ? user.application[0] : user.application;
         const status = app?.payment_status || 'unpaid';
-        
         if (status === 'unpaid') {
             toast.info("Bu kullanıcı henüz ödeme bildirimi yapmamış.");
         } else {
-            // Should theoretically not happen if logic is correct, but safe fallback
             router.push(`/admin/payments?search=${user.email}`);
         }
     }
@@ -214,61 +235,101 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
     return details?.profile_picture_url || undefined;
   };
 
+  const hasActiveFilters = search !== "" || roleFilter.length > 0 || statusFilter.length > 0 || paymentStatusFilter.length > 0 || warningFilter !== "all";
+
   return (
     <div className="space-y-6">
       {/* Controls Toolbar */}
-      <div className="flex flex-col xl:flex-row gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="İsim veya e-posta ile ara..." className="pl-9 h-10 w-full bg-background border-border/50" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex flex-col gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
+        {/* Search Bar - Full Width */}
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input 
+            placeholder="İsim veya e-posta ile ara..." 
+            className="pl-9 h-10 w-full bg-background border-border/50" 
+            value={search} 
+            onChange={e => setSearch(e.target.value)} 
+          />
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-center">
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-full sm:w-[130px] h-10 bg-background border-border/50"><SelectValue placeholder="Rol" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Roller</SelectItem>
-              <SelectItem value="applicant">Katılımcı</SelectItem>
-              <SelectItem value="deputy_chair">Başkan Yrd.</SelectItem>
-              <SelectItem value="committee_chairman">Başkan</SelectItem>
-              <SelectItem value="admin">Yönetici</SelectItem>
-              <SelectItem value="superadmin">Süper Yönetici</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[130px] h-10 bg-background border-border/50"><SelectValue placeholder="Durum" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">Tümü</SelectItem><SelectItem value="active">Aktif</SelectItem><SelectItem value="suspended">Askıda</SelectItem></SelectContent>
-          </Select>
 
-          <Select value={warningFilter} onValueChange={setWarningFilter}>
-            <SelectTrigger className="w-full sm:w-[130px] h-10 bg-background border-border/50">
-                <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    <SelectValue placeholder="Uyarı" />
+        {/* Filters Row - Responsive Grid */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Filter Controls */}
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+            <MultiSelectPopover 
+              options={roleOptions} 
+              selected={roleFilter} 
+              onChange={setRoleFilter} 
+              placeholder="Rol" 
+              triggerIcon={<Shield className="w-4 h-4 shrink-0" />} 
+              className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" 
+            />
+            
+            <MultiSelectPopover 
+              options={statusOptions} 
+              selected={statusFilter} 
+              onChange={setStatusFilter} 
+              placeholder="Durum" 
+              triggerIcon={<Filter className="w-4 h-4 shrink-0" />} 
+              className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" 
+            />
+            
+            <MultiSelectPopover 
+              options={paymentStatusOptions} 
+              selected={paymentStatusFilter} 
+              onChange={setPaymentStatusFilter} 
+              placeholder="Ödeme" 
+              triggerIcon={<CreditCard className="w-4 h-4 shrink-0" />} 
+              className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" 
+            />
+
+            <Select value={warningFilter} onValueChange={setWarningFilter}>
+              <SelectTrigger className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px] h-10 bg-background border-border/50">
+                  <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <SelectValue placeholder="Uyarı" />
+                  </div>
+              </SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="all">Tümü</SelectItem>
+                  <SelectItem value="has_warnings">Uyarı Alanlar</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Sort & Clear Buttons */}
+          <div className="flex items-center gap-2 ml-auto">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 shrink-0" title="Sıralama">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sırala</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-2" align="end">
+                <div className="space-y-1">
+                  <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Kayıt Tarihi</Button>
+                  <Button variant={sortBy === 'full_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('full_name')}>İsim</Button>
+                  <Button variant={sortBy === 'warnings_count' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('warnings_count')}>Uyarı Sayısı</Button>
+                  <div className="h-px bg-border my-1" />
+                  <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Artan (A-Z)</Button>
+                  <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Azalan (Z-A)</Button>
                 </div>
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">Tümü</SelectItem>
-                <SelectItem value="has_warnings">Uyarı Alanlar</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Popover>
-            <PopoverTrigger asChild><Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50" title="Sıralama"><ArrowUpDown className="w-4 h-4" /><span className="hidden sm:inline">Sırala</span></Button></PopoverTrigger>
-            <PopoverContent className="w-48 p-2" align="end">
-              <div className="space-y-1">
-                <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Kayıt Tarihi</Button>
-                <Button variant={sortBy === 'full_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('full_name')}>İsim</Button>
-                <Button variant={sortBy === 'warnings_count' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('warnings_count')}>Uyarı Sayısı</Button>
-                <div className="h-px bg-border my-1" />
-                <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Artan (A-Z)</Button>
-                <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Azalan (Z-A)</Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-          {(roleFilter !== "all" || statusFilter !== "all" || warningFilter !== "all" || search !== "") && (
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive" onClick={resetFilters} title="Filtreleri Temizle"><X className="w-4 h-4" /></Button>
-          )}
+              </PopoverContent>
+            </Popover>
+            
+            {hasActiveFilters && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" 
+                onClick={resetFilters} 
+                title="Filtreleri Temizle"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -285,7 +346,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
           <Filter className="w-12 h-12 opacity-20 mb-3" />
           <p>Kriterlere uygun kullanıcı bulunamadı.</p>
-          {(roleFilter !== "all" || statusFilter !== "all" || warningFilter !== "all" || search !== "") && (
+          {hasActiveFilters && (
             <Button variant="link" onClick={resetFilters} className="mt-2">
               Filtreleri Temizle
             </Button>
@@ -411,8 +472,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         </>
       )}
 
-      {/* Floating Selection Bar ... */}
-      {/* (Kept as is) */}
+      {/* Floating Selection Bar */}
       <AnimatePresence>
         {selectedIds.length > 0 && (
           <motion.div
@@ -422,7 +482,6 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
             transition={{ type: "spring", stiffness: 350, damping: 25 }}
             className="fixed z-50 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-auto bottom-20 md:bottom-8"
           >
-            {/* ... Floating Bar Content ... */}
             <div className="bg-white/95 dark:bg-zinc-900/95 text-foreground px-4 py-3 rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/50 flex items-center justify-between gap-3 md:gap-6 backdrop-blur-lg border border-border/50 ring-1 ring-black/5 dark:ring-white/5">
               <div className="flex items-center gap-3 pl-1 pr-2">
                 <motion.div
@@ -478,8 +537,3 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
     </div>
   );
 }
-
-// Change Log:
-// - Added `PaymentReviewDialog` to the table component.
-// - Updated `handlePaymentClick` to open the modal directly if a receipt ID is present.
-// - Kept fallback navigation to `/admin/payments` if ID is missing (for safety, though API now provides it).

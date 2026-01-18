@@ -14,12 +14,13 @@ export const GET = apiHandler(async (request: Request) => {
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "10");
   const search = searchParams.get("search") || "";
-  const role = searchParams.get("role") || "all";
-  const status = searchParams.get("status") || "all";
+  const role = searchParams.get("role") || "";
+  const status = searchParams.get("status") || "";
   const warningFilter = searchParams.get("warnings") || "all";
   const sortBy = searchParams.get("sort_by") || "created_at";
   const sortOrder = searchParams.get("sort_order") || "desc";
   const idsParam = searchParams.get("ids");
+  const paymentStatus = searchParams.get("payment_status") || "";
 
   if (idsParam) {
     const ids = idsParam.split(",").filter(Boolean);
@@ -37,7 +38,6 @@ export const GET = apiHandler(async (request: Request) => {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  // Added `payment_receipts` to the selection to get the latest receipt ID for the modal
   const selectString = warningFilter === "has_warnings" 
     ? `
       id, 
@@ -68,21 +68,36 @@ export const GET = apiHandler(async (request: Request) => {
 
   let query = supabase.from("users").select(selectString, { count: "exact" });
 
-  if (role !== "all") query = query.eq("role", role);
-  if (status === "suspended") query = query.eq("is_suspended", true);
-  else if (status === "active") query = query.eq("is_suspended", false);
+  if (role) query = query.in("role", role.split(','));
+  
+  if (status) {
+    const statuses = status.split(',');
+    const booleanStatuses = [];
+    if (statuses.includes('active')) booleanStatuses.push(false);
+    if (statuses.includes('suspended')) booleanStatuses.push(true);
+    if (booleanStatuses.length > 0) {
+      query = query.in('is_suspended', booleanStatuses);
+    }
+  }
 
   if (search) query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+
+  if (paymentStatus) {
+      const statuses = paymentStatus.split(',');
+      const { data: usersWithStatus } = await supabase.from('applications').select('user_id').in('payment_status', statuses);
+      const userIds = usersWithStatus?.map(u => u.user_id) || [];
+      
+      if (userIds.length > 0) {
+          query = query.in('id', userIds);
+      } else {
+          // If no users match, return empty result without hitting the main query again
+          return NextResponse.json({ data: [], meta: { total: 0, page, limit, totalPages: 0 }});
+      }
+  }
 
   if (sortBy === "created_at" || sortBy === "full_name") {
       query = query.order(sortBy, { ascending: sortOrder === 'asc' });
   }
-
-  // Ensure we get the latest receipt if there are multiple (though logically usually 1 active)
-  // Note: Supabase nested order isn't always straightforward in one query without a view, 
-  // but since we just need ANY id to open the modal (which usually handles latest), this is fine.
-  // Ideally we would `.order('created_at', { foreignTable: 'payment_receipts', ascending: false })` 
-  // but let's keep it simple for list view performance.
 
   query = query.range(from, to);
 
@@ -94,7 +109,6 @@ export const GET = apiHandler(async (request: Request) => {
       ...user,
       warnings_count: user.user_warnings?.length || 0,
       user_warnings: undefined,
-      // We only need the latest receipt ID if exists
       payment_receipts: user.payment_receipts?.length > 0 ? [user.payment_receipts[user.payment_receipts.length - 1]] : []
   }));
 
@@ -117,7 +131,6 @@ export const GET = apiHandler(async (request: Request) => {
   });
 });
 
-// ... PUT and DELETE handlers remain unchanged ...
 export const PUT = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
@@ -197,6 +210,8 @@ export const DELETE = apiHandler(async (request: Request) => {
   return NextResponse.json({ success: true });
 });
 
-// Change Log:
-// - Added `payment_receipts!payment_receipts_user_id_fkey(id)` to the SELECT statement.
-// - Transformed data to pick the last receipt ID if available.
+// Change log:
+// - Updated API to handle multiple values for `role`, `status`, and `payment_status` filters.
+// - Filters are now passed as comma-separated strings (e.g., `role=admin,superadmin`).
+// - The backend parses these and uses Supabase's `.in()` operator for efficient filtering.
+// - For payment status, the API now queries the `applications` table to get relevant user IDs, then filters the main `users` query, ensuring performant multi-select on this related data.
