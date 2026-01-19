@@ -90,26 +90,31 @@ export const authOptions: NextAuthOptions = {
         let appStatus: "pending" | "approved" | "rejected" = "pending";
         let applicantType: "delegate" | "press" | "observer" = "delegate"; // Default
 
-        if (user.role === 'applicant') {
-            const { data: app } = await supabase
-                .from("applications")
-                .select(`
-                  status, 
-                  form:application_forms(slug)
-                `)
-                .eq("user_id", user.id)
-                .maybeSingle();
-            
-            if (app) {
-                appStatus = app.status;
-                // @ts-ignore
-                if (app.form?.slug) {
-                   // @ts-ignore
-                   applicantType = app.form.slug;
-                }
+        const { data: app } = await supabase
+            .from("applications")
+            .select(`
+              status, 
+              form:application_forms(slug)
+            `)
+            .eq("user_id", user.id)
+            .maybeSingle();
+        
+        if (app) {
+            appStatus = app.status;
+            // @ts-ignore
+            if (app.form?.slug) {
+               // @ts-ignore
+               applicantType = app.form.slug;
             }
-        } else {
-            // Admins/Chairs are approved and essentially "staff"
+        }
+
+        // If user has a specific role like 'press', ensure applicantType matches for consistency
+        if (['press', 'observer', 'delegate'].includes(user.role)) {
+             applicantType = user.role as any;
+        }
+
+        // Admins/Chairs are approved implicitly
+        if (['superadmin', 'admin', 'committee_chairman', 'deputy_chair'].includes(user.role)) {
             appStatus = "approved";
         }
 
@@ -149,6 +154,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
+        // Initial sign in
         token.id = user.id;
         token.role = user.role;
         token.picture = user.image;
@@ -156,8 +162,31 @@ export const authOptions: NextAuthOptions = {
         token.applicationStatus = user.applicationStatus;
         token.applicantType = user.applicantType;
       }
-      if (trigger === "update" && session?.user?.image) {
-        token.picture = session.user.image;
+
+      // Handle session update triggers (e.g. Profile update or Role change)
+      if (trigger === "update") {
+        if (session?.user?.image) {
+            token.picture = session.user.image;
+        }
+        
+        // RE-FETCH USER DATA FROM DB to get fresh Role
+        // This fixes the issue where role remains 'applicant' after form submission
+        if (token.id) {
+            const { data: freshUser } = await supabase
+                .from("users")
+                .select("role")
+                .eq("id", token.id)
+                .single();
+            
+            if (freshUser) {
+                token.role = freshUser.role;
+                
+                // If role is updated, sync applicantType as well
+                if (['press', 'observer', 'delegate'].includes(freshUser.role)) {
+                    token.applicantType = freshUser.role as any;
+                }
+            }
+        }
       }
       return token;
     },
@@ -187,5 +216,6 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Updated `authorize` function to fetch `form:application_forms(slug)` from the application to determine `applicantType` (delegate, press, observer).
-// - Passed `applicantType` through to JWT and Session callbacks.
+// - Updated `jwt` callback to handle `trigger === "update"`. It now re-fetches the user's role from Supabase.
+// - This ensures that when `update()` is called on the client after form submission, the session receives the new role immediately.
+// - Updated `authorize` logic to be consistent with new roles.

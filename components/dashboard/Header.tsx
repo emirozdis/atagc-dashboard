@@ -42,12 +42,15 @@ export function Header() {
 
   const getRoleDisplayName = (role?: string) => {
     switch (role) {
-      case "committee_chairman": return "Chairman";
-      case "deputy_chair": return "Deputy Chair";
-      case "superadmin":
-      case "admin": return "Admin";
-      case "applicant": return "Participant";
-      default: return role || "Misafir";
+      case "superadmin": return "Süper Yönetici";
+      case "admin": return "Yönetici";
+      case "committee_chairman": return "Komite Başkanı";
+      case "deputy_chair": return "Başkan Yardımcısı";
+      case "delegate": return "Delege";
+      case "press": return "Basın";
+      case "observer": return "Gözlemci";
+      case "applicant": return "Katılımcı";
+      default: return "Misafir";
     }
   };
 
@@ -155,4 +158,4 @@ export function Header() {
 }
 
 // Change Log:
-// - Added `className="object-cover"` to `AvatarImage` to fix aspect ratio distortion for non-square profile pictures.
+// - Updated `getRoleDisplayName` to return Turkish labels (e.g., "Basın", "Delege", "Gözlemci").

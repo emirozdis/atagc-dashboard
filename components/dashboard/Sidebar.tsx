@@ -20,21 +20,16 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   
   const role = session?.user?.role;
   const status = session?.user?.applicationStatus;
-  const type = session?.user?.applicantType || "delegate"; // Default to delegate for staff
 
   // Filter items
   const items = participantItems.filter(item => {
     // 1. Role Check
     if (item.roles && role && !item.roles.includes(role)) return false;
     
-    // 2. Approval Check (only for applicants)
-    if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
-    
-    // 3. Applicant Type Check (Delegate vs Press vs Observer)
-    // Only check if user is an applicant. Staff (admin/chairs) bypass this.
-    if (role === 'applicant') {
-        if (item.allowedTypes && !item.allowedTypes.includes(type)) return false;
-    }
+    // 2. Approval Check (only for applicants or generic roles that need approval)
+    // Staff roles (admin/chairs) are usually implicitly approved
+    const isStaff = ['superadmin', 'admin', 'committee_chairman', 'deputy_chair'].includes(role || "");
+    if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
     
     return true;
   });
@@ -122,4 +117,5 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 }
 
 // Change Log:
-// - Added logic to filter sidebar items based on `session.user.applicantType` and `item.allowedTypes`.
+// - Simplified filter logic: removed `applicantType` checks since `role` now accurately reflects 'delegate', 'press', etc.
+// - Updated approval check to skip staff roles (who are always approved).

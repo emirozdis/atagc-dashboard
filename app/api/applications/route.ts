@@ -146,7 +146,7 @@ export const POST = apiHandler(async (request: Request) => {
         full_name: accountData.adSoyad,
         email: accountData.email, 
         password_hash: randomHash, 
-        role: 'applicant',
+        role: 'applicant', // Temporarily applicant, updated below
         created_at: now,
         updated_at: now
       })
@@ -157,10 +157,10 @@ export const POST = apiHandler(async (request: Request) => {
     userId = newUser.id;
   }
 
-  // 4. Validate Form Data
+  // 4. Validate Form Data & Get Role Slug
   const { data: formTemplate } = await supabase
     .from("application_forms")
-    .select("steps")
+    .select("id, slug, steps")
     .eq("id", body.formId)
     .single();
 
@@ -224,7 +224,17 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (appError) throw appError;
 
-  await logAction(userId, "submit_application", { form_id: body.formId }, request);
+  // 7. Update User Role based on Form Slug (Fix)
+  if (formTemplate.slug) {
+      const { error: roleError } = await supabase
+          .from("users")
+          .update({ role: formTemplate.slug })
+          .eq("id", userId);
+      
+      if (roleError) console.error("Failed to update user role:", roleError);
+  }
+
+  await logAction(userId, "submit_application", { form_id: body.formId, role: formTemplate.slug }, request);
   await sendSystemNotification(userId, "application_received");
 
   return NextResponse.json({ success: true, message: "Başvuru alındı." });
@@ -273,5 +283,4 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Restored the missing `PUT` method handler to allow application status updates (Approval/Rejection).
-// - Preserved `GET` and `POST` methods with dynamic form logic from the previous update.
+// - Updated POST handler (Step 7) to automatically update the user's `role` in the `users` table to match the `form.slug` upon successful application submission.

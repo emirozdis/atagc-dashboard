@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react"; // Imported useSession
 import { toast } from "sonner";
 
 // Components
@@ -23,6 +23,7 @@ import {
 } from "@/types/application";
 
 export function ApplicationForm() {
+  const { update } = useSession(); // Hook to trigger session refresh
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -149,19 +150,9 @@ export function ApplicationForm() {
     }
 
     // --- STEP 3..N: Dynamic Steps ---
-    // The validation is handled inside DynamicFormStep via ref or internal state checking if we were passing it up.
-    // However, since we are managing pages here, we need a way to validate the *current* dynamic step before moving.
-    // We can rely on the user filling fields. Real validation happens on submit or we can use a trigger mechanism.
-    
-    // Simplification: We assume fields update `formAnswers` onChange. 
-    // We just check required fields for the CURRENT visual step (if we split dynamic form into multiple wizard steps).
-    // The schema `steps` array allows pagination.
-    
     const selectedForm = availableForms.find(f => f.id === selectedFormId);
     if (!selectedForm) return;
 
-    // Calculate actual step index in the dynamic array
-    // Step 1=Account, Step 2=Role, Step 3 = Dynamic Step 0
     const dynamicStepIndex = currentStep - 3;
     const currentDynamicStep = selectedForm.steps[dynamicStepIndex];
 
@@ -187,17 +178,13 @@ export function ApplicationForm() {
   const handleSubmit = async () => {
     if (!accountData || !selectedFormId) return;
 
-    // KVKK check is usually last. We can add a manual check here if we put KVKK in the last dynamic step as a field.
-    // Assuming schema includes a checkbox for KVKK or we hardcode it. 
-    // Let's assume the dynamic schema includes a 'checkbox' for KVKK.
-    
     setIsSubmitting(true);
     try {
         const payload: FullApplicationSubmission = {
             account: accountData,
             formId: selectedFormId,
             formData: formAnswers,
-            kvkkApproved: true // Implicitly true if they submitted, or check specific field 'kvkk'
+            kvkkApproved: true
         };
 
         const res = await fetch("/api/applications", {
@@ -210,6 +197,10 @@ export function ApplicationForm() {
             const err = await res.json();
             throw new Error(err.error || "Gönderim başarısız");
         }
+
+        // --- FIX: Force session refresh ---
+        // This calls the JWT callback with trigger='update', forcing a DB refetch of the role.
+        await update(); 
 
         setIsSubmitted(true);
         toast.success("Başvuru Alındı");
@@ -226,7 +217,6 @@ export function ApplicationForm() {
 
   if (isSubmitted) return <SuccessScreen onReset={() => window.location.reload()} />;
 
-  // Calculate Steps for Indicator
   const selectedForm = availableForms.find(f => f.id === selectedFormId);
   const dynamicSteps = selectedForm ? selectedForm.steps.map((s, i) => ({ number: i + 3, title: s.title })) : [];
   
@@ -236,7 +226,6 @@ export function ApplicationForm() {
       ...dynamicSteps
   ];
 
-  // Current Dynamic Step Data
   const dynamicStepIndex = currentStep - 3;
   const currentDynamicStep = selectedForm?.steps[dynamicStepIndex];
 
@@ -288,7 +277,6 @@ export function ApplicationForm() {
 }
 
 // Change Log:
-// - Refactored to support dynamic step generation based on selected role schema.
-// - Step 1: Account (Fixed).
-// - Step 2: Role Selection (Dynamic List).
-// - Step 3+: JSON Schema driven steps.
+// - Added `const { update } = useSession()` hook.
+// - In `handleSubmit`, added `await update()` after successful API response.
+// - This triggers the server-side JWT callback to re-fetch the user role (which was updated by the API) and update the session cookie.

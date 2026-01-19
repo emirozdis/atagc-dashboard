@@ -148,8 +148,10 @@ export default function UserDetailPage() {
     const application = getFirstItem(user.application);
     const paymentStatus = application?.payment_status || "unpaid";
     
-    // Determine Role Label
-    const formSlug = application?.form?.slug || 'delegate';
+    // Fix: Ensure form access is safe
+    const appForm = Array.isArray(application?.form) ? application.form[0] : application?.form;
+    const formSlug = appForm?.slug || 'delegate';
+    const formData = application?.form_data || {};
 
     const handlePaymentClick = () => {
         const receiptId = user.payment_receipts?.[0]?.id;
@@ -204,6 +206,53 @@ export default function UserDetailPage() {
                     </div>
                 );
         }
+    };
+
+    // Helper to find label in form definition
+    const getFieldLabel = (key: string) => {
+        if (appForm?.steps) {
+            for (const step of appForm.steps) {
+                if (step.fields) {
+                    const field = step.fields.find((f: any) => f.id === key);
+                    if (field) return field.label;
+                }
+            }
+        }
+        return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    };
+
+    const renderDynamicData = () => {
+        if (!formData || Object.keys(formData).length === 0) {
+            return (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-center">
+                    <div className="bg-secondary/30 p-4 rounded-full mb-3">
+                        <FileText className="w-8 h-8 opacity-50" />
+                    </div>
+                    <p>Bu kullanıcı için form verisi bulunamadı.</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="grid gap-6">
+                {Object.entries(formData).map(([key, value]) => {
+                    // Skip system mapped fields if they are displayed elsewhere
+                    if (['phone_number', 'school_name', 'birth_date', 'grade', 'city'].includes(key)) return null;
+                    
+                    return (
+                        <div key={key} className="space-y-1.5">
+                            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-2">
+                                <div className="w-1 h-1 rounded-full bg-primary/50" />
+                                {getFieldLabel(key)}
+                            </span>
+                            <div className="text-sm bg-muted/20 p-3 rounded-lg border border-border/50 text-foreground/90 whitespace-pre-wrap">
+                                {String(value || "-")}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
     };
 
     return (
@@ -392,61 +441,12 @@ export default function UserDetailPage() {
                                         </div>
                                     </section>
 
-                                    {(additional.mun_experience || additional.english_level) && (
-                                        <section className="space-y-4">
-                                            <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
-                                                <BookOpen className="w-4 h-4 text-primary" /> Deneyim & Tercihler
-                                            </h4>
-                                            <div className="grid sm:grid-cols-2 gap-y-4 gap-x-8">
-                                                <div className="space-y-1">
-                                                    <span className="text-xs text-muted-foreground">MUN Deneyimi</span>
-                                                    <div className="text-sm font-medium">{additional.mun_experience || "-"}</div>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <span className="text-xs text-muted-foreground">İngilizce Seviyesi</span>
-                                                    <div className="text-sm font-medium capitalize">{additional.english_level || "-"}</div>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <span className="text-xs text-muted-foreground">Delegasyon Türü</span>
-                                                    <div className="text-sm font-medium capitalize">{additional.delegation_type || "-"}</div>
-                                                </div>
-                                            </div>
-                                            {additional.previous_conferences && (
-                                                <div className="space-y-1 mt-2">
-                                                    <span className="text-xs text-muted-foreground">Önceki Konferanslar</span>
-                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
-                                                        {additional.previous_conferences}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </section>
-                                    )}
-
-                                    {(additional.reason_for_joining || additional.expectations) && (
-                                        <section className="space-y-4">
-                                            <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
-                                                <FileText className="w-4 h-4 text-primary" /> Motivasyon
-                                            </h4>
-
-                                            {additional.reason_for_joining && (
-                                                <div className="space-y-1">
-                                                    <span className="text-xs text-muted-foreground">Katılım Nedeni</span>
-                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
-                                                        {additional.reason_for_joining}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {additional.expectations && (
-                                                <div className="space-y-1">
-                                                    <span className="text-xs text-muted-foreground">Beklentiler</span>
-                                                    <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
-                                                        {additional.expectations}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </section>
-                                    )}
+                                    <section className="space-y-4">
+                                        <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
+                                            <FileText className="w-4 h-4 text-primary" /> Başvuru Cevapları
+                                        </h4>
+                                        {renderDynamicData()}
+                                    </section>
                                 </>
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-center">
@@ -493,5 +493,6 @@ export default function UserDetailPage() {
 }
 
 // Change Log:
-// - Updated `getRoleBadge` to utilize `formSlug` from the user's application to show the correct badge (Press/Observer/Delegate).
-// - Added conditional rendering for "Committee" section in "Sistem Durumu" card; it now hides for non-delegates.
+// - Fetched `application.form` and `application.form_data` safely.
+// - Replaced static "Experience" and "Motivation" sections with `renderDynamicData` which iterates over `form_data`.
+// - Uses `getFieldLabel` helper to show readable field names instead of technical IDs.

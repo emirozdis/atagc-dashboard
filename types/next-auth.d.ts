@@ -5,10 +5,11 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: "superadmin" | "admin" | "committee_chairman" | "deputy_chair" | "applicant";
+      // Added delegate, press, observer to the role union type
+      role: "superadmin" | "admin" | "committee_chairman" | "deputy_chair" | "applicant" | "delegate" | "press" | "observer";
       sessionId: string;
       applicationStatus?: "pending" | "approved" | "rejected";
-      applicantType?: "delegate" | "press" | "observer"; // Added: To distinguish applicant sub-types
+      applicantType?: "delegate" | "press" | "observer";
     } & DefaultSession["user"];
   }
 
@@ -17,7 +18,7 @@ declare module "next-auth" {
     role: string;
     sessionId?: string;
     applicationStatus?: "pending" | "approved" | "rejected";
-    applicantType?: "delegate" | "press" | "observer"; // Added
+    applicantType?: "delegate" | "press" | "observer";
   }
 }
 
@@ -27,9 +28,9 @@ declare module "next-auth/jwt" {
     role: string;
     sessionId: string;
     applicationStatus?: "pending" | "approved" | "rejected";
-    applicantType?: "delegate" | "press" | "observer"; // Added
+    applicantType?: "delegate" | "press" | "observer";
   }
 }
 
 // Change Log:
-// - Added `applicantType` to Session, User, and JWT types to track if a user is a delegate, press, or observer.
+// - Expanded `role` type to include 'delegate', 'press', 'observer' to match the database updates.

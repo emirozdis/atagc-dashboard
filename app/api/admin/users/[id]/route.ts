@@ -59,7 +59,8 @@ export async function GET(
                     phone_number,
                     school_name,
                     birth_date,
-                    additional_info
+                    additional_info,
+                    profile_picture_url
                 ),
                 committee_members (
                     id,
@@ -78,9 +79,11 @@ export async function GET(
                     payment_status,
                     submitted_at,
                     review_notes,
+                    form_data,
                     form:application_forms (
                         slug,
-                        title
+                        title,
+                        steps
                     )
                 ),
                 user_warnings:user_warnings!user_warnings_user_id_fkey (
@@ -123,4 +126,5 @@ export async function GET(
 }
 
 // Change Log:
-// - Updated query to include `form:application_forms(slug, title)` in the `application` selection.
+// - Added `form_data` and `form:application_forms(slug, title, steps)` to the application selection.
+// - This allows the frontend to dynamically render form answers by mapping IDs in `form_data` to labels in `steps`.
