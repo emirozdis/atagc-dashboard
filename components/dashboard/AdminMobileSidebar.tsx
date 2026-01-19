@@ -17,7 +17,8 @@ import {
     ScrollText,
     FolderOpen,
     User,
-    CreditCard
+    CreditCard,
+    FileEdit
 } from "lucide-react";
 
 interface AdminMobileSidebarProps {
@@ -29,56 +30,73 @@ const adminItems = [
         title: "Panel",
         href: "/admin",
         icon: LayoutDashboard,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Başvurular",
         href: "/admin/applications",
         icon: FileText,
+        roles: ["superadmin", "admin"]
+    },
+    {
+        title: "Formlar", // New
+        href: "/admin/forms",
+        icon: FileEdit,
+        roles: ["superadmin"]
     },
     {
         title: "Kullanıcılar",
         href: "/admin/users",
         icon: Users,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Komiteler",
         href: "/admin/committees",
         icon: CalendarDays,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Yoklama",
         href: "/admin/roll-call",
         icon: QrCode,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Kaynaklar",
         href: "/admin/resources",
         icon: FolderOpen,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Ödemeler",
         href: "/admin/payments",
         icon: CreditCard,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Duyurular",
         href: "/admin/announcements",
         icon: Megaphone,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Sistem Kayıtları",
         href: "/admin/logs",
         icon: ScrollText,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Profilim",
         href: "/admin/profile",
         icon: User,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Ayarlar",
         href: "/admin/settings",
         icon: Settings,
+        roles: ["superadmin"]
     },
 ];
 
@@ -86,6 +104,8 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const role = session?.user?.role;
+
+    const filteredItems = adminItems.filter(item => !item.roles || item.roles.includes(role || ""));
 
     const roleTag = (() => {
         if (role === 'superadmin' || role === 'admin') return "Yönetim";
@@ -115,7 +135,7 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
                 </div>
 
                 <nav className="space-y-1">
-                    {adminItems.map((item) => (
+                    {filteredItems.map((item) => (
                         <Link
                             key={item.href}
                             href={item.href}
@@ -146,3 +166,7 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
         </div>
     );
 }
+
+// Change Log:
+// - Added "Formlar" link to Mobile Sidebar.
+// - Added role filtering to sidebar items (e.g., Academy roles shouldn't see Payments/Logs).

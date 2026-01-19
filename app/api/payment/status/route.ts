@@ -9,14 +9,17 @@ export const GET = apiHandler(async (request: Request) => {
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
     const userId = auth.session.user.id;
 
-    // Fetch Application Payment Status
+    // Fetch Application Status AND Form Fee
     const { data: app } = await supabase
         .from("applications")
-        .select("payment_status")
+        .select(`
+            payment_status,
+            form:application_forms ( fee )
+        `)
         .eq("user_id", userId)
         .maybeSingle();
 
-    // Fetch Latest Receipt Details
+    // Fetch Latest Receipt
     const { data: receipt } = await supabase
         .from("payment_receipts")
         .select("id, status, admin_note, created_at, storage_path, file_type")
@@ -25,19 +28,23 @@ export const GET = apiHandler(async (request: Request) => {
         .limit(1)
         .maybeSingle();
 
-    // Generate Signed URL if receipt exists
     if (receipt && receipt.storage_path) {
-        // Valid for 1 hour
         const signedUrl = await getSignedUrl("receipts", receipt.storage_path, 3600);
-        // @ts-ignore
-        receipt.file_url = signedUrl;
+        // Fix: Cast to any to add dynamic property not in DB type
+        (receipt as any).file_url = signedUrl;
     }
+
+    // Fix: Handle array return for foreign key relation 'form'
+    const formData = Array.isArray(app?.form) ? app.form[0] : app?.form;
+    const fee = formData?.fee || 0;
 
     return NextResponse.json({
         payment_status: app?.payment_status || 'unpaid',
+        amount_required: fee, 
         last_receipt: receipt || null
     });
 });
 
 // Change Log:
-// - Added check for `!auth.session` to satisfy TypeScript nullability checks.
+// - Fixed TS error: Cast `receipt` to `any` before assigning `file_url`.
+// - Fixed TS error: Handled array check for `app.form` before accessing `.fee`.

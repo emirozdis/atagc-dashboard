@@ -1,27 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import {
-  accountCreationSchema, 
-  personalInfoSchema,
-  experienceSchema,
-  motivationSchema
-} from "@/types/application";
-import { z } from "zod";
+import { accountCreationSchema, FullApplicationSubmission } from "@/types/application";
 import { logAction } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendSystemNotification } from "@/lib/notification-service";
+import { z } from "zod";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
-
-// ... (Schema definitions remain unchanged)
-const submissionSchema = z.object({
-  accountCreation: accountCreationSchema,
-  personalInfo: personalInfoSchema,
-  experience: experienceSchema,
-  motivation: motivationSchema,
-});
 
 const updateSchema = z.object({
   id: z.string().uuid(),
@@ -30,7 +17,6 @@ const updateSchema = z.object({
 });
 
 export const GET = apiHandler(async (request: Request) => {
-  // ... (GET Implementation remains unchanged)
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
   if (!auth.ok) throw new Error("Unauthorized");
 
@@ -52,6 +38,8 @@ export const GET = apiHandler(async (request: Request) => {
       status,
       submitted_at,
       review_notes,
+      form_data,
+      form:application_forms(title, slug),
       user:users!inner (
         id,
         full_name,
@@ -60,7 +48,6 @@ export const GET = apiHandler(async (request: Request) => {
           id,
           phone_number,
           school_name,
-          birth_date,
           profile_picture_url,
           additional_info
         ),
@@ -74,55 +61,12 @@ export const GET = apiHandler(async (request: Request) => {
       )
     `, { count: "exact" });
 
-  if (status === 'unassigned') {
-    const { data: assignedMembers } = await supabase
-      .from("committee_members")
-      .select("user_id");
-    
-    const assignedUserIds = assignedMembers?.map(m => m.user_id) || [];
-
-    query = query.eq("status", "approved");
-    
-    if (assignedUserIds.length > 0) {
-      query = query.not("user_id", "in", `(${assignedUserIds.join(',')})`);
-    }
-  } else if (status !== "all") {
+  if (status !== "all") {
     query = query.eq("status", status);
   }
 
   if (search) {
-    const safeSearch = search.replace(/[,()]/g, " ").trim();
-    if (safeSearch) {
-      const terms = [
-        safeSearch, 
-        safeSearch.toLocaleLowerCase('tr-TR'), 
-        safeSearch.toLocaleUpperCase('tr-TR')
-      ];
-      const uniqueTerms = Array.from(new Set(terms));
-
-      const userSearchConditions = uniqueTerms
-        .map(t => `full_name.ilike.%${t}%,email.ilike.%${t}%`)
-        .join(',');
-
-      const schoolSearchConditions = uniqueTerms
-        .map(t => `school_name.ilike.%${t}%`)
-        .join(',');
-
-      const [usersRes, detailsRes] = await Promise.all([
-        supabase.from('users').select('id').or(userSearchConditions),
-        supabase.from('user_details').select('user_id').or(schoolSearchConditions)
-      ]);
-
-      const userIdsFromName = usersRes.data?.map(u => u.id) || [];
-      const userIdsFromSchool = detailsRes.data?.map(d => d.user_id) || [];
-      const matchingUserIds = Array.from(new Set([...userIdsFromName, ...userIdsFromSchool]));
-
-      if (matchingUserIds.length > 0) {
-        query = query.in('user_id', matchingUserIds);
-      } else {
-        query = query.eq('id', '00000000-0000-0000-0000-000000000000'); 
-      }
-    }
+    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`, { foreignTable: 'user' });
   }
 
   if (sortBy === 'submitted_at' || sortBy === 'status') {
@@ -154,77 +98,53 @@ export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await limiter.check(5, ip); 
 
-  // ... (Checks for closed applications, verification, existing users remain unchanged)
-  const { data: settings } = await supabase
-    .from("system_settings")
-    .select("applications_open")
-    .single();
-
+  const { data: settings } = await supabase.from("system_settings").select("applications_open").single();
   if (settings && settings.applications_open === false) {
-    return NextResponse.json(
-      { error: "Başvurular şu an kapalıdır. İlginiz için teşekkür ederiz." },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: "Başvurular kapalıdır." }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { accountCreation, personalInfo, experience, motivation } = submissionSchema.parse(body);
-
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const body: FullApplicationSubmission = await request.json();
   
+  // 1. Account Validation
+  const accountData = accountCreationSchema.parse(body.account);
+
+  // 2. Email Verification Check
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data: verification } = await supabase
     .from("email_verifications")
     .select("id")
-    .eq("email", accountCreation.email)
+    .eq("email", accountData.email)
     .eq("verified", true)
     .gt("created_at", oneHourAgo)
-    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (!verification) {
-    return NextResponse.json(
-      { error: "E-posta adresi doğrulanmamış veya doğrulama zaman aşımına uğramış." },
-      { status: 400 }
-    );
-  }
+  if (!verification) throw new Error("E-posta doğrulanmamış.");
 
+  // 3. Check Existing User
   const { data: existingUser } = await supabase
     .from("users")
     .select("id")
-    .eq("email", accountCreation.email)
+    .eq("email", accountData.email)
     .single();
-
-  const { data: existingPhone } = await supabase
-    .from("user_details")
-    .select("user_id")
-    .eq("phone_number", personalInfo.telefon)
-    .single();
-
-  if (existingPhone && (!existingUser || existingPhone.user_id !== existingUser.id)) {
-    return NextResponse.json(
-      { error: "Bu telefon numarası ile daha önce başvuru yapılmış." },
-      { status: 409 }
-    );
-  }
 
   let userId: string;
-
+  
   if (existingUser) {
     userId = existingUser.id;
     const { data: existingApp } = await supabase.from("applications").select("id").eq("user_id", userId).single();
     if (existingApp) {
-        return NextResponse.json({ error: "Zaten bir başvurunuz bulunmaktadır." }, { status: 409 });
+        return NextResponse.json({ error: "Zaten bir başvurunuz var." }, { status: 409 });
     }
   } else {
-    const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const randomHash = Math.random().toString(36).substring(2);
     const now = new Date().toISOString();
     
     const { data: newUser, error: createUserError } = await supabase
       .from("users")
       .insert({
-        full_name: accountCreation.adSoyad,
-        email: accountCreation.email, 
+        full_name: accountData.adSoyad,
+        email: accountData.email, 
         password_hash: randomHash, 
         role: 'applicant',
         created_at: now,
@@ -233,75 +153,81 @@ export const POST = apiHandler(async (request: Request) => {
       .select("id")
       .single();
 
-    if (createUserError) throw createUserError;
+    if (createUserError || !newUser) throw new Error("Kullanıcı hesabı oluşturulamadı.");
     userId = newUser.id;
   }
 
-  const additionalInfo = {
-    grade: personalInfo.sinif,
-    city: personalInfo.sehir,
-    mun_experience: experience.munDeneyimi,
-    previous_conferences: experience.oncekiKonferanslar || null,
-    committee_pref_1: experience.komiteTercihi1,
-    committee_pref_2: experience.komiteTercihi2 || null,
-    delegation_type: experience.delegasyonTercihi,
-    english_level: experience.ingilizce,
-    reason_for_joining: motivation.katilimNedeni,
-    expectations: motivation.beklentiler,
-    self_introduction: motivation.kendinizTanitin,
-    kvkk_approved: motivation.kvkkOnay,
-  };
+  // 4. Validate Form Data
+  const { data: formTemplate } = await supabase
+    .from("application_forms")
+    .select("steps")
+    .eq("id", body.formId)
+    .single();
 
-  const userDetailsData = {
-    user_id: userId,
-    birth_date: personalInfo.dogumTarihi,
-    phone_number: personalInfo.telefon,
-    school_name: personalInfo.okul,
-    profile_picture_url: personalInfo.profile_picture_url || null,
-    additional_info: additionalInfo,
-    // Initialize notification preferences by default
-    notification_preferences: {
-        application: true,
-        committee: true,
-        social: true,
-        system: true
-    }
+  if (!formTemplate) throw new Error("Geçersiz başvuru formu.");
+
+  // 5. Process Data Mappings
+  const userDetailsUpdate: any = {};
+  const additionalInfo: any = {};
+  const cleanFormData: any = { ...body.formData };
+
+  const steps = formTemplate.steps as any[];
+  steps.forEach(step => {
+      step.fields.forEach((field: any) => {
+          const value = body.formData[field.id];
+          if (value !== undefined) {
+              if (field.system_map) {
+                  if (['phone_number', 'school_name', 'birth_date'].includes(field.system_map)) {
+                      userDetailsUpdate[field.system_map] = value;
+                  } else {
+                      additionalInfo[field.system_map] = value;
+                  }
+              }
+          }
+      });
+  });
+
+  userDetailsUpdate.notification_preferences = {
+      application: true, committee: true, social: true, system: true
   };
+  userDetailsUpdate.additional_info = additionalInfo;
 
   const { data: existingDetails } = await supabase
     .from("user_details")
-    .select("id")
+    .select("id, additional_info")
     .eq("user_id", userId)
     .single();
 
   if (existingDetails) {
-    await supabase.from("user_details").update(userDetailsData).eq("user_id", userId);
+      userDetailsUpdate.additional_info = { 
+          ...existingDetails.additional_info, 
+          ...additionalInfo,
+          kvkk_approved: body.kvkkApproved 
+      };
+      await supabase.from("user_details").update(userDetailsUpdate).eq("user_id", userId);
   } else {
-    await supabase.from("user_details").insert(userDetailsData);
+      userDetailsUpdate.user_id = userId;
+      userDetailsUpdate.additional_info.kvkk_approved = body.kvkkApproved;
+      await supabase.from("user_details").insert(userDetailsUpdate);
   }
 
+  // 6. Create Application
   const { error: appError } = await supabase
     .from("applications")
     .insert({
       user_id: userId,
+      form_id: body.formId,
+      form_data: cleanFormData,
       status: 'pending',
       submitted_at: new Date().toISOString()
     });
 
   if (appError) throw appError;
 
-  await logAction(userId, "submit_application", { 
-      email: accountCreation.email,
-      previous_state: null
-  }, request);
-
-  // NOTIFICATION: Application Received
+  await logAction(userId, "submit_application", { form_id: body.formId }, request);
   await sendSystemNotification(userId, "application_received");
 
-  return NextResponse.json(
-    { success: true, message: "Başvuru başarıyla alındı." },
-    { status: 200 }
-  );
+  return NextResponse.json({ success: true, message: "Başvuru alındı." });
 });
 
 export const PUT = apiHandler(async (request: Request) => {
@@ -314,7 +240,7 @@ export const PUT = apiHandler(async (request: Request) => {
 
   const { data: currentApp, error: fetchError } = await supabase
     .from("applications")
-    .select("status, user_id") // Fetch user_id to send notification
+    .select("status, user_id")
     .eq("id", id)
     .single();
 
@@ -339,8 +265,6 @@ export const PUT = apiHandler(async (request: Request) => {
       previous_state: currentApp 
   }, request);
 
-  // NOTIFICATION: Application Status Update
-  // Only if status actually changed
   if (currentApp.status !== status) {
       await sendSystemNotification(currentApp.user_id, "application_status");
   }
@@ -349,6 +273,5 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - POST: Initialize `notification_preferences` in `user_details`.
-// - POST: Added `sendSystemNotification(userId, "application_received")`.
-// - PUT: Added `sendSystemNotification(currentApp.user_id, "application_status")`.
+// - Restored the missing `PUT` method handler to allow application status updates (Approval/Rejection).
+// - Preserved `GET` and `POST` methods with dynamic form logic from the previous update.

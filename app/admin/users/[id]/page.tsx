@@ -24,7 +24,9 @@ import {
     Clock,
     XCircle,
     Wallet,
-    UploadCloud
+    UploadCloud,
+    Camera,
+    Eye
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -145,8 +147,10 @@ export default function UserDetailPage() {
 
     const application = getFirstItem(user.application);
     const paymentStatus = application?.payment_status || "unpaid";
+    
+    // Determine Role Label
+    const formSlug = application?.form?.slug || 'delegate';
 
-    // Handle payment click
     const handlePaymentClick = () => {
         const receiptId = user.payment_receipts?.[0]?.id;
         if (receiptId) {
@@ -164,7 +168,12 @@ export default function UserDetailPage() {
             case "admin": return <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20"><ShieldAlert className="w-3 h-3 mr-1" /> Yönetici</Badge>;
             case "committee_chairman": return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20"><ShieldCheck className="w-3 h-3 mr-1" /> Başkan</Badge>;
             case "deputy_chair": return <Badge className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20"><Shield className="w-3 h-3 mr-1" /> Başkan Yrd.</Badge>;
-            default: return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20"><UserIcon className="w-3 h-3 mr-1" /> Katılımcı</Badge>;
+            default: // Applicant types
+                switch (formSlug) {
+                    case 'press': return <Badge className="bg-pink-500/10 text-pink-600 border-pink-500/20"><Camera className="w-3 h-3 mr-1" /> Basın</Badge>;
+                    case 'observer': return <Badge className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20"><Eye className="w-3 h-3 mr-1" /> Gözlemci</Badge>;
+                    default: return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20"><UserIcon className="w-3 h-3 mr-1" /> Delege</Badge>;
+                }
         }
     };
 
@@ -286,19 +295,23 @@ export default function UserDetailPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-background rounded-full border border-border/50">
-                                            <Building2 className="w-4 h-4 text-primary" />
-                                        </div>
-                                        <div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {isCommitteeExecutive ? "Yönettiği Komite" : "Üye Olduğu Komite"}
+                                
+                                {/* Committee Block - Only for Delegates or Staff */}
+                                {(user.role !== 'applicant' || formSlug === 'delegate') && (
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-background rounded-full border border-border/50">
+                                                <Building2 className="w-4 h-4 text-primary" />
                                             </div>
-                                            <div className="text-sm font-medium">{activeCommittee?.name || "Atanmamış"}</div>
+                                            <div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {isCommitteeExecutive ? "Yönettiği Komite" : "Komite"}
+                                                </div>
+                                                <div className="text-sm font-medium">{activeCommittee?.name || "Atanmamış"}</div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
                                 <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                                     <div className="flex items-center gap-3">
@@ -401,7 +414,6 @@ export default function UserDetailPage() {
                                             {additional.previous_conferences && (
                                                 <div className="space-y-1 mt-2">
                                                     <span className="text-xs text-muted-foreground">Önceki Konferanslar</span>
-                                                    {/* Fix for overflowing text */}
                                                     <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
                                                         {additional.previous_conferences}
                                                     </div>
@@ -419,7 +431,6 @@ export default function UserDetailPage() {
                                             {additional.reason_for_joining && (
                                                 <div className="space-y-1">
                                                     <span className="text-xs text-muted-foreground">Katılım Nedeni</span>
-                                                    {/* Fix for overflowing text */}
                                                     <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
                                                         {additional.reason_for_joining}
                                                     </div>
@@ -429,7 +440,6 @@ export default function UserDetailPage() {
                                             {additional.expectations && (
                                                 <div className="space-y-1">
                                                     <span className="text-xs text-muted-foreground">Beklentiler</span>
-                                                    {/* Fix for overflowing text */}
                                                     <div className="text-sm bg-muted/30 p-3 rounded-md leading-relaxed whitespace-pre-wrap break-words">
                                                         {additional.expectations}
                                                     </div>
@@ -482,9 +492,6 @@ export default function UserDetailPage() {
     );
 }
 
-
-// Change log:
-// - Added a new state `isUploadReceiptOpen` to control the `AdminPaymentUploadDialog`.
-// - Added an "Upload Receipt" button to the Payment Status section, visible when payment is `unpaid` or `rejected`.
-// - Rendered the `AdminPaymentUploadDialog` component at the bottom of the page, passing necessary props and query invalidation logic.
-// - Refactored the layout of the payment status section for better UI/UX.
+// Change Log:
+// - Updated `getRoleBadge` to utilize `formSlug` from the user's application to show the correct badge (Press/Observer/Delegate).
+// - Added conditional rendering for "Committee" section in "Sistem Durumu" card; it now hides for non-delegates.

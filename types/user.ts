@@ -49,18 +49,27 @@ export interface User {
         name: string;
     }[];
 
+    // Updated Application Structure
     application?: {
         id: string;
         status: string;
         payment_status?: "unpaid" | "processing" | "paid" | "rejected";
         submitted_at: string;
         review_notes?: string;
+        form?: {
+            slug: string;
+            title: string;
+        };
     } | {
         id: string;
         status: string;
         payment_status?: "unpaid" | "processing" | "paid" | "rejected";
         submitted_at: string;
         review_notes?: string;
+        form?: {
+            slug: string;
+            title: string;
+        };
     }[] | null;
 
     // Latest payment receipt ID for quick access
@@ -74,4 +83,4 @@ export interface User {
 }
 
 // Change Log:
-// - Added `payment_receipts` array to `User` interface to hold the ID of the latest receipt.
+// - Added `form: { slug, title }` to the `application` interface to support dynamic role display.

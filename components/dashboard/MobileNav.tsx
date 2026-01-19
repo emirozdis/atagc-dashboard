@@ -11,10 +11,12 @@ import { ConnectionState } from "@/types/connection";
 export function MobileNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  
   const role = session?.user?.role;
   const status = session?.user?.applicationStatus;
+  const type = session?.user?.applicantType || "delegate";
 
-  // Filter items based on role AND approval status
+  // Filter items
   const items = participantItems
     .filter(item => item.mobileCore)
     .filter(item => {
@@ -22,6 +24,9 @@ export function MobileNav() {
         if (item.roles && role && !item.roles.includes(role)) return false;
         // Approval check
         if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
+        // Type check
+        if (role === 'applicant' && item.allowedTypes && !item.allowedTypes.includes(type)) return false;
+        
         return true;
     });
 
@@ -73,5 +78,4 @@ export function MobileNav() {
 }
 
 // Change Log:
-// - Implemented approval filtering consistent with Sidebar.
-// - Only polling connections if approved.
+// - Added logic to filter mobile navigation items based on `applicantType`.

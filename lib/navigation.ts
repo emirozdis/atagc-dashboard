@@ -18,15 +18,17 @@ export const participantItems = [
         icon: LayoutDashboard,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
-        requiresApproved: false
+        requiresApproved: false,
+        allowedTypes: ["delegate", "press", "observer"]
     },
     {
         title: "Ödeme",
         href: "/dashboard/payment",
         icon: CreditCard,
-        roles: ["applicant"], // Only applicants need to pay
+        roles: ["applicant"],
         mobileCore: false,
-        requiresApproved: true
+        requiresApproved: true,
+        allowedTypes: ["delegate", "press", "observer"]
     },
     {
         title: "Komitem",
@@ -34,7 +36,8 @@ export const participantItems = [
         icon: Briefcase,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
-        requiresApproved: true
+        requiresApproved: true,
+        allowedTypes: ["delegate"] // Only delegates have committees
     },
     {
         title: "Ortak Çalışma",
@@ -42,7 +45,8 @@ export const participantItems = [
         icon: PenTool,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
-        requiresApproved: true
+        requiresApproved: true,
+        allowedTypes: ["delegate"] // Only delegates write resolutions
     },
     {
         title: "Yoklama Yönetimi",
@@ -50,7 +54,8 @@ export const participantItems = [
         icon: QrCode,
         roles: ["committee_chairman", "deputy_chair"],
         mobileCore: false,
-        requiresApproved: true 
+        requiresApproved: true,
+        allowedTypes: ["delegate"] // Technically irrelevant for chair, but consistent structure
     },
     {
         title: "Tara",
@@ -58,7 +63,8 @@ export const participantItems = [
         icon: ScanLine,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
-        requiresApproved: true
+        requiresApproved: true,
+        allowedTypes: ["delegate", "press", "observer"]
     },
     {
         title: "Tanıştıklarım",
@@ -66,7 +72,8 @@ export const participantItems = [
         icon: UsersRound,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
-        requiresApproved: true
+        requiresApproved: true,
+        allowedTypes: ["delegate", "press", "observer"]
     },
     {
         title: "Kaynaklar",
@@ -74,7 +81,8 @@ export const participantItems = [
         icon: FolderOpen,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
-        requiresApproved: true
+        requiresApproved: true,
+        allowedTypes: ["delegate", "press", "observer"]
     },
     {
         title: "Duyurular",
@@ -82,7 +90,8 @@ export const participantItems = [
         icon: Megaphone,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
-        requiresApproved: true
+        requiresApproved: true,
+        allowedTypes: ["delegate", "press", "observer"]
     },
     {
         title: "Profilim",
@@ -90,9 +99,12 @@ export const participantItems = [
         icon: User,
         roles: ["applicant", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
-        requiresApproved: false
+        requiresApproved: false,
+        allowedTypes: ["delegate", "press", "observer"]
     },
 ];
 
 // Change Log:
-// - Added "Ödeme" (Payment) item to the navigation list.
+// - Added `allowedTypes` array to each navigation item.
+// - Restricted "Komitem" and "Ortak Çalışma" to only "delegate".
+// - Allowed "press" and "observer" on general dashboard items.

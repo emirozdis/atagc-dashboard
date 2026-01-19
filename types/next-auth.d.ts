@@ -7,7 +7,8 @@ declare module "next-auth" {
       id: string;
       role: "superadmin" | "admin" | "committee_chairman" | "deputy_chair" | "applicant";
       sessionId: string;
-      applicationStatus?: "pending" | "approved" | "rejected"; // Added status
+      applicationStatus?: "pending" | "approved" | "rejected";
+      applicantType?: "delegate" | "press" | "observer"; // Added: To distinguish applicant sub-types
     } & DefaultSession["user"];
   }
 
@@ -15,7 +16,8 @@ declare module "next-auth" {
     id: string;
     role: string;
     sessionId?: string;
-    applicationStatus?: "pending" | "approved" | "rejected"; // Added status
+    applicationStatus?: "pending" | "approved" | "rejected";
+    applicantType?: "delegate" | "press" | "observer"; // Added
   }
 }
 
@@ -24,9 +26,10 @@ declare module "next-auth/jwt" {
     id: string;
     role: string;
     sessionId: string;
-    applicationStatus?: "pending" | "approved" | "rejected"; // Added status
+    applicationStatus?: "pending" | "approved" | "rejected";
+    applicantType?: "delegate" | "press" | "observer"; // Added
   }
 }
 
 // Change Log:
-// - Added `applicationStatus` to Session, User, and JWT interfaces to track approval state.
+// - Added `applicantType` to Session, User, and JWT types to track if a user is a delegate, press, or observer.

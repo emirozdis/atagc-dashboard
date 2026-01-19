@@ -13,7 +13,8 @@ import {
     ScrollText,
     FolderOpen,
     User,
-    CreditCard
+    CreditCard,
+    FileEdit
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -24,56 +25,73 @@ const adminItems = [
         title: "Panel",
         href: "/admin",
         icon: LayoutDashboard,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Başvurular",
         href: "/admin/applications",
         icon: FileText,
+        roles: ["superadmin", "admin"]
+    },
+    {
+        title: "Formlar",
+        href: "/admin/forms",
+        icon: FileEdit,
+        roles: ["superadmin"]
     },
     {
         title: "Kullanıcılar",
         href: "/admin/users",
         icon: Users,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Komiteler",
         href: "/admin/committees",
         icon: CalendarDays,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Yoklama",
         href: "/admin/roll-call",
         icon: QrCode,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Kaynaklar",
         href: "/admin/resources",
         icon: FolderOpen,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
         {
-        title: "Ödemeler", // New Item
+        title: "Ödemeler", 
         href: "/admin/payments",
         icon: CreditCard,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Duyurular",
         href: "/admin/announcements",
         icon: Megaphone,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Sistem Kayıtları",
         href: "/admin/logs",
         icon: ScrollText,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Profilim",
         href: "/admin/profile",
         icon: User,
+        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
         title: "Ayarlar",
         href: "/admin/settings",
         icon: Settings,
+        roles: ["superadmin"]
     },
 ];
 
@@ -81,6 +99,8 @@ export function AdminSidebar() {
     const pathname = usePathname();
     const { data: session } = useSession();
     const role = session?.user?.role;
+
+    const filteredItems = adminItems.filter(item => !item.roles || item.roles.includes(role || ""));
 
     const getRoleTag = () => {
         if (role === 'superadmin' || role === 'admin') return "Yönetim";
@@ -111,7 +131,7 @@ export function AdminSidebar() {
                     Yönetim Menüsü
                 </div>
 
-                {adminItems.map((item) => (
+                {filteredItems.map((item) => (
                     <Link
                         key={item.href}
                         href={item.href}
@@ -142,5 +162,5 @@ export function AdminSidebar() {
 }
 
 // Change Log:
-// - Added "Profilim" link to the admin sidebar menu.
-// - Made the role tag dynamic (Yönetim/Akademi) based on user role.
+// - Added "Formlar" menu item.
+// - Implemented role-based filtering for Admin Sidebar.

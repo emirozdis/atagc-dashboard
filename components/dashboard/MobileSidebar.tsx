@@ -15,8 +15,10 @@ interface MobileSidebarProps {
 export function MobileSidebar({ onClose }: MobileSidebarProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
+    
     const role = session?.user?.role;
     const status = session?.user?.applicationStatus;
+    const type = session?.user?.applicantType || "delegate";
 
     const roleTag = (() => {
         if (role === 'superadmin' || role === 'admin') return "Yönetim";
@@ -28,6 +30,7 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
     const items = participantItems.filter((item) => {
         if (item.roles && role && !item.roles.includes(role)) return false;
         if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
+        if (role === 'applicant' && item.allowedTypes && !item.allowedTypes.includes(type)) return false;
         return true;
     });
 
@@ -86,4 +89,4 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
 }
 
 // Change Log:
-// - Implemented approval filtering for the mobile drawer menu.
+// - Added logic to filter mobile sidebar items based on `applicantType`.

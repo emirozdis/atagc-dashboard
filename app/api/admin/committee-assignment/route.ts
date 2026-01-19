@@ -16,10 +16,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "User ID missing" }, { status: 400 });
     }
 
-    // 0. Check if target user is superadmin
+    // 0. Check if target user is superadmin OR not a delegate
     const { data: targetUser, error: userError } = await supabase
         .from("users")
-        .select("role")
+        .select(`
+            role,
+            application:applications!applications_user_id_fkey ( 
+                form:application_forms ( slug )
+            )
+        `)
         .eq("id", userId)
         .single();
     
@@ -30,6 +35,18 @@ export async function POST(request: Request) {
     if (targetUser.role === 'superadmin') {
         return NextResponse.json({ error: "Süper yöneticiler komiteye atanamaz." }, { status: 403 });
     }
+
+    // --- RESTRICTION: Only Delegates can be assigned ---
+    const app = Array.isArray(targetUser.application) ? targetUser.application[0] : targetUser.application;
+    
+    // Fix: Handle array or object structure for 'form'
+    const formObj = Array.isArray(app?.form) ? app.form[0] : app?.form;
+    const applicantType = formObj?.slug;
+
+    if (committeeId && applicantType !== 'delegate' && targetUser.role === 'applicant') {
+        return NextResponse.json({ error: "Sadece DELEGE rolündeki katılımcılar komiteye atanabilir." }, { status: 403 });
+    }
+    // ----------------------------------------------------
 
     // 1. Check if user is already in a committee (Previous State)
     const { data: existing } = await supabase
@@ -101,4 +118,4 @@ export async function POST(request: Request) {
 }
 
 // Change Log:
-// - Added `sendSystemNotification(userId, "committee_assignment")` when a user is assigned or changed committees.
+// - Fixed TypeScript error by safely checking if `app.form` is an array or object before accessing `.slug`.

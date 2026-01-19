@@ -22,6 +22,7 @@ export const GET = apiHandler(async (request: Request) => {
   const idsParam = searchParams.get("ids");
   const paymentStatus = searchParams.get("payment_status") || "";
 
+  // Handle ID-based fetching separately
   if (idsParam) {
     const ids = idsParam.split(",").filter(Boolean);
     if (ids.length === 0) return NextResponse.json({ data: [] });
@@ -38,36 +39,29 @@ export const GET = apiHandler(async (request: Request) => {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
+  // Build Query
+  // Added `form:application_forms(slug, title)` to application selection
   const selectString = warningFilter === "has_warnings" 
     ? `
-      id, 
-      full_name, 
-      email, 
-      role, 
-      is_suspended, 
-      created_at, 
+      id, full_name, email, role, is_suspended, created_at, 
       user_details(school_name, phone_number, birth_date, additional_info, profile_picture_url),
       committee_members(committee:committees(id, name)),
-      application:applications(id, status, payment_status),
+      application:applications(id, status, payment_status, form:application_forms(slug, title)),
       user_warnings:user_warnings!user_warnings_user_id_fkey!inner(id),
       payment_receipts:payment_receipts!payment_receipts_user_id_fkey(id)
     `
     : `
-      id, 
-      full_name, 
-      email, 
-      role, 
-      is_suspended, 
-      created_at, 
+      id, full_name, email, role, is_suspended, created_at, 
       user_details(school_name, phone_number, birth_date, additional_info, profile_picture_url),
       committee_members(committee:committees(id, name)),
-      application:applications(id, status, payment_status),
+      application:applications(id, status, payment_status, form:application_forms(slug, title)),
       user_warnings:user_warnings!user_warnings_user_id_fkey(id),
       payment_receipts:payment_receipts!payment_receipts_user_id_fkey(id)
     `;
 
   let query = supabase.from("users").select(selectString, { count: "exact" });
 
+  // Filters
   if (role) query = query.in("role", role.split(','));
   
   if (status) {
@@ -90,11 +84,11 @@ export const GET = apiHandler(async (request: Request) => {
       if (userIds.length > 0) {
           query = query.in('id', userIds);
       } else {
-          // If no users match, return empty result without hitting the main query again
           return NextResponse.json({ data: [], meta: { total: 0, page, limit, totalPages: 0 }});
       }
   }
 
+  // Sorting
   if (sortBy === "created_at" || sortBy === "full_name") {
       query = query.order(sortBy, { ascending: sortOrder === 'asc' });
   }
@@ -105,10 +99,11 @@ export const GET = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
+  // Transform Data
   const transformedData = data.map((user: any) => ({
       ...user,
       warnings_count: user.user_warnings?.length || 0,
-      user_warnings: undefined,
+      user_warnings: undefined, // Hide raw warnings array in list view for performance
       payment_receipts: user.payment_receipts?.length > 0 ? [user.payment_receipts[user.payment_receipts.length - 1]] : []
   }));
 
@@ -210,8 +205,6 @@ export const DELETE = apiHandler(async (request: Request) => {
   return NextResponse.json({ success: true });
 });
 
-// Change log:
-// - Updated API to handle multiple values for `role`, `status`, and `payment_status` filters.
-// - Filters are now passed as comma-separated strings (e.g., `role=admin,superadmin`).
-// - The backend parses these and uses Supabase's `.in()` operator for efficient filtering.
-// - For payment status, the API now queries the `applications` table to get relevant user IDs, then filters the main `users` query, ensuring performant multi-select on this related data.
+// Change Log:
+// - Updated GET to include `form:application_forms(slug, title)` in the `application` join.
+// - This allows the frontend to distinguish applicant types (Delegate, Press, Observer).

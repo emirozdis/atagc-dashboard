@@ -95,7 +95,7 @@ export default function ApplicationsPage() {
     placeholderData: (prev) => prev
   });
 
-  const applications: Application[] = data?.data || [];
+  const applications: any[] = data?.data || [];
   const totalPages = data?.meta?.totalPages || 1;
   const totalRecords = data?.meta?.total || 0;
 
@@ -123,9 +123,13 @@ export default function ApplicationsPage() {
   };
 
   // Mobile Card Component
-  const MobileApplicationCard = ({ app }: { app: Application }) => {
+  const MobileApplicationCard = ({ app }: { app: any }) => {
     const details = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
     const assignedCommittee = app.user.committee_members?.[0]?.committee;
+    
+    // Fix: Check form slug for display logic
+    const formSlug = app.form?.slug || 'delegate';
+    const isAcademic = formSlug === 'delegate';
 
     return (
       <Card
@@ -158,16 +162,18 @@ export default function ApplicationsPage() {
               <Calendar className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{new Date(app.submitted_at).toLocaleDateString("tr-TR")}</span>
             </div>
-            <div className="col-span-2 flex items-center gap-2 pt-2 border-t border-border/10 mt-1">
-              <Building2 className="w-3.5 h-3.5 shrink-0" />
-              {assignedCommittee ? (
-                <span className="font-medium text-foreground truncate">{assignedCommittee.name}</span>
-              ) : app.status === 'approved' ? (
-                <span className="text-orange-500 font-medium">Atama Bekleniyor</span>
-              ) : (
-                <span className="italic opacity-70">Komite Yok</span>
-              )}
-            </div>
+            {isAcademic && (
+              <div className="col-span-2 flex items-center gap-2 pt-2 border-t border-border/10 mt-1">
+                <Building2 className="w-3.5 h-3.5 shrink-0" />
+                {assignedCommittee ? (
+                  <span className="font-medium text-foreground truncate">{assignedCommittee.name}</span>
+                ) : app.status === 'approved' ? (
+                  <span className="text-orange-500 font-medium">Atama Bekleniyor</span>
+                ) : (
+                  <span className="italic opacity-70">Komite Yok</span>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -275,6 +281,7 @@ export default function ApplicationsPage() {
               <TableHeader className="bg-muted/30">
                 <TableRow>
                   <TableHead>Başvuran</TableHead>
+                  <TableHead>Rol</TableHead>
                   <TableHead>Okul</TableHead>
                   <TableHead>Tarih</TableHead>
                   <TableHead>Komite</TableHead>
@@ -286,6 +293,10 @@ export default function ApplicationsPage() {
                 {applications.map((app) => {
                   const details = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
                   const assignedCommittee = app.user.committee_members?.[0]?.committee;
+                  
+                  // Fix: Check form slug
+                  const formSlug = app.form?.slug || 'delegate';
+                  const isAcademic = formSlug === 'delegate';
 
                   return (
                     <TableRow
@@ -305,6 +316,11 @@ export default function ApplicationsPage() {
                           </div>
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-[10px] font-normal capitalize">
+                            {app.form?.title || formSlug}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate" title={details?.school_name}>
                         {details?.school_name || "-"}
                       </TableCell>
@@ -312,19 +328,23 @@ export default function ApplicationsPage() {
                         {new Date(app.submitted_at).toLocaleDateString("tr-TR")}
                       </TableCell>
                       <TableCell>
-                        {assignedCommittee ? (
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="font-medium truncate max-w-[150px]" title={assignedCommittee.name}>
-                              {assignedCommittee.name}
-                            </span>
-                          </div>
-                        ) : app.status === 'approved' ? (
-                          <Badge variant="outline" className="bg-orange-500/5 text-orange-500 border-orange-500/20 border-dashed whitespace-nowrap">
-                            Atama Bekleniyor
-                          </Badge>
+                        {isAcademic ? (
+                            assignedCommittee ? (
+                            <div className="flex items-center gap-1.5 text-sm">
+                                <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="font-medium truncate max-w-[150px]" title={assignedCommittee.name}>
+                                {assignedCommittee.name}
+                                </span>
+                            </div>
+                            ) : app.status === 'approved' ? (
+                            <Badge variant="outline" className="bg-orange-500/5 text-orange-500 border-orange-500/20 border-dashed whitespace-nowrap">
+                                Atama Bekleniyor
+                            </Badge>
+                            ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                            )
                         ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
+                            <span className="text-sm text-muted-foreground opacity-50">-</span>
                         )}
                       </TableCell>
                       <TableCell>{getStatusBadge(app.status)}</TableCell>
@@ -370,5 +390,6 @@ export default function ApplicationsPage() {
 }
 
 // Change Log:
-// - Re-rendered to ensure consistency.
-// - Confirmed "Atama Bekleyenler" filter option is present.
+// - Updated logic to check `app.form.slug`.
+// - If slug is not 'delegate', the Committee column shows "-" instead of "Atama Bekleniyor".
+// - Added "Role" column to table.

@@ -77,7 +77,11 @@ export async function GET(
                     status,
                     payment_status,
                     submitted_at,
-                    review_notes
+                    review_notes,
+                    form:application_forms (
+                        slug,
+                        title
+                    )
                 ),
                 user_warnings:user_warnings!user_warnings_user_id_fkey (
                     id,
@@ -119,5 +123,4 @@ export async function GET(
 }
 
 // Change Log:
-// - Added `payment_receipts` to selection.
-// - Added sorting logic for receipts to ensure the latest one is easily accessible.
+// - Updated query to include `form:application_forms(slug, title)` in the `application` selection.

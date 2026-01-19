@@ -9,7 +9,6 @@ export async function GET(
     try {
         const auth = await getAuthorization({ requireAuth: true, allowedRoles: "superadmin" });
         if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
-        const session = auth.session;
 
         const { id } = await params;
 
@@ -20,6 +19,13 @@ export async function GET(
         status,
         submitted_at,
         review_notes,
+        form_data,
+        form:application_forms (
+            id,
+            title,
+            slug,
+            steps
+        ),
         user:users (
           id,
           full_name,
@@ -29,7 +35,8 @@ export async function GET(
             phone_number,
             school_name,
             birth_date,
-            additional_info
+            additional_info,
+            profile_picture_url
           ),
           committee_members (
             id,
@@ -57,5 +64,8 @@ export async function GET(
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
 // Change Log:
-// - Updated Supabase query to fetch `committee_members` and the associated `committee` details for the user.
+// - Added `form_data` to the select list.
+// - Added `form:application_forms(...)` relation to fetch form definitions (labels, steps) for better display.
+// - Added `profile_picture_url` to user_details selection.

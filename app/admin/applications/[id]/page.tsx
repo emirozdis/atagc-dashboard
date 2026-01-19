@@ -9,21 +9,22 @@ import {
   XCircle,
   Clock,
   Loader2,
-  BadgeCheck,
-  ShieldCheck,
-  Text as TextIcon,
   ArrowLeft,
-  Calendar,
-  MapPin,
-  GraduationCap,
+  Building2,
   Briefcase,
-  Building2
+  User,
+  MapPin,
+  Calendar,
+  Phone,
+  GraduationCap,
+  Camera,
+  Eye,
+  FileText
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -34,29 +35,18 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-
-import { Application, Committee } from "@/types/admin";
-import {
-  KOMITE_OPTIONS,
-  MUN_DENEYIMI_OPTIONS,
-  INGILIZCE_OPTIONS,
-  SINIF_OPTIONS
-} from "@/types/application";
 import Link from "next/link";
+import { Committee } from "@/types/admin";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const id = params.id as string;
-
-  // Committee Assignment State
+  const queryClient = useQueryClient();
   const [selectedCommittee, setSelectedCommittee] = useState<string>("none");
   const [rejectionMode, setRejectionMode] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  // Queries
-  const { data: application, isLoading: appLoading, error } = useQuery<Application>({
+  const { data: application, isLoading: appLoading, error } = useQuery<any>({
     queryKey: ['application', id],
     queryFn: async () => {
       const res = await fetch(`/api/applications/${id}`);
@@ -83,7 +73,6 @@ export default function ApplicationDetailPage() {
     }
   }, [application]);
 
-  // Mutations
   const statusMutation = useMutation({
     mutationFn: async ({ status, notes }: { status: "approved" | "rejected", notes?: string }) => {
       const res = await fetch("/api/applications", {
@@ -94,14 +83,12 @@ export default function ApplicationDetailPage() {
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: (_, variables) => {
-      toast.success("İşlem Başarılı", {
-        description: `Başvuru ${variables.status === "approved" ? "onaylandı" : "reddedildi"}.`
-      });
+      toast.success("İşlem Başarılı");
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       setRejectionMode(false);
       setRejectionReason("");
     },
-    onError: () => toast.error("Durum güncellenemedi.")
+    onError: () => toast.error("Hata oluştu")
   });
 
   const assignMutation = useMutation({
@@ -120,350 +107,218 @@ export default function ApplicationDetailPage() {
       toast.success("Komite ataması güncellendi");
       queryClient.invalidateQueries({ queryKey: ['application', id] });
     },
-    onError: () => toast.error("Atama yapılamadı.")
+    onError: () => toast.error("Hata oluştu")
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved": return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20 gap-1.5 px-3 py-1"><CheckCircle className="w-4 h-4" /> Onaylandı</Badge>;
-      case "rejected": return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20 gap-1.5 px-3 py-1"><XCircle className="w-4 h-4" /> Reddedildi</Badge>;
-      default: return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20 gap-1.5 px-3 py-1"><Clock className="w-4 h-4" /> Bekliyor</Badge>;
+  if (appLoading) return <Skeleton className="h-[600px] w-full" />;
+  if (error || !application) return <div>Bulunamadı</div>;
+
+  const user = application.user;
+  const details = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
+  const formData = application.form_data || {};
+  
+  // Fix: Handle array or object for form definition
+  const formDef = Array.isArray(application.form) ? application.form[0] : application.form;
+  const applicantType = formDef?.slug || 'delegate';
+
+  const getFieldLabel = (key: string) => {
+    if (formDef?.steps) {
+        for (const step of formDef.steps) {
+            if (step.fields) {
+                const field = step.fields.find((f: any) => f.id === key);
+                if (field) return field.label;
+            }
+        }
     }
+    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const getLabel = (value: string, options: { value: string, label: string }[]) => {
-    return options.find(o => o.value === value)?.label || value;
+  const getStatusBadge = (status: string) => {
+      switch (status) {
+        case "approved": return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Onaylı</Badge>;
+        case "rejected": return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"><XCircle className="w-3 h-3 mr-1" /> Reddedildi</Badge>;
+        default: return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20"><Clock className="w-3 h-3 mr-1" /> Bekliyor</Badge>;
+      }
   };
 
-  if (appLoading) {
-    return (
-      <div className="grid grid-cols-12 gap-6 p-6 max-w-7xl mx-auto">
-        <div className="col-span-12 lg:col-span-4 space-y-6">
-          <Skeleton className="h-[400px] w-full rounded-xl" />
+  const getRoleIcon = (slug: string) => {
+      switch(slug) {
+          case 'delegate': return <User className="w-4 h-4" />;
+          case 'press': return <Camera className="w-4 h-4" />;
+          case 'observer': return <Eye className="w-4 h-4" />;
+          default: return <FileText className="w-4 h-4" />;
+      }
+  };
+
+  const renderFormData = () => {
+      if (Object.keys(formData).length === 0) {
+          return <div className="text-center text-muted-foreground text-sm italic py-8">Ek form verisi bulunmamaktadır.</div>;
+      }
+
+      return (
+        <div className="grid grid-cols-1 gap-6">
+            {Object.entries(formData).map(([key, value]) => {
+                if (['phone_number', 'school_name', 'birth_date', 'grade', 'city'].includes(key)) return null;
+
+                return (
+                    <div key={key} className="space-y-1.5">
+                        <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-2">
+                            <div className="w-1 h-1 rounded-full bg-primary/50" />
+                            {getFieldLabel(key)}
+                        </div>
+                        <div className="text-sm bg-secondary/10 p-3 rounded-lg border border-border/50 whitespace-pre-wrap leading-relaxed text-foreground/90">
+                            {String(value || "-")}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
-        <div className="col-span-12 lg:col-span-8 space-y-6">
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-[500px] w-full rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !application) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <div className="text-muted-foreground text-lg">Başvuru bulunamadı.</div>
-        <Link href="/admin/applications">
-          <Button variant="outline"> <ArrowLeft className="w-4 h-4 mr-2" /> Listeye Dön</Button>
-        </Link>
-      </div>
-    );
-  }
-
-  const details = Array.isArray(application.user.user_details)
-    ? application.user.user_details[0]
-    : application.user.user_details;
-
-  const info = details?.additional_info || {};
-  const assignedCommittee = application.user.committee_members?.[0]?.committee;
+      );
+  };
 
   return (
-    <div className="animate-fade-in pb-10">
-      <Breadcrumbs items={[{ label: "Başvurular", href: "/admin/applications" }, { label: "Başvuru Detayı" }]} />
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/admin/applications" className="text-muted-foreground hover:text-foreground transition-colors">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Başvuru Detayı</h1>
-            <div className="flex items-center text-sm text-muted-foreground mt-1">
-              <span className="opacity-60">ID: {application.id}</span>
-              <Separator orientation="vertical" className="h-3 mx-2 bg-border/50" />
-              <span>{new Date(application.submitted_at).toLocaleString("tr-TR", { dateStyle: 'long', timeStyle: 'short' })}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-6 items-start">
-        {/* Sidebar - Profile Card (Left Column) */}
-        <div className="col-span-12 lg:col-span-4 space-y-6">
-          <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-            <div className="bg-muted/30 p-8 border-b border-border/50 flex flex-col items-center text-center">
-              <Avatar className="w-32 h-32 mb-5 border-4 border-background shadow-lg">
-                <AvatarImage src={details?.profile_picture_url || undefined} className="object-cover" />
-                <AvatarFallback className="text-3xl font-bold bg-muted text-muted-foreground">{application.user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <h2 className="text-2xl font-bold tracking-tight mb-2">{application.user.full_name}</h2>
-              <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                <GraduationCap className="w-4 h-4" />
-                <span className="font-medium">{details?.school_name}</span>
-              </div>
-
-              <div className="flex flex-col items-center gap-3 w-full">
-                {getStatusBadge(application.status)}
-
-                {/* Committee Badge in Profile */}
-                {application.status === 'approved' && (
-                  assignedCommittee ? (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 gap-1.5 px-3 py-1 mt-1">
-                      <Building2 className="w-3.5 h-3.5" /> {assignedCommittee.name}
+    <div className="animate-fade-in pb-20 max-w-7xl mx-auto space-y-6">
+      <Breadcrumbs items={[{ label: "Başvurular", href: "/admin/applications" }, { label: formDef?.title || "Başvuru" }]} />
+      
+      {/* Action Bar */}
+      <div className="bg-card border border-border/50 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 sticky top-4 z-20 shadow-sm">
+        <div className="flex items-center gap-3">
+            <Link href="/admin/applications">
+                <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="w-4 h-4" /></Button>
+            </Link>
+            <div className="flex flex-col">
+                <span className="font-bold text-lg leading-none">{user.full_name}</span>
+                <span className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] px-2 py-0 h-5 gap-1.5 font-medium border-primary/20 text-primary bg-primary/5">
+                        {getRoleIcon(applicantType)}
+                        {formDef?.title || "Başvuru"}
                     </Badge>
-                  ) : (
-                    <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20 gap-1.5 px-3 py-1 mt-1 border-dashed">
-                      <Clock className="w-3.5 h-3.5" /> Atama Bekleniyor
-                    </Badge>
-                  )
-                )}
-              </div>
+                    <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                    {new Date(application.submitted_at).toLocaleDateString('tr-TR')}
+                </span>
             </div>
-
-            <ScrollArea className="max-h-[600px]">
-              <div className="p-6 space-y-8">
-                {/* Contact Info */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
-                    <BadgeCheck className="w-3.5 h-3.5 text-primary" />
-                    İletişim & Kimlik
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between group">
-                      <span className="text-sm text-muted-foreground">E-posta</span>
-                      <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{application.user.email}</span>
-                    </div>
-                    <Separator className="bg-border/40" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Telefon</span>
-                      <span className="text-sm font-medium text-foreground">{details?.phone_number}</span>
-                    </div>
-                    <Separator className="bg-border/40" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Şehir</span>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-sm font-medium text-foreground">{info.city}</span>
-                      </div>
-                    </div>
-                    <Separator className="bg-border/40" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Doğum Tarihi</span>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-sm font-medium text-foreground">
-                          {details?.birth_date ? new Date(details.birth_date).toLocaleDateString("tr-TR") : "-"}
-                        </span>
-                      </div>
-                    </div>
-                    <Separator className="bg-border/40" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Sınıf</span>
-                      <span className="text-sm font-medium text-foreground">{getLabel(info.grade, SINIF_OPTIONS)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Experience Info */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
-                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                    MUN Deneyimi
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-muted/30 p-3 rounded-lg border border-border/30">
-                        <span className="text-xs text-muted-foreground block mb-1">İngilizce</span>
-                        <span className="text-sm font-medium">{getLabel(info.english_level, INGILIZCE_OPTIONS)}</span>
-                      </div>
-                      <div className="bg-muted/30 p-3 rounded-lg border border-border/30">
-                        <span className="text-xs text-muted-foreground block mb-1">Deneyim</span>
-                        <span className="text-sm font-medium">{getLabel(info.mun_experience, MUN_DENEYIMI_OPTIONS)}</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-muted/30 p-3 rounded-lg border border-border/30">
-                      <span className="text-xs text-muted-foreground block mb-1">Delegasyon Tercihi</span>
-                      <span className="text-sm font-medium capitalize flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                        {info.delegation_type}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </ScrollArea>
-          </div>
         </div>
-
-        {/* Main Content (Right Column) */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
-
-          {/* Action Card */}
-          <div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 sticky top-6 z-10 transition-all">
-            <div className="text-sm text-muted-foreground flex-1">
-              Bu başvuru <span className="font-medium text-foreground">{getStatusBadge(application.status)}</span> durumundadır.
-              {application.review_notes && (
-                <p className="mt-1 text-red-500 flex items-center gap-1.5">
-                  <XCircle className="w-3.5 h-3.5" />
-                  İnceleme Notu: <span className="italic">{application.review_notes}</span>
-                </p>
-              )}
-            </div>
-
-            {rejectionMode ? (
-              <div className="flex-1 w-full md:w-auto animate-in fade-in slide-in-from-right-4">
-                <div className="flex flex-col gap-3">
-                  <Textarea
-                    placeholder="Reddetme sebebini yazınız..."
-                    className="min-h-[80px] resize-none"
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" onClick={() => setRejectionMode(false)} disabled={statusMutation.isPending}>İptal</Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => statusMutation.mutate({ status: "rejected", notes: rejectionReason })}
-                      disabled={!rejectionReason.trim() || statusMutation.isPending}
-                    >
-                      {statusMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                      Reddet ve Bitir
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-3 w-full md:w-auto">
-                {application.status === "pending" ? (
-                  <>
-                    <Button variant="destructive" className="bg-red-600 text-white hover:bg-red-700 flex-1 md:flex-none" onClick={() => setRejectionMode(true)} disabled={statusMutation.isPending}>
-                      <XCircle className="w-4 h-4 mr-2" /> Reddet
-                    </Button>
-                    <Button
-                      className="bg-green-600 hover:bg-green-700 text-white flex-1 md:flex-none"
-                      onClick={() => statusMutation.mutate({ status: "approved" })}
-                      disabled={statusMutation.isPending}
-                    >
-                      {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" /> Onayla
-                        </>
-                      )}
-                    </Button>
-                  </>
-                ) : (
-                  <></>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Committee Assignment Card (Only visible if Approved) */}
-          {application.status === 'approved' && (
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Building2 className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold text-lg">Komite Ataması</h3>
-              </div>
-
-              <div className="flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 w-full">
-                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                    Atanacak Komite
-                  </label>
-                  <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Komite Seçiniz" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">-- Atama Yok (Boş) --</SelectItem>
-                      {committees.map((committee) => (
-                        <SelectItem key={committee.id} value={committee.id}>
-                          {committee.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  onClick={() => assignMutation.mutate()}
-                  disabled={assignMutation.isPending}
-                  className="w-full md:w-auto"
-                >
-                  {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Briefcase className="w-4 h-4 mr-2" />}
-                  Atamayı Kaydet
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-border/50 bg-muted/10">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <TextIcon className="w-5 h-5 text-primary" />
-                Başvuru Detayları
-              </h3>
-            </div>
-
-            <div className="p-8 space-y-10">
-              {/* Committee Preferences */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-5 rounded-xl border border-primary/20 bg-primary/5 relative overflow-hidden group">
-                  <span className="text-xs font-semibold text-primary uppercase tracking-wider mb-2 block">1. Komite Tercihi</span>
-                  <p className="font-display font-medium text-lg">{getLabel(info.committee_pref_1, KOMITE_OPTIONS)}</p>
-                </div>
-                <div className="p-5 rounded-xl border border-border bg-muted/20 relative overflow-hidden group">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">2. Komite Tercihi</span>
-                  <p className="font-display font-medium text-lg">{getLabel(info.committee_pref_2, KOMITE_OPTIONS)}</p>
-                </div>
-              </div>
-
-              <div className="space-y-8">
-                <section>
-                  <h4 className="text-sm font-semibold text-foreground/90 border-l-4 border-primary pl-3 mb-4">Katılım Nedeni</h4>
-                  <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed bg-muted/10 p-4 rounded-lg border border-border/30">
-                    {info.reason_for_joining}
-                  </div>
-                </section>
-
-                <section>
-                  <h4 className="text-sm font-semibold text-foreground/90 border-l-4 border-primary pl-3 mb-4">Beklentiler</h4>
-                  <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed bg-muted/10 p-4 rounded-lg border border-border/30">
-                    {info.expectations}
-                  </div>
-                </section>
-
-                <section>
-                  <h4 className="text-sm font-semibold text-foreground/90 border-l-4 border-primary pl-3 mb-4">Kendini Tanıtma</h4>
-                  <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed bg-muted/10 p-4 rounded-lg border border-border/30">
-                    {info.self_introduction}
-                  </div>
-                </section>
-              </div>
-
-              {info.previous_conferences && (
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+            {getStatusBadge(application.status)}
+            
+            {application.status === 'pending' && (
                 <>
-                  <Separator />
-                  <section>
-                    <h4 className="text-sm font-semibold text-foreground/90 mb-4">Önceki Konferanslar</h4>
-                    <p className="p-4 bg-muted/30 rounded-lg text-sm text-muted-foreground whitespace-pre-wrap border border-border/30">
-                      {info.previous_conferences}
-                    </p>
-                  </section>
+                    <Button variant="destructive" size="sm" onClick={() => setRejectionMode(true)}>Reddet</Button>
+                    <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => statusMutation.mutate({ status: 'approved' })}>Onayla</Button>
                 </>
-              )}
-            </div>
-          </div>
+            )}
         </div>
       </div>
-    </div >
+
+      {/* Rejection Modal */}
+      {rejectionMode && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-card border p-6 rounded-lg max-w-md w-full shadow-2xl space-y-4">
+                <h3 className="font-bold text-lg">Reddetme Sebebi</h3>
+                <Textarea 
+                    value={rejectionReason} 
+                    onChange={e => setRejectionReason(e.target.value)} 
+                    placeholder="Lütfen reddetme sebebini giriniz..." 
+                    className="min-h-[100px]"
+                />
+                <div className="flex justify-end gap-2">
+                    <Button variant="ghost" onClick={() => setRejectionMode(false)}>İptal</Button>
+                    <Button variant="destructive" onClick={() => statusMutation.mutate({ status: 'rejected', notes: rejectionReason })}>Reddet ve Bitir</Button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        
+        {/* Left Column: Profile Card */}
+        <div className="w-full lg:w-[350px] space-y-6">
+            <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-gradient-to-b from-muted/50 to-card p-6 flex flex-col items-center text-center border-b border-border/50">
+                    <Avatar className="w-24 h-24 mb-4 border-4 border-background shadow-xl ring-1 ring-border/10">
+                        <AvatarImage src={details?.profile_picture_url} className="object-cover" />
+                        <AvatarFallback className="text-xl bg-primary/10 text-primary font-bold">
+                            {user.full_name.substring(0,2).toUpperCase()}
+                        </AvatarFallback>
+                    </Avatar>
+                    <h2 className="text-xl font-bold">{user.full_name}</h2>
+                    <p className="text-xs text-muted-foreground mt-1 bg-secondary/50 px-2 py-0.5 rounded-full">{user.email}</p>
+                </div>
+                
+                <div className="p-5 space-y-4 text-sm">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                        <Phone className="w-4 h-4 shrink-0" />
+                        <span className="text-foreground">{details?.phone_number || "Belirtilmemiş"}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                        <GraduationCap className="w-4 h-4 shrink-0" />
+                        <div className="flex flex-col">
+                            <span className="text-foreground font-medium leading-tight">{details?.school_name || "Belirtilmemiş"}</span>
+                            {formData.grade && <span className="text-xs">{formData.grade}. Sınıf</span>}
+                        </div>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                        <MapPin className="w-4 h-4 shrink-0" />
+                        <span className="text-foreground">{formData.city || details?.additional_info?.city || "-"}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                        <Calendar className="w-4 h-4 shrink-0" />
+                        <span className="text-foreground">
+                            {details?.birth_date ? new Date(details.birth_date).toLocaleDateString('tr-TR') : "-"}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Assignment Panel (Only if Approved AND Delegate) */}
+            {application.status === 'approved' && applicantType === 'delegate' && (
+                <div className="bg-primary/5 border border-primary/20 p-5 rounded-xl space-y-4 shadow-sm">
+                    <h3 className="font-semibold flex items-center gap-2 text-primary text-sm uppercase tracking-wide">
+                        <Briefcase className="w-4 h-4" /> Komite Ataması
+                    </h3>
+                    <div className="space-y-3">
+                        <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
+                            <SelectTrigger className="bg-background border-primary/20">
+                                <SelectValue placeholder="Komite Seçiniz" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">-- Atama Yok --</SelectItem>
+                                {committees.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Button 
+                            onClick={() => assignMutation.mutate()} 
+                            disabled={assignMutation.isPending}
+                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                            {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Atamayı Kaydet"}
+                        </Button>
+                    </div>
+                </div>
+            )}
+        </div>
+
+        {/* Right Column: Dynamic Form Data */}
+        <div className="flex-1">
+            <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-muted/30 px-6 py-4 border-b border-border/50 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    <h3 className="font-bold text-foreground">Başvuru Formu Cevapları</h3>
+                </div>
+                <div className="p-6">
+                    {renderFormData()}
+                </div>
+            </div>
+        </div>
+
+      </div>
+    </div>
   );
 }
 
 // Change Log:
-// - Refactored `fetchApplication` and `fetchCommittees` to use `useQuery`.
-// - Refactored `handleStatusUpdate` and `handleAssignCommittee` to use `useMutation`.
-// - Replaced loader with `Skeleton` layout.
+// - Added logic to safely access `application.form` even if it is an array.
+// - Fixed conditional rendering for Committee Assignment card to only show if `applicantType === 'delegate'`.

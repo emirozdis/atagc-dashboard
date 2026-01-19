@@ -86,19 +86,30 @@ export const authOptions: NextAuthOptions = {
         const isValid = await bcrypt.compare(credentials.password, user.password_hash);
         if (!isValid) return null;
 
-        // 5. Fetch Application Status (New Requirement)
+        // 5. Fetch Application Status & Type
         let appStatus: "pending" | "approved" | "rejected" = "pending";
+        let applicantType: "delegate" | "press" | "observer" = "delegate"; // Default
+
         if (user.role === 'applicant') {
             const { data: app } = await supabase
                 .from("applications")
-                .select("status")
+                .select(`
+                  status, 
+                  form:application_forms(slug)
+                `)
                 .eq("user_id", user.id)
                 .maybeSingle();
+            
             if (app) {
                 appStatus = app.status;
+                // @ts-ignore
+                if (app.form?.slug) {
+                   // @ts-ignore
+                   applicantType = app.form.slug;
+                }
             }
         } else {
-            // Admins/Chairs are effectively 'approved' for access purposes
+            // Admins/Chairs are approved and essentially "staff"
             appStatus = "approved";
         }
 
@@ -129,7 +140,8 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           image: userDetails?.profile_picture_url || null,
           sessionId: sessionData.id,
-          applicationStatus: appStatus
+          applicationStatus: appStatus,
+          applicantType: applicantType
         };
       },
     }),
@@ -142,6 +154,7 @@ export const authOptions: NextAuthOptions = {
         token.picture = user.image;
         token.sessionId = user.sessionId || "";
         token.applicationStatus = user.applicationStatus;
+        token.applicantType = user.applicantType;
       }
       if (trigger === "update" && session?.user?.image) {
         token.picture = session.user.image;
@@ -150,23 +163,13 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token && token.sessionId) {
-        // Fast validation (optional, can be cached or removed if purely relying on JWT expiry)
-        // Kept for immediate suspension handling
-        /* 
-           Performance Note: Checking DB on every session access can be heavy. 
-           However, for critical checks like suspension or role changes, it's safer.
-           We'll keep it but optimize the select.
-        */
-       
-        // We reuse the token data mostly, but verification is good practice.
-        // If speed is critical, remove this DB call and rely on JWT expiry (usually short).
-        
         if (session.user) {
           session.user.id = token.id;
           session.user.role = token.role as any;
           session.user.image = token.picture;
           session.user.sessionId = token.sessionId;
           session.user.applicationStatus = token.applicationStatus as any;
+          session.user.applicantType = token.applicantType as any;
         }
         return session;
       }
@@ -184,6 +187,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Added logic to fetch `applications.status` during login and attach it to the user object.
-// - Persisted `applicationStatus` through JWT and Session callbacks.
-// - This enables efficient client-side and server-side checks without extra DB queries per request.
+// - Updated `authorize` function to fetch `form:application_forms(slug)` from the application to determine `applicantType` (delegate, press, observer).
+// - Passed `applicantType` through to JWT and Session callbacks.

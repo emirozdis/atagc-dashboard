@@ -17,16 +17,24 @@ interface SidebarProps {
 export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  
   const role = session?.user?.role;
   const status = session?.user?.applicationStatus;
+  const type = session?.user?.applicantType || "delegate"; // Default to delegate for staff
 
-  // Filter items based on role AND approval status
+  // Filter items
   const items = participantItems.filter(item => {
-    // Role check
+    // 1. Role Check
     if (item.roles && role && !item.roles.includes(role)) return false;
     
-    // Approval check (only for applicants)
+    // 2. Approval Check (only for applicants)
     if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
+    
+    // 3. Applicant Type Check (Delegate vs Press vs Observer)
+    // Only check if user is an applicant. Staff (admin/chairs) bypass this.
+    if (role === 'applicant') {
+        if (item.allowedTypes && !item.allowedTypes.includes(type)) return false;
+    }
     
     return true;
   });
@@ -37,7 +45,6 @@ export function Sidebar({ className, onClose }: SidebarProps) {
     return null;
   })();
 
-  // Poll for connection requests only if approved
   const shouldPollConnections = !!session && status === 'approved';
   
   const { data: connectionData } = useQuery<ConnectionState>({
@@ -115,5 +122,4 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 }
 
 // Change Log:
-// - Implemented approval filtering: `if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;`.
-// - Only enabled connection polling if user is approved.
+// - Added logic to filter sidebar items based on `session.user.applicantType` and `item.allowedTypes`.
