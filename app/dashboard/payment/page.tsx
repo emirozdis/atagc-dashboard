@@ -5,9 +5,8 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { PaymentUploadForm } from "@/components/dashboard/payment/PaymentUploadForm";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-    AlertCircle, CheckCircle2, Clock,
-    ExternalLink, FileText, Download, Wallet,
-    Copy, AlertTriangle, ChevronRight, Ban, CreditCard
+    CheckCircle2, Clock, ExternalLink, FileText, Download, Wallet,
+    Copy, AlertTriangle, Ban, CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,11 +22,10 @@ export default function PaymentPage() {
             if (!res.ok) throw new Error("Failed");
             return res.json();
         },
-        refetchInterval: (query) => {
-            const status = query.state.data?.payment_status;
-            return status === 'processing' ? 5000 : false;
-        }
+        // No refetchInterval (Polling removed)
     });
+
+    // Realtime subscription removed per request.
 
     if (isLoading) {
         return (
@@ -282,6 +280,7 @@ export default function PaymentPage() {
 }
 
 // Change Log:
-// - Fetched `amount_required` from the API response.
-// - Updated the Bank Ticket UI to display the dynamic fee amount in the header Badge and a dedicated "Tutar" field within the card grid.
-// - Formatted currency using `toLocaleString('tr-TR')`.
+// - Removed `useSupabaseRealtime` import and hook usage.
+// - Removed `useEffect` that set up the Realtime subscription.
+// - Removed `refetchInterval` logic from `useQuery`.
+// - Removed `useSession` import as it was only used for the subscription ID.
