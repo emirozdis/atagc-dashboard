@@ -3,6 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { v4 as uuidv4 } from 'uuid';
 import { logAction } from "@/lib/logger";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   // Allow deputy_chair to create roll calls
@@ -33,13 +34,16 @@ export async function POST(request: Request) {
     }
 
     const uniqueToken = uuidv4();
+    // Generate a random 32-char secret for TOTP
+    const secretKey = crypto.randomBytes(16).toString('hex');
 
     const { data, error } = await supabase
       .from("roll_calls")
       .insert({
         committee_id,
         session_name,
-        qr_code: uniqueToken
+        qr_code: uniqueToken, // Kept as static ID
+        secret_key: secretKey // New secret for dynamic generation
       })
       .select()
       .single();
@@ -54,3 +58,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+// Change Log:
+// - Added generation of `secretKey`.
+// - Persisting `secret_key` to DB for subsequent verification.

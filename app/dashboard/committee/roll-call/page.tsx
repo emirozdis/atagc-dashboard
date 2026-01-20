@@ -1,23 +1,33 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { QrCode, Loader2, Info, Users, StopCircle, CheckCircle } from "lucide-react";
+import { QrCode, Loader2, Info, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { QRCodeSVG } from "qrcode.react";
 import { RollCallHistory } from "@/components/committee/RollCallHistory";
+import { DynamicRollCallQR } from "@/components/committee/DynamicRollCallQR";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function CommitteeRollCallPage() {
   const [sessionName, setSessionName] = useState("");
-  const [qrData, setQrData] = useState<string | null>(null);
   const [rollCallId, setRollCallId] = useState<string | null>(null);
+  const [secretKey, setSecretKey] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
-  const isCompletedRef = useRef(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
   // Queries
   const { data: committee } = useQuery({
@@ -29,22 +39,15 @@ export default function CommitteeRollCallPage() {
     }
   });
 
-  const { data: stats = { scanned: 0, total: 0 } } = useQuery({
-    queryKey: ['roll-call-stats', rollCallId],
+  // We fetch stats only for the final success screen here, live stats are handled by component
+  const { data: finalStats } = useQuery({
+    queryKey: ['roll-call-stats-final', rollCallId],
     queryFn: async () => {
       const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
       if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-
-      if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
-        isCompletedRef.current = true;
-        setIsCompleted(true);
-        toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
-      }
-      return data;
+      return res.json();
     },
-    enabled: !!rollCallId && !isCompleted,
-    refetchInterval: 3000
+    enabled: isCompleted && !!rollCallId
   });
 
   const queryClient = useQueryClient();
@@ -68,37 +71,38 @@ export default function CommitteeRollCallPage() {
     },
     onSuccess: (data) => {
       setRollCallId(data.id);
-      setQrData(data.qr_code);
+      setSecretKey(data.secret_key); 
       setIsCompleted(false);
-      isCompletedRef.current = false;
-      toast.success("QR Kod Oluşturuldu");
+      toast.success("Oturum Başlatıldı");
       queryClient.invalidateQueries({ queryKey: ["committee-roll-call-history"] });
     },
     onError: (e: any) => toast.error(e.message)
   });
 
-  const handleManualFinish = () => {
-    if (!confirm("Yoklamayı bitirmek istediğinize emin misiniz?")) return;
+  const triggerManualFinish = () => {
+    setShowFinishConfirm(true);
+  };
+
+  const confirmManualFinish = () => {
     setIsCompleted(true);
-    isCompletedRef.current = true;
+    setShowFinishConfirm(false);
     toast.info("Yoklama manuel olarak sonlandırıldı.");
   };
 
   const handleClose = () => {
-    setQrData(null);
     setRollCallId(null);
+    setSecretKey(null);
     setSessionName("");
     setIsCompleted(false);
-    isCompletedRef.current = false;
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto pb-20">
       <Breadcrumbs items={[{ label: "Komitem", href: "/dashboard/committee" }, { label: "Yoklama" }]} />
       <div>
         <h2 className="text-3xl font-display font-bold text-foreground">Yoklama Oluştur</h2>
         <p className="text-muted-foreground mt-1">
-          Komiteniz için yoklama QR kodu oluşturun.
+          Komiteniz için dinamik QR kod oluşturun.
         </p>
       </div>
 
@@ -126,14 +130,14 @@ export default function CommitteeRollCallPage() {
                 placeholder="Örn: 1. Oturum, Sabah Oturumu"
                 value={sessionName}
                 onChange={(e) => setSessionName(e.target.value)}
-                disabled={!!qrData}
+                disabled={!!rollCallId && !isCompleted}
               />
             </div>
 
-            {!qrData && (
+            {!rollCallId && (
               <Button onClick={() => createMutation.mutate()} className="w-full mt-4" disabled={createMutation.isPending}>
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
-                QR Kod Oluştur
+                Başlat
               </Button>
             )}
           </CardContent>
@@ -154,83 +158,29 @@ export default function CommitteeRollCallPage() {
                 <p className="text-muted-foreground font-medium text-lg">{sessionName}</p>
               </div>
 
-              <div className="bg-secondary/30 border border-border/50 rounded-xl p-6 max-w-xs mx-auto">
-                <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mb-2">Katılım Durumu</div>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-bold text-foreground">{stats.scanned}</span>
-                  <span className="text-xl text-muted-foreground">/ {stats.total}</span>
+              {finalStats && (
+                <div className="bg-secondary/30 border border-border/50 rounded-xl p-6 max-w-xs mx-auto">
+                  <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mb-2">Katılım Durumu</div>
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-4xl font-bold text-foreground">{finalStats.scanned}</span>
+                    <span className="text-xl text-muted-foreground">/ {finalStats.total}</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <Button size="lg" onClick={handleClose} className="w-full max-w-xs">
                 Tamam
               </Button>
             </div>
-          ) : qrData ? (
-            /* Active QR Screen */
-            <div className="text-center space-y-6 animate-in zoom-in fade-in w-full">
-              <div className="bg-white p-4 rounded-xl shadow-lg inline-block">
-                <QRCodeSVG
-                  value={qrData}
-                  size={256}
-                  level="M"
-                  className="w-48 h-48 md:w-64 md:h-64 object-contain"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="font-bold text-xl text-primary">{sessionName}</h3>
-                <p className="text-sm text-muted-foreground">
-                  Bu kodu üyelere okutunuz.
-                </p>
-              </div>
-
-              {/* Realtime Stats */}
-              <div className="bg-secondary/20 border border-border/50 rounded-lg p-4 flex items-center justify-between gap-4 max-w-xs mx-auto w-full">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/20 text-primary rounded-full">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-xs text-muted-foreground">Anlık Katılım</div>
-                    <div className="font-mono font-bold text-lg">
-                      {stats.scanned} <span className="text-muted-foreground/60 text-sm">/ {stats.total}</span>
-                    </div>
-                  </div>
-                </div>
-                {stats.total > 0 && (
-                  <div className="h-10 w-10 relative flex items-center justify-center">
-                    <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
-                      <path
-                        className="text-secondary"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="text-primary transition-all duration-500 ease-out"
-                        strokeDasharray={`${(stats.scanned / stats.total) * 100}, 100`}
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                    </svg>
-                  </div>
-                )}
-              </div>
-
-              <Button
-                variant="destructive"
-                size="default"
-                onClick={handleManualFinish}
-                className="mt-4 w-full"
-              >
-                <StopCircle className="w-4 h-4 mr-2" />
-                Yoklamayı Bitir
-              </Button>
-            </div>
+          ) : (rollCallId && secretKey) ? (
+            /* Active QR Screen via Component */
+            <DynamicRollCallQR
+              rollCallId={rollCallId}
+              secretKey={secretKey}
+              sessionName={sessionName}
+              onManualFinish={triggerManualFinish}
+              onComplete={() => setIsCompleted(true)}
+            />
           ) : (
             /* Empty State */
             <div className="text-center text-muted-foreground">
@@ -244,10 +194,27 @@ export default function CommitteeRollCallPage() {
       <div className="pt-6">
         <RollCallHistory variant="full" />
       </div>
+
+      <AlertDialog open={showFinishConfirm} onOpenChange={setShowFinishConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Yoklamayı Bitir</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu işlem yoklamayı manuel olarak sonlandıracaktır. QR kod geçersiz hale gelecektir ve yeni katılım kabul edilmeyecektir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmManualFinish} className="bg-destructive text-white hover:bg-destructive/90">
+              Bitir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 // Change Log:
-// - Refactored to `useQuery` and `useMutation`.
-// - Implemented stats polling using `refetchInterval` in `useQuery`.
+// - Replaced native `confirm()` with `AlertDialog` from `shadcn/ui`.
+// - Added state `showFinishConfirm` to manage dialog visibility.

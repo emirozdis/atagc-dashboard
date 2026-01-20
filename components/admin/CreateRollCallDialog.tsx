@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { QrCode, Loader2, Plus, Users, StopCircle, CheckCircle } from "lucide-react";
+import { QrCode, Loader2, Plus, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { QRCodeSVG } from "qrcode.react";
+import { DynamicRollCallQR } from "@/components/committee/DynamicRollCallQR";
 
 interface Committee {
     id: string;
@@ -37,50 +37,8 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
     const [loading, setLoading] = useState(false);
 
     // Live State
-    const [qrData, setQrData] = useState<string | null>(null);
     const [rollCallId, setRollCallId] = useState<string | null>(null);
-    const [stats, setStats] = useState<{ scanned: number, total: number }>({ scanned: 0, total: 0 });
-
-    const isCompletedRef = useRef(false);
-
-    useEffect(() => {
-        if (open && step === 'form') {
-            fetchCommittees();
-        }
-    }, [open, step]);
-
-    // Polling Effect
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-
-        if (open && step === 'live' && rollCallId) {
-            const fetchStats = async () => {
-                try {
-                    const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        setStats(data);
-
-                        // Auto Finish
-                        if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
-                            isCompletedRef.current = true;
-                            setStep('success');
-                            toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
-                        }
-                    }
-                } catch (e) {
-                    console.error("Stats polling error");
-                }
-            };
-
-            fetchStats();
-            interval = setInterval(fetchStats, 3000);
-        }
-
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [open, step, rollCallId]);
+    const [secretKey, setSecretKey] = useState<string | null>(null);
 
     const fetchCommittees = async () => {
         try {
@@ -118,12 +76,10 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
 
             const data = await res.json();
 
-            setQrData(data.qr_code);
             setRollCallId(data.id);
-            setStats({ scanned: 0, total: 0 });
-            isCompletedRef.current = false;
-
-            toast.success("QR Kod Oluşturuldu");
+            setSecretKey(data.secret_key); // Use secret key for dynamic TOTP
+            
+            toast.success("Oturum Başlatıldı");
             setStep('live');
         } catch (e) {
             toast.error("Hata", { description: "QR Kod oluşturulamadı." });
@@ -142,12 +98,17 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
     };
 
     const handleOpenChange = (val: boolean) => {
-        if (!val && step === 'live') {
-            setShowExitConfirm(true);
-            return;
+        if (val) {
+            setOpen(true);
+            if (step === 'form') fetchCommittees();
+        } else {
+            if (step === 'live') {
+                setShowExitConfirm(true);
+                return;
+            }
+            setOpen(false);
+            handleCloseCleanup();
         }
-        setOpen(val);
-        if (!val) handleCloseCleanup();
     };
 
     const confirmExit = () => {
@@ -157,14 +118,12 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
     };
 
     const handleCloseCleanup = () => {
-        // Reset state after transition effect
         setTimeout(() => {
             setStep('form');
             setSessionName("");
             setSelectedCommittee("");
-            setQrData(null);
             setRollCallId(null);
-            setStats({ scanned: 0, total: 0 });
+            setSecretKey(null);
             onSuccess(); // Refresh list
         }, 300);
     };
@@ -219,66 +178,15 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                         </>
                     )}
 
-                    {step === 'live' && qrData && (
-                        <div className="text-center space-y-6 py-2 animate-in fade-in zoom-in-95">
-                            <DialogHeader>
-                                <DialogTitle className="text-center">{sessionName}</DialogTitle>
-                                <DialogDescription className="text-center">
-                                    QR Kodu üyelere okutunuz.
-                                </DialogDescription>
-                            </DialogHeader>
-
-                            <div className="flex justify-center">
-                                <div className="bg-white p-4 rounded-xl shadow-sm inline-block">
-                                    <QRCodeSVG
-                                        value={qrData}
-                                        size={256}
-                                        level="M"
-                                        className="w-48 h-48 object-contain"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Stats */}
-                            <div className="bg-secondary/20 border border-border/50 rounded-lg p-4 flex items-center justify-between gap-4 max-w-xs mx-auto w-full">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-primary/20 text-primary rounded-full">
-                                        <Users className="w-5 h-5" />
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="text-xs text-muted-foreground">Anlık Katılım</div>
-                                        <div className="font-mono font-bold text-lg">
-                                            {stats.scanned} <span className="text-muted-foreground/60 text-sm">/ {stats.total}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                {stats.total > 0 && (
-                                    <div className="h-10 w-10 relative flex items-center justify-center">
-                                        <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
-                                            <path
-                                                className="text-secondary"
-                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="4"
-                                            />
-                                            <path
-                                                className="text-primary transition-all duration-500 ease-out"
-                                                strokeDasharray={`${(stats.scanned / stats.total) * 100}, 100`}
-                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="4"
-                                            />
-                                        </svg>
-                                    </div>
-                                )}
-                            </div>
-
-                            <Button variant="destructive" className="w-full" onClick={handleManualFinishTrigger}>
-                                <StopCircle className="w-4 h-4 mr-2" />
-                                Yoklamayı Bitir
-                            </Button>
+                    {step === 'live' && rollCallId && secretKey && (
+                        <div className="py-2">
+                            <DynamicRollCallQR
+                                rollCallId={rollCallId}
+                                secretKey={secretKey}
+                                sessionName={sessionName}
+                                onManualFinish={handleManualFinishTrigger}
+                                onComplete={() => setStep('success')}
+                            />
                         </div>
                     )}
 
@@ -295,15 +203,11 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                                 <p className="text-muted-foreground font-medium text-lg">{sessionName}</p>
                             </div>
 
-                            <div className="bg-secondary/30 border border-border/50 rounded-xl p-6 max-w-xs mx-auto">
-                                <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mb-2">Katılım Durumu</div>
-                                <div className="flex items-baseline justify-center gap-1">
-                                    <span className="text-4xl font-bold text-foreground">{stats.scanned}</span>
-                                    <span className="text-xl text-muted-foreground">/ {stats.total}</span>
-                                </div>
+                            <div className="bg-secondary/30 border border-border/50 rounded-xl p-4 text-sm text-muted-foreground">
+                                Yoklama işlemi başarıyla sonlandırıldı. Detayları listeden inceleyebilirsiniz.
                             </div>
 
-                            <Button size="lg" onClick={() => setOpen(false)} className="w-full">
+                            <Button size="lg" onClick={() => handleOpenChange(false)} className="w-full">
                                 Tamam
                             </Button>
                         </div>
@@ -311,7 +215,6 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* Exit Confirmation Dialog */}
             <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -327,7 +230,6 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Manual Finish Confirmation Dialog */}
             <AlertDialog open={showFinishConfirm} onOpenChange={setShowFinishConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -345,8 +247,8 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
         </>
     );
 }
+
 // Change Log:
-// - Removed browser `confirm()` calls.
-// - Implemented `AlertDialog` for safe exit when closing the dialog during a live session.
-// - Implemented `AlertDialog` for manually finishing the roll call.
-// - Re-structured state handling to support these overlays.
+// - Integrated `DynamicRollCallQR` shared component.
+// - Re-used the same UI logic as Chairman view for consistent experience.
+// - Removed legacy static QR display logic.

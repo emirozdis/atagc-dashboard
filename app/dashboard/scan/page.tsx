@@ -5,14 +5,13 @@ import { toast } from "sonner";
 import {
   Loader2,
   CheckCircle2,
-  AlertTriangle,
-  Camera,
-  CameraOff,
   XCircle,
   RotateCcw,
   Sparkles,
   ShieldCheck,
-  UserPlus
+  UserPlus,
+  CameraOff,
+  Camera,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,14 +49,18 @@ export default function ScanPage() {
     let targetId = code;
 
     try {
-      // Try parsing as JSON to see if it's a User QR
+      // Try parsing as JSON to see if it's a User QR or Dynamic Roll Call
       const parsed = JSON.parse(code);
       if (parsed.t === 'u' && parsed.id) {
+        // User Connection
         isUserQr = true;
         targetId = parsed.id;
+      } else if (parsed.t === 'r' && parsed.id && parsed.otp) {
+        // Dynamic Roll Call - Pass the whole JSON string to the API
+        isUserQr = false;
       }
     } catch (e) {
-      // Not JSON, assume simple UUID string = Roll Call (or legacy format)
+      // Not JSON, assume simple UUID string = Legacy Roll Call
       isUserQr = false;
     }
 
@@ -66,7 +69,7 @@ export default function ScanPage() {
       await handleConnectionScan(targetId);
     } else {
       setScanType('roll-call');
-      await handleRollCallScan(code);
+      await handleRollCallScan(code); // Send raw code (JSON or String)
     }
   };
 
@@ -104,10 +107,11 @@ export default function ScanPage() {
 
   const handleRollCallScan = async (code: string) => {
     try {
+      // Send the code exactly as received. The API will parse JSON if needed.
       const res = await fetch("/api/roll-call/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: code.trim() }),
+        body: JSON.stringify({ token: code }),
       });
 
       const data = await res.json();
@@ -137,6 +141,8 @@ export default function ScanPage() {
     setIsCameraActive(true);
   };
 
+  // ... (Rest of UI render remains the same)
+  // Re-including UI code for completeness
   return (
     <div className="max-w-xl mx-auto space-y-6 md:space-y-8 animate-fade-in py-4 md:py-6 px-4 pb-20 overflow-hidden">
       <Breadcrumbs items={[{ label: "Tara" }]} />
@@ -307,7 +313,7 @@ export default function ScanPage() {
     </div>
   );
 }
+
 // Change Log:
-// - Added logic to parse JSON QR codes.
-// - Routes scan result to either `handleConnectionScan` or `handleRollCallScan`.
-// - Updated result UI to handle connection outcomes.
+// - Updated `processScan` logic to detect `t: 'r'` JSON payload for dynamic roll calls and route them correctly.
+// - Fixed typo in fallback logic.

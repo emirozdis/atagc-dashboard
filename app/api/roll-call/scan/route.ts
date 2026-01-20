@@ -3,6 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { verifyTOTP } from "@/lib/otp";
 
 // Rate limit: 20 scans per minute per IP
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
@@ -23,19 +24,48 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Token is required" }, { status: 400 });
         }
 
-        // 1. Find the Roll Call Session
+        let rollCallId = null;
+        let otp = null;
+
+        // Try to parse JSON format (New Dynamic System)
+        try {
+            const parsed = JSON.parse(token);
+            // Strict check for format: { t: 'r', id, otp }
+            if (parsed.t === 'r' && parsed.id && parsed.otp) {
+                rollCallId = parsed.id;
+                otp = parsed.otp;
+            } else {
+                throw new Error("Invalid format");
+            }
+        } catch (e) {
+            // Reject any format that isn't valid JSON with correct structure
+            return NextResponse.json({ error: "Geçersiz veya eski QR kod formatı. Lütfen yetkiliden QR kodunu yenilemesini isteyin." }, { status: 400 });
+        }
+
+        // 1. Fetch Roll Call
         const { data: rollCall, error: rcError } = await supabase
             .from("roll_calls")
-            .select("id, committee_id, session_name")
-            .eq("qr_code", token)
+            .select("id, committee_id, session_name, secret_key")
+            .eq("id", rollCallId)
             .single();
 
         if (rcError || !rollCall) {
-            return NextResponse.json({ error: "Invalid QR Code or Session not found" }, { status: 404 });
+            return NextResponse.json({ error: "Oturum bulunamadı." }, { status: 404 });
         }
 
-        // 2. Check User's Committee Membership
-        const { data: membership, error: memError } = await supabase
+        // 2. Strict OTP Verification
+        if (!rollCall.secret_key) {
+            // Should not happen for new rows, but block old rows just in case
+            return NextResponse.json({ error: "Bu oturum güvenli doğrulamayı desteklemiyor. Lütfen yeni bir oturum oluşturun." }, { status: 400 });
+        }
+
+        const isValid = await verifyTOTP(otp, rollCall.secret_key);
+        if (!isValid) {
+            return NextResponse.json({ error: "QR kodun süresi dolmuş. Lütfen ekranı yenileyin ve tekrar okutun." }, { status: 400 });
+        }
+
+        // 3. Check User's Committee Membership
+        const { data: membership } = await supabase
             .from("committee_members")
             .select("id")
             .eq("user_id", session.user.id)
@@ -48,8 +78,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Bu yoklama sizin komitenize ait değil." }, { status: 403 });
         }
 
-        // 3. Check if already scanned
-        const { data: existingLog, error: logError } = await supabase
+        // 4. Check if already scanned
+        const { data: existingLog } = await supabase
             .from("roll_call_logs")
             .select("id")
             .eq("roll_call_id", rollCall.id)
@@ -60,13 +90,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Bu oturum için zaten yoklama verdiniz." }, { status: 409 });
         }
 
-        // 4. Record Attendance
+        // 5. Record Attendance
         const { error: insertError } = await supabase
             .from("roll_call_logs")
             .insert({
                 roll_call_id: rollCall.id,
                 user_id: session.user.id,
-                scanned_at: new Date().toISOString() // Explicit timestamp
+                scanned_at: new Date().toISOString()
             });
 
         if (insertError) throw insertError;
@@ -89,5 +119,7 @@ export async function POST(request: Request) {
 }
 
 // Change Log:
-// - Added `requireApproved: true` to prevent pending users from scanning roll calls.
-// - Added explicit `scanned_at` timestamp.
+// - Completely removed fallback for legacy QR codes (raw UUID strings).
+// - Strict enforcement of JSON structure `{t:'r', id, otp}`.
+// - Strict enforcement of TOTP verification against `secret_key`.
+// - Rejects requests if `secret_key` is missing or OTP is invalid.
