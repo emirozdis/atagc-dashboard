@@ -154,6 +154,7 @@ CREATE TABLE public.roll_calls (
   qr_code character varying NOT NULL UNIQUE,
   session_date timestamp with time zone,
   created_at timestamp with time zone,
+  secret_key text,
   CONSTRAINT roll_calls_pkey PRIMARY KEY (id),
   CONSTRAINT roll_calls_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
@@ -253,3 +254,13 @@ CREATE TABLE public.votes (
   CONSTRAINT votes_pkey PRIMARY KEY (id),
   CONSTRAINT votes_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_logs_user_id ON public.logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_applications_user_id ON public.applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_applications_status ON public.applications(status);
+CREATE INDEX IF NOT EXISTS idx_roll_call_logs_roll_call_id ON public.roll_call_logs(roll_call_id);
+CREATE INDEX IF NOT EXISTS idx_roll_call_logs_user_id ON public.roll_call_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_vote_responses_vote_id ON public.vote_responses(vote_id);
+CREATE INDEX IF NOT EXISTS idx_committee_members_committee_id ON public.committee_members(committee_id);
+CREATE INDEX IF NOT EXISTS idx_committee_members_user_id ON public.committee_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_receipts_user_id ON public.payment_receipts(user_id);
