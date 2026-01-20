@@ -146,7 +146,7 @@ export const POST = apiHandler(async (request: Request) => {
         full_name: accountData.adSoyad,
         email: accountData.email, 
         password_hash: randomHash, 
-        role: 'applicant', // Temporarily applicant, updated below
+        role: 'applicant',
         created_at: now,
         updated_at: now
       })
@@ -157,7 +157,7 @@ export const POST = apiHandler(async (request: Request) => {
     userId = newUser.id;
   }
 
-  // 4. Validate Form Data & Get Role Slug
+  // 4. Validate Form Data
   const { data: formTemplate } = await supabase
     .from("application_forms")
     .select("id, slug, steps")
@@ -212,6 +212,7 @@ export const POST = apiHandler(async (request: Request) => {
   }
 
   // 6. Create Application
+  // NOTE: User role remains 'applicant' until approved by admin.
   const { error: appError } = await supabase
     .from("applications")
     .insert({
@@ -223,16 +224,6 @@ export const POST = apiHandler(async (request: Request) => {
     });
 
   if (appError) throw appError;
-
-  // 7. Update User Role based on Form Slug (Fix)
-  if (formTemplate.slug) {
-      const { error: roleError } = await supabase
-          .from("users")
-          .update({ role: formTemplate.slug })
-          .eq("id", userId);
-      
-      if (roleError) console.error("Failed to update user role:", roleError);
-  }
 
   await logAction(userId, "submit_application", { form_id: body.formId, role: formTemplate.slug }, request);
   await sendSystemNotification(userId, "application_received");
@@ -250,7 +241,7 @@ export const PUT = apiHandler(async (request: Request) => {
 
   const { data: currentApp, error: fetchError } = await supabase
     .from("applications")
-    .select("status, user_id")
+    .select("status, user_id, form:application_forms(slug)")
     .eq("id", id)
     .single();
 
@@ -269,9 +260,22 @@ export const PUT = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
+  // Update User Role based on Approval Status
+  if (status === 'approved') {
+      // @ts-ignore
+      const targetSlug = Array.isArray(currentApp.form) ? currentApp.form[0]?.slug : currentApp.form?.slug;
+      if (targetSlug) {
+          await supabase.from("users").update({ role: targetSlug }).eq("id", currentApp.user_id);
+      }
+  } else {
+      // If rejected or set back to pending, revert role to applicant
+      // This ensures they lose access to role-protected areas
+      await supabase.from("users").update({ role: 'applicant' }).eq("id", currentApp.user_id);
+  }
+
   await logAction(session?.user?.id, "update_application_status", { 
       application_id: id, 
-      new_status: status,
+      new_status: status, 
       previous_state: currentApp 
   }, request);
 
@@ -283,4 +287,7 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Updated POST handler (Step 7) to automatically update the user's `role` in the `users` table to match the `form.slug` upon successful application submission.
+// - Removed role update from POST handler (users stay 'applicant' on submission).
+// - Added role update logic to PUT handler:
+//   - If status becomes 'approved', user role updates to the form's slug (e.g., 'delegate').
+//   - If status becomes 'rejected' or 'pending', user role reverts to 'applicant'.

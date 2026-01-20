@@ -171,11 +171,14 @@ export const authOptions: NextAuthOptions = {
         
         // RE-FETCH USER DATA FROM DB to get fresh Role
         // This fixes the issue where role remains 'applicant' after form submission
-        if (token.id) {
+        // Use token.sub as fallback if token.id is missing (standard NextAuth behavior)
+        const userId = (token.id as string) || token.sub;
+        
+        if (userId) {
             const { data: freshUser } = await supabase
                 .from("users")
                 .select("role")
-                .eq("id", token.id)
+                .eq("id", userId)
                 .single();
             
             if (freshUser) {
@@ -185,18 +188,31 @@ export const authOptions: NextAuthOptions = {
                 if (['press', 'observer', 'delegate'].includes(freshUser.role)) {
                     token.applicantType = freshUser.role as any;
                 }
+
+                // Also refresh Application Status
+                const { data: app } = await supabase
+                    .from("applications")
+                    .select("status")
+                    .eq("user_id", userId)
+                    .maybeSingle();
+                
+                if (app) {
+                    token.applicationStatus = app.status as any;
+                } else if (['superadmin', 'admin', 'committee_chairman', 'deputy_chair'].includes(freshUser.role)) {
+                    token.applicationStatus = "approved";
+                }
             }
         }
       }
       return token;
     },
     async session({ session, token }) {
-      if (token && token.sessionId) {
+      if (token && (token.sessionId || token.sub)) {
         if (session.user) {
-          session.user.id = token.id;
+          session.user.id = (token.id as string) || token.sub || "";
           session.user.role = token.role as any;
           session.user.image = token.picture;
-          session.user.sessionId = token.sessionId;
+          session.user.sessionId = (token.sessionId as string) || "";
           session.user.applicationStatus = token.applicationStatus as any;
           session.user.applicantType = token.applicantType as any;
         }
@@ -216,6 +232,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Updated `jwt` callback to handle `trigger === "update"`. It now re-fetches the user's role from Supabase.
-// - This ensures that when `update()` is called on the client after form submission, the session receives the new role immediately.
-// - Updated `authorize` logic to be consistent with new roles.
+// - Updated `jwt` callback to use `token.sub` as fallback for user ID lookup.
+// - Added fetching of `applicationStatus` inside the update trigger to ensure approval status is also synced to the session.

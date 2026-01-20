@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL || "http://localhost:3000"),
   title: "ATAGÇ 2026 - Panel",
   description: "ATAGÇ 2026 Etkinlik Paneli",
   keywords: ["ATAGÇ", "2026", "İTÜ GVO", "İzmir", "Atatürk Gençliği Çalıştayı"],
@@ -50,4 +51,4 @@ export default function RootLayout({
 }
 
 // Change Log:
-// - Added `suppressHydrationWarning` to the `<html>` tag to resolve hydration mismatch errors caused by `next-themes` modifying the DOM on the client.
+// - Added `metadataBase` to `metadata` export to resolve Open Graph image URL warnings.

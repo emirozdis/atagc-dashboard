@@ -26,7 +26,15 @@ export const participantItems = [
         icon: CreditCard,
         roles: ["applicant", "delegate", "press", "observer"],
         mobileCore: false,
-        requiresApproved: true,
+        requiresApproved: false, 
+    },
+    {
+        title: "Profilim",
+        href: "/dashboard/profile",
+        icon: User,
+        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        mobileCore: true,
+        requiresApproved: false,
     },
     {
         title: "Komitem",
@@ -56,7 +64,8 @@ export const participantItems = [
         title: "Tara",
         href: "/dashboard/scan",
         icon: ScanLine,
-        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        // Removed 'applicant' - only approved roles can access
+        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
         requiresApproved: true,
     },
@@ -64,7 +73,8 @@ export const participantItems = [
         title: "Tanıştıklarım",
         href: "/dashboard/connections",
         icon: UsersRound,
-        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        // Removed 'applicant'
+        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
         requiresApproved: true,
     },
@@ -72,7 +82,8 @@ export const participantItems = [
         title: "Kaynaklar",
         href: "/dashboard/resources",
         icon: FolderOpen,
-        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        // Removed 'applicant'
+        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
         requiresApproved: true,
     },
@@ -80,21 +91,14 @@ export const participantItems = [
         title: "Duyurular",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        // Removed 'applicant'
+        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
         requiresApproved: true,
-    },
-    {
-        title: "Profilim",
-        href: "/dashboard/profile",
-        icon: User,
-        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
-        mobileCore: true,
-        requiresApproved: false,
     },
 ];
 
 // Change Log:
-// - Removed `allowedTypes` logic entirely. Since `role` now correctly reflects 'delegate', 'press', or 'observer', we rely purely on `roles` array.
-// - Added "delegate", "press", "observer" to the `roles` array for all common pages.
-// - Excluded "press" and "observer" from "Komitem" (Committee) and "Ortak Çalışma" (Editor) pages.
+// - Removed "applicant" from `roles` for: Tara, Tanıştıklarım, Kaynaklar, Duyurular.
+// - This ensures users with 'applicant' role (unapproved applications) only see Dashboard, Payment, and Profile.
+// - Once approved, their role changes to 'delegate'/'press'/'observer', granting access to other pages.

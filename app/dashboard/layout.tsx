@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { MobileNav } from "@/components/dashboard/MobileNav";
 import { ConnectionNotification } from "@/components/dashboard/ConnectionNotification";
+import { RoleSyncer } from "@/components/dashboard/RoleSyncer";
 
 export default function DashboardLayout({
   children,
@@ -29,6 +30,10 @@ export default function DashboardLayout({
       </div>
       
       <ConnectionNotification />
+      <RoleSyncer />
     </div>
   );
 }
+
+// Change Log:
+// - Added `<RoleSyncer />` to the layout to ensure role synchronization runs on all dashboard pages.
