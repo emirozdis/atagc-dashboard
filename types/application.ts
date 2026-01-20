@@ -1,7 +1,15 @@
 import { z } from "zod";
 
+// Matching PostgreSQL ENUM: application_status_enum
+export enum ApplicationStatusEnum {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected'
+}
+
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
+
 // --- Static Schemas (Account Creation) ---
-// Password Regex: Min 8 chars, 1 uppercase, 1 lowercase, 1 number
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 export const accountCreationSchema = z.object({
@@ -31,8 +39,8 @@ export interface FormField {
   type: "text" | "number" | "tel" | "email" | "date" | "select" | "textarea" | "url" | "checkbox";
   required?: boolean;
   placeholder?: string;
-  options?: FormFieldOption[]; // For select inputs
-  system_map?: string; // Maps to user_details columns (e.g., 'phone_number', 'school_name')
+  options?: FormFieldOption[];
+  system_map?: string;
 }
 
 export interface FormStep {
@@ -51,7 +59,6 @@ export interface ApplicationFormTemplate {
   steps: FormStep[];
 }
 
-// Stores the raw answers: { "phone_number": "...", "custom_field_1": "..." }
 export type DynamicFormData = Record<string, any>;
 
 export interface FullApplicationSubmission {
@@ -62,6 +69,4 @@ export interface FullApplicationSubmission {
 }
 
 // Change Log:
-// - Removed static schemas for personal info/experience/motivation.
-// - Added types for Dynamic Form definitions (`ApplicationFormTemplate`, `FormStep`, `FormField`).
-// - Added `FullApplicationSubmission` type to handle the new dynamic submission payload.
+// - Added `ApplicationStatusEnum`.

@@ -6,8 +6,8 @@ CREATE TABLE public.active_sessions (
   user_id uuid NOT NULL,
   user_agent text,
   ip_address text,
-  last_active timestamp with time zone DEFAULT now(),
-  created_at timestamp with time zone DEFAULT now(),
+  last_active timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT active_sessions_pkey PRIMARY KEY (id),
   CONSTRAINT active_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -29,24 +29,24 @@ CREATE TABLE public.application_forms (
   title character varying NOT NULL,
   description text,
   fee numeric NOT NULL DEFAULT 0,
-  steps jsonb NOT NULL,
-  is_active boolean DEFAULT true,
-  created_at timestamp with time zone DEFAULT now(),
+  steps jsonb NOT NULL DEFAULT '[]'::jsonb,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT application_forms_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.applications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid,
-  status character varying DEFAULT 'pending'::character varying,
-  submitted_at timestamp with time zone,
+  user_id uuid NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'pending'::application_status_enum,
+  submitted_at timestamp with time zone NOT NULL DEFAULT now(),
   reviewed_at timestamp with time zone,
   review_notes text,
-  payment_status text DEFAULT 'unpaid'::text CHECK (payment_status = ANY (ARRAY['unpaid'::text, 'processing'::text, 'paid'::text, 'rejected'::text])),
-  form_id uuid,
-  form_data jsonb,
+  payment_status USER-DEFINED NOT NULL DEFAULT 'unpaid'::payment_status_enum,
+  form_id uuid NOT NULL,
+  form_data jsonb NOT NULL DEFAULT '{}'::jsonb,
   CONSTRAINT applications_pkey PRIMARY KEY (id),
-  CONSTRAINT applications_form_id_fkey FOREIGN KEY (form_id) REFERENCES public.application_forms(id),
-  CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT applications_form_id_fkey FOREIGN KEY (form_id) REFERENCES public.application_forms(id)
 );
 CREATE TABLE public.committee_documents (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -64,8 +64,8 @@ CREATE TABLE public.committee_members (
   joined_at timestamp with time zone,
   can_write boolean DEFAULT false,
   CONSTRAINT committee_members_pkey PRIMARY KEY (id),
-  CONSTRAINT committee_members_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id),
-  CONSTRAINT committee_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT committee_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT committee_members_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
 CREATE TABLE public.committees (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -112,15 +112,15 @@ CREATE TABLE public.payment_receipts (
   application_id uuid NOT NULL,
   storage_path text NOT NULL,
   file_type text,
-  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
+  status USER-DEFINED NOT NULL DEFAULT 'pending'::receipt_status_enum,
   admin_note text,
   reviewed_by uuid,
   reviewed_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT payment_receipts_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_receipts_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id),
   CONSTRAINT payment_receipts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
-  CONSTRAINT payment_receipts_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.applications(id),
-  CONSTRAINT payment_receipts_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id)
+  CONSTRAINT payment_receipts_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.applications(id)
 );
 CREATE TABLE public.resources (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -128,7 +128,7 @@ CREATE TABLE public.resources (
   description text,
   file_url text NOT NULL,
   file_type character varying,
-  category character varying DEFAULT 'general'::character varying,
+  category USER-DEFINED NOT NULL DEFAULT 'general'::resource_category_enum,
   uploaded_by uuid,
   is_public boolean DEFAULT false,
   created_at timestamp with time zone,
@@ -184,7 +184,7 @@ CREATE TABLE public.user_connections (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   requester_id uuid NOT NULL,
   recipient_id uuid NOT NULL,
-  status character varying NOT NULL DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'connected'::character varying, 'rejected'::character varying, 'blocked'::character varying]::text[])),
+  status USER-DEFINED NOT NULL DEFAULT 'pending'::connection_status_enum,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   note text,
@@ -198,10 +198,10 @@ CREATE TABLE public.user_details (
   birth_date date,
   phone_number character varying,
   school_name text,
-  additional_info jsonb,
+  additional_info jsonb NOT NULL DEFAULT '{}'::jsonb,
   profile_picture_url text,
   is_profile_picture_hidden boolean DEFAULT false,
-  allow_connections boolean DEFAULT true,
+  allow_connections boolean NOT NULL DEFAULT true,
   notification_preferences jsonb DEFAULT '{"social": true, "system": true, "committee": true, "application": true}'::jsonb,
   CONSTRAINT user_details_pkey PRIMARY KEY (id),
   CONSTRAINT user_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -222,9 +222,9 @@ CREATE TABLE public.users (
   email character varying NOT NULL UNIQUE,
   password_hash character varying NOT NULL,
   role character varying NOT NULL DEFAULT 'applicant'::character varying,
-  created_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone,
-  is_suspended boolean DEFAULT false,
+  is_suspended boolean NOT NULL DEFAULT false,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.vote_options (
@@ -249,18 +249,8 @@ CREATE TABLE public.votes (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   committee_id uuid NOT NULL,
   title text NOT NULL,
-  status text DEFAULT 'open'::text CHECK (status = ANY (ARRAY['open'::text, 'closed'::text])),
+  status USER-DEFINED NOT NULL DEFAULT 'open'::vote_status_enum,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT votes_pkey PRIMARY KEY (id),
   CONSTRAINT votes_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
 );
-
-CREATE INDEX IF NOT EXISTS idx_logs_user_id ON public.logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_applications_user_id ON public.applications(user_id);
-CREATE INDEX IF NOT EXISTS idx_applications_status ON public.applications(status);
-CREATE INDEX IF NOT EXISTS idx_roll_call_logs_roll_call_id ON public.roll_call_logs(roll_call_id);
-CREATE INDEX IF NOT EXISTS idx_roll_call_logs_user_id ON public.roll_call_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_vote_responses_vote_id ON public.vote_responses(vote_id);
-CREATE INDEX IF NOT EXISTS idx_committee_members_committee_id ON public.committee_members(committee_id);
-CREATE INDEX IF NOT EXISTS idx_committee_members_user_id ON public.committee_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_payment_receipts_user_id ON public.payment_receipts(user_id);

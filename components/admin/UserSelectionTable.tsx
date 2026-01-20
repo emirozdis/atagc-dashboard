@@ -9,14 +9,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, ChevronUp, CheckCircle2, AlertTriangle, CreditCard, User, Camera, Eye, Mail } from "lucide-react";
+import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, CheckCircle2, AlertTriangle, CreditCard, User, Camera, Eye, ShieldCheck, ChevronUp } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { toast } from "sonner";
 import { User as UserType } from "@/types/user";
 import { useRouter } from "next/navigation";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatePresence, motion } from "framer-motion";
@@ -24,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
 import { MultiSelectPopover, MultiSelectOption } from "@/components/ui/multi-select-popover";
+import { PaymentStatusEnum } from "@/types/payment";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface UserSelectionTableProps {
   selectedUsers?: string[];
@@ -44,12 +43,12 @@ const statusOptions: MultiSelectOption[] = [
 ];
 
 const paymentStatusOptions: MultiSelectOption[] = [
-    { value: "paid", label: "Ödendi" },
-    { value: "processing", label: "İnceleniyor" },
-    { value: "rejected", label: "Reddedildi" },
-    { value: "unpaid", label: "Ödenmedi" },
+    { value: PaymentStatusEnum.PAID, label: "Ödendi" },
+    { value: PaymentStatusEnum.PROCESSING, label: "İnceleniyor" },
+    { value: PaymentStatusEnum.REJECTED, label: "Reddedildi" },
+    { value: PaymentStatusEnum.UNPAID, label: "Ödenmedi" },
+    { value: PaymentStatusEnum.EXEMPT, label: "Muaf (Exempt)" },
 ];
-
 
 export function UserSelectionTable({ selectedUsers: externalSelected, onSelectionChange }: UserSelectionTableProps) {
   const router = useRouter();
@@ -179,8 +178,11 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         setSelectedReceiptId(receiptId);
     } else {
         const app = Array.isArray(user.application) ? user.application[0] : user.application;
-        const status = app?.payment_status || 'unpaid';
-        if (status === 'unpaid') {
+        const status = app?.payment_status || PaymentStatusEnum.UNPAID;
+        
+        if (status === PaymentStatusEnum.EXEMPT) {
+            toast.info("Bu kullanıcı ödemeden muaftır.");
+        } else if (status === PaymentStatusEnum.UNPAID) {
             toast.info("Bu kullanıcı henüz ödeme bildirimi yapmamış.");
         } else {
             router.push(`/admin/payments?search=${user.email}`);
@@ -189,58 +191,37 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   };
 
   const getRoleBadge = (user: UserType) => {
-    // Priority: System Roles > Applicant Type
     const role = user.role;
-    
-    // System Roles
     if (role === 'superadmin') return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 whitespace-nowrap">Süper Yönetici</Badge>;
     if (role === 'admin') return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20 whitespace-nowrap">Yönetici</Badge>;
     if (role === 'committee_chairman') return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 whitespace-nowrap">Başkan</Badge>;
     if (role === 'deputy_chair') return <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20 whitespace-nowrap">Başkan Yrd.</Badge>;
 
-    // Applicant Sub-Types
     const app = Array.isArray(user.application) ? user.application[0] : user.application;
-    const type = app?.form?.slug || 'delegate'; // Default to delegate if unknown
+    const type = app?.form?.slug || 'delegate';
 
     switch(type) {
-        case 'press': 
-            return <Badge variant="outline" className="bg-pink-500/10 text-pink-600 border-pink-500/20 whitespace-nowrap gap-1"><Camera className="w-3 h-3" /> Basın</Badge>;
-        case 'observer': 
-            return <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20 whitespace-nowrap gap-1"><Eye className="w-3 h-3" /> Gözlemci</Badge>;
-        default: 
-            return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 whitespace-nowrap gap-1"><User className="w-3 h-3" /> Delege</Badge>;
+        case 'press': return <Badge variant="outline" className="bg-pink-500/10 text-pink-600 border-pink-500/20 whitespace-nowrap gap-1"><Camera className="w-3 h-3" /> Basın</Badge>;
+        case 'observer': return <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20 whitespace-nowrap gap-1"><Eye className="w-3 h-3" /> Gözlemci</Badge>;
+        default: return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 whitespace-nowrap gap-1"><User className="w-3 h-3" /> Delege</Badge>;
     }
   };
 
   const getPaymentBadge = (user: UserType) => {
     const app = Array.isArray(user.application) ? user.application[0] : user.application;
-    const paymentStatus = app?.payment_status || 'unpaid';
+    const paymentStatus = app?.payment_status || PaymentStatusEnum.UNPAID;
 
     switch (paymentStatus) {
-        case 'paid':
-            return (
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}>
-                    <CheckCircle2 className="w-3 h-3" /> Ödendi
-                </Badge>
-            );
-        case 'processing':
-            return (
-                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20 cursor-pointer gap-1 animate-pulse" onClick={(e) => handlePaymentClick(e, user)}>
-                    <CreditCard className="w-3 h-3" /> İnceleniyor
-                </Badge>
-            );
-        case 'rejected':
-            return (
-                <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}>
-                    <X className="w-3 h-3" /> Reddedildi
-                </Badge>
-            );
+        case PaymentStatusEnum.PAID:
+            return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}><CheckCircle2 className="w-3 h-3" /> Ödendi</Badge>;
+        case PaymentStatusEnum.PROCESSING:
+            return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20 cursor-pointer gap-1 animate-pulse" onClick={(e) => handlePaymentClick(e, user)}><CreditCard className="w-3 h-3" /> İnceleniyor</Badge>;
+        case PaymentStatusEnum.REJECTED:
+            return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}><X className="w-3 h-3" /> Reddedildi</Badge>;
+        case PaymentStatusEnum.EXEMPT:
+            return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20 cursor-default gap-1"><ShieldCheck className="w-3 h-3" /> Muaf</Badge>;
         default:
-            return (
-                <Badge variant="outline" className="text-muted-foreground bg-transparent font-normal opacity-50 cursor-default">
-                    Ödenmedi
-                </Badge>
-            );
+            return <Badge variant="outline" className="text-muted-foreground bg-transparent font-normal opacity-50 cursor-default">Ödenmedi</Badge>;
     }
   };
 
@@ -255,121 +236,46 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
     <div className="space-y-6">
       {/* Controls Toolbar */}
       <div className="flex flex-col gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
-        {/* Search Bar - Full Width */}
+        {/* Search Bar */}
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input 
-            placeholder="İsim veya e-posta ile ara..." 
-            className="pl-9 h-10 w-full bg-background border-border/50" 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
-          />
+          <Input placeholder="İsim veya e-posta ile ara..." className="pl-9 h-10 w-full bg-background border-border/50" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
-        {/* Filters Row - Responsive Grid */}
+        {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Filter Controls */}
           <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-            <MultiSelectPopover 
-              options={roleOptions} 
-              selected={roleFilter} 
-              onChange={setRoleFilter} 
-              placeholder="Rol" 
-              triggerIcon={<Shield className="w-4 h-4 shrink-0" />} 
-              className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" 
-            />
-            
-            <MultiSelectPopover 
-              options={statusOptions} 
-              selected={statusFilter} 
-              onChange={setStatusFilter} 
-              placeholder="Durum" 
-              triggerIcon={<Filter className="w-4 h-4 shrink-0" />} 
-              className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" 
-            />
-            
-            <MultiSelectPopover 
-              options={paymentStatusOptions} 
-              selected={paymentStatusFilter} 
-              onChange={setPaymentStatusFilter} 
-              placeholder="Ödeme" 
-              triggerIcon={<CreditCard className="w-4 h-4 shrink-0" />} 
-              className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" 
-            />
-
+            <MultiSelectPopover options={roleOptions} selected={roleFilter} onChange={setRoleFilter} placeholder="Rol" triggerIcon={<Shield className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
+            <MultiSelectPopover options={statusOptions} selected={statusFilter} onChange={setStatusFilter} placeholder="Durum" triggerIcon={<Filter className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
+            <MultiSelectPopover options={paymentStatusOptions} selected={paymentStatusFilter} onChange={setPaymentStatusFilter} placeholder="Ödeme" triggerIcon={<CreditCard className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
             <Select value={warningFilter} onValueChange={setWarningFilter}>
-              <SelectTrigger className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px] h-10 bg-background border-border/50">
-                  <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                      <SelectValue placeholder="Uyarı" />
-                  </div>
-              </SelectTrigger>
-              <SelectContent>
-                  <SelectItem value="all">Tümü</SelectItem>
-                  <SelectItem value="has_warnings">Uyarı Alanlar</SelectItem>
-              </SelectContent>
+              <SelectTrigger className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px] h-10 bg-background border-border/50"><div className="flex items-center gap-2"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><SelectValue placeholder="Uyarı" /></div></SelectTrigger>
+              <SelectContent><SelectItem value="all">Tümü</SelectItem><SelectItem value="has_warnings">Uyarı Alanlar</SelectItem></SelectContent>
             </Select>
           </div>
-
-          {/* Sort & Clear Buttons */}
+          {/* Sort/Clear */}
           <div className="flex items-center gap-2 ml-auto">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 shrink-0" title="Sıralama">
-                  <ArrowUpDown className="w-4 h-4" />
-                  <span className="hidden sm:inline">Sırala</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 p-2" align="end">
-                <div className="space-y-1">
-                  <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Kayıt Tarihi</Button>
-                  <Button variant={sortBy === 'full_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('full_name')}>İsim</Button>
-                  <Button variant={sortBy === 'warnings_count' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('warnings_count')}>Uyarı Sayısı</Button>
-                  <div className="h-px bg-border my-1" />
-                  <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Artan (A-Z)</Button>
-                  <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Azalan (Z-A)</Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-            
-            {hasActiveFilters && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" 
-                onClick={resetFilters} 
-                title="Filtreleri Temizle"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
+             <Popover>
+                <PopoverTrigger asChild><Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 shrink-0"><ArrowUpDown className="w-4 h-4" /><span className="hidden sm:inline">Sırala</span></Button></PopoverTrigger>
+                <PopoverContent className="w-48 p-2" align="end">
+                    <div className="space-y-1">
+                        <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Kayıt Tarihi</Button>
+                        <Button variant={sortBy === 'full_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('full_name')}>İsim</Button>
+                        <Button variant={sortBy === 'warnings_count' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('warnings_count')}>Uyarı Sayısı</Button>
+                        <div className="h-px bg-border my-1" />
+                        <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Artan (A-Z)</Button>
+                        <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Azalan (Z-A)</Button>
+                    </div>
+                </PopoverContent>
+             </Popover>
+             {hasActiveFilters && <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" onClick={resetFilters}><X className="w-4 h-4" /></Button>}
           </div>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-4">
-          <div className="hidden md:block">
-            <TableSkeleton rows={5} />
-          </div>
-          <div className="md:hidden space-y-4">
-            {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted/20 animate-pulse rounded-xl border border-border/30" />)}
-          </div>
-        </div>
-      ) : users.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
-          <Filter className="w-12 h-12 opacity-20 mb-3" />
-          <p>Kriterlere uygun kullanıcı bulunamadı.</p>
-          {hasActiveFilters && (
-            <Button variant="link" onClick={resetFilters} className="mt-2">
-              Filtreleri Temizle
-            </Button>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Desktop Table Card */}
-          <div className="hidden md:block rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+      {/* Table Content */}
+      {isLoading ? <TableSkeleton /> : (
+        <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
@@ -401,92 +307,18 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                     </TableCell>
                     <TableCell>{getRoleBadge(user)}</TableCell>
                     <TableCell>{getPaymentBadge(user)}</TableCell>
-                    <TableCell>
-                        {user.warnings_count && user.warnings_count > 0 ? (
-                            <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-                                <AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}
-                            </Badge>
-                        ) : (
-                            <span className="text-xs text-muted-foreground opacity-50">-</span>
-                        )}
-                    </TableCell>
-                    <TableCell>
-                      {user.is_suspended ? <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge> : <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600 hover:bg-green-500/20">Aktif</Badge>}
-                    </TableCell>
+                    <TableCell>{user.warnings_count && user.warnings_count > 0 ? <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20"><AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}</Badge> : <span className="text-xs text-muted-foreground opacity-50">-</span>}</TableCell>
+                    <TableCell>{user.is_suspended ? <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge> : <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600 hover:bg-green-500/20">Aktif</Badge>}</TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">{new Date(user.created_at).toLocaleDateString("tr-TR")}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user.id}`); }}>
-                        <UserCog className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                      </Button>
-                    </TableCell>
+                    <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user.id}`); }}><UserCog className="w-4 h-4 text-muted-foreground hover:text-primary" /></Button></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
-
-          {/* Mobile View: Cards */}
-          <div className="md:hidden space-y-4">
-            {users.map(user => {
-              const isSelected = selectedIds.includes(user.id);
-              return (
-                <Card
-                  key={user.id}
-                  className={cn(
-                    "border border-border/50 transition-all active:scale-[0.99] cursor-pointer relative overflow-hidden",
-                    isSelected ? "border-primary/50 bg-primary/5 shadow-[0_0_0_1px_rgba(var(--primary))]" : "bg-card"
-                  )}
-                  onClick={() => toggleUser(user.id)}
-                >
-                  {isSelected && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
-                  )}
-
-                  <CardContent className="p-4 pl-5">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Avatar className="h-10 w-10 border border-border/50">
-                          <AvatarImage src={getUserImage(user)} className="object-cover" />
-                          <AvatarFallback>{user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm truncate">{user.full_name}</span>
-                            {isSelected && <CheckCircle2 className="w-3 h-3 text-primary shrink-0" />}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            {user.email}
-                          </div>
-                        </div>
-                      </div>
-                      <div onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user.id}`); }}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                          <UserCog className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="flex flex-wrap gap-2">
-                        {getRoleBadge(user)}
-                        {getPaymentBadge(user)}
-                        {user.is_suspended && <Badge variant="destructive" className="text-[10px] h-5 px-1.5">Askıda</Badge>}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <div className="py-2">
-            <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-          </div>
-        </>
+        </div>
       )}
-
-      {/* Floating Selection Bar */}
+      
+      {/* Floating Action Bar */}
       <AnimatePresence>
         {selectedIds.length > 0 && (
           <motion.div
@@ -543,15 +375,11 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         )}
       </AnimatePresence>
 
-      <PaymentReviewDialog
-        paymentId={selectedReceiptId}
-        open={!!selectedReceiptId}
-        onOpenChange={(open) => !open && setSelectedReceiptId(null)}
-      />
+      <PaymentReviewDialog paymentId={selectedReceiptId} open={!!selectedReceiptId} onOpenChange={(open) => !open && setSelectedReceiptId(null)} />
     </div>
   );
 }
 
 // Change Log:
-// - Updated `getRoleBadge` to check `user.application[0].form.slug` when role is `applicant`.
-// - This now properly displays "Basın", "Gözlemci" or "Delege" badges instead of generic "Katılımcı".
+// - Updated `getPaymentBadge` to handle `EXEMPT` status with a purple badge and `ShieldCheck` icon.
+// - Added `PaymentStatusEnum.EXEMPT` to filter options.

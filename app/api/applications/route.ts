@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { accountCreationSchema, FullApplicationSubmission } from "@/types/application";
+import { accountCreationSchema, FullApplicationSubmission, ApplicationStatusEnum } from "@/types/application";
+import { PaymentStatusEnum } from "@/types/payment";
 import { logAction } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
@@ -12,7 +13,7 @@ const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 const updateSchema = z.object({
   id: z.string().uuid(),
-  status: z.enum(["approved", "rejected", "pending"]),
+  status: z.nativeEnum(ApplicationStatusEnum), // Validates against 'pending' | 'approved' | 'rejected'
   review_notes: z.string().optional(),
 });
 
@@ -39,7 +40,7 @@ export const GET = apiHandler(async (request: Request) => {
       submitted_at,
       review_notes,
       form_data,
-      form:application_forms(title, slug),
+      form:application_forms(title, slug, fee),
       user:users!inner (
         id,
         full_name,
@@ -104,11 +105,8 @@ export const POST = apiHandler(async (request: Request) => {
   }
 
   const body: FullApplicationSubmission = await request.json();
-  
-  // 1. Account Validation
   const accountData = accountCreationSchema.parse(body.account);
 
-  // 2. Email Verification Check
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data: verification } = await supabase
     .from("email_verifications")
@@ -121,7 +119,6 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (!verification) throw new Error("E-posta doğrulanmamış.");
 
-  // 3. Check Existing User
   const { data: existingUser } = await supabase
     .from("users")
     .select("id")
@@ -157,7 +154,6 @@ export const POST = apiHandler(async (request: Request) => {
     userId = newUser.id;
   }
 
-  // 4. Validate Form Data
   const { data: formTemplate } = await supabase
     .from("application_forms")
     .select("id, slug, steps")
@@ -166,7 +162,6 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (!formTemplate) throw new Error("Geçersiz başvuru formu.");
 
-  // 5. Process Data Mappings
   const userDetailsUpdate: any = {};
   const additionalInfo: any = {};
   const cleanFormData: any = { ...body.formData };
@@ -211,15 +206,14 @@ export const POST = apiHandler(async (request: Request) => {
       await supabase.from("user_details").insert(userDetailsUpdate);
   }
 
-  // 6. Create Application
-  // NOTE: User role remains 'applicant' until approved by admin.
   const { error: appError } = await supabase
     .from("applications")
     .insert({
       user_id: userId,
       form_id: body.formId,
       form_data: cleanFormData,
-      status: 'pending',
+      status: ApplicationStatusEnum.PENDING,
+      payment_status: PaymentStatusEnum.UNPAID,
       submitted_at: new Date().toISOString()
     });
 
@@ -241,7 +235,7 @@ export const PUT = apiHandler(async (request: Request) => {
 
   const { data: currentApp, error: fetchError } = await supabase
     .from("applications")
-    .select("status, user_id, form:application_forms(slug)")
+    .select("status, user_id, form:application_forms(slug, fee)")
     .eq("id", id)
     .single();
 
@@ -249,27 +243,40 @@ export const PUT = apiHandler(async (request: Request) => {
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
   }
 
-  const { error } = await supabase
-    .from("applications")
-    .update({
+  const updatePayload: any = {
       status,
       review_notes,
       reviewed_at: new Date().toISOString(),
-    })
+  };
+
+  // AUTOMATIC EXEMPT LOGIC
+  // If application is APPROVED and the Form Fee is 0 (or implies exempt role) -> Set Exempt
+  if (status === ApplicationStatusEnum.APPROVED) {
+      // @ts-ignore
+      const formFee = Array.isArray(currentApp.form) ? currentApp.form[0]?.fee : currentApp.form?.fee;
+      
+      // If fee is 0, they are exempt from payment
+      if (Number(formFee) === 0) {
+          updatePayload.payment_status = PaymentStatusEnum.EXEMPT;
+      }
+  }
+
+  const { error } = await supabase
+    .from("applications")
+    .update(updatePayload)
     .eq("id", id);
 
   if (error) throw error;
 
-  // Update User Role based on Approval Status
-  if (status === 'approved') {
+  // Role Update Logic
+  if (status === ApplicationStatusEnum.APPROVED) {
       // @ts-ignore
       const targetSlug = Array.isArray(currentApp.form) ? currentApp.form[0]?.slug : currentApp.form?.slug;
       if (targetSlug) {
           await supabase.from("users").update({ role: targetSlug }).eq("id", currentApp.user_id);
       }
   } else {
-      // If rejected or set back to pending, revert role to applicant
-      // This ensures they lose access to role-protected areas
+      // Revert if rejected/pending
       await supabase.from("users").update({ role: 'applicant' }).eq("id", currentApp.user_id);
   }
 
@@ -287,7 +294,5 @@ export const PUT = apiHandler(async (request: Request) => {
 });
 
 // Change Log:
-// - Removed role update from POST handler (users stay 'applicant' on submission).
-// - Added role update logic to PUT handler:
-//   - If status becomes 'approved', user role updates to the form's slug (e.g., 'delegate').
-//   - If status becomes 'rejected' or 'pending', user role reverts to 'applicant'.
+// - Updated PUT handler to check form fee. If approved and fee is 0, `payment_status` is automatically set to `EXEMPT` (enum).
+// - Validates `status` using `ApplicationStatusEnum`.

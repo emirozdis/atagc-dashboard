@@ -1,3 +1,6 @@
+import { PaymentStatus } from "./payment";
+import { ApplicationStatus } from "./application";
+
 export interface UserDetail {
     school_name?: string;
     phone_number?: string;
@@ -52,8 +55,8 @@ export interface User {
     // Updated Application Structure
     application?: {
         id: string;
-        status: string;
-        payment_status?: "unpaid" | "processing" | "paid" | "rejected";
+        status: ApplicationStatus;
+        payment_status?: PaymentStatus;
         submitted_at: string;
         review_notes?: string;
         form?: {
@@ -62,8 +65,8 @@ export interface User {
         };
     } | {
         id: string;
-        status: string;
-        payment_status?: "unpaid" | "processing" | "paid" | "rejected";
+        status: ApplicationStatus;
+        payment_status?: PaymentStatus;
         submitted_at: string;
         review_notes?: string;
         form?: {
@@ -72,15 +75,13 @@ export interface User {
         };
     }[] | null;
 
-    // Latest payment receipt ID for quick access
     payment_receipts?: {
         id: string;
     }[];
 
-    // Warnings
     user_warnings?: Warning[]; 
     warnings_count?: number;   
 }
 
 // Change Log:
-// - Added `form: { slug, title }` to the `application` interface to support dynamic role display.
+// - Updated type definitions to use strict status types from `./payment` and `./application`.
