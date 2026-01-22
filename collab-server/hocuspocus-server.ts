@@ -1,6 +1,6 @@
 // 0. Load Environment Variables
 import * as dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
+dotenv.config({ path: "../.env.local" });
 dotenv.config();
 
 import {
@@ -233,7 +233,7 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
     ? user.committee_members[0]
     : user.committee_members;
 
-  if (role === 'applicant') {
+  if (role === 'delegate' || role === 'deputy_chair') {
     if (memberCommittee?.committee_id === committeeId) {
       const canWrite = memberCommittee.can_write === true;
       return {
