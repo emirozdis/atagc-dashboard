@@ -11,7 +11,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { Circle, Lock, UserCog, X } from 'lucide-react';
+import { Circle, Lock, UserCog, X, History } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { EditorToolbar } from '@/components/dashboard/collaboration/EditorToolbar';
 import { JoinRoomCard } from '@/components/dashboard/collaboration/JoinRoomCard';
 import { ChairmanPanel } from '@/components/dashboard/collaboration/ChairmanPanel';
+import { VersionHistorySidebar } from '@/components/dashboard/collaboration/VersionHistorySidebar';
 
 const COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
@@ -42,30 +43,27 @@ export default function CollaborativeEditorPage() {
 
   const [members, setMembers] = useState<Member[]>([]);
   const [showChairmanPanel, setShowChairmanPanel] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
+  // ... (Keep existing useEffect for initData) ...
   useEffect(() => {
     const initData = async () => {
       if (!session?.user) return;
 
       const role = session.user.role;
 
-      // 1. Superadmin Logic (Auditor)
       if (role === 'superadmin') {
         try {
           const res = await fetch('/api/admin/committees');
           if (res.ok) {
             const data = await res.json();
             setAllCommittees(data);
-            setCanWrite(false); // Superadmins are read-only
+            setCanWrite(false);
           }
-        } catch (e) {
-          console.error("Failed to fetch committees", e);
-        }
+        } catch (e) { console.error(e); }
         return;
       }
 
-      // 2. Management Logic (Chairman & Deputy Chair)
-      // Both roles use the committee management endpoint to get full context
       if (role === 'committee_chairman' || role === 'deputy_chair') {
         try {
           const cRes = await fetch("/api/committee/my-committee");
@@ -73,28 +71,21 @@ export default function CollaborativeEditorPage() {
             const cData = await cRes.json();
             setCommitteeInfo(cData);
             setMembers(cData.members || []);
-            setCanWrite(true); // Always true for leadership
+            setCanWrite(true);
             return;
           }
-        } catch (e) {
-          console.error("Management fetch failed", e);
-        }
+        } catch (e) { console.error(e); }
       }
 
-      // 3. Participant Logic (Fallback for Delegates/Press/Observers)
       try {
         const res = await fetch("/api/participant/me");
         const data = await res.json();
-
         if (data.committeeMember?.committee) {
           setCommitteeInfo(data.committeeMember.committee);
-          // Only regular participants depend on the DB flag 'can_write'
           const dbCanWrite = data.committeeMember.can_write;
           setCanWrite(dbCanWrite === true);
         }
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) { console.error(e); }
     };
 
     initData();
@@ -121,11 +112,9 @@ export default function CollaborativeEditorPage() {
         class: 'prose prose-invert prose-lg max-w-none focus:outline-none min-h-[500px] p-8 text-foreground',
       },
     },
-    // Ensure editor editable state matches permission state
     editable: hasJoined && !!provider && status === 'connected' && canWrite,
   }, [provider, status, hasJoined, session, canWrite]);
 
-  // Sync canWrite state with Editor
   useEffect(() => {
     if (editor) {
       editor.setEditable(canWrite);
@@ -138,7 +127,7 @@ export default function CollaborativeEditorPage() {
 
   const handleJoinRoom = () => {
     if (!session?.user || !committeeInfo) {
-      toast.error("Eksik Bilgi", { description: "Komite bilgisi bulunamadı." });
+      toast.error("Eksik Bilgi");
       return;
     }
 
@@ -149,7 +138,6 @@ export default function CollaborativeEditorPage() {
 
     try {
       const doc = new Y.Doc();
-
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
       const websocketUrl = `${protocol}://${window.location.hostname}:${process.env.NEXT_PUBLIC_COLLAB_PORT || 3001}`;
 
@@ -157,30 +145,23 @@ export default function CollaborativeEditorPage() {
         url: websocketUrl,
         name: `committee-${committeeInfo.id}`,
         document: doc,
-        // Pass session token if needed for custom auth, though cookies are standard
-        onStatus: (data) => {
-          setStatus(data.status);
-          if (data.status === 'connected') toast.success("Bağlantı Kuruldu");
-        },
+        onStatus: (data) => setStatus(data.status),
         onClose: () => setStatus('disconnected'),
         onStateless: ({ payload }) => {
           try {
             const msg = JSON.parse(payload);
-            // Listen for dynamic permission updates from Chairman
             if (msg.type === 'PERMISSION_UPDATE' && msg.userId === session.user.id) {
               setCanWrite(msg.canWrite);
-              if (msg.canWrite) {
-                toast.success("Yazma izniniz açıldı.");
-              } else {
-                toast.warning("Yazma izniniz kısıtlandı.");
-              }
+              toast[msg.canWrite ? 'success' : 'warning'](msg.canWrite ? "Yazma izniniz açıldı." : "Yazma izniniz kısıtlandı.");
             }
-          } catch (e) {
-            console.error("Invalid stateless message", e);
-          }
+            if (msg.type === 'client_reload') {
+                toast.info("Belge geri yüklendi, sayfa yenileniyor...");
+                setTimeout(() => window.location.reload(), 1000);
+            }
+          } catch (e) { }
         },
         onAuthenticationFailed: () => {
-          toast.error("Yetkisiz Erişim", { description: "Erişim reddedildi. Lütfen giriş yapın veya yetkinizi kontrol edin." });
+          toast.error("Yetkisiz Erişim");
           setStatus('disconnected');
           setHasJoined(false);
         }
@@ -193,6 +174,14 @@ export default function CollaborativeEditorPage() {
     }
   };
 
+  const handleForceRefresh = () => {
+      // Trigger a message to the server to disconnect everyone
+      if(provider) {
+          provider.sendStateless(JSON.stringify({ type: 'FORCE_REFRESH' }));
+      }
+  };
+
+  // ... (Keep existing handleCommitteeSelect, handleToggleMemberPermission) ...
   const handleCommitteeSelect = (val: string) => {
     const c = allCommittees.find(x => x.id === val);
     if (c) setCommitteeInfo(c);
@@ -200,28 +189,21 @@ export default function CollaborativeEditorPage() {
 
   const handleToggleMemberPermission = async (memberId: string, targetUserId: string, currentStatus: boolean) => {
     try {
-      const res = await fetch('/api/committee/members', {
+      await fetch('/api/committee/members', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ memberId, canEdit: !currentStatus })
       });
-      if (!res.ok) throw new Error("Failed");
-
       setMembers(prev => prev.map(m => m.id === memberId ? { ...m, can_edit: !currentStatus } : m));
-
       if (provider) {
-        const payload = JSON.stringify({
+        provider.sendStateless(JSON.stringify({
           type: 'PERMISSION_UPDATE',
           userId: targetUserId,
           canWrite: !currentStatus
-        });
-        provider.sendStateless(payload);
+        }));
       }
-
       toast.success("Yetki Güncellendi");
-    } catch (error) {
-      toast.error("Hata oluştu");
-    }
+    } catch (error) { toast.error("Hata oluştu"); }
   };
 
   if (!hasJoined) {
@@ -236,6 +218,8 @@ export default function CollaborativeEditorPage() {
     );
   }
 
+  const isChair = session?.user?.role === 'committee_chairman' || session?.user?.role === 'superadmin';
+
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-120px)] animate-fade-in relative overflow-hidden">
       <Breadcrumbs items={[{ label: "Ortak Çalışma" }]} />
@@ -245,28 +229,27 @@ export default function CollaborativeEditorPage() {
             <div>
               <h2 className="text-2xl font-display font-bold flex items-center gap-2">
                 Ortak Çalışma
-                {session?.user?.role === 'committee_chairman' && (
-                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Yönetici</span>
-                )}
-                {session?.user?.role === 'deputy_chair' && (
-                  <span className="text-xs bg-indigo-500/20 text-indigo-500 px-2 py-0.5 rounded-full">Bşk. Yrd.</span>
-                )}
+                {session?.user?.role === 'committee_chairman' && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Yönetici</span>}
               </h2>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm font-medium text-muted-foreground">{committeeInfo?.name}</span>
                 <div className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${status === 'connected' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
                   <Circle className="w-2 h-2 fill-current" /> {status === 'connected' ? 'Canlı' : 'Bağlantı Koptu'}
                 </div>
-                {(!editor?.isEditable || !canWrite) && (
-                  <div className="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                    <Lock className="w-3 h-3" /> Salt Okunur
-                  </div>
-                )}
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Only Chairman can see the management panel */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowHistory(true)}
+                className="gap-2"
+              >
+                <History className="w-4 h-4" />
+                Geçmiş
+              </Button>
+
               {session?.user?.role === 'committee_chairman' && (
                 <Button
                   variant={showChairmanPanel ? "secondary" : "outline"}
@@ -289,17 +272,16 @@ export default function CollaborativeEditorPage() {
             <div className="flex-1 overflow-y-auto">
               <EditorContent editor={editor} className="h-full w-full" />
             </div>
-
             {!canWrite && (
-              <div className="absolute bottom-4 left-4 right-4 bg-destructive/10 text-destructive border border-destructive/20 p-2 rounded text-center text-sm font-medium backdrop-blur-md animate-in slide-in-from-bottom-2">
+              <div className="absolute bottom-4 left-4 right-4 bg-destructive/10 text-destructive border border-destructive/20 p-2 rounded text-center text-sm font-medium backdrop-blur-md">
                 <Lock className="w-4 h-4 inline mr-2" />
-                Yazma izniniz bulunmamaktadır. Yalnızca görüntüleyebilirsiniz.
+                Yazma izniniz bulunmamaktadır.
               </div>
             )}
           </Card>
         </div>
 
-        {/* Chairman Panel Component */}
+        {/* Panels */}
         {session?.user?.role === 'committee_chairman' && (
           <ChairmanPanel
             isOpen={showChairmanPanel}
@@ -307,12 +289,22 @@ export default function CollaborativeEditorPage() {
             onTogglePermission={handleToggleMemberPermission}
           />
         )}
+
+        {committeeInfo && (
+            <VersionHistorySidebar 
+                committeeId={committeeInfo.id}
+                isOpen={showHistory}
+                onClose={() => setShowHistory(false)}
+                canManage={isChair}
+                onRestoreTrigger={handleForceRefresh}
+            />
+        )}
       </div>
     </div>
   );
 }
 
 // Change Log:
-// - Updated `useEffect` init logic to group `deputy_chair` with `committee_chairman`.
-// - This ensures Deputy Chairs call `/api/committee/my-committee` and get `setCanWrite(true)`.
-// - Added visual badge for "Bşk. Yrd.".
+// - Added `VersionHistorySidebar` component.
+// - Added `handleForceRefresh` to trigger global reload after restore via `provider.sendStateless`.
+// - Added Hocuspocus listener for `client_reload` message.

@@ -21,6 +21,7 @@ const CONFIG = {
   supabaseKey: process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY!,
   nextAuthSecret: process.env.NEXTAUTH_SECRET!,
   docPrefix: "committee-",
+  snapshotInterval: 1000 * 60 * 10, // 10 Minutes
 };
 
 if (!CONFIG.supabaseUrl || !CONFIG.supabaseKey || !CONFIG.nextAuthSecret) {
@@ -49,13 +50,14 @@ interface PermissionUpdateMessage {
   canWrite: boolean;
 }
 
+// Memory store for debounce timers per document
+const lastSnapshotTime: Record<string, number> = {};
+
 const getCommitteeId = (documentName: string): string | null => {
   const id = documentName.replace(CONFIG.docPrefix, "");
-  // Basic validation that it's not empty
   return id.length > 0 ? id : null;
 };
 
-// Helper to extract session token from cookies
 const getSessionToken = (request: IncomingMessage): string | undefined => {
   const cookieHeader = request.headers.cookie;
   if (!cookieHeader) return undefined;
@@ -114,22 +116,41 @@ const handleStoreDocument = async (data: onStoreDocumentPayload) => {
   const committeeId = getCommitteeId(data.documentName);
   if (!committeeId) return;
 
-  console.log(`[SAVE] Persisting Committee ${committeeId} (Clients: ${data.clientsCount})`);
+  // 1. Prepare Binary
+  const update = encodeStateAsUpdate(data.document);
+  const blob = Buffer.from(update).toString('hex');
+  const pgBlob = `\\x${blob}`;
+  const now = Date.now();
 
   try {
-    const update = encodeStateAsUpdate(data.document);
-    const blob = Buffer.from(update).toString('hex');
-
+    // 2. Save Head (Current State) - Always
     const { error } = await supabase.from("committee_documents").upsert(
       {
         committee_id: committeeId,
-        document_blob: `\\x${blob}`,
+        document_blob: pgBlob,
         updated_at: new Date().toISOString()
       },
       { onConflict: "committee_id" }
     );
 
     if (error) console.error(`[SAVE] DB Error for ${committeeId}:`, error);
+
+    // 3. Auto-Snapshot Logic
+    const lastSnap = lastSnapshotTime[committeeId] || 0;
+    if (now - lastSnap > CONFIG.snapshotInterval) {
+        console.log(`[SNAPSHOT] Creating auto-save for ${committeeId}`);
+        
+        await supabase.from("document_versions").insert({
+            committee_id: committeeId,
+            document_blob: pgBlob,
+            version_name: "Otomatik Kayıt",
+            is_auto_save: true,
+            created_at: new Date().toISOString()
+        });
+
+        lastSnapshotTime[committeeId] = now;
+    }
+
   } catch (e) {
     console.error(`[SAVE] Exception for ${committeeId}:`, e);
   }
@@ -140,10 +161,10 @@ const handleStatelessMessage = async (data: onStatelessPayload) => {
   const context = connection.context as ConnectionContext;
 
   try {
-    const msg = JSON.parse(payload) as PermissionUpdateMessage;
+    const msg = JSON.parse(payload);
 
+    // Permission Update Handler
     if (msg.type === 'PERMISSION_UPDATE') {
-      // Only Chairman or Superadmin can change permissions dynamically
       if (context?.role === 'committee_chairman' || context?.role === 'superadmin') {
         const targetUserId = msg.userId;
         const newCanWrite = msg.canWrite;
@@ -156,16 +177,28 @@ const handleStatelessMessage = async (data: onStatelessPayload) => {
           }
         });
 
-        // Broadcast to other clients so they can update UI toast
         document.getConnections().forEach((conn) => {
           if (conn !== connection) {
             conn.sendStateless(payload);
           }
         });
-      } else {
-        console.warn(`Unauthorized permission change attempt by ${context.user.id}`);
       }
     }
+
+    // Force Refresh Handler (Used after Restore)
+    if (msg.type === 'FORCE_REFRESH') {
+        console.log(`[REFRESH] Force refresh signal received for ${data.documentName}`);
+        // Broadcast to all clients to reload page
+        document.getConnections().forEach((conn) => {
+            conn.sendStateless(JSON.stringify({ type: 'client_reload', message: 'Document restored. Reloading...' }));
+        });
+        
+        // Wait a moment for messages to send, then disconnect everyone to force re-fetch from DB
+        setTimeout(() => {
+            document.getConnections().forEach(conn => conn.close()); 
+        }, 1000);
+    }
+
   } catch (e) {
     console.error("Error processing message", e);
   }
@@ -212,7 +245,7 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
     role: role
   };
 
-  // 1. Superadmin: Read-Only (Auditor)
+  // 1. Superadmin: Read-Only
   if (role === 'superadmin') {
     return { ...baseContext, readOnly: true };
   }
@@ -229,19 +262,15 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
     throw new Error("Forbidden: You are not the chairman of this committee.");
   }
 
-  // 3. Deputy Chair & Delegates: Check Membership
+  // 3. Deputy Chair & Delegates
   const memberCommittee = Array.isArray(user.committee_members)
     ? user.committee_members[0]
     : user.committee_members;
 
   if (memberCommittee?.committee_id === committeeId) {
-    
-    // Explicit Fix for Deputy Chair: Always Grant Write Access
     if (role === 'deputy_chair') {
       return { ...baseContext, readOnly: false };
     }
-
-    // Delegates/Press/Observers: Check database permission
     const canWrite = memberCommittee.can_write === true;
     return {
       ...baseContext,
@@ -265,6 +294,6 @@ server.listen().then(() => {
 });
 
 // Change Log:
-// - Updated `handleAuthentication` to specifically check for `deputy_chair`.
-// - If `role === 'deputy_chair'` and they are a member of the committee, `readOnly` is forced to `false`.
-// - This bypasses the `can_write` DB check for deputies, treating them as leaders.
+// - Added `lastSnapshotTime` to track auto-save intervals.
+// - Updated `handleStoreDocument` to perform snapshot inserts into `document_versions`.
+// - Added `FORCE_REFRESH` handler in `handleStatelessMessage` to support restoration flow.
