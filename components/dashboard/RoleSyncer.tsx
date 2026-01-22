@@ -10,59 +10,48 @@ export function RoleSyncer() {
   const isUpdatingRef = useRef(false);
   const [hasUpdated, setHasUpdated] = useState(false);
 
-  // Fetch the latest user data from the server
-  const { data: profile } = useQuery({
-    queryKey: ["participant-me-role-check"],
+  // Use the new lightweight endpoint for polling
+  const { data: checkResult } = useQuery({
+    queryKey: ["auth-check-role"],
     queryFn: async () => {
-      const res = await fetch("/api/participant/me");
+      const res = await fetch("/api/auth/check");
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    refetchInterval: 15000, // Check periodically
-    staleTime: 0, // Ensure fresh data
+    // Polling optimization: Check every 2 minutes instead of 15 seconds.
+    // Role changes are rare events.
+    refetchInterval: 1000 * 60 * 2, 
+    staleTime: 0,
     retry: false,
+    // Important: Check immediately when user returns to tab
+    refetchOnWindowFocus: true, 
   });
 
   useEffect(() => {
-    // Basic checks
-    if (!session?.user || !profile?.user || isUpdatingRef.current || hasUpdated) return;
+    if (!session?.user || !checkResult || isUpdatingRef.current || hasUpdated) return;
 
     const sessionRole = session.user.role;
-    const dbRole = profile.user.role;
+    const dbRole = checkResult.role;
     
-    // Also check application status sync
-    // If DB has an application status but session doesn't match (e.g. approved vs pending)
     const sessionAppStatus = session.user.applicationStatus;
-    const dbAppStatus = profile.application?.status || (['superadmin','admin','committee_chairman','deputy_chair'].includes(dbRole) ? 'approved' : 'pending');
+    const dbAppStatus = checkResult.applicationStatus;
 
     const roleMismatch = sessionRole !== dbRole;
     const statusMismatch = sessionAppStatus !== dbAppStatus;
 
     if (roleMismatch || statusMismatch) {
-      console.log(`[RoleSyncer] Mismatch detected. Session: ${sessionRole}/${sessionAppStatus}, DB: ${dbRole}/${dbAppStatus}. Syncing...`);
+      console.log(`[RoleSyncer] Syncing... Session: ${sessionRole}/${sessionAppStatus}, DB: ${dbRole}/${dbAppStatus}`);
       
       isUpdatingRef.current = true;
 
-      // Trigger NextAuth session update
       update()
         .then((newSession) => {
-          // Check if update was successful in reflected session
           if (newSession?.user?.role === dbRole) {
-             toast.success("Hesap yetkileri güncellendi.", {
-               description: "Yeni rolleriniz ve izinleriniz aktif edildi."
-             });
+             toast.success("Hesap yetkileri güncellendi.");
              setHasUpdated(true);
-             
-             // Soft reload to refresh UI components (like Sidebar) that depend on session
-             // Using timeout to allow toast to be seen briefly/prevent jar
-             setTimeout(() => {
-                 window.location.reload();
-             }, 1000);
+             setTimeout(() => window.location.reload(), 1000);
           } else {
-             // If update returned but role didn't change, prevent loop by not reloading immediately
-             // but maybe the cookie needs a hard refresh.
-             console.warn("[RoleSyncer] Update called but session role did not change.");
-             isUpdatingRef.current = false; // Allow retry on next interval if needed
+             isUpdatingRef.current = false;
           }
         })
         .catch(err => {
@@ -70,13 +59,12 @@ export function RoleSyncer() {
           isUpdatingRef.current = false;
         });
     }
-  }, [session, profile, update, hasUpdated]);
+  }, [session, checkResult, update, hasUpdated]);
 
   return null;
 }
 
 // Change Log:
-// - Added `isUpdatingRef` to prevent multiple simultaneous update calls.
-// - Added `statusMismatch` check to sync application status (pending/approved) alongside roles.
-// - Added check on `newSession` returned from `update()` to verify if sync worked before reloading.
-// - Removed immediate reload loop risk by checking `hasUpdated` state.
+// - Switched from fetching `/api/participant/me` to lightweight `/api/auth/check`.
+// - Increased poll interval from 15s to 2 minutes.
+// - Enabled `refetchOnWindowFocus` to catch updates when tab becomes active.

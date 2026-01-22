@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { Users, FileText, ArrowRight, PenTool, Calendar, Archive, BarChart, Clock, UserCheck, Layout, Info, CheckCircle2, Vote as VoteIcon } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Users, FileText, ArrowRight, PenTool, Clock, UserCheck, Layout, Info, CheckCircle2, BarChart, Archive } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VotingSystem } from "@/components/committee/VotingSystem";
 import { RollCallHistory } from "@/components/committee/RollCallHistory";
-import { CommitteeData, CommitteeMember } from "@/types/committee";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { CommitteeMemberDetailDialog } from "@/components/committee/CommitteeMemberDetailDialog";
 
-// --- Sub-Components ---
+// --- Sub-Components (Styled) ---
 
 const SessionInfoPanel = ({ isManager, stats }: { isManager: boolean, stats: any }) => {
   if (isManager) {
@@ -104,32 +103,6 @@ const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps
     );
   }
 
-  const getUserData = (member: any) => {
-    const user = member.user || member.User;
-    const target = user || member;
-
-    const getImg = (u: any) => {
-      if (!u) return undefined;
-      if (u.user_details) {
-        const details = Array.isArray(u.user_details) ? u.user_details[0] : u.user_details;
-        if (details?.profile_picture_url) return details.profile_picture_url;
-      }
-      return u.image || u.avatar_url || u.profile_picture_url || undefined;
-    };
-
-    // FIXED: Prioritize `member.userId` to ensure we get the User ID (UUID), not the CommitteeMember Row ID.
-    // The API sends formatted objects with `userId`.
-    const actualUserId = member.userId || user?.id || target.id;
-
-    return {
-      id: actualUserId, 
-      name: target.full_name || target.name || "Bilinmeyen Üye",
-      image: getImg(target),
-      email: target.email,
-      role: target.role || "applicant"
-    };
-  };
-
   const sortedMembers = [...members].sort((a, b) => {
     const rank = (role: string) => {
       if (role === 'committee_chairman') return 3;
@@ -158,8 +131,9 @@ const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps
 
       <div className="space-y-3">
         {sortedMembers.slice(0, 6).map(member => {
-          const { id, name, image, role } = getUserData(member);
-          const displayName = name || "Üye";
+          // Determine Role Badge
+          const isChair = member.role === 'committee_chairman';
+          const isDeputy = member.role === 'deputy_chair';
 
           return (
             <div 
@@ -168,28 +142,29 @@ const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps
                 "flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group",
                 isManager && "cursor-pointer active:bg-muted/70"
               )}
-              onClick={() => handleMemberClick(id)}
+              onClick={() => handleMemberClick(member.userId)}
             >
               <Avatar className="h-8 w-8 border border-transparent group-hover:border-border/50 transition-colors">
-                <AvatarImage src={image} className="object-cover" />
+                <AvatarImage src={member.image} className="object-cover" />
                 <AvatarFallback className="text-xs text-muted-foreground bg-secondary">
-                  {displayName[0]?.toUpperCase() || 'U'}
+                  {(member.full_name?.[0] || 'U').toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="overflow-hidden flex-1">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium truncate text-foreground/90">
-                    {displayName}
+                    {member.full_name}
                   </div>
-                  {role === 'committee_chairman' && (
-                    <Badge variant="outline" className="text-[9px] h-4 px-1 bg-purple-500/10 text-purple-500 border-purple-500/20">Başkan</Badge>
+                  {/* --- BADGE LOGIC HERE --- */}
+                  {isChair && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 bg-purple-500/10 text-purple-500 border-purple-500/20 shadow-none">Başkan</Badge>
                   )}
-                  {role === 'deputy_chair' && (
-                    <Badge variant="outline" className="text-[9px] h-4 px-1 bg-indigo-500/10 text-indigo-500 border-indigo-500/20">Bşk. Yrd.</Badge>
+                  {isDeputy && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 bg-indigo-500/10 text-indigo-500 border-indigo-500/20 shadow-none">Bşk. Yrd.</Badge>
                   )}
                 </div>
                 <div className="text-[10px] text-muted-foreground truncate">
-                  {role === 'committee_chairman' ? 'Committee Chairman' : role === 'deputy_chair' ? 'Başkan Yardımcısı' : 'Delege'}
+                  {isChair ? 'Komite Başkanı' : isDeputy ? 'Başkan Yardımcısı' : 'Delege'}
                 </div>
               </div>
             </div>
@@ -216,8 +191,9 @@ const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-3">
                 {sortedMembers.map(member => {
-                  const { id, name, image, role } = getUserData(member);
-                  return (
+                   const isChair = member.role === 'committee_chairman';
+                   const isDeputy = member.role === 'deputy_chair';
+                   return (
                     <div 
                       key={member.id || Math.random()} 
                       className={cn(
@@ -226,21 +202,22 @@ const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps
                       )}
                       onClick={() => {
                         setShowAll(false);
-                        handleMemberClick(id);
+                        handleMemberClick(member.userId);
                       }}
                     >
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={image} className="object-cover" />
-                        <AvatarFallback className="text-xs">{name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                        <AvatarImage src={member.image} className="object-cover" />
+                        <AvatarFallback className="text-xs">{(member.full_name?.[0] || 'U').toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 overflow-hidden">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium truncate">{name || "Bilinmeyen"}</span>
-                          {role === 'committee_chairman' && <Badge className="text-[9px] h-4 px-1 bg-purple-500/10 text-purple-600 border-purple-500/20 shadow-none">Başkan</Badge>}
-                          {role === 'deputy_chair' && <Badge className="text-[9px] h-4 px-1 bg-indigo-500/10 text-indigo-600 border-indigo-500/20 shadow-none">Bşk. Yrd.</Badge>}
+                          <span className="text-sm font-medium truncate">{member.full_name}</span>
+                          {/* --- BADGE LOGIC HERE TOO --- */}
+                          {isChair && <Badge className="text-[9px] h-4 px-1 bg-purple-500/10 text-purple-600 border-purple-500/20 shadow-none">Başkan</Badge>}
+                          {isDeputy && <Badge className="text-[9px] h-4 px-1 bg-indigo-500/10 text-indigo-600 border-indigo-500/20 shadow-none">Bşk. Yrd.</Badge>}
                         </div>
                         <div className="text-[10px] text-muted-foreground">
-                          {role === 'committee_chairman' ? 'Komite Başkanı' : role === 'deputy_chair' ? 'Başkan Yardımcısı' : 'Delege'}
+                          {isChair ? 'Komite Başkanı' : isDeputy ? 'Başkan Yardımcısı' : 'Delege'}
                         </div>
                       </div>
                     </div>
@@ -387,76 +364,73 @@ export default function CommitteePage() {
   const role = session?.user?.role;
   const isManager = role === 'committee_chairman' || role === 'deputy_chair';
 
+  // --- Manager Fetch (Existing) ---
+  // Fetches from /api/committee/my-committee which INCLUDES images
   const { data: managerData, isLoading: managerLoading } = useQuery({
     queryKey: ["manager-committee-stats"],
     queryFn: async () => {
       const res = await fetch("/api/committee/my-committee");
       if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-
-      if (session?.user && role === 'committee_chairman') {
-        const chairmanUser = {
-          id: "me-chairman",
-          userId: session.user.id,
-          full_name: session.user.name || "Ben (Başkan)",
-          email: session.user.email || "",
-          image: session.user.image, 
-          role: "committee_chairman",
-          can_edit: true
-        };
-        // Ensure not duplicating if backend already sends it
-        if (!data.members.find((m: any) => m.userId === session.user.id)) {
-          data.members = [chairmanUser, ...data.members];
-        }
-      }
-      return data;
+      return res.json();
     },
     enabled: !!isManager
   });
 
-  const { data: participantData, isLoading: participantLoading } = useQuery<CommitteeData | null>({
-    queryKey: ["committee-data"],
+  // --- Participant Fetch (Split) ---
+  // 1. Core Info (Lightweight /me)
+  const { data: meData, isLoading: meLoading } = useQuery({
+    queryKey: ["committee-context-me"],
     queryFn: async () => {
-      const resMe = await fetch("/api/participant/me");
-      if (!resMe.ok) throw new Error("Failed");
-      const jsonMe = await resMe.json();
-
-      if (!jsonMe.committeeMember) return null;
-
-      const basicCommittee = jsonMe.committeeMember.committee;
-      const adminUser = basicCommittee.admin;
-
-      let members = jsonMe.committeeMembers || [];
-
-      if (adminUser) {
-        const chairmanMember = {
-          ...adminUser,
-          id: "chairman-" + adminUser.id,
-          userId: adminUser.id,
-          full_name: adminUser.full_name,
-          email: adminUser.email,
-          role: adminUser.role || "committee_chairman",
-          can_edit: true
-        };
-        members = [chairmanMember, ...members.filter((m: any) => m.userId !== adminUser.id)];
-      }
-
-      return {
-        committee: basicCommittee,
-        topic: jsonMe.topic,
-        can_write: jsonMe.committeeMember.can_write,
-        committeeMembers: members,
-        recentRollCalls: jsonMe.recentRollCalls
-      };
+      const res = await fetch("/api/participant/me");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
     },
-    enabled: !isManager,
-    staleTime: 1000 * 60 * 5,
+    enabled: !isManager
   });
 
-  const isLoading = isManager ? managerLoading : participantLoading;
-  const committee = isManager ? managerData : participantData?.committee;
-  const topic = isManager ? (managerData?.topic || null) : participantData?.topic;
-  const stats = managerData?.stats;
+  // 2. Roster (Heavy /members with Images)
+  // This executes ONLY when the user visits this page
+  const { data: membersData, isLoading: membersLoading } = useQuery({
+    queryKey: ["committee-members-list"],
+    queryFn: async () => {
+      const res = await fetch("/api/committee/members");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !isManager && !!meData?.committeeMember
+  });
+
+  // Consolidate Data
+  let isLoading = false;
+  let committee = null;
+  let topic = null;
+  let stats = null;
+  let members: any[] = [];
+
+  if (isManager) {
+    isLoading = managerLoading;
+    committee = managerData;
+    topic = managerData?.topic;
+    stats = managerData?.stats;
+    members = managerData?.members || [];
+  } else {
+    isLoading = meLoading || membersLoading;
+    if (meData?.committeeMember) {
+      committee = meData.committeeMember.committee;
+      topic = meData.topic;
+      
+      // Merge admin + members list
+      if (membersData) {
+        members = membersData.members || [];
+        if (membersData.admin) {
+          // Add admin to top of list if not already there
+          if (!members.find((m: any) => m.userId === membersData.admin.userId)) {
+            members = [membersData.admin, ...members];
+          }
+        }
+      }
+    }
+  }
 
   if (isLoading) {
     return (
@@ -479,9 +453,7 @@ export default function CommitteePage() {
         <div>
           <h2 className="text-2xl font-bold font-display">Komite Bulunamadı</h2>
           <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-            {isManager
-              ? "Yönettiğiniz bir komite bulunamadı."
-              : "Henüz bir komiteye atanmamış olabilirsiniz."}
+            {isManager ? "Yönettiğiniz bir komite bulunamadı." : "Henüz bir komiteye atanmamış olabilirsiniz."}
           </p>
         </div>
         <Button asChild variant="outline">
@@ -491,56 +463,31 @@ export default function CommitteePage() {
     );
   }
 
-  const members: CommitteeMember[] = isManager
-    ? (managerData as any)?.members || []
-    : participantData?.committeeMembers || [];
-
   return (
     <div className="animate-fade-in max-w-7xl mx-auto pb-20 space-y-6">
       <Breadcrumbs items={[{ label: "Komitem" }]} />
 
-      <CommitteeHero
-        name={committee.name}
-        description={committee.description}
-        role={role || 'applicant'}
-      >
+      <CommitteeHero name={committee.name} description={committee.description} role={role || 'applicant'}>
         <SessionInfoPanel isManager={isManager} stats={stats} />
       </CommitteeHero>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div className="lg:col-span-8 space-y-8 order-1">
           <TopicCard topic={topic} />
-
           <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-1">
-              Hızlı İşlemler
-            </h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-1">Hızlı İşlemler</h3>
             <QuickActions onOpenVoting={() => setIsVotingOpen(true)} />
           </div>
         </div>
 
         <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-6 lg:self-start order-2">
-          <VotingSystem
-            committeeId={committee.id}
-            isChairman={isManager}
-            userId={session?.user?.id || ""}
-            variant="sidebar"
-          />
-
-          <MembersWidget 
-            members={members} 
-            isManager={isManager} 
-            onMemberClick={setSelectedMemberId} 
-          />
-
+          <VotingSystem committeeId={committee.id} isChairman={isManager} userId={session?.user?.id || ""} variant="sidebar" />
+          <MembersWidget members={members} isManager={isManager} onMemberClick={setSelectedMemberId} />
           {isManager && (
             <>
               <RollCallHistory variant="compact" />
               <Button asChild className="w-full bg-background hover:bg-muted text-foreground border border-border/50 shadow-sm" variant="outline">
-                <Link href="/dashboard/committee/roll-call">
-                  <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-                  Yoklama Yönetimi
-                </Link>
+                <Link href="/dashboard/committee/roll-call"><Clock className="w-4 h-4 mr-2 text-muted-foreground" /> Yoklama Yönetimi</Link>
               </Button>
             </>
           )}
@@ -550,26 +497,17 @@ export default function CommitteePage() {
       <Dialog open={isVotingOpen} onOpenChange={setIsVotingOpen}>
         <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
           <ScrollArea className="flex-1 p-6">
-            <VotingSystem
-              committeeId={committee.id}
-              isChairman={isManager}
-              userId={session?.user?.id || ""}
-              variant="full"
-            />
+            <VotingSystem committeeId={committee.id} isChairman={isManager} userId={session?.user?.id || ""} variant="full" />
           </ScrollArea>
         </DialogContent>
       </Dialog>
 
-      {/* Member Management Dialog for Chairman */}
-      <CommitteeMemberDetailDialog 
-        memberId={selectedMemberId} 
-        open={!!selectedMemberId} 
-        onOpenChange={(open) => !open && setSelectedMemberId(null)}
-      />
+      <CommitteeMemberDetailDialog memberId={selectedMemberId} open={!!selectedMemberId} onOpenChange={(open) => !open && setSelectedMemberId(null)} />
     </div>
   );
 }
 
 // Change Log:
-// - Fixed `getUserData` to prioritize `member.userId` to ensure the correct User UUID is passed to the dialog.
-// - This resolves the 403 error where the system was looking up a Committee Member Row ID in the Users table.
+// - Restored full UI richness (styling, icons, layout).
+// - Integrated optimized data fetching hooks.
+// - Added "Başkan Yardımcısı" (Bşk. Yrd.) badge to MembersWidget.

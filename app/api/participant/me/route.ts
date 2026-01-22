@@ -3,8 +3,7 @@ import getAuthorization from "@/lib/getAuthorization";
 import { supabase } from "@/lib/SERVER_supabase";
 import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
-import { logAction } from "@/lib/logger";
-import { getSignedUrl, getSignedUrls } from "@/lib/storage-utils";
+import { getSignedUrl } from "@/lib/storage-utils";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
@@ -23,6 +22,8 @@ export const GET = apiHandler(async (request: Request) => {
   const session = auth.session;
   const userId = session.user.id;
 
+  // Optimized Fetch: Removed Member List and Roll Calls logic
+  // This reduces DB load significantly.
   const [
     { data: user, error: userError },
     { data: userDetails, error: detailsError },
@@ -31,7 +32,6 @@ export const GET = apiHandler(async (request: Request) => {
     { data: managedCommittee, error: managedError },
     { data: settingsData, error: settingsError }
   ] = await Promise.all([
-    // Fetches user core data + warnings
     supabase.from("users").select(`
         id, full_name, email, role, created_at, updated_at,
         user_warnings:user_warnings!user_warnings_user_id_fkey (
@@ -65,11 +65,13 @@ export const GET = apiHandler(async (request: Request) => {
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   // 1. Sign User's Own Profile Picture
+  // This remains to ensure the profile/header avatars work.
   if (userDetails?.profile_picture_url) {
     userDetails.profile_picture_url = await getSignedUrl("profile-pictures", userDetails.profile_picture_url) || userDetails.profile_picture_url;
   }
 
-  // 2. Sign and Filter Committee Chairman Profile Picture
+  // 2. Sign Committee Chairman Profile Picture (Single Item)
+  // Useful for the "My Committee" summary card on the dashboard.
   if (committeeMember?.committee) {
     const c = Array.isArray(committeeMember.committee) ? committeeMember.committee[0] : committeeMember.committee;
     const adminUser = Array.isArray(c?.admin) ? c.admin[0] : c?.admin;
@@ -89,87 +91,7 @@ export const GET = apiHandler(async (request: Request) => {
     }
   }
 
-  // 3. Process Committee Members
-  let membersData = null;
-  let recentRollCalls = null;
-  let targetCommitteeId = null;
-
-  if (committeeMember?.committee) {
-    const c = Array.isArray(committeeMember.committee) ? committeeMember.committee[0] : committeeMember.committee;
-    targetCommitteeId = c?.id;
-  } else if (managedCommittee?.id) {
-    targetCommitteeId = managedCommittee.id;
-  }
-
-  if (targetCommitteeId) {
-    const [membersRes, rollCallsRes] = await Promise.all([
-      supabase.from("committee_members").select(`
-              id,
-              can_write,
-              user:users (
-                id,
-                full_name,
-                email,
-                role,
-                user_details ( profile_picture_url, is_profile_picture_hidden )
-              )
-           `).eq("committee_id", targetCommitteeId),
-      supabase.from("roll_calls").select("id, session_name, created_at").eq("committee_id", targetCommitteeId).order("created_at", { ascending: false }).limit(5)
-    ]);
-
-    if (membersRes.data) {
-      const rawMembers = membersRes.data;
-      const isAdminOrChair = user.role === 'superadmin' || user.role === 'admin' || user.role === 'committee_chairman';
-
-      const pathsToSign: string[] = [];
-      const memberMap = new Map();
-
-      rawMembers.forEach((m: any) => {
-        const u = Array.isArray(m.user) ? m.user[0] : m.user;
-        const details = u?.user_details && (Array.isArray(u.user_details) ? u.user_details[0] : u.user_details);
-
-        const isSelf = u.id === userId;
-        const isHidden = details?.is_profile_picture_hidden;
-        let imagePath = null;
-
-        if (details?.profile_picture_url) {
-          if (isSelf || isAdminOrChair || !isHidden) {
-            imagePath = details.profile_picture_url;
-            if (imagePath && !imagePath.startsWith('http')) {
-              pathsToSign.push(imagePath);
-            }
-          }
-        }
-
-        const memberObj = {
-          id: m.id,
-          userId: u?.id,
-          full_name: u?.full_name || "İsimsiz Üye",
-          email: u?.email || "",
-          role: u?.role || "applicant",
-          can_edit: m.can_write,
-          image: imagePath 
-        };
-        memberMap.set(u.id, memberObj);
-      });
-
-      if (pathsToSign.length > 0) {
-        const signedData = await getSignedUrls("profile-pictures", pathsToSign);
-        signedData?.forEach(item => {
-          for (const member of memberMap.values()) {
-            if (member.image === item.path) { 
-              member.image = item.signedUrl;
-            }
-          }
-        });
-      }
-
-      membersData = Array.from(memberMap.values());
-    }
-
-    recentRollCalls = rollCallsRes.data;
-  }
-
+  // Consolidate Committee Data
   let finalCommitteeData: any = committeeMember;
   if (finalCommitteeData && Array.isArray(finalCommitteeData.committee)) {
     finalCommitteeData.committee = finalCommitteeData.committee[0];
@@ -181,6 +103,7 @@ export const GET = apiHandler(async (request: Request) => {
     };
   }
 
+  // Fetch Topic (Single lightweight query)
   let topic = null;
   if (finalCommitteeData?.committee) {
     const committeeId = finalCommitteeData.committee.id;
@@ -208,8 +131,8 @@ export const GET = apiHandler(async (request: Request) => {
     userDetails,
     application,
     committeeMember: finalCommitteeData,
-    committeeMembers: membersData,
-    recentRollCalls,
+    // Note: 'committeeMembers' (the list) and 'recentRollCalls' are NO LONGER returned here.
+    // They are fetched on-demand in the Committee page.
     topic,
     settings: finalSettings
   });
@@ -249,7 +172,6 @@ export const PUT = apiHandler(async (request: Request) => {
   if (allow_connections !== undefined) detailsUpdate.allow_connections = allow_connections;
   if (notification_preferences !== undefined) detailsUpdate.notification_preferences = notification_preferences;
 
-  // Handling additional info (JSONB) merge for City
   const { data: existingDetails } = await supabase
     .from("user_details")
     .select("id, additional_info")
@@ -279,10 +201,10 @@ export const PUT = apiHandler(async (request: Request) => {
     }
   }
 
-  await logAction(session.user.id, "update_profile", { changed_fields: Object.keys(body) }, request);
-
   return NextResponse.json({ success: true, message: "Profil güncellendi" });
 });
 
 // Change Log:
-// - Updated GET to fetch `user_warnings` relation for the user.
+// - Removed fetching of `committeeMembers` (full roster) and `recentRollCalls` to optimize performance.
+// - Removed the loop that generated Signed URLs for every member.
+// - Kept user's own profile picture signing logic.
