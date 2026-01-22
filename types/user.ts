@@ -38,7 +38,7 @@ export interface User {
 
     // Relations
     user_details?: UserDetail | UserDetail[] | null;
-    
+
     committee_members?: {
         committee: {
             id: string;
@@ -59,9 +59,24 @@ export interface User {
         payment_status?: PaymentStatus;
         submitted_at: string;
         review_notes?: string;
+        form_data?: Record<string, any>;
         form?: {
             slug: string;
             title: string;
+            steps?: {
+                id: string;
+                title: string;
+                description?: string;
+                fields: {
+                    id: string;
+                    label: string;
+                    type: string;
+                    required?: boolean;
+                    placeholder?: string;
+                    options?: { value: string; label: string; }[];
+                    system_map?: string;
+                }[];
+            }[];
         };
     } | {
         id: string;
@@ -69,9 +84,24 @@ export interface User {
         payment_status?: PaymentStatus;
         submitted_at: string;
         review_notes?: string;
+        form_data?: Record<string, any>;
         form?: {
             slug: string;
             title: string;
+            steps?: {
+                id: string;
+                title: string;
+                description?: string;
+                fields: {
+                    id: string;
+                    label: string;
+                    type: string;
+                    required?: boolean;
+                    placeholder?: string;
+                    options?: { value: string; label: string; }[];
+                    system_map?: string;
+                }[];
+            }[];
         };
     }[] | null;
 
@@ -79,8 +109,8 @@ export interface User {
         id: string;
     }[];
 
-    user_warnings?: Warning[]; 
-    warnings_count?: number;   
+    user_warnings?: Warning[];
+    warnings_count?: number;
 }
 
 // Change Log:

@@ -11,7 +11,7 @@ import { ConnectionState } from "@/types/connection";
 export function MobileNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  
+
   const role = session?.user?.role;
   const status = session?.user?.applicationStatus;
   const type = session?.user?.applicantType || "delegate";
@@ -20,14 +20,12 @@ export function MobileNav() {
   const items = participantItems
     .filter(item => item.mobileCore)
     .filter(item => {
-        // Role check
-        if (item.roles && role && !item.roles.includes(role)) return false;
-        // Approval check
-        if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
-        // Type check
-        if (role === 'applicant' && item.allowedTypes && !item.allowedTypes.includes(type)) return false;
-        
-        return true;
+      // Role check
+      if (item.roles && role && !item.roles.includes(role)) return false;
+      // Approval check
+      if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
+
+      return true;
     });
 
   const shouldPollConnections = !!session && status === 'approved';
@@ -35,12 +33,12 @@ export function MobileNav() {
   const { data: connectionData } = useQuery<ConnectionState>({
     queryKey: ['connections'],
     queryFn: async () => {
-        const res = await fetch("/api/connections");
-        if (!res.ok) throw new Error("Failed");
-        return res.json();
+      const res = await fetch("/api/connections");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
     },
     staleTime: 1000 * 60,
-    refetchInterval: 60000, 
+    refetchInterval: 60000,
     enabled: shouldPollConnections
   });
 
@@ -65,7 +63,7 @@ export function MobileNav() {
               <div className="relative">
                 <item.icon className={cn("w-5 h-5", isActive && "fill-current/20")} />
                 {isConnections && pendingCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-destructive ring-2 ring-background" />
+                  <span className="absolute -top-1 -right-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-destructive ring-2 ring-background" />
                 )}
               </div>
               <span className="text-[10px] font-medium">{item.title}</span>

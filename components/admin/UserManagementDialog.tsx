@@ -30,13 +30,16 @@ import {
   Check,
   Trash2,
   AlertCircle,
-  Users
+  Users,
+  Camera,
+  Eye,
+  User
 } from "lucide-react";
-import { User } from "@/types/user";
+import { User as UserType } from "@/types/user";
 import { cn } from "@/lib/utils";
 
 interface ManageUserDialogProps {
-  user: User | null;
+  user: UserType | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdateRole: (userId: string, newRole: string) => Promise<void>;
@@ -47,17 +50,44 @@ interface ManageUserDialogProps {
 const ROLES = [
   {
     id: "applicant",
-    label: "Katılımcı",
-    description: "Standart kullanıcı. Başvuru yapabilir, komitelere katılabilir.",
+    label: "Başvuru Sahibi",
+    description: "Henüz onaylanmamış başvuru sahibi.",
     icon: Users,
+    color: "text-gray-500",
+    bg: "bg-gray-500/10",
+    border: "border-gray-500/20"
+  },
+  {
+    id: "delegate",
+    label: "Delege",
+    description: "Komite üyesi. Oylama ve söz hakkı vardır.",
+    icon: User,
     color: "text-blue-500",
     bg: "bg-blue-500/10",
     border: "border-blue-500/20"
   },
   {
+    id: "press",
+    label: "Basın",
+    description: "Basın ekibi üyesi.",
+    icon: Camera,
+    color: "text-pink-500",
+    bg: "bg-pink-500/10",
+    border: "border-pink-500/20"
+  },
+  {
+    id: "observer",
+    label: "Gözlemci",
+    description: "Akademik takım gözlemcisi.",
+    icon: Eye,
+    color: "text-cyan-500",
+    bg: "bg-cyan-500/10",
+    border: "border-cyan-500/20"
+  },
+  {
     id: "deputy_chair",
-    label: "Başkan Yardımcısı (Deputy Chair)",
-    description: "Komite yönetimine yardımcı olur. Yoklama ve oylama başlatabilir.",
+    label: "Komite Başkan Yardımcısı",
+    description: "Komite yönetimine yardımcı olur.",
     icon: Shield,
     color: "text-indigo-500",
     bg: "bg-indigo-500/10",
@@ -66,7 +96,7 @@ const ROLES = [
   {
     id: "committee_chairman",
     label: "Komite Başkanı",
-    description: "Atandığı komiteyi yönetir. Tam komite yetkisine sahiptir.",
+    description: "Atandığı komiteyi yönetir.",
     icon: ShieldCheck,
     color: "text-purple-500",
     bg: "bg-purple-500/10",
@@ -84,7 +114,7 @@ const ROLES = [
   {
     id: "superadmin",
     label: "Süper Yönetici",
-    description: "Tam yetki. Tüm sistemi yönetebilir, ayarları değiştirebilir.",
+    description: "Tam yetki. Tüm sistemi yönetebilir.",
     icon: ShieldAlert,
     color: "text-red-500",
     bg: "bg-red-500/10",
@@ -365,5 +395,5 @@ export function ManageUserDialog({
 }
 
 // Change Log:
-// - Removed 'staff' and 'staffleader' from ROLES.
-// - Added 'deputy_chair' to ROLES.
+// - Updated `ROLES` to include `delegate`, `press`, `observer`.
+// - Added distinct icons and colors for new roles.

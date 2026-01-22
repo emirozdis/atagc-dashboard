@@ -1,6 +1,9 @@
 // Higher number = Higher rank
 const ROLE_HIERARCHY: Record<string, number> = {
   "applicant": 1,
+  "observer": 1,
+  "press": 1,
+  "delegate": 1,
   "deputy_chair": 2,
   "committee_chairman": 3,
   "admin": 4,
@@ -25,3 +28,7 @@ export function canManageRole(actorRole: string, targetRole: string): boolean {
 export function isAuthorized(userRole: string, requiredRole: string): boolean {
   return getRoleRank(userRole) >= getRoleRank(requiredRole);
 }
+
+// Change Log:
+// - Added 'delegate', 'press', 'observer' to ROLE_HIERARCHY at rank 1.
+// - This allows Admin/Chair roles (Rank 2+) to manage them, while preventing them from managing each other.

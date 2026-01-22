@@ -16,7 +16,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        token: { label: "Turnstile Token", type: "text" }, 
+        token: { label: "Turnstile Token", type: "text" },
       },
       async authorize(credentials, req) {
         // 0. Rate Limiting
@@ -51,25 +51,25 @@ export const authOptions: NextAuthOptions = {
         // 2. Turnstile Verification Strategy
         let isNewUser = false;
         if (user.created_at) {
-            const createdTime = new Date(user.created_at).getTime();
-            const now = Date.now();
-            const fiveMinutes = 5 * 60 * 1000;
-            
-            if (Math.abs(now - createdTime) < fiveMinutes) {
-                isNewUser = true;
-            }
+          const createdTime = new Date(user.created_at).getTime();
+          const now = Date.now();
+          const fiveMinutes = 5 * 60 * 1000;
+
+          if (Math.abs(now - createdTime) < fiveMinutes) {
+            isNewUser = true;
+          }
         }
 
         if (!isNewUser) {
-            const token = credentials.token as string;
-            if (!token || token === "SKIPPED_AUTO_LOGIN") {
-                 throw new Error("Doğrulama eksik.");
-            }
+          const token = credentials.token as string;
+          if (!token || token === "SKIPPED_AUTO_LOGIN") {
+            throw new Error("Doğrulama eksik.");
+          }
 
-            const isHuman = await verifyTurnstileToken(token);
-            if (!isHuman) {
-              throw new Error("Doğrulama başarısız. Lütfen sayfayı yenileyip tekrar deneyin.");
-            }
+          const isHuman = await verifyTurnstileToken(token);
+          if (!isHuman) {
+            throw new Error("Doğrulama başarısız. Lütfen sayfayı yenileyip tekrar deneyin.");
+          }
         }
 
         // 3. Check Maintenance Mode
@@ -91,31 +91,33 @@ export const authOptions: NextAuthOptions = {
         let applicantType: "delegate" | "press" | "observer" = "delegate"; // Default
 
         const { data: app } = await supabase
-            .from("applications")
-            .select(`
+          .from("applications")
+          .select(`
               status, 
               form:application_forms(slug)
             `)
-            .eq("user_id", user.id)
-            .maybeSingle();
-        
+          .eq("user_id", user.id)
+          .maybeSingle();
+
         if (app) {
-            appStatus = app.status;
+          appStatus = app.status;
+          // @ts-ignore
+          if (app.form?.slug) {
             // @ts-ignore
-            if (app.form?.slug) {
-               // @ts-ignore
-               applicantType = app.form.slug;
-            }
+            applicantType = app.form.slug;
+          }
         }
 
         // If user has a specific role like 'press', ensure applicantType matches for consistency
         if (['press', 'observer', 'delegate'].includes(user.role)) {
-             applicantType = user.role as any;
+          applicantType = user.role as any;
         }
 
-        // Admins/Chairs are approved implicitly
-        if (['superadmin', 'admin', 'committee_chairman', 'deputy_chair'].includes(user.role)) {
-            appStatus = "approved";
+        // Admins, Chairs AND Approved Roles (Delegate/Press/Observer) are approved implicitly
+        // This ensures that if the DB role is updated to 'delegate', the session status is 'approved'
+        // even if the application table fetch had a lag or mismatch.
+        if (['superadmin', 'admin', 'committee_chairman', 'deputy_chair', 'delegate', 'press', 'observer'].includes(user.role)) {
+          appStatus = "approved";
         }
 
         // 6. Create Active Session in DB
@@ -137,7 +139,7 @@ export const authOptions: NextAuthOptions = {
         await logAction(user.id, "login_success", { role: user.role, session_id: sessionData.id });
 
         const userDetails = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
-        
+
         return {
           id: user.id,
           name: user.full_name,
@@ -166,42 +168,40 @@ export const authOptions: NextAuthOptions = {
       // Handle session update triggers (e.g. Profile update or Role change)
       if (trigger === "update") {
         if (session?.user?.image) {
-            token.picture = session.user.image;
+          token.picture = session.user.image;
         }
-        
-        // RE-FETCH USER DATA FROM DB to get fresh Role
-        // This fixes the issue where role remains 'applicant' after form submission
-        // Use token.sub as fallback if token.id is missing (standard NextAuth behavior)
-        const userId = (token.id as string) || token.sub;
-        
-        if (userId) {
-            const { data: freshUser } = await supabase
-                .from("users")
-                .select("role")
-                .eq("id", userId)
-                .single();
-            
-            if (freshUser) {
-                token.role = freshUser.role;
-                
-                // If role is updated, sync applicantType as well
-                if (['press', 'observer', 'delegate'].includes(freshUser.role)) {
-                    token.applicantType = freshUser.role as any;
-                }
 
-                // Also refresh Application Status
-                const { data: app } = await supabase
-                    .from("applications")
-                    .select("status")
-                    .eq("user_id", userId)
-                    .maybeSingle();
-                
-                if (app) {
-                    token.applicationStatus = app.status as any;
-                } else if (['superadmin', 'admin', 'committee_chairman', 'deputy_chair'].includes(freshUser.role)) {
-                    token.applicationStatus = "approved";
-                }
+        // RE-FETCH USER DATA FROM DB to get fresh Role
+        const userId = (token.id as string) || token.sub;
+
+        if (userId) {
+          const { data: freshUser } = await supabase
+            .from("users")
+            .select("role")
+            .eq("id", userId)
+            .single();
+
+          if (freshUser) {
+            token.role = freshUser.role;
+
+            // If role is updated, sync applicantType as well
+            if (['press', 'observer', 'delegate'].includes(freshUser.role)) {
+              token.applicantType = freshUser.role as any;
             }
+
+            // Also refresh Application Status
+            const { data: app } = await supabase
+              .from("applications")
+              .select("status")
+              .eq("user_id", userId)
+              .maybeSingle();
+
+            if (app) {
+              token.applicationStatus = app.status as any;
+            } else if (['superadmin', 'admin', 'committee_chairman', 'deputy_chair', 'delegate', 'press', 'observer'].includes(freshUser.role)) {
+              token.applicationStatus = "approved";
+            }
+          }
         }
       }
       return token;
@@ -218,7 +218,7 @@ export const authOptions: NextAuthOptions = {
         }
         return session;
       }
-      return session; 
+      return session;
     },
   },
   pages: {
@@ -232,5 +232,5 @@ export const authOptions: NextAuthOptions = {
 };
 
 // Change Log:
-// - Updated `jwt` callback to use `token.sub` as fallback for user ID lookup.
-// - Added fetching of `applicationStatus` inside the update trigger to ensure approval status is also synced to the session.
+// - Updated implicit approval logic: Added 'delegate', 'press', 'observer' to the list of roles that are considered "approved" by default in session generation.
+// - This ensures that once a user is assigned a specific role (vs generic 'applicant'), the system treats them as approved immediately.
