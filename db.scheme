@@ -77,6 +77,18 @@ CREATE TABLE public.committees (
   CONSTRAINT committees_pkey PRIMARY KEY (id),
   CONSTRAINT committees_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.document_versions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  committee_id uuid NOT NULL,
+  document_blob bytea NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  version_name text,
+  is_auto_save boolean DEFAULT false,
+  CONSTRAINT document_versions_pkey PRIMARY KEY (id),
+  CONSTRAINT document_versions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT document_versions_committee_id_fkey FOREIGN KEY (committee_id) REFERENCES public.committees(id)
+);
 CREATE TABLE public.email_verifications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   email character varying NOT NULL,
