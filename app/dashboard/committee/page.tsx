@@ -18,8 +18,6 @@ import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { CommitteeMemberDetailDialog } from "@/components/committee/CommitteeMemberDetailDialog";
 
-// --- Sub-Components (Styled) ---
-
 const SessionInfoPanel = ({ isManager, stats }: { isManager: boolean, stats: any }) => {
   if (isManager) {
     if (!stats) return <div className="h-20 w-48 bg-white/5 animate-pulse rounded-lg" />;
@@ -53,29 +51,7 @@ const SessionInfoPanel = ({ isManager, stats }: { isManager: boolean, stats: any
       </div>
     );
   }
-
-  // Participant View
-  return (
-    <div className="flex flex-col items-start md:items-end gap-2 min-w-[200px]">
-      <div className="flex items-center gap-2">
-        <Badge variant="outline" className="bg-emerald-500/5 text-emerald-600 border-emerald-500/20 px-2 py-0.5 gap-1.5 text-xs">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-          </span>
-          Oturum Aktif
-        </Badge>
-      </div>
-      <div className="flex items-center gap-1.5 text-xs font-medium text-foreground/80">
-        Genel Kurul
-        <span className="text-muted-foreground">•</span>
-        <span className="text-emerald-600 flex items-center gap-1">
-          <CheckCircle2 className="w-3 h-3" />
-          Yoklama Tamam
-        </span>
-      </div>
-    </div>
-  );
+  return null;
 };
 
 interface MembersWidgetProps {
@@ -131,7 +107,6 @@ const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps
 
       <div className="space-y-3">
         {sortedMembers.slice(0, 6).map(member => {
-          // Determine Role Badge
           const isChair = member.role === 'committee_chairman';
           const isDeputy = member.role === 'deputy_chair';
 
@@ -155,7 +130,6 @@ const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps
                   <div className="text-sm font-medium truncate text-foreground/90">
                     {member.full_name}
                   </div>
-                  {/* --- BADGE LOGIC HERE --- */}
                   {isChair && (
                     <Badge variant="outline" className="text-[9px] h-4 px-1 bg-purple-500/10 text-purple-500 border-purple-500/20 shadow-none">Başkan</Badge>
                   )}
@@ -364,8 +338,6 @@ export default function CommitteePage() {
   const role = session?.user?.role;
   const isManager = role === 'committee_chairman' || role === 'deputy_chair';
 
-  // --- Manager Fetch (Existing) ---
-  // Fetches from /api/committee/my-committee which INCLUDES images
   const { data: managerData, isLoading: managerLoading } = useQuery({
     queryKey: ["manager-committee-stats"],
     queryFn: async () => {
@@ -376,8 +348,6 @@ export default function CommitteePage() {
     enabled: !!isManager
   });
 
-  // --- Participant Fetch (Split) ---
-  // 1. Core Info (Lightweight /me)
   const { data: meData, isLoading: meLoading } = useQuery({
     queryKey: ["committee-context-me"],
     queryFn: async () => {
@@ -388,8 +358,6 @@ export default function CommitteePage() {
     enabled: !isManager
   });
 
-  // 2. Roster (Heavy /members with Images)
-  // This executes ONLY when the user visits this page
   const { data: membersData, isLoading: membersLoading } = useQuery({
     queryKey: ["committee-members-list"],
     queryFn: async () => {
@@ -400,7 +368,6 @@ export default function CommitteePage() {
     enabled: !isManager && !!meData?.committeeMember
   });
 
-  // Consolidate Data
   let isLoading = false;
   let committee = null;
   let topic = null;
@@ -419,11 +386,9 @@ export default function CommitteePage() {
       committee = meData.committeeMember.committee;
       topic = meData.topic;
       
-      // Merge admin + members list
       if (membersData) {
         members = membersData.members || [];
         if (membersData.admin) {
-          // Add admin to top of list if not already there
           if (!members.find((m: any) => m.userId === membersData.admin.userId)) {
             members = [membersData.admin, ...members];
           }
