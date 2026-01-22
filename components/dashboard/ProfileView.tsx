@@ -1,3 +1,4 @@
+// components/dashboard/profile/ProfileView.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -19,7 +20,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AvatarUpload } from "@/components/ui/avatar-upload";
-import { useSession } from "next-auth/react";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
 
 interface DeviceSession {
@@ -50,7 +50,6 @@ interface ExtendedProfileData extends Omit<ProfileData, 'userDetails'> {
 
 export function ProfileView() {
   const queryClient = useQueryClient();
-  const { data: session } = useSession();
   const [resetLoading, setResetLoading] = useState(false);
   const [digitalIdOpen, setDigitalIdOpen] = useState(false);
   const personalInfoRef = useRef<HTMLDivElement>(null);
@@ -309,7 +308,7 @@ export function ProfileView() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
         {/* Left Column (Details & Security) */}
         <div className="lg:col-span-2 flex flex-col gap-6">
@@ -375,9 +374,9 @@ export function ProfileView() {
                             <UserPlus className="w-4 h-4 text-muted-foreground" />
                             Bağlantı İstekleri
                         </div>
-                        <div className="text-xs text-muted-foreground max-w-[250px]">
+                        <p className="text-xs text-muted-foreground max-w-sm">
                             Diğer katılımcıların size bağlantı isteği göndermesine izin verin.
-                        </div>
+                        </p>
                     </div>
                     <Switch 
                         checked={allowConnections}
@@ -392,9 +391,9 @@ export function ProfileView() {
                             <EyeOff className="w-4 h-4 text-muted-foreground" />
                             Profil Fotoğrafı
                         </div>
-                        <div className="text-xs text-muted-foreground max-w-[250px]">
+                        <p className="text-xs text-muted-foreground max-w-sm">
                             Fotoğrafınızı diğer katılımcılardan gizleyin.
-                        </div>
+                        </p>
                     </div>
                     <Switch
                         checked={isHidden}
@@ -406,8 +405,8 @@ export function ProfileView() {
 
               <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                 <div className="space-y-0.5">
-                  <div className="text-sm font-medium">Şifre Değişikliği</div>
-                  <div className="text-xs text-muted-foreground">E-posta adresinize sıfırlama bağlantısı gönderilir.</div>
+                  <p className="text-sm font-medium">Şifre Değişikliği</p>
+                  <p className="text-xs text-muted-foreground">E-posta adresinize sıfırlama bağlantısı gönderilir.</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleSendResetLink} disabled={resetLoading}>
                   {resetLoading ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <Lock className="w-3 h-3 mr-2" />}
@@ -417,14 +416,14 @@ export function ProfileView() {
 
               <div ref={devicesRef} className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium flex items-center gap-2">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
                     <Globe className="w-4 h-4 text-muted-foreground" /> Aktif Oturumlar
-                  </div>
+                  </h4>
                   {devices.length > 1 && (
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-6 text-xs text-destructive hover:bg-destructive/10"
+                      className="h-6 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => revokeSessionMutation.mutate(undefined)}
                       disabled={revokeSessionMutation.isPending}
                     >
@@ -437,7 +436,7 @@ export function ProfileView() {
                     <Skeleton className="h-10 w-full" />
                   ) : (
                     devices.map(device => (
-                      <div key={device.id} className="flex items-center justify-between text-sm p-2 rounded hover:bg-muted/50 transition-colors">
+                      <div key={device.id} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
                         <div className="flex items-center gap-3">
                           <div className={cn("p-1.5 rounded-full", device.isCurrent ? "bg-green-500/10 text-green-600" : "bg-secondary text-muted-foreground")}>
                             {getDeviceIcon(device.deviceInfo.os, device.deviceInfo.type)}
@@ -447,7 +446,7 @@ export function ProfileView() {
                               {device.deviceInfo.os} • {device.deviceInfo.browser}
                               {device.isCurrent && <span className="ml-2 text-[10px] text-green-600 font-bold bg-green-500/10 px-1.5 py-0.5 rounded">Bu Cihaz</span>}
                             </div>
-                            <div className="text-[10px] text-muted-foreground">{device.ip} • {new Date(device.lastActive).toLocaleDateString()}</div>
+                            <div className="text-[10px] text-muted-foreground">{device.ip} • Son Aktif: {new Date(device.lastActive).toLocaleDateString()}</div>
                           </div>
                         </div>
                         {!device.isCurrent && (
@@ -489,17 +488,16 @@ export function ProfileView() {
                    <span className="text-sm font-medium">Sistem Uyarıları</span>
                    <Switch checked={prefs.system} onCheckedChange={(v) => handlePrefChange('system', v)} />
                </div>
-               <p className="text-[10px] text-muted-foreground pt-2 border-t border-border/50">
+               <p className="text-xs text-muted-foreground pt-3 border-t border-border/50">
                    Güvenlik (şifre, hesap) bildirimleri kapatılamaz.
                </p>
             </CardContent>
           </Card>
 
           {showIdCard && (
-            <div ref={digitalIdRef}>
+            <div ref={digitalIdRef} className="space-y-4">
               <DigitalIdCard 
                 user={user} 
-                className="flex-1" 
                 uniqueId="profile" 
                 defaultOpen={digitalIdOpen}
               />
@@ -521,13 +519,13 @@ export function ProfileView() {
 
 function InfoItem({ icon: Icon, label, value }: { icon: any, label: string, value?: string }) {
   return (
-    <div className="flex items-center gap-3 p-2 rounded hover:bg-muted/30 transition-colors">
+    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
       <div className="p-2 bg-secondary/30 rounded-lg text-muted-foreground">
         <Icon className="w-4 h-4" />
       </div>
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</div>
-        <div className="text-sm font-medium text-foreground">{value || "-"}</div>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
+        <p className="text-sm font-medium text-foreground">{value || "-"}</p>
       </div>
     </div>
   );
@@ -547,7 +545,3 @@ function ProfileSkeleton() {
     </div>
   );
 }
-
-// Change Log:
-// - Added logic to hide Digital ID Card if user is an 'applicant' with 'pending' or 'rejected' status.
-// - ID Card visibility is determined by `showIdCard` variable which checks role and application status.
