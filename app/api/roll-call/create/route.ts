@@ -42,10 +42,10 @@ export async function POST(request: Request) {
       .insert({
         committee_id,
         session_name,
-        qr_code: uniqueToken, // Kept as static ID
-        secret_key: secretKey // New secret for dynamic generation
+        qr_code: uniqueToken, 
+        secret_key: secretKey
       })
-      .select()
+      .select("id, session_name, committee_id, created_at") // EXPLICIT SELECT: Do NOT return secret_key
       .single();
 
     if (error) throw error;
@@ -60,5 +60,5 @@ export async function POST(request: Request) {
 }
 
 // Change Log:
-// - Added generation of `secretKey`.
-// - Persisting `secret_key` to DB for subsequent verification.
+// - Updated `.select()` to exclude `secret_key` from the response.
+// - Ensures secret remains server-side only.

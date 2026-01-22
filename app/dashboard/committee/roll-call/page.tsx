@@ -25,7 +25,6 @@ import {
 export default function CommitteeRollCallPage() {
   const [sessionName, setSessionName] = useState("");
   const [rollCallId, setRollCallId] = useState<string | null>(null);
-  const [secretKey, setSecretKey] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
@@ -39,7 +38,6 @@ export default function CommitteeRollCallPage() {
     }
   });
 
-  // We fetch stats only for the final success screen here, live stats are handled by component
   const { data: finalStats } = useQuery({
     queryKey: ['roll-call-stats-final', rollCallId],
     queryFn: async () => {
@@ -71,7 +69,6 @@ export default function CommitteeRollCallPage() {
     },
     onSuccess: (data) => {
       setRollCallId(data.id);
-      setSecretKey(data.secret_key); 
       setIsCompleted(false);
       toast.success("Oturum Başlatıldı");
       queryClient.invalidateQueries({ queryKey: ["committee-roll-call-history"] });
@@ -91,7 +88,6 @@ export default function CommitteeRollCallPage() {
 
   const handleClose = () => {
     setRollCallId(null);
-    setSecretKey(null);
     setSessionName("");
     setIsCompleted(false);
   };
@@ -172,11 +168,10 @@ export default function CommitteeRollCallPage() {
                 Tamam
               </Button>
             </div>
-          ) : (rollCallId && secretKey) ? (
+          ) : (rollCallId) ? (
             /* Active QR Screen via Component */
             <DynamicRollCallQR
               rollCallId={rollCallId}
-              secretKey={secretKey}
               sessionName={sessionName}
               onManualFinish={triggerManualFinish}
               onComplete={() => setIsCompleted(true)}
@@ -216,5 +211,5 @@ export default function CommitteeRollCallPage() {
 }
 
 // Change Log:
-// - Replaced native `confirm()` with `AlertDialog` from `shadcn/ui`.
-// - Added state `showFinishConfirm` to manage dialog visibility.
+// - Removed `secretKey` state and logic.
+// - `DynamicRollCallQR` now only needs `rollCallId` and `sessionName`.

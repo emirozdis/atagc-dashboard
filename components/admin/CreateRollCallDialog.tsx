@@ -26,19 +26,15 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState<Step>('form');
 
-    // Dialog control states for safe exit
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
-    // Form State
     const [committees, setCommittees] = useState<Committee[]>([]);
     const [selectedCommittee, setSelectedCommittee] = useState<string>("");
     const [sessionName, setSessionName] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // Live State
     const [rollCallId, setRollCallId] = useState<string | null>(null);
-    const [secretKey, setSecretKey] = useState<string | null>(null);
 
     const fetchCommittees = async () => {
         try {
@@ -77,7 +73,7 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
             const data = await res.json();
 
             setRollCallId(data.id);
-            setSecretKey(data.secret_key); // Use secret key for dynamic TOTP
+            // Secret key is NOT needed on client side with SSE
             
             toast.success("Oturum Başlatıldı");
             setStep('live');
@@ -123,8 +119,7 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
             setSessionName("");
             setSelectedCommittee("");
             setRollCallId(null);
-            setSecretKey(null);
-            onSuccess(); // Refresh list
+            onSuccess();
         }, 300);
     };
 
@@ -178,11 +173,10 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                         </>
                     )}
 
-                    {step === 'live' && rollCallId && secretKey && (
+                    {step === 'live' && rollCallId && (
                         <div className="py-2">
                             <DynamicRollCallQR
                                 rollCallId={rollCallId}
-                                secretKey={secretKey}
                                 sessionName={sessionName}
                                 onManualFinish={handleManualFinishTrigger}
                                 onComplete={() => setStep('success')}
@@ -249,6 +243,5 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
 }
 
 // Change Log:
-// - Integrated `DynamicRollCallQR` shared component.
-// - Re-used the same UI logic as Chairman view for consistent experience.
-// - Removed legacy static QR display logic.
+// - Updated to use `DynamicRollCallQR` with SSE support.
+// - Removed legacy `secretKey` logic.

@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users, QrCode, Calendar, BarChart, MoreVertical, Trash2, Search, ArrowUpDown, X, Filter, CalendarDays } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, QrCode, Calendar, Search, ArrowUpDown, X, CalendarDays } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CreateRollCallDialog } from "@/components/admin/CreateRollCallDialog";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 interface RollCall {
@@ -68,7 +67,7 @@ export default function AdminRollCallsPage() {
         committee_id: committeeFilter,
         start_date: startDate,
         end_date: endDate,
-        sort_by: sortBy === 'ratio' ? 'created_at' : sortBy, // Ratio sorting handled client-side if needed or fallback to date
+        sort_by: sortBy === 'ratio' ? 'created_at' : sortBy, 
         sort_order: sortOrder,
       });
       const res = await fetch(`/api/admin/roll-calls?${params}`);
@@ -80,7 +79,6 @@ export default function AdminRollCallsPage() {
 
   const rawRollCalls: RollCall[] = data?.data || [];
 
-  // Calculate and Filter/Sort client-side if needed
   const processedRollCalls = useMemo(() => {
     let list = rawRollCalls.map(rc => {
       const attendedCount = rc.roll_call_logs?.[0]?.count || 0;
@@ -119,7 +117,6 @@ export default function AdminRollCallsPage() {
 
   const renderMobileCard = (rc: RollCall) => {
     const attendedCount = rc.roll_call_logs?.[0]?.count || 0;
-    // Handle the case where committee might be null or members array is empty
     const totalMembers = rc.committee?.committee_members?.[0]?.count || 0;
     const ratio = totalMembers > 0 ? Math.round((attendedCount / totalMembers) * 100) : 0;
 
@@ -174,7 +171,6 @@ export default function AdminRollCallsPage() {
         <CreateRollCallDialog onSuccess={refetch} />
       </div>
 
-      {/* Controls Toolbar */}
       <div className="flex flex-col xl:flex-row gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -254,58 +250,17 @@ export default function AdminRollCallsPage() {
             </PopoverTrigger>
             <PopoverContent className="w-48 p-2" align="end">
               <div className="space-y-1">
-                <Button
-                  variant={sortBy === 'created_at' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="w-full justify-start h-8 text-xs"
-                  onClick={() => setSortBy('created_at')}
-                >
-                  Tarih
-                </Button>
-                <Button
-                  variant={sortBy === 'session_name' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="w-full justify-start h-8 text-xs"
-                  onClick={() => setSortBy('session_name')}
-                >
-                  Oturum İsmi
-                </Button>
-                <Button
-                  variant={sortBy === 'ratio' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="w-full justify-start h-8 text-xs"
-                  onClick={() => setSortBy('ratio')}
-                >
-                  Katılım Oranı
-                </Button>
+                <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Tarih</Button>
+                <Button variant={sortBy === 'session_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('session_name')}>Oturum İsmi</Button>
+                <Button variant={sortBy === 'ratio' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('ratio')}>Katılım Oranı</Button>
                 <div className="h-px bg-border my-1" />
-                <Button
-                  variant={sortOrder === 'asc' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="w-full justify-start h-8 text-xs"
-                  onClick={() => setSortOrder('asc')}
-                >
-                  Artan (A-Z veya Oran)
-                </Button>
-                <Button
-                  variant={sortOrder === 'desc' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="w-full justify-start h-8 text-xs"
-                  onClick={() => setSortOrder('desc')}
-                >
-                  Azalan (Z-A veya Oran)
-                </Button>
+                <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Artan (A-Z)</Button>
+                <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Azalan (Z-A)</Button>
               </div>
             </PopoverContent>
           </Popover>
           {(search !== "" || committeeFilter !== "all" || ratioFilter !== "all" || startDate !== "" || endDate !== "" || sortBy !== "created_at" || sortOrder !== "desc") && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0"
-              onClick={resetFilters}
-              title="Filtreleri Temizle"
-            >
+            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" onClick={resetFilters} title="Filtreleri Temizle">
               <X className="w-4 h-4" />
             </Button>
           )}
@@ -318,22 +273,15 @@ export default function AdminRollCallsPage() {
             <div className="p-6"><TableSkeleton rows={5} cols={5} /></div>
           ) : processedRollCalls.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
-              <Filter className="w-12 h-12 opacity-20 mb-3" />
+              <Search className="w-12 h-12 opacity-20 mb-3" />
               <p>Kriterlere uygun yoklama bulunamadı.</p>
-              {(search !== "" || committeeFilter !== "all" || ratioFilter !== "all" || startDate !== "" || endDate !== "" || sortBy !== "created_at" || sortOrder !== "desc") && (
-                <Button variant="link" onClick={resetFilters} className="mt-2">
-                  Filtreleri Temizle
-                </Button>
-              )}
+              <Button variant="link" onClick={resetFilters} className="mt-2">Filtreleri Temizle</Button>
             </div>
           ) : (
             <>
-              {/* Mobile View */}
               <div className="block md:hidden">
                 {processedRollCalls.map(renderMobileCard)}
               </div>
-
-              {/* Desktop View */}
               <div className="hidden md:block rounded-xl border border-border/50 bg-card overflow-hidden">
                 <Table>
                   <TableHeader className="bg-muted/30">
@@ -399,6 +347,5 @@ export default function AdminRollCallsPage() {
 }
 
 // Change Log:
-// - Added mobile responsive view (Cards).
-// - Hid Table on mobile.
-// - Fixed safe access to nested objects (`rc.committee?.committee_members?.[0]?.count`) to prevent crashes if committee is null.
+// - Verified import path for `CreateRollCallDialog`.
+// - Ensured page component uses the `CreateRollCallDialog` component correctly.

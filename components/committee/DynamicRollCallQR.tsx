@@ -3,14 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { Users, StopCircle } from "lucide-react";
+import { Users, StopCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { generateTOTP } from "@/lib/otp";
 import { toast } from "sonner";
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
 interface DynamicRollCallQRProps {
   rollCallId: string;
-  secretKey: string;
   sessionName: string;
   onManualFinish: () => void;
   onComplete: () => void;
@@ -18,72 +17,153 @@ interface DynamicRollCallQRProps {
 
 export function DynamicRollCallQR({
   rollCallId,
-  secretKey,
   sessionName,
   onManualFinish,
   onComplete
 }: DynamicRollCallQRProps) {
+  const supabase = useSupabaseRealtime();
   const [qrPayload, setQrPayload] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
   const isCompletedRef = useRef(false);
 
-  // 1. Dynamic QR Generation (Every 2 seconds)
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    const updateQR = async () => {
-      if (!secretKey || !rollCallId) return;
-      
-      const token = await generateTOTP(secretKey);
-      const payload = JSON.stringify({
-        t: 'r',
-        id: rollCallId,
-        otp: token
-      });
-      setQrPayload(payload);
-    };
-
-    updateQR();
-    interval = setInterval(updateQR, 2000);
-
-    return () => clearInterval(interval);
-  }, [rollCallId, secretKey]);
-
-  // 2. Stats Polling (Every 3 seconds)
-  const { data: stats = { scanned: 0, total: 0 } } = useQuery({
-    queryKey: ['roll-call-stats', rollCallId],
+  // 1. Data Fetching with Polling (Reliable Sync)
+  const { data: latestStats } = useQuery({
+    queryKey: ['roll-call-stats-base', rollCallId],
     queryFn: async () => {
       const res = await fetch(`/api/roll-call/${rollCallId}/stats`);
       if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-
-      if (data.total > 0 && data.scanned >= data.total && !isCompletedRef.current) {
-        isCompletedRef.current = true;
-        onComplete();
-        toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
-      }
-      return data;
+      return res.json();
     },
     enabled: !!rollCallId,
-    refetchInterval: 3000
+    refetchInterval: 3000, // Poll every 3 seconds to ensure updates even if realtime fails
+    refetchOnWindowFocus: true
   });
 
-  if (!qrPayload) return null;
+  const [stats, setStats] = useState({ scanned: 0, total: 0 });
+
+  // Sync state with Polling Data
+  useEffect(() => {
+    if (latestStats) {
+      setStats(latestStats);
+      checkCompletion(latestStats.scanned, latestStats.total);
+    }
+  }, [latestStats]);
+
+  // Helper for completion check
+  const checkCompletion = (scanned: number, total: number) => {
+      if (total > 0 && scanned >= total && !isCompletedRef.current) {
+          isCompletedRef.current = true;
+          setTimeout(() => {
+              onComplete();
+              toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
+          }, 500);
+      }
+  };
+
+  // 2. Client-Side Realtime Subscription (Instant Feedback)
+  useEffect(() => {
+    if (!supabase || !rollCallId) return;
+
+    const channel = supabase
+      .channel(`live-attendance-${rollCallId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'roll_call_logs',
+          filter: `roll_call_id=eq.${rollCallId}`
+        },
+        (payload) => {
+          // Optimistic update for instant feedback
+          setStats((prev) => {
+            const newScanned = prev.scanned + 1;
+            checkCompletion(newScanned, prev.total);
+            return { ...prev, scanned: newScanned };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, rollCallId]);
+
+  // 3. SSE for Secure Tokens (Server Push)
+  useEffect(() => {
+    if (!rollCallId) return;
+
+    const eventSource = new EventSource(`/api/roll-call/${rollCallId}/stream`);
+
+    eventSource.onopen = () => {
+      setIsLive(true);
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data && data.otp) {
+            setQrPayload(JSON.stringify(data));
+        }
+      } catch (e) {
+        // Ignore parse errors from keep-alive
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      if (eventSource.readyState === EventSource.CLOSED) {
+          setIsLive(false);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+      setIsLive(false);
+    };
+  }, [rollCallId]);
+
+  if (!qrPayload) return (
+      <div className="flex flex-col items-center justify-center p-8 space-y-4">
+          <div className="w-48 h-48 bg-muted/20 animate-pulse rounded-xl flex items-center justify-center">
+             <RefreshCw className="w-8 h-8 text-muted-foreground animate-spin" />
+          </div>
+          <p className="text-sm text-muted-foreground">Güvenli bağlantı kuruluyor...</p>
+      </div>
+  );
 
   return (
     <div className="text-center space-y-6 animate-in zoom-in fade-in w-full">
-      <div className="bg-white p-4 rounded-xl shadow-lg inline-block relative">
-        <QRCodeSVG
-          value={qrPayload}
-          size={256}
-          level="M"
-          className="w-48 h-48 md:w-64 md:h-64 object-contain"
-        />
+      <div className="relative inline-block">
+        <div className="bg-white p-4 rounded-xl shadow-lg relative z-10">
+            <QRCodeSVG
+            value={qrPayload}
+            size={256}
+            level="M"
+            className="w-48 h-48 md:w-64 md:h-64 object-contain"
+            />
+        </div>
+        {isLive && (
+            <div className="absolute -inset-1 bg-green-500/20 rounded-2xl z-0 animate-pulse" />
+        )}
       </div>
 
       <div className="space-y-1">
         <h3 className="font-bold text-xl text-primary">{sessionName}</h3>
-        <p className="text-sm text-muted-foreground">
-          Kod her 5 saniyede bir yenilenir.
+        <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+          {isLive ? (
+              <span className="flex items-center gap-1.5 text-green-600">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  Canlı (5sn)
+              </span>
+          ) : (
+              <span className="text-amber-500 flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3 animate-spin" /> Bağlanıyor...
+              </span>
+          )}
         </p>
       </div>
 
@@ -112,7 +192,7 @@ export function DynamicRollCallQR({
               />
               <path
                 className="text-primary transition-all duration-500 ease-out"
-                strokeDasharray={`${(stats.scanned / stats.total) * 100}, 100`}
+                strokeDasharray={`${Math.min(100, (stats.scanned / stats.total) * 100)}, 100`}
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 fill="none"
                 stroke="currentColor"
@@ -137,5 +217,6 @@ export function DynamicRollCallQR({
 }
 
 // Change Log:
-// - New reusable component for displaying dynamic TOTP QR code and live stats.
-// - Handles internal polling and QR regeneration to ensure consistency across views.
+// - Added `refetchInterval: 3000` to `useQuery` for reliable stat updates every 3 seconds.
+// - Abstracted completion logic into `checkCompletion` to call it from both polling and realtime events.
+// - Ensured state synchronization between polling data and local state.

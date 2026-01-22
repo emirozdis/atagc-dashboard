@@ -145,7 +145,7 @@ export default function CollaborativeEditorPage() {
       const doc = new Y.Doc();
 
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const websocketUrl = `${protocol}://${window.location.hostname}:1234`;
+      const websocketUrl = `${protocol}://${window.location.hostname}:${process.env.NEXT_PUBLIC_COLLAB_PORT || 3001}`;
 
       const newProvider = new HocuspocusProvider({
         url: websocketUrl,
