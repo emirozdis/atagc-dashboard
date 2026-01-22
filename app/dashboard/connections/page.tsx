@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConnectionState } from "@/types/connection";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -32,10 +32,19 @@ import {
 export default function ConnectionsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("list");
   
   // Dialog State
   const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Handle hash-based navigation
+  useEffect(() => {
+    const hash = window.location.hash.slice(1); // Remove #
+    if (hash === "pending" || hash === "sent" || hash === "list") {
+      setActiveTab(hash);
+    }
+  }, []);
 
   const { data, isLoading } = useQuery<ConnectionState>({
     queryKey: ['connections'],
@@ -118,7 +127,7 @@ export default function ConnectionsPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="list" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex flex-col md:flex-row justify-between gap-4 items-stretch md:items-center mb-6">
             <TabsList className="grid grid-cols-3 w-full md:w-auto h-auto p-1">
               <TabsTrigger value="list" className="gap-2 py-2">

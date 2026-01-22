@@ -17,10 +17,11 @@ interface DigitalIdCardProps {
   };
   className?: string;
   uniqueId?: string;
+  defaultOpen?: boolean;
 }
 
-export function DigitalIdCard({ user, className, uniqueId = "default" }: DigitalIdCardProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function DigitalIdCard({ user, className, uniqueId = "default", defaultOpen = false }: DigitalIdCardProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [mounted, setMounted] = useState(false);
 
   const roleName = user.role === 'applicant' ? 'DELEGE' : user.role.toUpperCase().replace('_', ' ');
@@ -39,6 +40,13 @@ export function DigitalIdCard({ user, className, uniqueId = "default" }: Digital
     }
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
+
+  // Sync with external defaultOpen prop changes
+  useEffect(() => {
+    if (defaultOpen) {
+      setIsOpen(true);
+    }
+  }, [defaultOpen]);
 
   const transition = { type: "spring", damping: 25, stiffness: 300 } as const;
   const layoutKey = `${uniqueId}-${user.id}`;

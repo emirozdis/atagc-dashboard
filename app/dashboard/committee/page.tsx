@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -337,6 +337,14 @@ export default function CommitteePage() {
   
   const role = session?.user?.role;
   const isManager = role === 'committee_chairman' || role === 'deputy_chair';
+
+  // Handle hash-based navigation
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash === "voting") {
+      setIsVotingOpen(true);
+    }
+  }, []);
 
   const { data: managerData, isLoading: managerLoading } = useQuery({
     queryKey: ["manager-committee-stats"],

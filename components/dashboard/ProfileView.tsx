@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card, CardContent, CardHeader, CardTitle
@@ -52,6 +52,42 @@ export function ProfileView() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [resetLoading, setResetLoading] = useState(false);
+  const [digitalIdOpen, setDigitalIdOpen] = useState(false);
+  const personalInfoRef = useRef<HTMLDivElement>(null);
+  const digitalIdRef = useRef<HTMLDivElement>(null);
+  const securityRef = useRef<HTMLDivElement>(null);
+  const devicesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash === "personal" && personalInfoRef.current) {
+        setTimeout(() => {
+          personalInfoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      } else if (hash === "digital-id" && digitalIdRef.current) {
+        setTimeout(() => {
+          digitalIdRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          setDigitalIdOpen(true);
+        }, 100);
+      } else if (hash === "security" && securityRef.current) {
+        setTimeout(() => {
+          securityRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      } else if (hash === "devices" && devicesRef.current) {
+        setTimeout(() => {
+          devicesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      } else if (hash !== "digital-id") {
+        setDigitalIdOpen(false);
+      }
+    };
+
+    handleHashChange();
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   const { data: profile, isLoading } = useQuery<ExtendedProfileData>({
     queryKey: ["profile"],
@@ -71,7 +107,6 @@ export function ProfileView() {
     }
   });
 
-  // Local state for instant UI update
   const [prefs, setPrefs] = useState<NotificationPrefs>({
       application: true,
       committee: true,
@@ -195,7 +230,6 @@ export function ProfileView() {
   const allowConnections = userDetails?.allow_connections !== false;
   const warnings = user.user_warnings || [];
 
-  // Logic: Show ID card only if Approved OR User is not an Applicant (e.g. Admin)
   const showIdCard = user.role !== 'applicant' || application?.status === 'approved';
 
   const getRoleBadge = (role: string) => {
@@ -204,14 +238,20 @@ export function ProfileView() {
       admin: "bg-orange-500/10 text-orange-600 border-orange-500/20",
       committee_chairman: "bg-purple-500/10 text-purple-600 border-purple-500/20",
       deputy_chair: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
-      applicant: "bg-blue-500/10 text-blue-600 border-blue-500/20"
+      press: "bg-pink-500/10 text-pink-600 border-pink-500/20",
+      observer: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
+      delegate: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+      applicant: "bg-gray-200/10 text-blue-600 border-blue-500/20"
     };
     const labels: Record<string, string> = {
       superadmin: "Süper Yönetici",
       admin: "Yönetici",
       committee_chairman: "Komite Başkanı",
       deputy_chair: "Başkan Yardımcısı",
-      applicant: "Katılımcı"
+      press: "Basın",
+      observer: "Gözlemci",
+      delegate: "Delege",
+      applicant: "Başvuru Sahibi"
     };
     return <Badge variant="outline" className={cn("px-2.5 py-0.5", styles[role] || styles.applicant)}>{labels[role] || "Kullanıcı"}</Badge>;
   };
@@ -273,7 +313,7 @@ export function ProfileView() {
         
         {/* Left Column (Details & Security) */}
         <div className="lg:col-span-2 flex flex-col gap-6">
-          <Card className="border-border/50 flex-1">
+          <Card ref={personalInfoRef} className="border-border/50 flex-1">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
                 <UserIcon className="w-4 h-4 text-primary" /> Kişisel Bilgiler
@@ -320,7 +360,7 @@ export function ProfileView() {
             </Card>
           )}
 
-          <Card className="border-border/50">
+          <Card ref={securityRef} className="border-border/50">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
                 <Shield className="w-4 h-4 text-primary" /> Gizlilik ve Güvenlik
@@ -375,7 +415,7 @@ export function ProfileView() {
                 </Button>
               </div>
 
-              <div className="space-y-3">
+              <div ref={devicesRef} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium flex items-center gap-2">
                     <Globe className="w-4 h-4 text-muted-foreground" /> Aktif Oturumlar
@@ -456,8 +496,13 @@ export function ProfileView() {
           </Card>
 
           {showIdCard && (
-            <>
-              <DigitalIdCard user={user} className="flex-1" uniqueId="profile" />
+            <div ref={digitalIdRef}>
+              <DigitalIdCard 
+                user={user} 
+                className="flex-1" 
+                uniqueId="profile" 
+                defaultOpen={digitalIdOpen}
+              />
               
               <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed">
                 <p className="flex gap-2">
@@ -465,7 +510,7 @@ export function ProfileView() {
                   Bu QR kod etkinlik alanına girişlerde, yoklamalarda ve diğer katılımcılarla bağlantı kurmak için kullanılır.
                 </p>
               </div>
-            </>
+            </div>
           )}
         </div>
 

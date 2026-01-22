@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "next-auth/react";
 import { ResourceUploadDialog } from "@/components/admin/ResourceUploadDialog";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
@@ -151,6 +151,22 @@ export default function ParticipantResourcesPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const committeeSectionRef = useRef<HTMLDivElement>(null);
+  const generalSectionRef = useRef<HTMLDivElement>(null);
+
+  // Handle hash-based navigation
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash === "committee" && committeeSectionRef.current) {
+      setTimeout(() => {
+        committeeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } else if (hash === "general" && generalSectionRef.current) {
+      setTimeout(() => {
+        generalSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, []);
 
   // Updated Query Key to be unique per user to prevent cache leakage
   const { data: resources = [], isLoading } = useQuery<Resource[]>({
@@ -241,19 +257,23 @@ export default function ParticipantResourcesPage() {
           </Card>
         ) : (
           <div className="space-y-12">
-            <ResourceSection
-              title="Komite Kaynakları"
-              icon={Building2}
-              resources={committeeResources}
-              badge={committeeResources.length > 0 ? `${committeeResources.length}` : undefined}
-            />
+            <div ref={committeeSectionRef}>
+              <ResourceSection
+                title="Komite Kaynakları"
+                icon={Building2}
+                resources={committeeResources}
+                badge={committeeResources.length > 0 ? `${committeeResources.length}` : undefined}
+              />
+            </div>
 
-            <ResourceSection
-              title="Genel Kaynaklar"
-              icon={Globe}
-              resources={generalResources}
-              badge={generalResources.length > 0 ? `${generalResources.length}` : undefined}
-            />
+            <div ref={generalSectionRef}>
+              <ResourceSection
+                title="Genel Kaynaklar"
+                icon={Globe}
+                resources={generalResources}
+                badge={generalResources.length > 0 ? `${generalResources.length}` : undefined}
+              />
+            </div>
           </div>
         )}
       </div>

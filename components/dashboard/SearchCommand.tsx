@@ -18,10 +18,16 @@ import {
     Briefcase,
     PenTool,
     QrCode,
-    FileText,
-    LogOut
+    ScanLine,
+    Megaphone,
+    FolderOpen,
+    UsersRound,
+    CreditCard,
+    LogOut,
+    ChevronRight
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { participantItems } from "@/lib/navigation";
 
 interface SearchCommandProps {
     open: boolean;
@@ -30,6 +36,23 @@ interface SearchCommandProps {
 
 export function SearchCommand({ open, setOpen }: SearchCommandProps) {
     const router = useRouter();
+    const { data: session } = useSession();
+    
+    const role = session?.user?.role;
+    const status = session?.user?.applicationStatus;
+
+    // Filter items based on role and approval status (same logic as Sidebar)
+    const items = participantItems.filter(item => {
+        // 1. Role Check
+        if (item.roles && role && !item.roles.includes(role)) return false;
+        
+        // 2. Approval Check (only for applicants or generic roles that need approval)
+        // Staff roles (admin/chairs) are usually implicitly approved
+        const isStaff = ['superadmin', 'admin', 'committee_chairman', 'deputy_chair'].includes(role || "");
+        if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
+        
+        return true;
+    });
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -54,36 +77,68 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
                 <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
 
                 <CommandGroup heading="Genel">
-                    <CommandItem onSelect={() => runCommand(() => router.push("/dashboard"))}>
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Panel (Dashboard)
-                    </CommandItem>
-                    <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/announcements"))}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Duyurular
-                    </CommandItem>
-                    <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/committee"))}>
-                        <Briefcase className="mr-2 h-4 w-4" />
-                        Komitem
-                    </CommandItem>
-                    <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/editor"))}>
-                        <PenTool className="mr-2 h-4 w-4" />
-                        Ortak Çalışma (Editor)
-                    </CommandItem>
-                    <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/scan"))}>
-                        <QrCode className="mr-2 h-4 w-4" />
-                        Yoklama Ver
-                    </CommandItem>
+                    {items.map((item) => {
+                        // Skip profile and payment items - they'll be in separate groups
+                        if (item.href === "/dashboard/profile" || item.href === "/dashboard/payment") {
+                            return null;
+                        }
+                        return (
+                            <div key={item.href}>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push(item.href))}
+                                >
+                                    <item.icon className="mr-2 h-4 w-4" />
+                                    {item.title}
+                                </CommandItem>
+                                {item.subItems && item.subItems.map((subItem) => (
+                                    <CommandItem
+                                        key={subItem.href}
+                                        onSelect={() => runCommand(() => router.push(subItem.href))}
+                                        keywords={subItem.keywords}
+                                        className="pl-8"
+                                    >
+                                        <ChevronRight className="mr-2 h-3 w-3 text-muted-foreground" />
+                                        <subItem.icon className="mr-2 h-4 w-4" />
+                                        {subItem.title}
+                                    </CommandItem>
+                                ))}
+                            </div>
+                        );
+                    })}
                 </CommandGroup>
 
                 <CommandSeparator />
 
-                <CommandGroup heading="Profil ve Ayarlar">
-                    <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/profile"))}>
-                        <User className="mr-2 h-4 w-4" />
-                        Profilim
-                    </CommandItem>
-                    <CommandItem keywords={['password', 'şifre', 'reset', 'change']} onSelect={() => runCommand(() => router.push("/dashboard/profile"))}>
+                <CommandGroup heading="Profil ve Ödeme">
+                    {items
+                        .filter(item => item.href === "/dashboard/profile" || item.href === "/dashboard/payment")
+                        .map((item) => (
+                            <div key={item.href}>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push(item.href))}
+                                    keywords={item.href === "/dashboard/profile" ? ['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings'] : []}
+                                >
+                                    <item.icon className="mr-2 h-4 w-4" />
+                                    {item.title}
+                                </CommandItem>
+                                {item.subItems && item.subItems.map((subItem) => (
+                                    <CommandItem
+                                        key={subItem.href}
+                                        onSelect={() => runCommand(() => router.push(subItem.href))}
+                                        keywords={subItem.keywords}
+                                        className="pl-8"
+                                    >
+                                        <ChevronRight className="mr-2 h-3 w-3 text-muted-foreground" />
+                                        <subItem.icon className="mr-2 h-4 w-4" />
+                                        {subItem.title}
+                                    </CommandItem>
+                                ))}
+                            </div>
+                        ))}
+                    <CommandItem 
+                        keywords={['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings']} 
+                        onSelect={() => runCommand(() => router.push("/dashboard/profile#security"))}
+                    >
                         <Settings className="mr-2 h-4 w-4" />
                         Şifre ve Ayarlar
                     </CommandItem>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Users, Shield, LogIn } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Committee {
   id: string; // UUID
@@ -59,7 +60,7 @@ export function JoinRoomCard({
                   <Shield className="w-4 h-4 text-primary" />
                   {committeeInfo.name}
                 </div>
-              ) : <div className="text-destructive text-sm">Komite ataması bulunamadı.</div>}
+              ) : <div className="w-full flex justify-center py-2"><Skeleton className="h-8 w-40" /></div>}
 
               <Button onClick={onJoin} className="w-full" disabled={!committeeInfo}>
                 <LogIn className="w-4 h-4 mr-2" /> Odaya Katıl
