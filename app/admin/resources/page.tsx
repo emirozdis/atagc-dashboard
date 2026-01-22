@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -205,7 +205,7 @@ export default function AdminResourcesPage() {
       <Card className="bg-card border-border/50 bg-transparent shadow-none border-none">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6"><TableSkeleton /></div>
+            <div className="p-2"><TableSkeleton mobileCards={true} /></div>
           ) : filteredResources.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border rounded-xl bg-card">
               <FolderOpen className="w-12 h-12 opacity-20 mb-3" />
@@ -295,6 +295,4 @@ export default function AdminResourcesPage() {
 }
 
 // Change Log:
-// - Added mobile responsive view using Cards (`renderMobileCard`).
-// - Hid the Table on mobile devices and showed Cards instead.
-// - Adjusted filter section for mobile layout.
+// - Updated `TableSkeleton` usage with `mobileCards={true}` to properly display card skeletons on mobile.

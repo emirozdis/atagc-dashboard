@@ -110,7 +110,27 @@ export default function ApplicationDetailPage() {
     onError: () => toast.error("Hata oluştu")
   });
 
-  if (appLoading) return <Skeleton className="h-[600px] w-full" />;
+  // Skeleton Loader that matches the split layout
+  if (appLoading) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6 p-4">
+        <div className="flex justify-between items-center mb-6">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="flex flex-col lg:flex-row gap-6">
+            <div className="w-full lg:w-[350px] space-y-6">
+                <Skeleton className="h-[400px] w-full rounded-xl" />
+                <Skeleton className="h-[150px] w-full rounded-xl" />
+            </div>
+            <div className="flex-1">
+                <Skeleton className="h-[600px] w-full rounded-xl" />
+            </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error || !application) return <div>Bulunamadı</div>;
 
   const user = application.user;
@@ -320,5 +340,4 @@ export default function ApplicationDetailPage() {
 }
 
 // Change Log:
-// - Added logic to safely access `application.form` even if it is an array.
-// - Fixed conditional rendering for Committee Assignment card to only show if `applicantType === 'delegate'`.
+// - Added structured Skeleton loader that matches the 2-column layout of this page.

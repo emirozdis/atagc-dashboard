@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Loader2, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Save, Loader2, Plus, Trash2, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,6 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { ApplicationFormTemplate, FormStep, FormField } from "@/types/application";
-import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function EditFormPage() {
@@ -57,8 +56,6 @@ export default function EditFormPage() {
     },
     onError: () => toast.error("Hata oluştu")
   });
-
-  // --- Step & Field Management Handlers ---
 
   const addStep = () => {
     const newStep: FormStep = { id: `step-${Date.now()}`, title: "Yeni Adım", fields: [] };
@@ -105,7 +102,25 @@ export default function EditFormPage() {
     setFormConfig({ ...formConfig, steps: newSteps });
   };
 
-  if (isLoading || !formConfig.steps) return <Skeleton className="h-[600px] max-w-5xl mx-auto" />;
+  if (isLoading || !formConfig.steps) {
+    return (
+        <div className="max-w-5xl mx-auto space-y-6 animate-pulse p-4">
+            <div className="flex justify-between">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-10 w-24" />
+            </div>
+            <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-12 md:col-span-4 space-y-6">
+                    <Skeleton className="h-64 rounded-xl" />
+                    <Skeleton className="h-48 rounded-xl" />
+                </div>
+                <div className="col-span-12 md:col-span-8">
+                    <Skeleton className="h-[600px] rounded-xl" />
+                </div>
+            </div>
+        </div>
+    );
+  }
 
   const activeStep = formConfig.steps[activeStepIndex];
 
@@ -261,7 +276,4 @@ export default function EditFormPage() {
 }
 
 // Change Log:
-// - New Page: Form Builder UI.
-// - Allows editing Form Title/Fee/Description.
-// - Allows managing Steps (Add/Remove/Edit).
-// - Allows managing Fields within Steps (Type, Label, ID, Required).
+// - Replaced single generic Skeleton with a structured 2-column skeleton layout.

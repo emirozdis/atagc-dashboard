@@ -34,7 +34,7 @@ export default function AdminRollCallsPage() {
   const [committeeFilter, setCommitteeFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [ratioFilter, setRatioFilter] = useState("all"); // all, full, high, low
+  const [ratioFilter, setRatioFilter] = useState("all");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
 
@@ -270,7 +270,7 @@ export default function AdminRollCallsPage() {
       <Card className="bg-card border-border/50 bg-transparent shadow-none border-none">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6"><TableSkeleton rows={5} cols={5} /></div>
+            <div className="p-2"><TableSkeleton mobileCards={true} /></div>
           ) : processedRollCalls.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
               <Search className="w-12 h-12 opacity-20 mb-3" />
@@ -347,5 +347,4 @@ export default function AdminRollCallsPage() {
 }
 
 // Change Log:
-// - Verified import path for `CreateRollCallDialog`.
-// - Ensured page component uses the `CreateRollCallDialog` component correctly.
+// - Enabled `mobileCards` for `TableSkeleton` to fix loading state on mobile.

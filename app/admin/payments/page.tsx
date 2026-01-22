@@ -14,15 +14,8 @@ import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { StatusDistributionChart, UploadTrendChart } from "@/components/admin/PaymentCharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { PaymentStatusEnum } from "@/types/payment";
-
-// Note: This page specifically lists *receipts* or *applications with payments*.
-// Since exempt users don't upload receipts, they might not show up here depending on the API filter.
-// However, the backend API (`GET /api/admin/payments`) fetches `payment_receipts`.
-// Exempt users don't have receipts. So this page naturally filters them out unless we change the API
-// to fetch `applications` instead. For now, we will stick to Receipt Management here.
-// Exempt status is visible in the User List and User Detail pages.
 
 interface PaymentRequest {
   id: string;
@@ -86,11 +79,34 @@ export default function AdminPaymentsPage() {
     switch (status) {
       case 'approved': return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"><CheckCircle className="w-3 h-3 mr-1"/> Ödendi</Badge>;
       case 'rejected': return <Badge className="bg-rose-500/10 text-rose-600 border-rose-500/20 hover:bg-rose-500/20"><XCircle className="w-3 h-3 mr-1"/> Reddedildi</Badge>;
-      // Exempt won't usually appear in Receipt list, but just in case logic changes
       case 'exempt': return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20"><ShieldCheck className="w-3 h-3 mr-1"/> Muaf</Badge>;
       default: return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20"><Clock className="w-3 h-3 mr-1"/> Bekliyor</Badge>;
     }
   };
+
+  const renderMobileCard = (p: PaymentRequest) => (
+    <Card key={p.id} className="mb-4 bg-card border border-border/50 shadow-sm" onClick={() => setSelectedPaymentId(p.id)}>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="font-semibold text-sm">{p.user.full_name}</div>
+            <div className="text-xs text-muted-foreground">{p.user.email}</div>
+          </div>
+          {getStatusBadge(p.status)}
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground bg-secondary/10 p-2 rounded-lg">
+          <div>
+            <span className="block font-medium text-foreground">Tarih</span>
+            {new Date(p.created_at).toLocaleDateString('tr-TR')}
+          </div>
+          <div>
+            <span className="block font-medium text-foreground">Dosya</span>
+            <Badge variant="outline" className="text-[10px] h-4 px-1">{p.file_type?.split('/')[1]?.toUpperCase()}</Badge>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-8 animate-fade-in pb-20 max-w-[1600px] mx-auto">
@@ -116,13 +132,6 @@ export default function AdminPaymentsPage() {
       </div>
 
       <div className="space-y-4 pt-4">
-        <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                Dekont Geçmişi
-            </h3>
-        </div>
-
         <div className="flex flex-col sm:flex-row gap-3 bg-card p-4 rounded-xl border border-border/50 shadow-sm">
             <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -141,41 +150,47 @@ export default function AdminPaymentsPage() {
             </Select>
         </div>
 
-        {isLoading ? <TableSkeleton rows={5} cols={6} /> : (
-            <Card className="border-border/50 bg-card overflow-hidden shadow-sm">
-                <Table>
-                    <TableHeader className="bg-muted/30">
-                    <TableRow>
-                        <TableHead>Kullanıcı</TableHead>
-                        <TableHead>Yükleme Tarihi</TableHead>
-                        <TableHead>İnceleyen</TableHead>
-                        <TableHead>Dosya</TableHead>
-                        <TableHead>Durum</TableHead>
-                        <TableHead className="text-right">İşlem</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {payments.length === 0 ? (
-                        <TableRow><TableCell colSpan={6} className="h-48 text-center text-muted-foreground">Kayıt bulunamadı.</TableCell></TableRow>
-                    ) : (
-                        payments.map((p) => (
-                        <TableRow key={p.id} className="cursor-pointer hover:bg-muted/30 transition-colors group" onClick={() => setSelectedPaymentId(p.id)}>
-                            <TableCell>
-                                <div className="font-medium">{p.user.full_name}</div>
-                                <div className="text-xs text-muted-foreground">{p.user.email}</div>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground text-sm">{new Date(p.created_at).toLocaleString('tr-TR')}</TableCell>
-                            <TableCell><div className="flex items-center gap-2 text-sm text-muted-foreground">{p.reviewer ? <><User className="w-3.5 h-3.5" /> {p.reviewer.full_name}</> : "-" }</div></TableCell>
-                            <TableCell><Badge variant="outline" className="text-[10px] uppercase">{p.file_type?.split('/')[1]}</Badge></TableCell>
-                            <TableCell>{getStatusBadge(p.status)}</TableCell>
-                            <TableCell className="text-right"><Button variant="ghost" size="sm" className="h-8">İncele <ArrowUpRight className="w-3.5 h-3.5 ml-2" /></Button></TableCell>
+        {isLoading ? <TableSkeleton mobileCards={true} /> : (
+            <>
+                <div className="block md:hidden">
+                    {payments.length === 0 ? <div className="text-center py-8 text-muted-foreground">Kayıt bulunamadı.</div> : payments.map(renderMobileCard)}
+                </div>
+
+                <Card className="hidden md:block border-border/50 bg-card overflow-hidden shadow-sm">
+                    <Table>
+                        <TableHeader className="bg-muted/30">
+                        <TableRow>
+                            <TableHead>Kullanıcı</TableHead>
+                            <TableHead>Yükleme Tarihi</TableHead>
+                            <TableHead>İnceleyen</TableHead>
+                            <TableHead>Dosya</TableHead>
+                            <TableHead>Durum</TableHead>
+                            <TableHead className="text-right">İşlem</TableHead>
                         </TableRow>
-                        ))
-                    )}
-                    </TableBody>
-                </Table>
-                {payments.length > 0 && <div className="border-t border-border/50 p-4 bg-muted/5"><PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} /></div>}
-            </Card>
+                        </TableHeader>
+                        <TableBody>
+                        {payments.length === 0 ? (
+                            <TableRow><TableCell colSpan={6} className="h-48 text-center text-muted-foreground">Kayıt bulunamadı.</TableCell></TableRow>
+                        ) : (
+                            payments.map((p) => (
+                            <TableRow key={p.id} className="cursor-pointer hover:bg-muted/30 transition-colors group" onClick={() => setSelectedPaymentId(p.id)}>
+                                <TableCell>
+                                    <div className="font-medium">{p.user.full_name}</div>
+                                    <div className="text-xs text-muted-foreground">{p.user.email}</div>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">{new Date(p.created_at).toLocaleString('tr-TR')}</TableCell>
+                                <TableCell><div className="flex items-center gap-2 text-sm text-muted-foreground">{p.reviewer ? <><User className="w-3.5 h-3.5" /> {p.reviewer.full_name}</> : "-" }</div></TableCell>
+                                <TableCell><Badge variant="outline" className="text-[10px] uppercase">{p.file_type?.split('/')[1]}</Badge></TableCell>
+                                <TableCell>{getStatusBadge(p.status)}</TableCell>
+                                <TableCell className="text-right"><Button variant="ghost" size="sm" className="h-8">İncele <ArrowUpRight className="w-3.5 h-3.5 ml-2" /></Button></TableCell>
+                            </TableRow>
+                            ))
+                        )}
+                        </TableBody>
+                    </Table>
+                    {payments.length > 0 && <div className="border-t border-border/50 p-4 bg-muted/5"><PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} /></div>}
+                </Card>
+            </>
         )}
       </div>
 
@@ -185,4 +200,5 @@ export default function AdminPaymentsPage() {
 }
 
 // Change Log:
-// - Added 'exempt' case to `getStatusBadge` (just in case).
+// - Added mobile card view for payments list.
+// - Used `TableSkeleton` with `mobileCards={true}`.

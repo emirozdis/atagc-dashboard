@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import {
     Loader2,
     Save,
-    Settings2,
     ShieldAlert,
     Mail,
     Calendar,
@@ -112,14 +111,13 @@ export default function SettingsPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
-                        <Settings2 className="w-8 h-8 text-primary" />
                         Sistem Ayarları
                     </h2>
                     <p className="text-muted-foreground mt-1 text-lg">
                         Platform genel yapılandırması ve erişim kontrolleri.
                     </p>
                 </div>
-                <Button onClick={handleSave} disabled={saveMutation.isPending} size="lg" className="shadow-lg shadow-primary/20">
+                <Button onClick={handleSave} disabled={saveMutation.isPending} size="lg" >
                     {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Değişiklikleri Kaydet
                 </Button>
@@ -294,39 +292,7 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
                 </section>
-
-                {/* Future Features / Brainstorming Area (Visual Only) */}
-                <section className="space-y-4 opacity-60 hover:opacity-100 transition-opacity">
-                    <div className="flex items-center gap-2 text-primary/70 font-semibold tracking-wide uppercase text-xs">
-                        <Lock className="w-4 h-4" /> Gelecek Özellikler (Planlanan)
-                    </div>
-                    <div className="grid md:grid-cols-3 gap-4">
-                        <Card className="bg-muted/10 border-dashed border-border">
-                            <CardHeader className="p-4">
-                                <CardTitle className="text-base text-muted-foreground">Dosya Yükleme</CardTitle>
-                                <CardDescription className="text-xs">Position Paper yüklemeleri</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card className="bg-muted/10 border-dashed border-border">
-                            <CardHeader className="p-4">
-                                <CardTitle className="text-base text-muted-foreground">Sertifika Sistemi</CardTitle>
-                                <CardDescription className="text-xs">Otomatik QR sertifika</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card className="bg-muted/10 border-dashed border-border">
-                            <CardHeader className="p-4">
-                                <CardTitle className="text-base text-muted-foreground">Toplu E-posta</CardTitle>
-                                <CardDescription className="text-xs">Duyuru mail servisi</CardDescription>
-                            </CardHeader>
-                        </Card>
-                    </div>
-                </section>
-
             </div>
         </div>
     );
 }
-
-// Change Log:
-// - Refactored to `useQuery` and `useMutation`.
-// - Uses `Skeleton` for loading.

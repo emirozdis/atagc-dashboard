@@ -1,13 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Announcement } from "@/types/announcement";
 import { AnnouncementFeed } from "@/components/dashboard/announcements/AnnouncementFeed";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CardSkeleton } from "@/components/ui/skeleton-loader";
+import { ListSkeleton } from "@/components/ui/skeleton-loader";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AdminAnnouncementsPage() {
@@ -43,17 +43,17 @@ export default function AdminAnnouncementsPage() {
     return (
         <div className="space-y-6">
             <Breadcrumbs items={[{ label: "Duyurular" }]} />
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Duyurular</h1>
                     <p className="text-muted-foreground">Tüm sistem duyurularını buradan yönetebilirsiniz.</p>
                 </div>
                 <Link href="/admin/announcements/new">
-                    <Button><Plus className="w-4 h-4 mr-2" /> Yeni Duyuru</Button>
+                    <Button className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> Yeni Duyuru</Button>
                 </Link>
             </div>
 
-            {isLoading ? <CardSkeleton count={3} /> : (
+            {isLoading ? <ListSkeleton count={3} /> : (
                 <AnnouncementFeed
                     announcements={announcements}
                     onDelete={handleDelete}
@@ -64,5 +64,4 @@ export default function AdminAnnouncementsPage() {
 }
 
 // Change Log:
-// - Refactored to `useQuery`.
-// - Uses `CardSkeleton`.
+// - Replaced `CardSkeleton` with `ListSkeleton` to match the vertical feed layout.
