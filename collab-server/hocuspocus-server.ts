@@ -16,7 +16,7 @@ import { encodeStateAsUpdate, applyUpdate } from "yjs";
 import { IncomingMessage } from "http";
 
 const CONFIG = {
-  port: parseInt(process.env.COLLAB_PORT || "1234", 10),
+  port: parseInt(process.env.NEXT_PUBLIC_COLLAB_PORT || "1234", 10),
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
   supabaseKey: process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY!,
   nextAuthSecret: process.env.NEXTAUTH_SECRET!,
@@ -28,6 +28,7 @@ if (!CONFIG.supabaseUrl || !CONFIG.supabaseKey || !CONFIG.nextAuthSecret) {
   process.exit(1);
 }
 
+// Use Service Role to bypass RLS for auth checks
 const supabase = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
 interface ConnectionContext {
@@ -48,13 +49,13 @@ interface PermissionUpdateMessage {
   canWrite: boolean;
 }
 
-// Updated to handle UUID strings
 const getCommitteeId = (documentName: string): string | null => {
   const id = documentName.replace(CONFIG.docPrefix, "");
-  // Simple check if it looks like a UUID or at least not empty
+  // Basic validation that it's not empty
   return id.length > 0 ? id : null;
 };
 
+// Helper to extract session token from cookies
 const getSessionToken = (request: IncomingMessage): string | undefined => {
   const cookieHeader = request.headers.cookie;
   if (!cookieHeader) return undefined;
@@ -71,6 +72,8 @@ const parseDocumentBlob = (blob: string | Uint8Array): Uint8Array => {
   }
   return new Uint8Array(blob);
 };
+
+// --- HANDLERS ---
 
 const handleLoadDocument = async (data: onLoadDocumentPayload) => {
   const committeeId = getCommitteeId(data.documentName);
@@ -140,6 +143,7 @@ const handleStatelessMessage = async (data: onStatelessPayload) => {
     const msg = JSON.parse(payload) as PermissionUpdateMessage;
 
     if (msg.type === 'PERMISSION_UPDATE') {
+      // Only Chairman or Superadmin can change permissions dynamically
       if (context?.role === 'committee_chairman' || context?.role === 'superadmin') {
         const targetUserId = msg.userId;
         const newCanWrite = msg.canWrite;
@@ -152,13 +156,14 @@ const handleStatelessMessage = async (data: onStatelessPayload) => {
           }
         });
 
+        // Broadcast to other clients so they can update UI toast
         document.getConnections().forEach((conn) => {
           if (conn !== connection) {
             conn.sendStateless(payload);
           }
         });
       } else {
-        console.warn(`Unauthorized attempt by ${context.user.id}`);
+        console.warn(`Unauthorized permission change attempt by ${context.user.id}`);
       }
     }
   } catch (e) {
@@ -170,7 +175,7 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
   const { request, documentName } = data;
 
   const tokenValue = getSessionToken(request);
-  if (!tokenValue) throw new Error("Unauthorized: No session token.");
+  if (!tokenValue) throw new Error("Unauthorized: No session token found in cookies.");
 
   const token = await decode({ token: tokenValue, secret: CONFIG.nextAuthSecret });
   if (!token || !token.sub) throw new Error("Unauthorized: Invalid session.");
@@ -180,6 +185,7 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
 
   if (!committeeId) throw new Error("Invalid document name.");
 
+  // Fetch User Role & Committee Details
   const { data: user, error } = await supabase
     .from("users")
     .select(`
@@ -206,45 +212,44 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
     role: role
   };
 
+  // 1. Superadmin: Read-Only (Auditor)
   if (role === 'superadmin') {
-    return {
-      ...baseContext,
-      readOnly: true
-    };
+    return { ...baseContext, readOnly: true };
   }
 
-  const rawCommittees = user.committees as unknown;
-  const adminCommittees: { id: string }[] = Array.isArray(rawCommittees)
-    ? rawCommittees
-    : (rawCommittees ? [rawCommittees] : []);
-
+  // 2. Committee Chairman: Write Access (If Owner)
   if (role === 'committee_chairman') {
+    const rawCommittees = user.committees as unknown;
+    const adminCommittees: { id: string }[] = Array.isArray(rawCommittees) ? rawCommittees : (rawCommittees ? [rawCommittees] : []);
     const isChairmanOfThis = adminCommittees.some(c => c.id === committeeId);
+    
     if (isChairmanOfThis) {
-      return {
-        ...baseContext,
-        readOnly: false
-      };
+      return { ...baseContext, readOnly: false };
     }
     throw new Error("Forbidden: You are not the chairman of this committee.");
   }
 
+  // 3. Deputy Chair & Delegates: Check Membership
   const memberCommittee = Array.isArray(user.committee_members)
     ? user.committee_members[0]
     : user.committee_members;
 
-  if (role === 'delegate' || role === 'deputy_chair') {
-    if (memberCommittee?.committee_id === committeeId) {
-      const canWrite = memberCommittee.can_write === true;
-      return {
-        ...baseContext,
-        readOnly: !canWrite
-      };
+  if (memberCommittee?.committee_id === committeeId) {
+    
+    // Explicit Fix for Deputy Chair: Always Grant Write Access
+    if (role === 'deputy_chair') {
+      return { ...baseContext, readOnly: false };
     }
-    throw new Error("Forbidden: You are not a member of this committee.");
+
+    // Delegates/Press/Observers: Check database permission
+    const canWrite = memberCommittee.can_write === true;
+    return {
+      ...baseContext,
+      readOnly: !canWrite
+    };
   }
 
-  throw new Error("Forbidden: Role not authorized.");
+  throw new Error("Forbidden: You are not a member of this committee.");
 };
 
 const server = new Server({
@@ -258,3 +263,8 @@ const server = new Server({
 server.listen().then(() => {
   console.log(`🚀 Collaboration Server ready on port ${CONFIG.port}`);
 });
+
+// Change Log:
+// - Updated `handleAuthentication` to specifically check for `deputy_chair`.
+// - If `role === 'deputy_chair'` and they are a member of the committee, `readOnly` is forced to `false`.
+// - This bypasses the `can_write` DB check for deputies, treating them as leaders.

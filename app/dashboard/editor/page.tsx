@@ -47,14 +47,16 @@ export default function CollaborativeEditorPage() {
     const initData = async () => {
       if (!session?.user) return;
 
-      // 1. Superadmin Logic
-      if (session.user.role === 'superadmin') {
+      const role = session.user.role;
+
+      // 1. Superadmin Logic (Auditor)
+      if (role === 'superadmin') {
         try {
           const res = await fetch('/api/admin/committees');
           if (res.ok) {
             const data = await res.json();
             setAllCommittees(data);
-            setCanWrite(false);
+            setCanWrite(false); // Superadmins are read-only
           }
         } catch (e) {
           console.error("Failed to fetch committees", e);
@@ -62,29 +64,31 @@ export default function CollaborativeEditorPage() {
         return;
       }
 
-      // 2. Chairman Logic (Prioritized)
-      if (session.user.role === 'committee_chairman') {
+      // 2. Management Logic (Chairman & Deputy Chair)
+      // Both roles use the committee management endpoint to get full context
+      if (role === 'committee_chairman' || role === 'deputy_chair') {
         try {
           const cRes = await fetch("/api/committee/my-committee");
           if (cRes.ok) {
             const cData = await cRes.json();
             setCommitteeInfo(cData);
             setMembers(cData.members || []);
-            setCanWrite(true);
+            setCanWrite(true); // Always true for leadership
             return;
           }
         } catch (e) {
-          console.error("Chairman fetch failed", e);
+          console.error("Management fetch failed", e);
         }
       }
 
-      // 3. Participant Logic (Fallback)
+      // 3. Participant Logic (Fallback for Delegates/Press/Observers)
       try {
         const res = await fetch("/api/participant/me");
         const data = await res.json();
 
         if (data.committeeMember?.committee) {
           setCommitteeInfo(data.committeeMember.committee);
+          // Only regular participants depend on the DB flag 'can_write'
           const dbCanWrite = data.committeeMember.can_write;
           setCanWrite(dbCanWrite === true);
         }
@@ -117,11 +121,13 @@ export default function CollaborativeEditorPage() {
         class: 'prose prose-invert prose-lg max-w-none focus:outline-none min-h-[500px] p-8 text-foreground',
       },
     },
-    editable: hasJoined && !!provider && status === 'connected',
-  }, [provider, status, hasJoined, session]);
+    // Ensure editor editable state matches permission state
+    editable: hasJoined && !!provider && status === 'connected' && canWrite,
+  }, [provider, status, hasJoined, session, canWrite]);
 
+  // Sync canWrite state with Editor
   useEffect(() => {
-    if (editor && editor.isEditable !== canWrite) {
+    if (editor) {
       editor.setEditable(canWrite);
     }
   }, [editor, canWrite]);
@@ -151,6 +157,7 @@ export default function CollaborativeEditorPage() {
         url: websocketUrl,
         name: `committee-${committeeInfo.id}`,
         document: doc,
+        // Pass session token if needed for custom auth, though cookies are standard
         onStatus: (data) => {
           setStatus(data.status);
           if (data.status === 'connected') toast.success("Bağlantı Kuruldu");
@@ -159,7 +166,8 @@ export default function CollaborativeEditorPage() {
         onStateless: ({ payload }) => {
           try {
             const msg = JSON.parse(payload);
-            if (msg.type === 'PERMISSION_UPDATE' && msg.userId == session.user.id) {
+            // Listen for dynamic permission updates from Chairman
+            if (msg.type === 'PERMISSION_UPDATE' && msg.userId === session.user.id) {
               setCanWrite(msg.canWrite);
               if (msg.canWrite) {
                 toast.success("Yazma izniniz açıldı.");
@@ -172,7 +180,7 @@ export default function CollaborativeEditorPage() {
           }
         },
         onAuthenticationFailed: () => {
-          toast.error("Yetkisiz Erişim", { description: "Erişim reddedildi." });
+          toast.error("Yetkisiz Erişim", { description: "Erişim reddedildi. Lütfen giriş yapın veya yetkinizi kontrol edin." });
           setStatus('disconnected');
           setHasJoined(false);
         }
@@ -216,7 +224,6 @@ export default function CollaborativeEditorPage() {
     }
   };
 
-
   if (!hasJoined) {
     return (
       <JoinRoomCard
@@ -241,6 +248,9 @@ export default function CollaborativeEditorPage() {
                 {session?.user?.role === 'committee_chairman' && (
                   <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Yönetici</span>
                 )}
+                {session?.user?.role === 'deputy_chair' && (
+                  <span className="text-xs bg-indigo-500/20 text-indigo-500 px-2 py-0.5 rounded-full">Bşk. Yrd.</span>
+                )}
               </h2>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm font-medium text-muted-foreground">{committeeInfo?.name}</span>
@@ -256,6 +266,7 @@ export default function CollaborativeEditorPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Only Chairman can see the management panel */}
               {session?.user?.role === 'committee_chairman' && (
                 <Button
                   variant={showChairmanPanel ? "secondary" : "outline"}
@@ -288,10 +299,10 @@ export default function CollaborativeEditorPage() {
           </Card>
         </div>
 
+        {/* Chairman Panel Component */}
         {session?.user?.role === 'committee_chairman' && (
           <ChairmanPanel
             isOpen={showChairmanPanel}
-            // Filter out the current user (chairman) from the members list
             members={members.filter(m => m.userId !== session?.user?.id)}
             onTogglePermission={handleToggleMemberPermission}
           />
@@ -300,3 +311,8 @@ export default function CollaborativeEditorPage() {
     </div>
   );
 }
+
+// Change Log:
+// - Updated `useEffect` init logic to group `deputy_chair` with `committee_chairman`.
+// - This ensures Deputy Chairs call `/api/committee/my-committee` and get `setCanWrite(true)`.
+// - Added visual badge for "Bşk. Yrd.".

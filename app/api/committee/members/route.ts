@@ -3,14 +3,14 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSignedUrl, getSignedUrls } from "@/lib/storage-utils";
+import { logAction } from "@/lib/logger";
 
-// Read: 60/min
-const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export async function GET(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   try {
-    await readLimiter.check(60, ip);
+    await limiter.check(60, ip);
   } catch {
     return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
   }
@@ -18,6 +18,7 @@ export async function GET(request: Request) {
   const auth = await getAuthorization({
     requireAuth: true,
     customCheck: async (session) => {
+      // 1. Try to find if user is a member of a committee
       const { data: committeeMember, error: cmError } = await supabase
         .from("committee_members")
         .select(`
@@ -29,6 +30,25 @@ export async function GET(request: Request) {
         `)
         .eq("user_id", session.user.id)
         .maybeSingle();
+
+      // 2. If not a member, check if user is a Chairman (admin of a committee)
+      if (!committeeMember) {
+        const { data: managedCommittee } = await supabase
+          .from("committees")
+          .select("id, name, admin_id")
+          .eq("admin_id", session.user.id)
+          .maybeSingle();
+
+        if (managedCommittee) {
+          // Construct a mock member object for the chairman context
+          return { 
+            ok: true, 
+            payload: { 
+              committeeMember: { committee: managedCommittee } 
+            } 
+          };
+        }
+      }
 
       if (cmError && cmError.code !== 'PGRST116') {
         return { ok: false, status: 500, message: "Database error" };
@@ -55,6 +75,7 @@ export async function GET(request: Request) {
     const currentUserId = auth.session!.user.id;
     const isSuperAdmin = auth.session!.user.role === 'superadmin';
 
+    // Fetch Admin Details
     const { data: adminData } = await supabase
       .from("users")
       .select(`
@@ -90,6 +111,7 @@ export async function GET(request: Request) {
       };
     }
 
+    // Fetch Members
     const { data: members, error: membersError } = await supabase
       .from("committee_members")
       .select(`
@@ -150,7 +172,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      admin, // (Admin part omitted above but should follow same logic)
+      admin, 
       members: formattedMembers
     });
 
@@ -160,6 +182,75 @@ export async function GET(request: Request) {
   }
 }
 
-// Change Log:
-// - Added privacy check logic for profile pictures.
-// - Implemented batch signed URL generation.
+export async function PUT(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+  try {
+    await limiter.check(20, ip);
+  } catch {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
+  // Only Chairmen, Superadmins, Admins can modify permissions
+  const auth = await getAuthorization({ 
+    requireAuth: true, 
+    allowedRoles: ["superadmin", "admin", "committee_chairman"] 
+  });
+
+  if (!auth.ok || !auth.session) {
+    return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
+  }
+
+  try {
+    const { memberId, canEdit } = await request.json();
+
+    if (!memberId || typeof canEdit !== "boolean") {
+      return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+    }
+
+    // 1. Verify Member Exists & Get Context
+    const { data: memberRecord, error: fetchError } = await supabase
+      .from("committee_members")
+      .select("id, committee_id, user_id")
+      .eq("id", memberId)
+      .single();
+
+    if (fetchError || !memberRecord) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    // 2. Authorization Check (Ownership)
+    // If not superadmin/admin, verify the user is the chairman of THIS committee
+    if (auth.session.user.role !== 'superadmin' && auth.session.user.role !== 'admin') {
+      const { data: committee } = await supabase
+        .from("committees")
+        .select("admin_id")
+        .eq("id", memberRecord.committee_id)
+        .single();
+
+      if (committee?.admin_id !== auth.session.user.id) {
+        return NextResponse.json({ error: "Forbidden: You do not manage this committee" }, { status: 403 });
+      }
+    }
+
+    // 3. Update Permission
+    const { error: updateError } = await supabase
+      .from("committee_members")
+      .update({ can_write: canEdit })
+      .eq("id", memberId);
+
+    if (updateError) throw updateError;
+
+    // 4. Log Action
+    await logAction(auth.session.user.id, "update_member_permission", {
+      target_member_id: memberRecord.id,
+      target_user_id: memberRecord.user_id,
+      can_write: canEdit
+    }, request);
+
+    return NextResponse.json({ success: true });
+
+  } catch (error) {
+    console.error("Update permission error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
