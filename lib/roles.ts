@@ -23,7 +23,32 @@ export const ROLES = {
 // 2. Type Definition derived from constants
 export type UserRole = typeof ROLES[keyof typeof ROLES];
 
-// 3. Role Metadata (Labels, Ranks, Icons, Colors)
+// 3. Role Groups (Centralized Lists to avoid hardcoding arrays in components)
+export const STAFF_ROLES: UserRole[] = [
+  ROLES.SUPERADMIN, 
+  ROLES.ADMIN, 
+  ROLES.CHAIRMAN, 
+  ROLES.DEPUTY_CHAIR
+];
+
+export const MANAGEMENT_ROLES: UserRole[] = [
+  ROLES.SUPERADMIN, 
+  ROLES.ADMIN
+];
+
+export const COMMITTEE_LEADS: UserRole[] = [
+  ROLES.CHAIRMAN, 
+  ROLES.DEPUTY_CHAIR
+];
+
+export const PARTICIPANT_ROLES: UserRole[] = [
+  ROLES.DELEGATE, 
+  ROLES.PRESS, 
+  ROLES.OBSERVER, 
+  ROLES.APPLICANT
+];
+
+// 4. Role Metadata (Labels, Ranks, Icons, Colors)
 export const ROLE_METADATA: Record<UserRole, {
   label: string;
   rank: number; // Higher number = Higher authority
@@ -107,11 +132,11 @@ export const ROLE_METADATA: Record<UserRole, {
   }
 };
 
-// 4. Helper to get metadata safely
+// 5. Helper to get metadata safely
 export function getRoleMeta(role: string) {
   return ROLE_METADATA[role as UserRole] || ROLE_METADATA[ROLES.APPLICANT];
 }
 
 // Change Log:
-// - Created centralized file for Role constants, types, and UI metadata.
-// - Replaces hardcoded strings and repeated logic across the app.
+// - Added exported arrays `STAFF_ROLES`, `MANAGEMENT_ROLES`, `COMMITTEE_LEADS`, `PARTICIPANT_ROLES`.
+// - These arrays are typed as `UserRole[]`, which solves the TypeScript `includes()` incompatibility.

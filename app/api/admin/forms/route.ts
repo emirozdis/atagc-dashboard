@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { apiHandler } from "@/lib/api-handler";
+import { ROLES } from "@/lib/roles";
 
-export async function GET(request: Request) {
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin"] });
-  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const GET = apiHandler(async (request: Request) => {
+  const auth = await getAuthorization({ 
+    requireAuth: true, 
+    allowedRoles: [ROLES.SUPERADMIN] 
+  });
+  if (!auth.ok) throw new Error("Unauthorized");
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -24,38 +29,32 @@ export async function GET(request: Request) {
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) throw error;
   return NextResponse.json(data);
-}
+});
 
-export async function PUT(request: Request) {
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin"] });
-  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const PUT = apiHandler(async (request: Request) => {
+  const auth = await getAuthorization({ 
+    requireAuth: true, 
+    allowedRoles: [ROLES.SUPERADMIN] 
+  });
+  if (!auth.ok) throw new Error("Unauthorized");
 
-  try {
-    const body = await request.json();
-    const { id, title, description, fee, steps, is_active } = body;
+  const body = await request.json();
+  const { id, title, description, fee, steps, is_active } = body;
 
-    const { error } = await supabase
-      .from("application_forms")
-      .update({
-        title,
-        description,
-        fee,
-        steps,
-        is_active,
-        // Don't allow changing slug for consistency
-      })
-      .eq("id", id);
+  const { error } = await supabase
+    .from("application_forms")
+    .update({
+      title,
+      description,
+      fee,
+      steps,
+      is_active,
+    })
+    .eq("id", id);
 
-    if (error) throw error;
+  if (error) throw error;
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Form update error:", error);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
-  }
-}
-
-// Change Log:
-// - New API route to manage Application Forms (GET list/single, PUT update).
+  return NextResponse.json({ success: true });
+});

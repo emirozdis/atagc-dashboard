@@ -16,6 +16,7 @@ import { MobileSidebar } from "./MobileSidebar";
 import { AdminMobileSidebar } from "./AdminMobileSidebar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getRoleMeta } from "@/lib/roles";
 
 export function Header() {
   const { data: session } = useSession();
@@ -40,19 +41,7 @@ export function Header() {
   const userDetails = profile?.userDetails || (Array.isArray(profile?.user?.user_details) ? profile?.user?.user_details[0] : profile?.user?.user_details);
   const profileImage = userDetails?.profile_picture_url || undefined;
 
-  const getRoleDisplayName = (role?: string) => {
-    switch (role) {
-      case "superadmin": return "Süper Yönetici";
-      case "admin": return "Yönetici";
-      case "committee_chairman": return "Komite Başkanı";
-      case "deputy_chair": return "Başkan Yardımcısı";
-      case "delegate": return "Delege";
-      case "press": return "Basın";
-      case "observer": return "Gözlemci";
-      case "applicant": return "Katılımcı";
-      default: return "Misafir";
-    }
-  };
+  const roleLabel = session?.user?.role ? getRoleMeta(session.user.role).label : "Misafir";
 
   return (
     <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 transition-colors">
@@ -117,12 +106,12 @@ export function Header() {
               <Button variant="ghost" className="relative h-10 w-full pl-0 hover:bg-transparent p-0 flex items-center gap-3">
                 <div className="hidden md:block text-right">
                   <p className="text-sm font-medium text-foreground leading-none">{session?.user?.name || "Kullanıcı"}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{getRoleDisplayName(session?.user?.role)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{roleLabel}</p>
                 </div>
                 <Avatar className="h-9 w-9 border border-border">
                   <AvatarImage
                     src={profileImage}
-                    className="object-cover" // Added to prevent stretching
+                    className="object-cover" 
                   />
                   <AvatarFallback>{initials || "U"}</AvatarFallback>
                 </Avatar>
@@ -156,6 +145,3 @@ export function Header() {
     </header>
   );
 }
-
-// Change Log:
-// - Updated `getRoleDisplayName` to return Turkish labels (e.g., "Basın", "Delege", "Gözlemci").

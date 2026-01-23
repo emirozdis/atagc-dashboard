@@ -45,7 +45,6 @@ export default function CollaborativeEditorPage() {
   const [showChairmanPanel, setShowChairmanPanel] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  // ... (Keep existing useEffect for initData) ...
   useEffect(() => {
     const initData = async () => {
       if (!session?.user) return;
@@ -175,13 +174,11 @@ export default function CollaborativeEditorPage() {
   };
 
   const handleForceRefresh = () => {
-      // Trigger a message to the server to disconnect everyone
       if(provider) {
           provider.sendStateless(JSON.stringify({ type: 'FORCE_REFRESH' }));
       }
   };
 
-  // ... (Keep existing handleCommitteeSelect, handleToggleMemberPermission) ...
   const handleCommitteeSelect = (val: string) => {
     const c = allCommittees.find(x => x.id === val);
     if (c) setCommitteeInfo(c);

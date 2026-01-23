@@ -2,73 +2,62 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
+import { apiHandler } from "@/lib/api-handler";
+import { ROLES } from "@/lib/roles";
 
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
-export async function POST(request: Request) {
+export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  try {
-    await writeLimiter.check(10, ip);
-  } catch {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
-  }
+  await writeLimiter.check(10, ip);
 
-  // Allowed roles to CREATE a vote: Chairman and Co-Chair
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "deputy_chair", "superadmin"] });
-  if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: 401 });
+  const auth = await getAuthorization({ 
+    requireAuth: true, 
+    allowedRoles: [ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR, ROLES.SUPERADMIN] 
+  });
+  if (!auth.ok) throw new Error(auth.message);
 
-  try {
-    const { committeeId, title, options } = await request.json();
+  const { committeeId, title, options } = await request.json();
 
-    // 1. Create Vote
-    const { data: vote, error: voteError } = await supabase
-      .from("votes")
-      .insert({ 
-          committee_id: committeeId, 
-          title, 
-          status: 'open',
-          created_at: new Date().toISOString() 
-      })
-      .select("id")
-      .single();
+  const { data: vote, error: voteError } = await supabase
+    .from("votes")
+    .insert({ 
+        committee_id: committeeId, 
+        title, 
+        status: 'open',
+        created_at: new Date().toISOString() 
+    })
+    .select("id")
+    .single();
 
-    if (voteError) throw voteError;
+  if (voteError) throw voteError;
 
-    // 2. Create Options
-    const optionsData = options.map((label: string) => ({
-      vote_id: vote.id,
-      label
-    }));
+  const optionsData = options.map((label: string) => ({
+    vote_id: vote.id,
+    label
+  }));
 
-    const { error: optionsError } = await supabase
-      .from("vote_options")
-      .insert(optionsData);
+  const { error: optionsError } = await supabase
+    .from("vote_options")
+    .insert(optionsData);
 
-    if (optionsError) throw optionsError;
+  if (optionsError) throw optionsError;
 
-    return NextResponse.json({ success: true, voteId: vote.id });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to create vote" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true, voteId: vote.id });
+});
 
-export async function GET(request: Request) {
+export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  try {
-    await readLimiter.check(60, ip);
-  } catch {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
-  }
+  await readLimiter.check(60, ip);
 
-  // Enforce Approved status to see votes
   const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
-  if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: 401 });
+  if (!auth.ok) throw new Error(auth.message);
 
   const { searchParams } = new URL(request.url);
   const committeeId = searchParams.get("committeeId");
 
-  if (!committeeId) return NextResponse.json({ error: "Missing committee ID" }, { status: 400 });
+  if (!committeeId) throw new Error("Missing committee ID");
 
   const { data, error } = await supabase
     .from("votes")
@@ -80,11 +69,7 @@ export async function GET(request: Request) {
     .eq("committee_id", committeeId)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) throw error;
 
   return NextResponse.json(data);
-}
-
-// Change Log:
-// - Added `requireApproved: true` to GET to restrict vote viewing to approved users.
-// - Explicit `created_at: new Date().toISOString()` in POST.
+});

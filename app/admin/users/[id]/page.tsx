@@ -10,14 +10,9 @@ import {
     Mail,
     Phone,
     GraduationCap,
-    Shield,
-    ShieldAlert,
-    ShieldCheck,
-    User as UserIcon,
     MoreVertical,
     FileText,
     Building2,
-    BookOpen,
     ArrowUpRight,
     CreditCard,
     CheckCircle2,
@@ -25,8 +20,7 @@ import {
     XCircle,
     Wallet,
     UploadCloud,
-    Camera,
-    Eye
+    UserIcon
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +36,7 @@ import { WarningManager } from "@/components/admin/WarningManager";
 import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
 import { cn } from "@/lib/utils";
 import { AdminPaymentUploadDialog } from "@/components/admin/AdminPaymentUploadDialog";
+import { ROLES, ROLE_METADATA, UserRole } from "@/lib/roles";
 
 export default function UserDetailPage() {
     const params = useParams();
@@ -143,14 +138,13 @@ export default function UserDetailPage() {
     const managedCommittee = user.managed_committees?.[0];
     const memberCommittee = user.committee_members?.[0]?.committee;
     const activeCommittee = managedCommittee || memberCommittee;
-    const isCommitteeExecutive = user.role === 'committee_chairman' || user.role === 'deputy_chair';
+    const isCommitteeExecutive = user.role === ROLES.CHAIRMAN || user.role === ROLES.DEPUTY_CHAIR;
 
     const application = getFirstItem(user.application);
     const paymentStatus = application?.payment_status || "unpaid";
     
-    // Fix: Ensure form access is safe
     const appForm = Array.isArray(application?.form) ? application.form[0] : application?.form;
-    const formSlug = appForm?.slug || 'delegate';
+    const formSlug = appForm?.slug || ROLES.DELEGATE;
     const formData = application?.form_data || {};
 
     const handlePaymentClick = () => {
@@ -165,18 +159,14 @@ export default function UserDetailPage() {
     };
 
     const getRoleBadge = (role: string) => {
-        switch (role) {
-            case "superadmin": return <Badge className="bg-red-500/10 text-red-600 border-red-500/20"><ShieldAlert className="w-3 h-3 mr-1" /> Süper Yönetici</Badge>;
-            case "admin": return <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20"><ShieldAlert className="w-3 h-3 mr-1" /> Yönetici</Badge>;
-            case "committee_chairman": return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20"><ShieldCheck className="w-3 h-3 mr-1" /> Başkan</Badge>;
-            case "deputy_chair": return <Badge className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20"><Shield className="w-3 h-3 mr-1" /> Başkan Yrd.</Badge>;
-            default: // Applicant types
-                switch (formSlug) {
-                    case 'press': return <Badge className="bg-pink-500/10 text-pink-600 border-pink-500/20"><Camera className="w-3 h-3 mr-1" /> Basın</Badge>;
-                    case 'observer': return <Badge className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20"><Eye className="w-3 h-3 mr-1" /> Gözlemci</Badge>;
-                    default: return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20"><UserIcon className="w-3 h-3 mr-1" /> Delege</Badge>;
-                }
-        }
+        const meta = ROLE_METADATA[role as UserRole] || ROLE_METADATA[ROLES.APPLICANT];
+        const Icon = meta.icon;
+        
+        return (
+            <Badge className={cn(meta.bgClass, meta.colorClass, meta.borderClass)}>
+                <Icon className="w-3 h-3 mr-1" /> {meta.label}
+            </Badge>
+        );
     };
 
     const getPaymentStatusDisplay = (status: string) => {
@@ -208,7 +198,6 @@ export default function UserDetailPage() {
         }
     };
 
-    // Helper to find label in form definition
     const getFieldLabel = (key: string) => {
         if (appForm?.steps) {
             for (const step of appForm.steps) {
@@ -236,7 +225,6 @@ export default function UserDetailPage() {
         return (
             <div className="grid gap-6">
                 {Object.entries(formData).map(([key, value]) => {
-                    // Skip system mapped fields if they are displayed elsewhere
                     if (['phone_number', 'school_name', 'birth_date', 'grade', 'city'].includes(key)) return null;
                     
                     return (
@@ -346,7 +334,7 @@ export default function UserDetailPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 
                                 {/* Committee Block - Only for Delegates or Staff */}
-                                {(user.role !== 'applicant' || formSlug === 'delegate') && (
+                                {(user.role !== ROLES.APPLICANT || formSlug === ROLES.DELEGATE) && (
                                     <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                                         <div className="flex items-center gap-3">
                                             <div className="p-2 bg-background rounded-full border border-border/50">
@@ -491,8 +479,3 @@ export default function UserDetailPage() {
         </div>
     );
 }
-
-// Change Log:
-// - Fetched `application.form` and `application.form_data` safely.
-// - Replaced static "Experience" and "Motivation" sections with `renderDynamicData` which iterates over `form_data`.
-// - Uses `getFieldLabel` helper to show readable field names instead of technical IDs.

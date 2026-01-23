@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { apiHandler } from "@/lib/api-handler";
+import { ROLES } from "@/lib/roles";
 
-export async function GET(request: Request) {
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
-  if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
-  const session = auth.session;
+export const GET = apiHandler(async (request: Request) => {
+  const auth = await getAuthorization({ 
+    requireAuth: true, 
+    allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] 
+  });
+  if (!auth.ok) throw new Error(auth.message);
 
   const { searchParams } = new URL(request.url);
   const role = searchParams.get("role") || "all";
@@ -18,14 +22,12 @@ export async function GET(request: Request) {
   }
 
   if (committeeId) {
-    // If filtering by committee, we need to join committee_members
-    // Supabase JS inner join syntax
     const { data, error } = await supabase
         .from("committee_members")
         .select("user_id")
         .eq("committee_id", committeeId);
     
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) throw error;
     
     const ids = data.map(r => r.user_id);
     return NextResponse.json(ids);
@@ -33,8 +35,8 @@ export async function GET(request: Request) {
 
   const { data, error } = await query;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) throw error;
   
   const ids = data.map(u => u.id);
   return NextResponse.json(ids);
-}
+});

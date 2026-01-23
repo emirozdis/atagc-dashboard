@@ -5,17 +5,15 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logAction } from "@/lib/logger";
 import { getSignedUrl } from "@/lib/storage-utils";
 import { sendSystemNotification } from "@/lib/notification-service";
+import { apiHandler } from "@/lib/api-handler";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
-// ... GET implementation remains unchanged ...
-export async function GET(request: Request) {
-  // Enforce Approved status for connections
+export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
-  if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   const userId = auth.session.user.id;
 
-  // 1. Fetch Received Pending Requests
   const { data: received, error: receivedError } = await supabase
     .from("user_connections")
     .select(`
@@ -30,9 +28,8 @@ export async function GET(request: Request) {
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
-  if (receivedError) return NextResponse.json({ error: receivedError.message }, { status: 500 });
+  if (receivedError) throw receivedError;
 
-  // 2. Fetch Sent Pending Requests
   const { data: sent, error: sentError } = await supabase
     .from("user_connections")
     .select(`
@@ -47,9 +44,8 @@ export async function GET(request: Request) {
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
-  if (sentError) return NextResponse.json({ error: sentError.message }, { status: 500 });
+  if (sentError) throw sentError;
 
-  // 3. Fetch Connected Users (Both directions)
   const { data: sentConnections } = await supabase
     .from("user_connections")
     .select(`
@@ -74,7 +70,6 @@ export async function GET(request: Request) {
     .eq("recipient_id", userId)
     .eq("status", "connected");
 
-  // --- Image Signing Helper ---
   const signImages = async (list: any[], userKey: string) => {
     return Promise.all((list || []).map(async (item: any) => {
       const userObj = item[userKey];
@@ -97,110 +92,93 @@ export async function GET(request: Request) {
     sent: sentFormatted,
     connected: connectedFormatted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
   });
-}
+});
 
-export async function POST(request: Request) {
+export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  try {
-    await limiter.check(10, ip); // 10 scans per minute
-  } catch {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
-  }
+  await limiter.check(10, ip);
 
-  // Enforce Approved status
   const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
-  if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   const requesterId = auth.session.user.id;
 
-  try {
-    const { targetUserId } = await request.json();
+  const { targetUserId } = await request.json();
 
-    if (!targetUserId) return NextResponse.json({ error: "Target ID required" }, { status: 400 });
-    if (requesterId === targetUserId) return NextResponse.json({ error: "You cannot add yourself" }, { status: 400 });
+  if (!targetUserId) throw new Error("Target ID required");
+  if (requesterId === targetUserId) throw new Error("You cannot add yourself");
 
-    // 1. Check Privacy Settings of Target
-    const { data: targetDetails } = await supabase
-      .from("user_details")
-      .select("allow_connections")
-      .eq("user_id", targetUserId)
-      .single();
+  const { data: targetDetails } = await supabase
+    .from("user_details")
+    .select("allow_connections")
+    .eq("user_id", targetUserId)
+    .single();
 
-    if (targetDetails && targetDetails.allow_connections === false) {
-      return NextResponse.json({ error: "Kullanıcı bağlantı isteklerini kapatmış." }, { status: 403 });
+  if (targetDetails && targetDetails.allow_connections === false) {
+    return NextResponse.json({ error: "Kullanıcı bağlantı isteklerini kapatmış." }, { status: 403 });
+  }
+
+  const { data: existing } = await supabase
+    .from("user_connections")
+    .select("*")
+    .or(`and(requester_id.eq.${requesterId},recipient_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},recipient_id.eq.${requesterId})`)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.status === 'connected') {
+      return NextResponse.json({ message: "Zaten bağlantınız var.", status: "already_connected" });
     }
+    if (existing.status === 'pending') {
+      return NextResponse.json({ message: "İstek zaten gönderilmiş veya bekleniyor.", status: "pending" });
+    }
+    if (existing.status === 'blocked') {
+      return NextResponse.json({ error: "İşlem gerçekleştirilemedi." }, { status: 403 });
+    }
+    
+    if (existing.status === 'rejected') {
+      if (existing.requester_id === requesterId) {
+        const { error: updateError } = await supabase
+          .from("user_connections")
+          .update({ 
+              status: 'pending', 
+              updated_at: new Date().toISOString() 
+          })
+          .eq("id", existing.id);
 
-    // 2. Check Existing Connection
-    const { data: existing } = await supabase
-      .from("user_connections")
-      .select("*")
-      .or(`and(requester_id.eq.${requesterId},recipient_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},recipient_id.eq.${requesterId})`)
-      .maybeSingle();
+        if (updateError) throw updateError;
 
-    if (existing) {
-      if (existing.status === 'connected') {
-        return NextResponse.json({ message: "Zaten bağlantınız var.", status: "already_connected" });
-      }
-      if (existing.status === 'pending') {
-        return NextResponse.json({ message: "İstek zaten gönderilmiş veya bekleniyor.", status: "pending" });
-      }
-      if (existing.status === 'blocked') {
-        return NextResponse.json({ error: "İşlem gerçekleştirilemedi." }, { status: 403 });
-      }
-      
-      // Handle REJECTED case: Allow resending
-      if (existing.status === 'rejected') {
-        if (existing.requester_id === requesterId) {
-          const { error: updateError } = await supabase
-            .from("user_connections")
-            .update({ 
-                status: 'pending', 
-                updated_at: new Date().toISOString() 
-            })
-            .eq("id", existing.id);
+        await logAction(requesterId, "connection_request_resend", { target_id: targetUserId }, request);
+        
+        await sendSystemNotification(targetUserId, "connection_request");
 
-          if (updateError) throw updateError;
-
-          await logAction(requesterId, "connection_request_resend", { target_id: targetUserId }, request);
-          
-          // NOTIFICATION (Resend)
-          await sendSystemNotification(targetUserId, "connection_request");
-
-          return NextResponse.json({ success: true, message: "İstek tekrar gönderildi." });
-        } else {
-          await supabase.from("user_connections").delete().eq("id", existing.id);
-        }
+        return NextResponse.json({ success: true, message: "İstek tekrar gönderildi." });
+      } else {
+        await supabase.from("user_connections").delete().eq("id", existing.id);
       }
     }
+  }
 
-    // 3. Create Connection Request
-    const { error } = await supabase
-      .from("user_connections")
-      .insert({
-        requester_id: requesterId,
-        recipient_id: targetUserId,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      });
-
-    if (error) throw error;
-
-    const { data: targetUser } = await supabase.from("users").select("full_name").eq("id", targetUserId).single();
-
-    await logAction(requesterId, "connection_request", { target_id: targetUserId }, request);
-
-    // NOTIFICATION (New Request)
-    await sendSystemNotification(targetUserId, "connection_request");
-
-    return NextResponse.json({ 
-      success: true, 
-      message: `Bağlantı isteği gönderildi: ${targetUser?.full_name}` 
+  const { error } = await supabase
+    .from("user_connections")
+    .insert({
+      requester_id: requesterId,
+      recipient_id: targetUserId,
+      status: 'pending',
+      created_at: new Date().toISOString()
     });
 
-  } catch (error) {
-    console.error("Connection request error:", error);
-    return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
-  }
-}
+  if (error) throw error;
+
+  const { data: targetUser } = await supabase.from("users").select("full_name").eq("id", targetUserId).single();
+
+  await logAction(requesterId, "connection_request", { target_id: targetUserId }, request);
+
+  await sendSystemNotification(targetUserId, "connection_request");
+
+  return NextResponse.json({ 
+    success: true, 
+    message: `Bağlantı isteği gönderildi: ${targetUser?.full_name}` 
+  });
+});
 
 // Change Log:
-// - Added `sendSystemNotification(targetUserId, "connection_request")` when a new or resent request occurs.
+// - Wrapped with `apiHandler`.

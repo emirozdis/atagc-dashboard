@@ -2,65 +2,48 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
+import { apiHandler } from "@/lib/api-handler";
 
-// Limit: 30 requests per minute (Polling endpoint)
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
-export async function GET(
+export const GET = apiHandler(async (
     request: Request,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-    try {
-        await limiter.check(30, ip);
-    } catch {
-        return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
-    }
+    await limiter.check(30, ip);
 
     const auth = await getAuthorization({ requireAuth: true });
-    if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
-    const session = auth.session;
+    if (!auth.ok) throw new Error("Unauthorized");
 
-    try {
-        const { id } = await params;
+    const { id } = await params;
 
-        // 1. Get roll call to find committee_id
-        const { data: rollCall, error: rcError } = await supabase
-            .from("roll_calls")
-            .select("committee_id")
-            .eq("id", id)
-            .single();
+    const { data: rollCall, error: rcError } = await supabase
+        .from("roll_calls")
+        .select("committee_id")
+        .eq("id", id)
+        .single();
 
-        if (rcError || !rollCall) {
-            return NextResponse.json({ error: "Roll call not found" }, { status: 404 });
-        }
-
-        // 2. Count scans (attendance)
-        const { count: scannedCount, error: scanError } = await supabase
-            .from("roll_call_logs")
-            .select("*", { count: 'exact', head: true })
-            .eq("roll_call_id", id);
-
-        if (scanError) throw scanError;
-
-        // 3. Count total committee members
-        const { count: memberCount, error: memberError } = await supabase
-            .from("committee_members")
-            .select("*", { count: 'exact', head: true })
-            .eq("committee_id", rollCall.committee_id);
-
-        if (memberError) throw memberError;
-
-        return NextResponse.json({
-            scanned: scannedCount || 0,
-            total: memberCount || 0
-        });
-
-    } catch (error) {
-        console.error("Stats error:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    if (rcError || !rollCall) {
+        return NextResponse.json({ error: "Roll call not found" }, { status: 404 });
     }
-}
 
-// Change Log:
-// - Added rate limiting (30/min) to handle client-side polling efficiently.
+    const { count: scannedCount, error: scanError } = await supabase
+        .from("roll_call_logs")
+        .select("*", { count: 'exact', head: true })
+        .eq("roll_call_id", id);
+
+    if (scanError) throw scanError;
+
+    const { count: memberCount, error: memberError } = await supabase
+        .from("committee_members")
+        .select("*", { count: 'exact', head: true })
+        .eq("committee_id", rollCall.committee_id);
+
+    if (memberError) throw memberError;
+
+    return NextResponse.json({
+        scanned: scannedCount || 0,
+        total: memberCount || 0
+    });
+});

@@ -12,22 +12,13 @@ import {
     CommandSeparator,
 } from "@/components/ui/command";
 import {
-    LayoutDashboard,
-    User,
     Settings,
-    Briefcase,
-    PenTool,
-    QrCode,
-    ScanLine,
-    Megaphone,
-    FolderOpen,
-    UsersRound,
-    CreditCard,
     LogOut,
     ChevronRight
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { participantItems } from "@/lib/navigation";
+import { STAFF_ROLES } from "@/lib/roles";
 
 interface SearchCommandProps {
     open: boolean;
@@ -37,20 +28,19 @@ interface SearchCommandProps {
 export function SearchCommand({ open, setOpen }: SearchCommandProps) {
     const router = useRouter();
     const { data: session } = useSession();
-    
+
     const role = session?.user?.role;
     const status = session?.user?.applicationStatus;
 
-    // Filter items based on role and approval status (same logic as Sidebar)
     const items = participantItems.filter(item => {
         // 1. Role Check
         if (item.roles && role && !item.roles.includes(role)) return false;
-        
-        // 2. Approval Check (only for applicants or generic roles that need approval)
-        // Staff roles (admin/chairs) are usually implicitly approved
-        const isStaff = ['superadmin', 'admin', 'committee_chairman', 'deputy_chair'].includes(role || "");
+
+        // 2. Approval Check
+        const isStaff = role ? STAFF_ROLES.includes(role) : false;
+
         if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
-        
+
         return true;
     });
 
@@ -78,13 +68,12 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
 
                 <CommandGroup heading="Genel">
                     {items.map((item) => {
-                        // Skip profile and payment items - they'll be in separate groups
                         if (item.href === "/dashboard/profile" || item.href === "/dashboard/payment") {
                             return null;
                         }
                         return (
                             <div key={item.href}>
-                                <CommandItem 
+                                <CommandItem
                                     onSelect={() => runCommand(() => router.push(item.href))}
                                 >
                                     <item.icon className="mr-2 h-4 w-4" />
@@ -114,7 +103,7 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
                         .filter(item => item.href === "/dashboard/profile" || item.href === "/dashboard/payment")
                         .map((item) => (
                             <div key={item.href}>
-                                <CommandItem 
+                                <CommandItem
                                     onSelect={() => runCommand(() => router.push(item.href))}
                                     keywords={item.href === "/dashboard/profile" ? ['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings'] : []}
                                 >
@@ -135,8 +124,8 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
                                 ))}
                             </div>
                         ))}
-                    <CommandItem 
-                        keywords={['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings']} 
+                    <CommandItem
+                        keywords={['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings']}
                         onSelect={() => runCommand(() => router.push("/dashboard/profile#security"))}
                     >
                         <Settings className="mr-2 h-4 w-4" />
@@ -156,8 +145,3 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
         </CommandDialog>
     );
 }
-
-// Change Log:
-// - Implemented Command Palette using `cmdk` (shadcn/ui Command).
-// - Added keyboard shortcut support (Ctrl+K).
-// - Mapped keywords like 'password', 'reset' to navigate to profile settings.

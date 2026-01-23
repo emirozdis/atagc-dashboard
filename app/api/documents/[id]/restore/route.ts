@@ -2,18 +2,22 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { logAction } from "@/lib/logger";
+import { apiHandler } from "@/lib/api-handler";
+import { ROLES } from "@/lib/roles";
 
-export async function POST(
+export const POST = apiHandler(async (
     request: Request,
     { params }: { params: Promise<{ id: string }> }
-) {
-    const { id } = await params; // committeeId
-    const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin", "committee_chairman"] });
-    if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+) => {
+    const { id } = await params;
+    const auth = await getAuthorization({ 
+        requireAuth: true, 
+        allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN] 
+    });
+    if (!auth.ok || !auth.session) throw new Error("Unauthorized");
 
     const { versionId } = await request.json();
 
-    // 1. Fetch Version Blob
     const { data: version, error: vError } = await supabase
         .from("document_versions")
         .select("document_blob, version_name")
@@ -22,7 +26,6 @@ export async function POST(
 
     if (vError || !version) return NextResponse.json({ error: "Version not found" }, { status: 404 });
 
-    // 2. Overwrite Head (Live Doc)
     const { error: updateError } = await supabase
         .from("committee_documents")
         .update({
@@ -31,14 +34,13 @@ export async function POST(
         })
         .eq("committee_id", id);
 
-    if (updateError) return NextResponse.json({ error: "Restore failed" }, { status: 500 });
+    if (updateError) throw updateError;
 
-    // 3. Log
     await logAction(auth.session.user.id, "restore_document_version", { committee_id: id, version_id: versionId }, request);
 
-    // 4. Return success. Client must now trigger Hocuspocus refresh via WebSocket.
     return NextResponse.json({ success: true });
-}
+});
 
 // Change Log:
-// - New API route for restoring a previous document version.
+// - Wrapped with `apiHandler`.
+// - Replaced hardcoded strings with `ROLES` constants.

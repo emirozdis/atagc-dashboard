@@ -2,19 +2,20 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
+import { apiHandler } from "@/lib/api-handler";
+import { ROLES } from "@/lib/roles";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
-export async function GET(request: Request) {
+export const GET = apiHandler(async (request: Request) => {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-    try {
-        await limiter.check(60, ip);
-    } catch {
-        return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
-    }
+    await limiter.check(60, ip);
 
-    const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "deputy_chair"] });
-    if (!auth.ok || !auth.session) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+    const auth = await getAuthorization({ 
+        requireAuth: true, 
+        allowedRoles: [ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR] 
+    });
+    if (!auth.ok || !auth.session) throw new Error(auth.message);
     const session = auth.session;
 
     const { searchParams } = new URL(request.url);
@@ -24,7 +25,6 @@ export async function GET(request: Request) {
 
     let committeeId: string | null = null;
 
-    // Find the committee managed by this user
     const { data: adminCommittee } = await supabase.from("committees").select("id").eq("admin_id", session.user.id).maybeSingle();
     if (adminCommittee) committeeId = adminCommittee.id;
     else {
@@ -34,15 +34,13 @@ export async function GET(request: Request) {
 
     if (!committeeId) return NextResponse.json({ error: "Committee not found" }, { status: 404 });
 
-    // Get total count for pagination
     const { count, error: countError } = await supabase
         .from("roll_calls")
         .select("*", { count: "exact", head: true })
         .eq("committee_id", committeeId);
 
-    if (countError) return NextResponse.json({ error: "Failed to fetch count" }, { status: 500 });
+    if (countError) throw countError;
 
-    // Get paginated roll calls with attendance count
     const { data: rollCalls, error: fetchError } = await supabase
         .from("roll_calls")
         .select(`
@@ -55,9 +53,8 @@ export async function GET(request: Request) {
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 
-    if (fetchError) return NextResponse.json({ error: "Failed to fetch roll calls" }, { status: 500 });
+    if (fetchError) throw fetchError;
 
-    // Get total members count to calculate rate
     const { count: totalMembers } = await supabase
         .from("committee_members")
         .select("*", { count: "exact", head: true })
@@ -83,4 +80,8 @@ export async function GET(request: Request) {
             totalPages
         }
     });
-}
+});
+
+// Change Log:
+// - Wrapped with `apiHandler`.
+// - Replaced hardcoded strings with `ROLES` constants.

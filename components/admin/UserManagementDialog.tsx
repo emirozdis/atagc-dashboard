@@ -22,21 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Loader2,
-  ShieldAlert,
-  ShieldCheck,
-  Shield,
   UserCheck,
   UserX,
   Check,
   Trash2,
-  AlertCircle,
-  Users,
-  Camera,
-  Eye,
-  User
+  AlertCircle
 } from "lucide-react";
 import { User as UserType } from "@/types/user";
 import { cn } from "@/lib/utils";
+import { ROLE_METADATA, ROLES, UserRole } from "@/lib/roles";
 
 interface ManageUserDialogProps {
   user: UserType | null;
@@ -46,81 +40,6 @@ interface ManageUserDialogProps {
   onToggleSuspend: (userId: string, isSuspended: boolean) => Promise<void>;
   onDelete: (userId: string) => Promise<void>;
 }
-
-const ROLES = [
-  {
-    id: "applicant",
-    label: "Başvuru Sahibi",
-    description: "Henüz onaylanmamış başvuru sahibi.",
-    icon: Users,
-    color: "text-gray-500",
-    bg: "bg-gray-500/10",
-    border: "border-gray-500/20"
-  },
-  {
-    id: "delegate",
-    label: "Delege",
-    description: "Komite üyesi. Oylama ve söz hakkı vardır.",
-    icon: User,
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20"
-  },
-  {
-    id: "press",
-    label: "Basın",
-    description: "Basın ekibi üyesi.",
-    icon: Camera,
-    color: "text-pink-500",
-    bg: "bg-pink-500/10",
-    border: "border-pink-500/20"
-  },
-  {
-    id: "observer",
-    label: "Gözlemci",
-    description: "Akademik takım gözlemcisi.",
-    icon: Eye,
-    color: "text-cyan-500",
-    bg: "bg-cyan-500/10",
-    border: "border-cyan-500/20"
-  },
-  {
-    id: "deputy_chair",
-    label: "Komite Başkan Yardımcısı",
-    description: "Komite yönetimine yardımcı olur.",
-    icon: Shield,
-    color: "text-indigo-500",
-    bg: "bg-indigo-500/10",
-    border: "border-indigo-500/20"
-  },
-  {
-    id: "committee_chairman",
-    label: "Komite Başkanı",
-    description: "Atandığı komiteyi yönetir.",
-    icon: ShieldCheck,
-    color: "text-purple-500",
-    bg: "bg-purple-500/10",
-    border: "border-purple-500/20"
-  },
-  {
-    id: "admin",
-    label: "Yönetici",
-    description: "Sistem yönetimi ve kullanıcı işlemleri.",
-    icon: ShieldAlert,
-    color: "text-orange-500",
-    bg: "bg-orange-500/10",
-    border: "border-orange-500/20"
-  },
-  {
-    id: "superadmin",
-    label: "Süper Yönetici",
-    description: "Tam yetki. Tüm sistemi yönetebilir.",
-    icon: ShieldAlert,
-    color: "text-red-500",
-    bg: "bg-red-500/10",
-    border: "border-red-500/20"
-  },
-];
 
 export function ManageUserDialog({
   user,
@@ -133,25 +52,20 @@ export function ManageUserDialog({
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<"main" | "role_select">("main");
 
-  // Staged changes
   const [selectedRole, setSelectedRole] = useState<string>("");
 
-  // Confirmation Dialog States
   const [showRoleConfirm, setShowRoleConfirm] = useState(false);
   const [showSuspendConfirm, setShowSuspendConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Computed state to hide main dialog when a confirmation is open
   const hasActiveConfirmation = showRoleConfirm || showSuspendConfirm || showDeleteConfirm;
 
-  // Initialize state when user changes or dialog opens
   useEffect(() => {
     if (open && user) {
       setSelectedRole(user.role);
     }
   }, [open, user]);
 
-  // Reset View State only when completely closed
   useEffect(() => {
     if (!open) {
       const t = setTimeout(() => {
@@ -208,8 +122,8 @@ export function ManageUserDialog({
     }
   };
 
-  const currentRoleObj = ROLES.find(r => r.id === user.role) || ROLES[0];
-  const newRoleObj = ROLES.find(r => r.id === selectedRole) || ROLES[0];
+  const currentRoleMeta = ROLE_METADATA[user.role as UserRole] || ROLE_METADATA[ROLES.APPLICANT];
+  const newRoleMeta = ROLE_METADATA[selectedRole as UserRole] || ROLE_METADATA[ROLES.APPLICANT];
 
   return (
     <>
@@ -233,18 +147,18 @@ export function ManageUserDialog({
                   <div className={cn(
                     "flex items-start gap-4 p-4 rounded-xl border transition-all",
                     "bg-card hover:bg-accent/5 cursor-pointer group",
-                    currentRoleObj.border
+                    currentRoleMeta.borderClass
                   )} onClick={() => setView("role_select")}>
-                    <div className={cn("p-2.5 rounded-lg shrink-0", currentRoleObj.bg, currentRoleObj.color)}>
-                      <currentRoleObj.icon className="w-5 h-5" />
+                    <div className={cn("p-2.5 rounded-lg shrink-0", currentRoleMeta.bgClass, currentRoleMeta.colorClass)}>
+                      <currentRoleMeta.icon className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-semibold text-sm">{currentRoleObj.label}</h4>
+                        <h4 className="font-semibold text-sm">{currentRoleMeta.label}</h4>
                         <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground group-hover:text-primary">Değiştir</Button>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 leading-relaxed pr-8">
-                        {currentRoleObj.description}
+                        {currentRoleMeta.description}
                       </p>
                     </div>
                   </div>
@@ -287,30 +201,31 @@ export function ManageUserDialog({
                   <Button variant="ghost" size="sm" onClick={() => setView("main")} className="h-6 text-xs">İptal</Button>
                 </div>
                 <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-1">
-                  {ROLES.map((role) => {
-                    const isActive = selectedRole === role.id;
-                    const Icon = role.icon;
+                  {Object.values(ROLES).map((roleKey) => {
+                    const meta = ROLE_METADATA[roleKey];
+                    const isActive = selectedRole === roleKey;
+                    const Icon = meta.icon;
                     return (
                       <div
-                        key={role.id}
-                        onClick={() => handleRoleChangeRequest(role.id)}
+                        key={roleKey}
+                        onClick={() => handleRoleChangeRequest(roleKey)}
                         className={cn(
                           "relative flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all hover:scale-[1.01]",
                           isActive
-                            ? `border-${role.color.split('-')[1]}-500 bg-accent shadow-sm`
+                            ? `border-${meta.colorClass.split('-')[1]}-500 bg-accent shadow-sm`
                             : "border-border hover:bg-muted/50"
                         )}
                       >
-                        <div className={cn("p-2 rounded-md", role.bg, role.color)}>
+                        <div className={cn("p-2 rounded-md", meta.bgClass, meta.colorClass)}>
                           <Icon className="w-4 h-4" />
                         </div>
                         <div className="flex-1">
                           <div className="font-medium text-sm flex items-center gap-2">
-                            {role.label}
+                            {meta.label}
                             {isActive && <Check className="w-3.5 h-3.5 text-primary animate-in zoom-in" />}
                           </div>
                           <div className="text-[11px] text-muted-foreground line-clamp-1">
-                            {role.description}
+                            {meta.description}
                           </div>
                         </div>
                       </div>
@@ -329,7 +244,7 @@ export function ManageUserDialog({
             <AlertDialogTitle>Rol Değişikliğini Onayla</AlertDialogTitle>
             <AlertDialogDescription>
               <strong>{user.full_name}</strong> kullanıcısının rolünü <br />
-              <span className="font-semibold text-foreground">{currentRoleObj.label}</span> &rarr; <span className={cn("font-bold", newRoleObj.color)}>{newRoleObj.label}</span>
+              <span className="font-semibold text-foreground">{currentRoleMeta.label}</span> &rarr; <span className={cn("font-bold", newRoleMeta.colorClass)}>{newRoleMeta.label}</span>
               <br /> olarak değiştirmek üzeresiniz.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -393,7 +308,3 @@ export function ManageUserDialog({
     </>
   );
 }
-
-// Change Log:
-// - Updated `ROLES` to include `delegate`, `press`, `observer`.
-// - Added distinct icons and colors for new roles.

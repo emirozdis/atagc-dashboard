@@ -8,6 +8,7 @@ import { signOut, useSession } from "next-auth/react";
 import { participantItems } from "@/lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ConnectionState } from "@/types/connection";
+import { STAFF_ROLES, MANAGEMENT_ROLES, COMMITTEE_LEADS } from "@/lib/roles";
 
 interface SidebarProps {
   className?: string;
@@ -21,22 +22,24 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   const role = session?.user?.role;
   const status = session?.user?.applicationStatus;
 
+  // Check if current user is Staff using the centralized array
+  // Use explicit check to ensure 'role' is defined before checking includes
+  const isStaff = role ? STAFF_ROLES.includes(role) : false;
+
   // Filter items
   const items = participantItems.filter(item => {
     // 1. Role Check
     if (item.roles && role && !item.roles.includes(role)) return false;
     
-    // 2. Approval Check (only for applicants or generic roles that need approval)
-    // Staff roles (admin/chairs) are usually implicitly approved
-    const isStaff = ['superadmin', 'admin', 'committee_chairman', 'deputy_chair'].includes(role || "");
+    // 2. Approval Check
     if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
     
     return true;
   });
 
   const roleTag = (() => {
-    if (role === 'superadmin' || role === 'admin') return "Yönetim";
-    if (role === 'committee_chairman' || role === 'deputy_chair') return "Akademi";
+    if (role && MANAGEMENT_ROLES.includes(role)) return "Yönetim";
+    if (role && COMMITTEE_LEADS.includes(role)) return "Akademi";
     return null;
   })();
 
@@ -115,7 +118,3 @@ export function Sidebar({ className, onClose }: SidebarProps) {
     </div>
   );
 }
-
-// Change Log:
-// - Simplified filter logic: removed `applicantType` checks since `role` now accurately reflects 'delegate', 'press', etc.
-// - Updated approval check to skip staff roles (who are always approved).

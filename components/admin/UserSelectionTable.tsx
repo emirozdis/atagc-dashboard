@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, CheckCircle2, AlertTriangle, CreditCard, User, Camera, Eye, ShieldCheck, ChevronUp } from "lucide-react";
+import { Search, Trash2, Shield, UserCog, Filter, ArrowUpDown, X, CheckCircle2, AlertTriangle, CreditCard, ShieldCheck, ChevronUp } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { toast } from "sonner";
 import { User as UserType } from "@/types/user";
@@ -20,22 +20,18 @@ import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
 import { MultiSelectPopover, MultiSelectOption } from "@/components/ui/multi-select-popover";
 import { PaymentStatusEnum } from "@/types/payment";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ROLES, ROLE_METADATA, UserRole } from "@/lib/roles";
+import { cn } from "@/lib/utils";
 
 interface UserSelectionTableProps {
   selectedUsers?: string[];
   onSelectionChange?: (ids: string[]) => void;
 }
 
-const roleOptions: MultiSelectOption[] = [
-    { value: "applicant", label: "Başvuru Sahibi" },
-    { value: "delegate", label: "Delege" },
-    { value: "press", label: "Basın" },
-    { value: "observer", label: "Gözlemci" },
-    { value: "deputy_chair", label: "Komite Başkan Yardımcısı" },
-    { value: "committee_chairman", label: "Komite Başkanı" },
-    { value: "admin", label: "Yönetici" },
-    { value: "superadmin", label: "Süper Yönetici" },
-];
+const roleOptions: MultiSelectOption[] = Object.values(ROLES).map(role => ({
+    value: role,
+    label: ROLE_METADATA[role as UserRole].label
+}));
 
 const statusOptions: MultiSelectOption[] = [
     { value: "active", label: "Aktif" },
@@ -191,18 +187,15 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   };
 
   const getRoleBadge = (user: UserType) => {
-    const role = user.role;
-    if (role === 'superadmin') return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 whitespace-nowrap">Süper Yönetici</Badge>;
-    if (role === 'admin') return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20 whitespace-nowrap">Yönetici</Badge>;
-    if (role === 'committee_chairman') return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 whitespace-nowrap">Başkan</Badge>;
-    if (role === 'deputy_chair') return <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20 whitespace-nowrap">Başkan Yrd.</Badge>;
-    
-    // Explicit Role Check based on user.role
-    if (role === 'delegate') return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 whitespace-nowrap gap-1"><User className="w-3 h-3" /> Delege</Badge>;
-    if (role === 'press') return <Badge variant="outline" className="bg-pink-500/10 text-pink-600 border-pink-500/20 whitespace-nowrap gap-1"><Camera className="w-3 h-3" /> Basın</Badge>;
-    if (role === 'observer') return <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20 whitespace-nowrap gap-1"><Eye className="w-3 h-3" /> Gözlemci</Badge>;
+    const roleKey = user.role as UserRole;
+    const meta = ROLE_METADATA[roleKey] || ROLE_METADATA[ROLES.APPLICANT];
+    const Icon = meta.icon;
 
-    return <Badge variant="outline" className="bg-secondary text-muted-foreground border-border whitespace-nowrap">Katılımcı</Badge>;
+    return (
+        <Badge variant="outline" className={cn("whitespace-nowrap gap-1", meta.bgClass, meta.colorClass, meta.borderClass)}>
+            <Icon className="w-3 h-3" /> {meta.label}
+        </Badge>
+    );
   };
 
   const getPaymentBadge = (user: UserType) => {
@@ -352,12 +345,11 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="center" side="top" className="mb-2">
-                    <DropdownMenuItem onClick={() => handleBatchRole('delegate')}>Delege</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBatchRole('press')}>Basın</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBatchRole('observer')}>Gözlemci</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBatchRole('deputy_chair')}>Başkan Yrd.</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBatchRole('committee_chairman')}>Komite Başkanı</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBatchRole('admin')}>Yönetici</DropdownMenuItem>
+                    {Object.values(ROLES).map(role => (
+                        <DropdownMenuItem key={role} onClick={() => handleBatchRole(role)}>
+                            {ROLE_METADATA[role as UserRole].label}
+                        </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button size="sm" variant="ghost" disabled={deleteMutation.isPending} className="h-8 px-2 md:px-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors" onClick={handleDelete}>
@@ -379,8 +371,3 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
     </div>
   );
 }
-
-// Change Log:
-// - Updated `roleOptions` to include `delegate`, `press`, `observer`.
-// - Updated `getRoleBadge` to render specific badges for `delegate`, `press`, `observer`.
-// - Updated Bulk Action dropdown to include these new roles.

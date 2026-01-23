@@ -3,32 +3,31 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSignedUrls } from "@/lib/storage-utils";
+import { apiHandler } from "@/lib/api-handler";
+import { ROLES, COMMITTEE_LEADS } from "@/lib/roles";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
-export async function GET(request: Request) {
+export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-  try {
-    await limiter.check(60, ip);
-  } catch {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
-  }
+  await limiter.check(60, ip);
 
   // Strictly enforce Approved status.
   const auth = await getAuthorization({ 
       requireAuth: true, 
-      allowedRoles: ["committee_chairman", "deputy_chair", "applicant"], // Applicant filtered below
+      allowedRoles: [ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR, ROLES.APPLICANT], // Applicant filtered below
       requireApproved: true 
   });
   
   if (!auth.ok || !auth.session) {
-    return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+    throw new Error(auth.message);
   }
   
   const session = auth.session;
 
-  // Block basic applicants/delegates from this management endpoint
-  if (session.user.role === 'applicant' || session.user.role === 'delegate' || session.user.role === 'press' || session.user.role === 'observer') {
+  // Block basic applicants/delegates from this management endpoint.
+  // Only Committee Leads (Chair/Deputy) should access this manager view.
+  if (!COMMITTEE_LEADS.includes(session.user.role)) {
       return NextResponse.json({ error: "Forbidden: Management access only" }, { status: 403 });
   }
 
@@ -82,7 +81,7 @@ export async function GET(request: Request) {
   ]);
 
   if (committeeRes.error || !committeeRes.data) {
-    return NextResponse.json({ error: "Failed to fetch committee details" }, { status: 500 });
+    throw new Error("Failed to fetch committee details");
   }
 
   // --- Image Optimization Logic ---
@@ -98,8 +97,6 @@ export async function GET(request: Request) {
     let imagePath = null;
 
     if (details?.profile_picture_url) {
-        // Chairmen/Deputies can generally see members unless explicitly hidden, 
-        // but let's respect privacy settings for consistency unless it's self.
         if (isSelf || !isHidden) {
             imagePath = details.profile_picture_url;
             if (imagePath && !imagePath.startsWith('http')) {
@@ -119,10 +116,8 @@ export async function GET(request: Request) {
     };
   });
 
-  // Batch Sign
   if (pathsToSign.length > 0) {
       const signedData = await getSignedUrls("profile-pictures", pathsToSign);
-      // Map signed URLs back to members
       const urlMap = new Map();
       signedData?.forEach(item => urlMap.set(item.path, item.signedUrl));
 
@@ -149,8 +144,4 @@ export async function GET(request: Request) {
       last_roll_call: lastRollCall
     }
   });
-}
-
-// Change Log:
-// - Implemented batch image signing for managers as well.
-// - Ensures profile pictures are available on the Chairman's dashboard.
+});

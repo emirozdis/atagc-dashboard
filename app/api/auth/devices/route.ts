@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { UAParser } from "ua-parser-js";
+import { apiHandler } from "@/lib/api-handler";
 
-export async function GET(request: Request) {
+export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true });
-  if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   
   const userId = auth.session.user.id;
   const currentSessionId = auth.session.user.sessionId;
@@ -16,9 +17,8 @@ export async function GET(request: Request) {
     .eq("user_id", userId)
     .order("last_active", { ascending: false });
 
-  if (error) return NextResponse.json({ error: "Failed to fetch sessions" }, { status: 500 });
+  if (error) throw error;
 
-  // Parse User Agent strings
   const formattedSessions = sessions.map((s) => {
     const parser = new UAParser(s.user_agent || "");
     const browser = parser.getBrowser();
@@ -44,46 +44,40 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json(formattedSessions);
-}
+});
 
-export async function DELETE(request: Request) {
+export const DELETE = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true });
-  if (!auth.ok || !auth.session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!auth.ok || !auth.session) throw new Error("Unauthorized");
 
   const { searchParams } = new URL(request.url);
   const sessionId = searchParams.get("id");
-  const type = searchParams.get("type"); // 'all_others'
+  const type = searchParams.get("type"); 
 
   const userId = auth.session.user.id;
   const currentSessionId = auth.session.user.sessionId;
 
   if (type === 'all_others') {
-    // Delete all except current
     const { error } = await supabase
         .from("active_sessions")
         .delete()
         .eq("user_id", userId)
         .neq("id", currentSessionId);
     
-    if (error) return NextResponse.json({ error: "Failed to revoke sessions" }, { status: 500 });
+    if (error) throw error;
     return NextResponse.json({ success: true, message: "Diğer tüm cihazlardan çıkış yapıldı." });
   }
 
   if (sessionId) {
-    // Delete specific
     const { error } = await supabase
         .from("active_sessions")
         .delete()
         .eq("id", sessionId)
-        .eq("user_id", userId); // Security check: Ensure session belongs to user
+        .eq("user_id", userId); 
 
-    if (error) return NextResponse.json({ error: "Failed to revoke session" }, { status: 500 });
+    if (error) throw error;
     return NextResponse.json({ success: true, message: "Cihazdan çıkış yapıldı." });
   }
 
-  return NextResponse.json({ error: "Invalid request" }, { status: 400 });
-}
-
-// Change Log:
-// - New route to list active sessions with UA parsing.
-// - DELETE support for specific ID or bulk 'all_others'.
+  throw new Error("Invalid request");
+});

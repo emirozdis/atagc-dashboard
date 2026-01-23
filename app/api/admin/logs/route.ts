@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { apiHandler } from "@/lib/api-handler";
+import { ROLES } from "@/lib/roles";
 
-export async function GET(request: Request) {
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
-  if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
+export const GET = apiHandler(async (request: Request) => {
+  const auth = await getAuthorization({ 
+    requireAuth: true, 
+    allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] 
+  });
+  if (!auth.ok) throw new Error(auth.message);
 
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
@@ -35,31 +40,25 @@ export async function GET(request: Request) {
     `, { count: "exact" })
     .order("created_at", { ascending: false });
 
-  // Filter by Action Type
   if (action !== "all") {
     query = query.ilike("action", `%${action}%`);
   }
 
-  // Filter by Specific User ID
   if (userId) {
     query = query.eq("user_id", userId);
   }
 
-  // Filter by Date Range (Robust timestamptz handling)
   if (startDate) {
-    // Ensure we compare from the start of the day
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
     query = query.gte("created_at", start.toISOString());
   }
   if (endDate) {
-    // Ensure we compare until the very end of the day
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
     query = query.lte("created_at", end.toISOString());
   }
 
-  // Generic Search
   if (search) {
     query = query.or(`ip_address.ilike.%${search}%,user.full_name.ilike.%${search}%,user.email.ilike.%${search}%`, { foreignTable: 'user' });
   }
@@ -68,10 +67,7 @@ export async function GET(request: Request) {
 
   const { data, error, count } = await query;
 
-  if (error) {
-    console.error("Fetch logs error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  if (error) throw error;
 
   return NextResponse.json({
     data,
@@ -82,8 +78,4 @@ export async function GET(request: Request) {
       totalPages: Math.ceil((count || 0) / limit),
     }
   });
-}
-
-// Change Log:
-// - Updated Date Range logic to use `Date` objects and `toISOString()` for precise `timestamptz` comparison.
-// - Ensures `startDate` starts at 00:00:00 and `endDate` covers up to 23:59:59.999.
+});

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { participantItems } from "@/lib/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MANAGEMENT_ROLES, COMMITTEE_LEADS, STAFF_ROLES } from "@/lib/roles";
 
 interface MobileSidebarProps {
     onClose?: () => void;
@@ -18,18 +19,19 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
 
     const role = session?.user?.role;
     const status = session?.user?.applicationStatus;
-    const type = session?.user?.applicantType || "delegate";
+
+    const isStaff = role ? STAFF_ROLES.includes(role) : false;
 
     const roleTag = (() => {
-        if (role === 'superadmin' || role === 'admin') return "Yönetim";
-        if (role === 'committee_chairman' || role === 'deputy_chair') return "Akademi";
+        if (role && MANAGEMENT_ROLES.includes(role)) return "Yönetim";
+        if (role && COMMITTEE_LEADS.includes(role)) return "Akademi";
         return null;
     })();
 
     // Filter items
     const items = participantItems.filter((item) => {
         if (item.roles && role && !item.roles.includes(role)) return false;
-        if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
+        if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
         return true;
     });
 
@@ -86,6 +88,3 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
         </div>
     );
 }
-
-// Change Log:
-// - Added logic to filter mobile sidebar items based on `applicantType`.

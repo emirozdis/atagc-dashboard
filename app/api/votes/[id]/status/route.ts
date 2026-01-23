@@ -1,38 +1,34 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
+import { apiHandler } from "@/lib/api-handler";
+import { ROLES } from "@/lib/roles";
 
-export async function PUT(
+export const PUT = apiHandler(async (
   request: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
-  // Allow deputy_chair to close votes
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["committee_chairman", "deputy_chair", "superadmin"] });
-  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+) => {
+  const auth = await getAuthorization({ 
+    requireAuth: true, 
+    allowedRoles: [ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR, ROLES.SUPERADMIN] 
+  });
+  if (!auth.ok) throw new Error("Unauthorized");
 
   const { id } = await params;
   
-  try {
-    const body = await request.json();
-    const status = body.status;
+  const body = await request.json();
+  const status = body.status;
 
-    if (!status || (status !== 'open' && status !== 'closed')) {
-        return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-    }
-
-    const { error } = await supabase
-      .from("votes")
-      .update({ status })
-      .eq("id", id);
-
-    if (error) {
-        console.error("Vote update error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error("API error:", e);
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  if (!status || (status !== 'open' && status !== 'closed')) {
+      throw new Error("Invalid status");
   }
-}
+
+  const { error } = await supabase
+    .from("votes")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) throw error;
+
+  return NextResponse.json({ success: true });
+});
