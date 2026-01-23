@@ -27,7 +27,7 @@ export default withAuth(
         // If not an admin role, redirect to participant dashboard (or 403 page)
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
-      return null; // Admin is allowed
+      return null;
     }
 
     // 3. Protect generic Dashboard Routes (Participant View)

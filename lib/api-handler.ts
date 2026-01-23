@@ -13,7 +13,7 @@ export function apiHandler(handler: ApiHandlerFunction): ApiHandlerFunction {
     } catch (err: any) {
       console.error("[API Error]:", err);
 
-      // Handle Zod Validation Errors
+      // Zod Validation Errors
       if (err instanceof ZodError) {
         return NextResponse.json(
           { error: "Validation Error", details: err.format() },
@@ -21,7 +21,7 @@ export function apiHandler(handler: ApiHandlerFunction): ApiHandlerFunction {
         );
       }
 
-      // Handle Known Errors (Custom thrown errors)
+      // Known Errors
       if (err.message === "Unauthorized" || err.message.includes("Unauthorized")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
@@ -34,7 +34,7 @@ export function apiHandler(handler: ApiHandlerFunction): ApiHandlerFunction {
         return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
       }
 
-      // Handle Database Duplicate Key Errors (Postgres)
+      // Database Duplicate Key Errors (Postgres)
       if (err.code === "23505") {
         return NextResponse.json(
           { error: "Conflict", message: "Bu kayıt zaten mevcut." },
