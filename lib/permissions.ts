@@ -1,25 +1,16 @@
-// Higher number = Higher rank
-const ROLE_HIERARCHY: Record<string, number> = {
-  "applicant": 1,
-  "observer": 1,
-  "press": 1,
-  "delegate": 1,
-  "deputy_chair": 2,
-  "committee_chairman": 3,
-  "admin": 4,
-  "superadmin": 100
-};
+import { ROLE_METADATA, UserRole, ROLES } from "@/lib/roles";
 
 export function getRoleRank(role: string): number {
-  return ROLE_HIERARCHY[role] || 0;
+  const meta = ROLE_METADATA[role as UserRole];
+  return meta ? meta.rank : 0;
 }
 
 export function canManageRole(actorRole: string, targetRole: string): boolean {
   const actorRank = getRoleRank(actorRole);
   const targetRank = getRoleRank(targetRole);
   
-  // Superadmin can manage everyone (except theoretically other superadmins, but usually allowed)
-  if (actorRole === 'superadmin') return true;
+  // Superadmin can manage everyone (except maybe self, handled in UI)
+  if (actorRole === ROLES.SUPERADMIN) return true;
   
   // Actor must be strictly higher rank to manage (warn/ban/edit)
   return actorRank > targetRank;
@@ -30,5 +21,5 @@ export function isAuthorized(userRole: string, requiredRole: string): boolean {
 }
 
 // Change Log:
-// - Added 'delegate', 'press', 'observer' to ROLE_HIERARCHY at rank 1.
-// - This allows Admin/Chair roles (Rank 2+) to manage them, while preventing them from managing each other.
+// - Removed hardcoded `ROLE_HIERARCHY`.
+// - Now uses `ROLE_METADATA` from `lib/roles` to determine rank.

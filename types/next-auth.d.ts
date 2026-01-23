@@ -1,36 +1,39 @@
 import NextAuth, { DefaultSession } from "next-auth";
 import { JWT } from "next-auth/jwt";
+import { UserRole } from "@/lib/roles";
+import { ApplicationStatus } from "@/types/application";
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      // Added delegate, press, observer to the role union type
-      role: "superadmin" | "admin" | "committee_chairman" | "deputy_chair" | "applicant" | "delegate" | "press" | "observer";
+      role: UserRole;
       sessionId: string;
-      applicationStatus?: "pending" | "approved" | "rejected";
-      applicantType?: "delegate" | "press" | "observer";
+      applicationStatus?: ApplicationStatus;
+      applicantType?: UserRole;
     } & DefaultSession["user"];
   }
 
   interface User {
     id: string;
-    role: string;
+    role: UserRole;
     sessionId?: string;
-    applicationStatus?: "pending" | "approved" | "rejected";
-    applicantType?: "delegate" | "press" | "observer";
+    applicationStatus?: ApplicationStatus;
+    applicantType?: UserRole;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
-    role: string;
+    role: UserRole;
     sessionId: string;
-    applicationStatus?: "pending" | "approved" | "rejected";
-    applicantType?: "delegate" | "press" | "observer";
+    applicationStatus?: ApplicationStatus;
+    applicantType?: UserRole;
   }
 }
 
 // Change Log:
-// - Expanded `role` type to include 'delegate', 'press', 'observer' to match the database updates.
+// - Imported `UserRole` from `lib/roles`.
+// - Replaced hardcoded string union types with strict `UserRole`.
+// - Imported `ApplicationStatus` for consistency.
