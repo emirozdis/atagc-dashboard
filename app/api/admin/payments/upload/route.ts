@@ -18,7 +18,6 @@ export const POST = apiHandler(async (request: Request) => {
 
     if (!file || !userId) throw new Error("Eksik bilgi: Dosya veya kullanıcı ID'si bulunamadı.");
 
-    // Check if application exists and payment is not already complete
     const { data: app } = await supabase
         .from("applications")
         .select("id, payment_status")
@@ -39,7 +38,7 @@ export const POST = apiHandler(async (request: Request) => {
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = Buffer.from(arrayBuffer);
 
-    // Upload to 'receipts' private bucket
+    // Upload to 'receipts' bucket
     const { error: uploadError } = await supabase.storage
         .from("receipts")
         .upload(fileName, fileBuffer, {
@@ -49,7 +48,6 @@ export const POST = apiHandler(async (request: Request) => {
 
     if (uploadError) throw new Error("Depolama hatası: Dosya yüklenemedi.");
 
-    // Insert into DB
     const { error: dbError } = await supabase
         .from("payment_receipts")
         .insert({
@@ -57,12 +55,11 @@ export const POST = apiHandler(async (request: Request) => {
             application_id: app.id,
             storage_path: fileName,
             file_type: file.type,
-            status: 'pending' // Admin uploads still go to pending for review
+            status: 'pending'
         });
 
     if (dbError) throw dbError;
 
-    // Update Application Status
     await supabase
         .from("applications")
         .update({ payment_status: 'processing' })
@@ -75,7 +72,3 @@ export const POST = apiHandler(async (request: Request) => {
 
     return NextResponse.json({ success: true });
 });
-
-// Change log:
-// - Created new API route for admins to upload payment receipts for users.
-// - Handles file validation, storage upload, DB record creation, and application status update.

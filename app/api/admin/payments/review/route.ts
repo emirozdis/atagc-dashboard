@@ -14,7 +14,6 @@ export const GET = apiHandler(async (request: Request) => {
     const id = searchParams.get("id");
     if (!id) throw new Error("Missing ID");
 
-    // Fetches Receipt + User + User Details + Reviewer Name
     const { data, error } = await supabase
         .from("payment_receipts")
         .select(`
@@ -37,7 +36,6 @@ export const GET = apiHandler(async (request: Request) => {
 
     if (error || !data) throw new Error("Receipt not found");
 
-    // Generate Signed URL for secure viewing
     if (data.storage_path) {
         data.file_url = await getSignedUrl("receipts", data.storage_path, 3600);
     }
@@ -48,7 +46,6 @@ export const GET = apiHandler(async (request: Request) => {
 export const POST = apiHandler(async (request: Request) => {
     const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
     
-    // Fix: Explicitly check for session existence to satisfy TypeScript
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
     
     const adminId = auth.session.user.id;
@@ -105,6 +102,3 @@ export const POST = apiHandler(async (request: Request) => {
 
     return NextResponse.json({ success: true });
 });
-
-// Change Log:
-// - Updated POST handler to check `if (!auth.ok || !auth.session)` to resolve the "possibly null or undefined" TypeScript error.

@@ -12,7 +12,6 @@ export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await limiter.check(60, ip);
 
-  // 1. Auth Check
   const auth = await getAuthorization({ requireAuth: true });
   if (!auth.ok || !auth.session) {
     throw new Error("Unauthorized");
@@ -20,7 +19,6 @@ export const GET = apiHandler(async (request: Request) => {
   const session = auth.session;
   const currentUserId = session.user.id;
 
-  // 2. Determine User's Committee
   const { data: membership } = await supabase
     .from("committee_members")
     .select("committee_id")
@@ -42,7 +40,6 @@ export const GET = apiHandler(async (request: Request) => {
     return NextResponse.json({ error: "No committee found" }, { status: 404 });
   }
 
-  // 3. Fetch Committee Admin & Members
   const [adminRes, membersRes] = await Promise.all([
     supabase
       .from("committees")
@@ -68,7 +65,6 @@ export const GET = apiHandler(async (request: Request) => {
       .eq("committee_id", committeeId)
   ]);
 
-  // 4. Process Images with Batch Signing
   const pathsToSign: string[] = [];
   const memberMap = new Map(); 
 

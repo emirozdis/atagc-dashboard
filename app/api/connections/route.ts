@@ -179,6 +179,3 @@ export const POST = apiHandler(async (request: Request) => {
     message: `Bağlantı isteği gönderildi: ${targetUser?.full_name}` 
   });
 });
-
-// Change Log:
-// - Wrapped with `apiHandler`.

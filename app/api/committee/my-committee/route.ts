@@ -12,28 +12,21 @@ export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await limiter.check(60, ip);
 
-  // Strictly enforce Approved status.
   const auth = await getAuthorization({ 
       requireAuth: true, 
-      allowedRoles: [ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR, ROLES.APPLICANT], // Applicant filtered below
+      allowedRoles: [ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR, ROLES.APPLICANT], 
       requireApproved: true 
   });
   
-  if (!auth.ok || !auth.session) {
-    throw new Error(auth.message);
-  }
-  
+  if (!auth.ok || !auth.session) throw new Error(auth.message);
   const session = auth.session;
 
-  // Block basic applicants/delegates from this management endpoint.
-  // Only Committee Leads (Chair/Deputy) should access this manager view.
   if (!COMMITTEE_LEADS.includes(session.user.role)) {
       return NextResponse.json({ error: "Forbidden: Management access only" }, { status: 403 });
   }
 
   let committeeId: string | null = null;
 
-  // 1. Check if user is a Chairman
   const { data: adminCommittee } = await supabase
     .from("committees")
     .select("id")
@@ -43,105 +36,74 @@ export const GET = apiHandler(async (request: Request) => {
   if (adminCommittee) {
     committeeId = adminCommittee.id;
   } else {
-    // 2. Check if user is a Deputy Chair
     const { data: memberCommittee } = await supabase
       .from("committee_members")
       .select("committee_id")
       .eq("user_id", session.user.id)
       .maybeSingle();
-      
-    if (memberCommittee) {
-      committeeId = memberCommittee.committee_id;
-    }
+    if (memberCommittee) committeeId = memberCommittee.committee_id;
   }
 
   if (!committeeId) {
     return NextResponse.json({ error: "Committee not found" }, { status: 404 });
   }
 
-  // Parallel data fetching
-  const [committeeRes, membersRes, lastRollCallRes, topicRes, recentRollCallsRes] = await Promise.all([
-    supabase.from("committees").select("id, name, description").eq("id", committeeId).maybeSingle(), 
-    
-    supabase.from("committee_members").select(`
-          id, can_write,
-          user:users (
-            id, full_name, email, role,
-            user_details ( profile_picture_url, is_profile_picture_hidden )
-          )
-        `).eq("committee_id", committeeId),
-    
-    supabase.from("roll_calls").select("id, session_name, created_at, roll_call_logs(count)")
-      .eq("committee_id", committeeId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    
-    supabase.from("topics").select("title, description").eq("committee_id", committeeId).limit(1).maybeSingle(),
-    
-    supabase.from("roll_calls").select("id, session_name, created_at")
-      .eq("committee_id", committeeId).order("created_at", { ascending: false }).limit(5)
-  ]);
+  const { data: dashboardData, error } = await supabase
+      .rpc("get_committee_dashboard_data", { target_committee_id: committeeId });
 
-  if (committeeRes.error || !committeeRes.data) {
-    throw new Error("Failed to fetch committee details");
+  if (error) {
+      console.error("RPC Error:", error);
+      throw new Error("Komite verileri alınamadı.");
   }
 
-  // --- Image Optimization Logic ---
-  const members = membersRes.data || [];
+  const members = dashboardData.members || [];
   const pathsToSign: string[] = [];
+  const memberMap = new Map();
 
-  const formattedMembers = members.map((m: any) => {
-    const u = Array.isArray(m.user) ? m.user[0] : m.user;
-    const details = u?.user_details ? (Array.isArray(u.user_details) ? u.user_details[0] : u.user_details) : null;
-
-    const isSelf = u.id === session.user.id;
-    const isHidden = details?.is_profile_picture_hidden;
-    let imagePath = null;
-
-    if (details?.profile_picture_url) {
-        if (isSelf || !isHidden) {
-            imagePath = details.profile_picture_url;
-            if (imagePath && !imagePath.startsWith('http')) {
-                pathsToSign.push(imagePath);
-            }
-        }
-    }
-
-    return {
-      id: m.id,
-      userId: u.id,
-      full_name: u.full_name,
-      email: u.email,
-      role: u.role,
-      can_edit: m.can_write,
-      image: imagePath 
-    };
+  members.forEach((m: any) => {
+      m.userId = m.user_id;
+      
+      const isSelf = m.userId === session.user.id;
+      const isHidden = m.is_profile_picture_hidden;
+      
+      if (m.profile_picture_url) {
+          if (isSelf || !isHidden) {
+               if (!m.profile_picture_url.startsWith('http')) {
+                   pathsToSign.push(m.profile_picture_url);
+               }
+          } else {
+              m.profile_picture_url = null; // Hide if privacy enabled
+          }
+      }
+      memberMap.set(m.userId, m);
   });
 
   if (pathsToSign.length > 0) {
       const signedData = await getSignedUrls("profile-pictures", pathsToSign);
-      const urlMap = new Map();
-      signedData?.forEach(item => urlMap.set(item.path, item.signedUrl));
+      const urlMap = new Map(signedData?.map(i => [i.path, i.signedUrl]));
 
-      formattedMembers.forEach(m => {
-          if (m.image && urlMap.has(m.image)) m.image = urlMap.get(m.image);
+      members.forEach((m: any) => {
+          if (m.profile_picture_url && urlMap.has(m.profile_picture_url)) {
+              m.image = urlMap.get(m.profile_picture_url);
+              m.profile_picture_url = m.image;
+          }
       });
   }
 
-  const totalMembers = formattedMembers.length;
-  const lastRollCall = lastRollCallRes.data ? {
-    session_name: lastRollCallRes.data.session_name,
-    date: lastRollCallRes.data.created_at,
-    attendance_count: lastRollCallRes.data.roll_call_logs?.[0]?.count || 0,
-    attendance_rate: totalMembers > 0 ? Math.round(((lastRollCallRes.data.roll_call_logs?.[0]?.count || 0) / totalMembers) * 100) : 0
-  } : null;
+  const { data: rollCalls } = await supabase
+      .from("roll_calls")
+      .select("id, session_name, created_at")
+      .eq("committee_id", committeeId)
+      .order("created_at", { ascending: false })
+      .limit(5);
 
   return NextResponse.json({
-    ...committeeRes.data,
-    topic: topicRes.data,
-    members: formattedMembers,
-    roll_calls: recentRollCallsRes.data || [],
+    ...dashboardData.committee,
+    topic: dashboardData.topic,
+    members: members,
+    roll_calls: rollCalls || [],
     stats: {
-      total_members: totalMembers,
-      last_roll_call: lastRollCall
+      total_members: members.length
     }
   });
 });

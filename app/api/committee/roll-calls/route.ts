@@ -81,7 +81,3 @@ export const GET = apiHandler(async (request: Request) => {
         }
     });
 });
-
-// Change Log:
-// - Wrapped with `apiHandler`.
-// - Replaced hardcoded strings with `ROLES` constants.

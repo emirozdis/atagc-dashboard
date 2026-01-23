@@ -23,7 +23,6 @@ export const GET = apiHandler(async (
     if (!auth.ok || !auth.session) throw new Error(auth.message);
     const session = auth.session;
 
-    // 1. Get roll call and verify it's managed by the current user
     const { data: rollCall, error: rcError } = await supabase
         .from("roll_calls")
         .select("id, committee_id, session_name, created_at")
@@ -34,7 +33,6 @@ export const GET = apiHandler(async (
         return NextResponse.json({ error: "Roll call not found" }, { status: 404 });
     }
 
-    // Authorization check: Verify if the user manages this committee
     const { data: committee } = await supabase
         .from("committees")
         .select("id, admin_id")
@@ -43,7 +41,6 @@ export const GET = apiHandler(async (
 
     const isOwner = committee?.admin_id === session.user.id;
 
-    // If not owner, check if they are a deputy chair of this committee
     let isDeputy = false;
     if (!isOwner) {
         const { data: membership } = await supabase
@@ -62,7 +59,6 @@ export const GET = apiHandler(async (
         return NextResponse.json({ error: "Unauthorized access to this committee's data" }, { status: 403 });
     }
 
-    // 2. Fetch all committee members
     const { data: members, error: membersError } = await supabase
         .from("committee_members")
         .select(`
@@ -79,7 +75,6 @@ export const GET = apiHandler(async (
 
     if (membersError) throw membersError;
 
-    // 3. Fetch all attendance logs for this roll call
     const { data: logs, error: logsError } = await supabase
         .from("roll_call_logs")
         .select("user_id, scanned_at")

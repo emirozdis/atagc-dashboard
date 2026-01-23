@@ -69,6 +69,3 @@ export const DELETE = apiHandler(async (request: Request) => {
 
     return NextResponse.json({ success: true });
 });
-
-// Change Log:
-// - Wrapped with `apiHandler`.

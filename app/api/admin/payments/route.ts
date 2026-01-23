@@ -16,7 +16,6 @@ export const GET = apiHandler(async (request: Request) => {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  // Added `reviewer` relation to the query
   let query = supabase
     .from("payment_receipts")
     .select(`
@@ -49,6 +48,3 @@ export const GET = apiHandler(async (request: Request) => {
     }
   });
 });
-
-// Change Log:
-// - Added `reviewer:users!payment_receipts_reviewed_by_fkey ( full_name )` to the Supabase select query to fetch reviewer details.

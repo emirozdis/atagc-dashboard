@@ -70,7 +70,3 @@ export const POST = apiHandler(async (
 
     return NextResponse.json({ success: true });
 });
-
-// Change Log:
-// - Wrapped with `apiHandler`.
-// - Replaced hardcoded strings with `ROLES` constants.

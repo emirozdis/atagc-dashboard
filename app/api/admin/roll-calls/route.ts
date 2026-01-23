@@ -42,7 +42,6 @@ export const GET = apiHandler(async (request: Request) => {
     query = query.eq("committee_id", committeeId);
   }
 
-  // Date Filtering for timestamptz
   if (startDate) {
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -63,7 +62,6 @@ export const GET = apiHandler(async (request: Request) => {
     throw error;
   }
 
-  // Debugging: Log if committee is null for any row (Data integrity check)
   if (data) {
     const nullCommittees = data.filter(r => !r.committee);
     if (nullCommittees.length > 0) {
@@ -81,6 +79,3 @@ export const GET = apiHandler(async (request: Request) => {
     }
   });
 });
-
-// Change Log:
-// - Updated Date filtering to use `new Date()` objects with `setHours` and `toISOString()` to handle `timestamptz` ranges precisely.

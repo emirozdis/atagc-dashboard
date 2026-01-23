@@ -10,7 +10,6 @@ export const GET = apiHandler(async (request: Request) => {
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
     const userId = auth.session.user.id;
 
-    // Fetch Application Status AND Form Fee
     const { data: app } = await supabase
         .from("applications")
         .select(`
@@ -20,7 +19,6 @@ export const GET = apiHandler(async (request: Request) => {
         .eq("user_id", userId)
         .maybeSingle();
 
-    // Fetch Latest Receipt
     const { data: receipt } = await supabase
         .from("payment_receipts")
         .select("id, status, admin_note, created_at, storage_path, file_type")
@@ -46,7 +44,3 @@ export const GET = apiHandler(async (request: Request) => {
         last_receipt: receipt || null
     });
 });
-
-// Change Log:
-// - Updated to return `0` amount if `payment_status` is `exempt`.
-// - Used `PaymentStatusEnum` for type safety.

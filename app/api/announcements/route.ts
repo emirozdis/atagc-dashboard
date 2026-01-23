@@ -22,7 +22,6 @@ export const GET = apiHandler(async (request: Request) => {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Base query
   let query = supabase
     .from("announcements")
     .select(`
@@ -32,14 +31,12 @@ export const GET = apiHandler(async (request: Request) => {
     .order("created_at", { ascending: false });
 
   if (!session?.user) {
-     // If not logged in, only see public
      query = query.eq("is_public", true);
   } else {
      const role = session.user.role;
      const userId = session.user.id;
 
      if (role !== ROLES.SUPERADMIN && role !== ROLES.ADMIN) {
-         // User logic: public + targeted
          const { data: memberData } = await supabase
              .from("committee_members")
              .select("committee_id")

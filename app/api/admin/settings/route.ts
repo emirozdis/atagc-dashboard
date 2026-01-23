@@ -7,13 +7,11 @@ export async function GET() {
     const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
     if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
     
-    // Ensure we only ever deal with one record. Fetch 1.
     const { data: records, error } = await supabase
         .from("system_settings")
         .select("*")
         .limit(1);
 
-    // Default values object
     const defaults = {
         applications_open: true,
         maintenance_mode: false,
@@ -34,10 +32,8 @@ export async function GET() {
         return NextResponse.json(defaults);
     }
 
-    // Helper to safely extract YYYY-MM-DD from an ISO timestamptz string
     const toDateString = (isoString: string | null) => {
         if (!isoString) return "";
-        // Take first 10 characters (YYYY-MM-DD) safely regardless of time/zone parts
         return isoString.substring(0, 10);
     };
 
@@ -71,7 +67,6 @@ export async function POST(request: Request) {
             term_name: body.term_name,
             contact_email: body.contact_email,
             location: body.location,
-            // Allow null or valid ISO strings
             event_start_date: body.event_start_date ? new Date(body.event_start_date).toISOString() : null,
             event_end_date: body.event_end_date ? new Date(body.event_end_date).toISOString() : null,
             updated_at: new Date().toISOString()
@@ -101,7 +96,3 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Update failed" }, { status: 500 });
     }
 }
-
-// Change Log:
-// - GET: Updated date extraction to use `substring(0, 10)` which correctly extracts YYYY-MM-DD from `timestamptz` ISO strings without timezone shifting artifacts from Date parsing.
-// - POST: Explicitly converting incoming date strings to `toISOString()` to ensure `timestamptz` compatibility in Postgres.

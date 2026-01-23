@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from 'uuid';
 export async function POST(request: Request) {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok) return NextResponse.json({ error: auth.message || 'Unauthorized' }, { status: auth.status || 401 });
-  const session = auth.session;
 
   try {
     const { committee_id, session_name } = await request.json();
@@ -15,7 +14,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from("roll_calls")
       .insert({
-        committee_id, // now expecting UUID string
+        committee_id,
         session_name,
         qr_code: uniqueToken
       })
