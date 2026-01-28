@@ -40,6 +40,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <Providers>
           {children}
@@ -49,6 +50,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-// Change Log:
-// - Added `metadataBase` to `metadata` export to resolve Open Graph image URL warnings.
