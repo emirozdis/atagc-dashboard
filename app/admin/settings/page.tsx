@@ -18,7 +18,7 @@ import {
     Building,
     Globe,
     Clock,
-    Lock
+    CreditCard
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -32,6 +32,9 @@ interface SystemSettings {
     location: string;
     event_start_date: string | null;
     event_end_date: string | null;
+    bank_name: string;
+    bank_account_holder: string;
+    bank_iban: string;
 }
 
 export default function SettingsPage() {
@@ -40,7 +43,7 @@ export default function SettingsPage() {
 
     // Query
     const { data: settings, isLoading } = useQuery<SystemSettings>({
-        queryKey: ['settings'],
+        queryKey: ['settings-admin'],
         queryFn: async () => {
             const res = await fetch("/api/admin/settings");
             if (!res.ok) throw new Error("Failed");
@@ -53,7 +56,7 @@ export default function SettingsPage() {
         }
     });
 
-    // Sync local state when data loads
+    // Sync local state
     useEffect(() => {
         if (settings) {
             setLocalSettings(settings);
@@ -72,7 +75,7 @@ export default function SettingsPage() {
         },
         onSuccess: () => {
             toast.success("Ayarlar başarıyla kaydedildi");
-            queryClient.invalidateQueries({ queryKey: ['settings'] });
+            queryClient.invalidateQueries({ queryKey: ['settings-admin'] });
         },
         onError: () => toast.error("Değişiklikler kaydedilemedi.")
     });
@@ -97,7 +100,6 @@ export default function SettingsPage() {
                     <Skeleton className="h-10 w-[150px]" />
                 </div>
                 <div className="space-y-6">
-                    <Skeleton className="h-[250px] w-full rounded-xl" />
                     <Skeleton className="h-[250px] w-full rounded-xl" />
                     <Skeleton className="h-[250px] w-full rounded-xl" />
                 </div>
@@ -125,7 +127,7 @@ export default function SettingsPage() {
 
             <div className="grid gap-8">
 
-                {/* Identity & Contact Section */}
+                {/* General Info */}
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
                         <Globe className="w-4 h-4" /> Genel Bilgiler
@@ -148,7 +150,7 @@ export default function SettingsPage() {
                                         placeholder="Örn: ATAGÇ 2026"
                                         className="bg-background/50 h-11 text-lg"
                                     />
-                                    <p className="text-[13px] text-muted-foreground">Panel başlıklarında, e-postalarda ve sayfa başlıklarında görünür.</p>
+                                    <p className="text-[13px] text-muted-foreground">Panel başlıklarında görünür.</p>
                                 </div>
 
                                 <div className="space-y-3">
@@ -163,23 +165,18 @@ export default function SettingsPage() {
                                         type="email"
                                         className="bg-background/50 h-11"
                                     />
-                                    <p className="text-[13px] text-muted-foreground">Kullanıcıların destek için göreceği resmi e-posta adresi.</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 </section>
 
-                {/* Event Details Section */}
+                {/* Event Details */}
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
                         <Calendar className="w-4 h-4" /> Etkinlik Detayları
                     </div>
                     <Card className="bg-card border-border/50 shadow-sm overflow-hidden">
-                        <CardHeader className="bg-muted/5 pb-4 border-b border-border/50">
-                            <CardTitle className="text-xl">Zaman ve Mekan</CardTitle>
-                            <CardDescription>Etkinliğin gerçekleşeceği yer ve tarihler.</CardDescription>
-                        </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="space-y-3">
                                 <Label className="flex items-center gap-2 text-base font-medium">
@@ -224,24 +221,56 @@ export default function SettingsPage() {
                     </Card>
                 </section>
 
-                {/* Security & Access Section */}
+                {/* Payment Info */}
+                <section className="space-y-4">
+                    <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
+                        <CreditCard className="w-4 h-4" /> Banka Bilgileri
+                    </div>
+                    <Card className="bg-card border-border/50 shadow-sm overflow-hidden">
+                        <CardHeader className="bg-muted/5 pb-4 border-b border-border/50">
+                            <CardTitle className="text-xl">Banka Hesap Tanımları</CardTitle>
+                            <CardDescription>Katılımcıların ödeme sayfasında göreceği bilgiler.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-6">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                    <Label>Banka Adı</Label>
+                                    <Input
+                                        value={localSettings.bank_name}
+                                        onChange={(e) => updateSetting('bank_name', e.target.value)}
+                                        placeholder="Örn: Ziraat Bankası"
+                                    />
+                                </div>
+                                <div className="space-y-3">
+                                    <Label>Alıcı Adı (Hesap Sahibi)</Label>
+                                    <Input
+                                        value={localSettings.bank_account_holder}
+                                        onChange={(e) => updateSetting('bank_account_holder', e.target.value)}
+                                        placeholder="Örn: ATAGÇ Komitesi"
+                                    />
+                                </div>
+                                <div className="space-y-3 md:col-span-2">
+                                    <Label>IBAN</Label>
+                                    <Input
+                                        value={localSettings.bank_iban}
+                                        onChange={(e) => updateSetting('bank_iban', e.target.value)}
+                                        placeholder="TR00 ..."
+                                        className="font-mono"
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </section>
+
+                {/* Access Control */}
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
                         <ShieldAlert className="w-4 h-4" /> Güvenlik ve Erişim
                     </div>
                     <Card className="bg-card border-border/50 shadow-sm overflow-hidden">
-                        <CardHeader className="bg-muted/5 pb-4 border-b border-border/50">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-xl">Erişim Kontrolü</CardTitle>
-                                    <CardDescription>Sistemin genel erişilebilirlik durumu.</CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
                         <CardContent className="p-0">
                             <div className="flex flex-col divide-y divide-border/50">
-
-                                {/* Application Toggle */}
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 gap-4 hover:bg-muted/5 transition-colors">
                                     <div className="space-y-1.5 flex-1">
                                         <div className="flex items-center gap-3">
@@ -253,7 +282,7 @@ export default function SettingsPage() {
                                             )}
                                         </div>
                                         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-                                            Bu ayar kapatıldığında, yeni kullanıcılar sisteme kayıt olamaz ve başvuru formu gönderemez. Mevcut kullanıcılar sistemden etkilenmez.
+                                            Bu ayar kapatıldığında, yeni kullanıcılar sisteme kayıt olamaz ve başvuru formu gönderemez.
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -266,7 +295,6 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
 
-                                {/* Maintenance Mode */}
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 gap-4 bg-red-500/5 hover:bg-red-500/10 transition-colors">
                                     <div className="space-y-1.5 flex-1">
                                         <div className="flex items-center gap-3">
@@ -275,7 +303,7 @@ export default function SettingsPage() {
                                             {localSettings.maintenance_mode && <span className="animate-pulse text-[10px] font-bold text-red-600 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/30">AKTİF</span>}
                                         </div>
                                         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-                                            Bakım modu aktif edildiğinde, <span className="font-semibold text-foreground">Yöneticiler (Admin)</span> hariç kimse sisteme giriş yapamaz. Giriş yapmış kullanıcıların oturumu sonlandırılmaz ancak sayfaları yenilediklerinde erişim engellenir.
+                                            Bakım modu aktif edildiğinde, Yöneticiler hariç kimse sisteme giriş yapamaz.
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">

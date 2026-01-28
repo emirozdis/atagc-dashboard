@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Users, Info } from "lucide-react";
+import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VotingSystem } from "@/components/committee/VotingSystem";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { DashboardData } from "@/types/dashboard";
 
 export function DelegateView({ session }: { session: any }) {
   const [isVotingOpen, setIsVotingOpen] = useState(false);
@@ -21,7 +22,7 @@ export function DelegateView({ session }: { session: any }) {
     if (window.location.hash.slice(1) === "voting") setIsVotingOpen(true);
   }, []);
 
-  const { data: meData, isLoading: meLoading } = useQuery({
+  const { data: meData, isLoading: meLoading } = useQuery<DashboardData>({
     queryKey: ["committee-context-me"],
     queryFn: async () => {
       const res = await fetch("/api/participant/me");
@@ -37,14 +38,14 @@ export function DelegateView({ session }: { session: any }) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    enabled: !!meData?.committeeMember
+    enabled: !!meData?.committee
   });
 
   if (meLoading || membersLoading) return <LoadingSkeleton />;
-  if (!meData?.committeeMember?.committee) return <EmptyState />;
+  if (!meData?.committee) return <EmptyState />;
 
-  const committee = meData.committeeMember.committee;
-  const topic = meData.topic;
+  const committee = meData.committee;
+  const topic = committee.topic;
   
   let members = membersData?.members || [];
   if (membersData?.admin && !members.find((m: any) => m.userId === membersData.admin.userId)) {
@@ -55,7 +56,7 @@ export function DelegateView({ session }: { session: any }) {
     <>
       <CommitteeHero 
         name={committee.name} 
-        description={committee.description} 
+        description={committee.description || ""} 
         role={session?.user?.role || 'applicant'}
       />
 

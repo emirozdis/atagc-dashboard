@@ -24,7 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function MyApplicationPage() {
-    const { data: profile, isLoading } = useQuery<ProfileData>({
+    const { data: profileData, isLoading } = useQuery<ProfileData>({
         queryKey: ["profile"],
         queryFn: async () => {
             const res = await fetch("/api/participant/me");
@@ -46,7 +46,10 @@ export default function MyApplicationPage() {
         );
     }
 
-    if (!profile || !profile.userDetails) {
+    const { profile, application } = profileData || {};
+    const details = profile?.details;
+
+    if (!profile || !details) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-4">
                 <FileText className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
@@ -59,8 +62,7 @@ export default function MyApplicationPage() {
         );
     }
 
-    const { user, userDetails, application } = profile;
-    const info = userDetails.additional_info || {};
+    const info = details.additional_info || {};
 
     const getLabel = (value: string | undefined, options: { value: string, label: string }[]) => {
         if (!value) return "-";
@@ -123,11 +125,11 @@ export default function MyApplicationPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
-                    <InfoItem icon={User} label="Ad Soyad" value={user.full_name} />
-                    <InfoItem icon={Calendar} label="Doğum Tarihi" value={new Date(userDetails.birth_date).toLocaleDateString('tr-TR')} />
-                    <InfoItem icon={Phone} label="Telefon" value={userDetails.phone_number} />
+                    <InfoItem icon={User} label="Ad Soyad" value={profile.full_name} />
+                    <InfoItem icon={Calendar} label="Doğum Tarihi" value={new Date(details.birth_date).toLocaleDateString('tr-TR')} />
+                    <InfoItem icon={Phone} label="Telefon" value={details.phone_number} />
                     <InfoItem icon={MapPin} label="Şehir" value={info.city} />
-                    <InfoItem icon={School} label="Okul" value={userDetails.school_name} />
+                    <InfoItem icon={School} label="Okul" value={details.school_name} />
                     <InfoItem icon={GraduationCap} label="Sınıf" value={info.grade} />
                 </CardContent>
             </Card>

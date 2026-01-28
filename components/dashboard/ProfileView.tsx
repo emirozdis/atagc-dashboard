@@ -1,4 +1,3 @@
-// components/dashboard/profile/ProfileView.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -41,13 +40,6 @@ interface NotificationPrefs {
     system: boolean;
 }
 
-interface ExtendedProfileData extends Omit<ProfileData, 'userDetails'> {
-  userDetails: NonNullable<ProfileData['userDetails']> & {
-    allow_connections?: boolean;
-    notification_preferences?: NotificationPrefs;
-  } | null;
-}
-
 export function ProfileView() {
   const queryClient = useQueryClient();
   const [resetLoading, setResetLoading] = useState(false);
@@ -88,7 +80,7 @@ export function ProfileView() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
-  const { data: profile, isLoading } = useQuery<ExtendedProfileData>({
+  const { data: profileData, isLoading } = useQuery<ProfileData>({
     queryKey: ["profile"],
     queryFn: async () => {
       const res = await fetch("/api/participant/me");
@@ -113,9 +105,13 @@ export function ProfileView() {
       system: true
   });
 
+  // Updated Data Access from new structure
+  const profile = profileData?.profile;
+  const application = profileData?.application;
+
   useEffect(() => {
-      if (profile?.userDetails?.notification_preferences) {
-          setPrefs(profile.userDetails.notification_preferences);
+      if (profile?.details?.notification_preferences) {
+          setPrefs(profile.details.notification_preferences);
       }
   }, [profile]);
 
@@ -202,13 +198,13 @@ export function ProfileView() {
   });
 
   const handleSendResetLink = async () => {
-    if (!profile?.user?.email) return;
+    if (!profile?.email) return;
     setResetLoading(true);
     try {
       const res = await fetch("/api/auth/password/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: profile.user.email })
+        body: JSON.stringify({ email: profile.email })
       });
       if (!res.ok) throw new Error("Failed");
       toast.success("Sıfırlama bağlantısı e-posta adresinize gönderildi.");
@@ -222,14 +218,14 @@ export function ProfileView() {
   if (isLoading) return <ProfileSkeleton />;
   if (!profile) return <div className="p-8 text-center text-muted-foreground">Profil verisi yüklenemedi.</div>;
 
-  const { user, userDetails, application } = profile;
-  const additional = userDetails?.additional_info || ({} as any);
-  const profilePic = userDetails?.profile_picture_url || null;
-  const isHidden = userDetails?.is_profile_picture_hidden || false;
-  const allowConnections = userDetails?.allow_connections !== false;
-  const warnings = user.user_warnings || [];
+  const details = profile.details;
+  const additional = details?.additional_info || ({} as any);
+  const profilePic = details?.profile_picture_url || null;
+  const isHidden = details?.is_profile_picture_hidden || false;
+  const allowConnections = details?.allow_connections !== false;
+  const warnings = profile.user_warnings || [];
 
-  const showIdCard = user.role !== 'applicant' || application?.status === 'approved';
+  const showIdCard = profile.role !== 'applicant' || application?.status === 'approved';
 
   const getRoleBadge = (role: string) => {
     const styles: Record<string, string> = {
@@ -273,21 +269,21 @@ export function ProfileView() {
               currentImageUrl={profilePic} 
               onUploadComplete={(url) => updateProfileMutation.mutate(url)} 
               size="large" 
-              fallbackText={user.full_name} 
+              fallbackText={profile.full_name} 
             />
             <div className="flex-1 space-y-1 pb-1">
               <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-2xl font-bold text-foreground">{user.full_name}</h2>
-                {getRoleBadge(user.role)}
+                <h2 className="text-2xl font-bold text-foreground">{profile.full_name}</h2>
+                {getRoleBadge(profile.role)}
               </div>
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5" />
-                  {user.email}
+                  {profile.email}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5" />
-                  Katılım: {new Date(user.created_at).toLocaleDateString('tr-TR')}
+                  Katılım: {new Date(profile.created_at).toLocaleDateString('tr-TR')}
                 </div>
               </div>
             </div>
@@ -319,8 +315,8 @@ export function ProfileView() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <InfoItem icon={Phone} label="Telefon" value={userDetails?.phone_number} />
-              <InfoItem icon={GraduationCap} label="Okul" value={userDetails?.school_name} />
+              <InfoItem icon={Phone} label="Telefon" value={details?.phone_number} />
+              <InfoItem icon={GraduationCap} label="Okul" value={details?.school_name} />
               <InfoItem icon={Building2} label="Sınıf" value={additional.grade} />
               <InfoItem icon={MapPin} label="Şehir" value={additional.city} />
             </CardContent>
@@ -497,7 +493,7 @@ export function ProfileView() {
           {showIdCard && (
             <div ref={digitalIdRef} className="space-y-4">
               <DigitalIdCard 
-                user={user} 
+                user={profile} 
                 uniqueId="profile" 
                 defaultOpen={digitalIdOpen}
               />

@@ -15,14 +15,22 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PaymentStatusEnum } from "@/types/payment";
 import { ApplicationStatusEnum } from "@/types/application";
-
-import { ParticipantDashboardProps, DashboardData } from "@/types/dashboard";
+import { ParticipantDashboardProps, ProfileData, SystemSettings } from "@/types/dashboard";
 
 export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
-  const { data, isLoading } = useQuery<DashboardData>({
+  const { data: profile, isLoading } = useQuery<ProfileData>({
     queryKey: ['participant-me'],
     queryFn: async () => {
       const res = await fetch("/api/participant/me");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    }
+  });
+
+  const { data: settings } = useQuery<SystemSettings>({
+    queryKey: ['public-settings'],
+    queryFn: async () => {
+      const res = await fetch("/api/settings");
       if (!res.ok) throw new Error("Failed");
       return res.json();
     }
@@ -37,7 +45,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     }
   });
 
-  if (isLoading) {
+  if (isLoading || paymentLoading) {
     return (
       <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
@@ -58,10 +66,14 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     );
   }
 
-  const { application, committeeMember, topic, settings, user: userData } = data || {};
+  // Destructure from new cleaner API response
+  const { profile: userProfile, application, committee } = profile || {};
+  const topic = committee?.topic;
+  
   const paymentStatus = paymentData?.payment_status || PaymentStatusEnum.UNPAID;
 
-  if (!application && userData?.role === 'applicant') {
+  // Handle case where applicant has no application record
+  if (!application && userProfile?.role === 'applicant') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in py-12">
         <div className="w-24 h-24 rounded-full bg-secondary/30 flex items-center justify-center shadow-inner ring-1 ring-white/10">
@@ -70,7 +82,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         <div className="space-y-3 max-w-md mx-auto px-4">
           <h2 className="text-3xl font-bold font-display text-foreground tracking-tight">Başvuru Bulunamadı</h2>
           <p className="text-muted-foreground leading-relaxed">
-            Hesabınıza ait aktif bir başvuru kaydı görünmüyor. Eğer başvurunuzu henüz tamamlamadıysanız lütfen ana sayfadan başvuru yapınız.
+            Hesabınıza ait aktif bir başvuru kaydı görünmüyor.
           </p>
         </div>
       </div>
@@ -78,9 +90,8 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   }
 
   const appStatus = application?.status || "pending";
-  // Logic: Show ID card if Exempt OR Paid OR Staff
   const isPaymentComplete = paymentStatus === PaymentStatusEnum.PAID || paymentStatus === PaymentStatusEnum.EXEMPT;
-  const showIdCard = userData && (userData.role !== 'applicant' || (appStatus === ApplicationStatusEnum.APPROVED && isPaymentComplete));
+  const showIdCard = userProfile && (userProfile.role !== 'applicant' || (appStatus === ApplicationStatusEnum.APPROVED && isPaymentComplete));
 
   const getStatusSteps = () => {
     return [
@@ -104,8 +115,8 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       {
         id: 'committee',
         label: "Komite",
-        status: !committeeMember ? 'waiting' : 'done',
-        text: committeeMember?.committee?.name
+        status: committee ? 'done' : 'waiting',
+        text: committee?.name
       }
     ];
   };
@@ -252,9 +263,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         </div>
 
         {/* Right Column: Digital ID */}
-        {showIdCard && userData && (
+        {showIdCard && userProfile && (
           <div className="lg:col-span-1 h-full">
-            <DigitalIdCard user={userData} className="h-full" uniqueId="dashboard" />
+            <DigitalIdCard user={userProfile} className="h-full" uniqueId="dashboard" />
           </div>
         )}
       </div>
@@ -268,7 +279,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
             <div className="h-px flex-1 bg-border/50"></div>
           </div>
 
-          {committeeMember ? (
+          {committee ? (
             <div className="grid gap-6 md:grid-cols-2">
               <Card className="bg-card border-border/40 hover:bg-card/50 transition-colors group">
                 <CardHeader>
@@ -280,9 +291,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xl font-bold mb-3 text-foreground">{committeeMember.committee?.name}</div>
+                  <div className="text-xl font-bold mb-3 text-foreground">{committee.name}</div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {committeeMember.committee?.description || "Açıklama bulunmuyor."}
+                    {committee.description || "Açıklama bulunmuyor."}
                   </p>
                 </CardContent>
               </Card>
