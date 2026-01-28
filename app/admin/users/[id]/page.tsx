@@ -102,7 +102,7 @@ export default function UserDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="space-y-6 max-w-7xl mx-auto p-6">
+            <div className="space-y-6 max-w-7xl mx-auto pb-12">
                 <div className="flex justify-between">
                     <Skeleton className="h-10 w-[200px]" />
                     <Skeleton className="h-10 w-[100px]" />
@@ -142,7 +142,7 @@ export default function UserDetailPage() {
 
     const application = getFirstItem(user.application);
     const paymentStatus = application?.payment_status || "unpaid";
-    
+
     const appForm = Array.isArray(application?.form) ? application.form[0] : application?.form;
     const formSlug = appForm?.slug || ROLES.DELEGATE;
     const formData = application?.form_data || {};
@@ -161,7 +161,7 @@ export default function UserDetailPage() {
     const getRoleBadge = (role: string) => {
         const meta = ROLE_METADATA[role as UserRole] || ROLE_METADATA[ROLES.APPLICANT];
         const Icon = meta.icon;
-        
+
         return (
             <Badge className={cn(meta.bgClass, meta.colorClass, meta.borderClass)}>
                 <Icon className="w-3 h-3 mr-1" /> {meta.label}
@@ -171,25 +171,25 @@ export default function UserDetailPage() {
 
     const getPaymentStatusDisplay = (status: string) => {
         switch (status) {
-            case 'paid': 
+            case 'paid':
                 return (
                     <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
                         <CheckCircle2 className="w-4 h-4" /> Ödendi
                     </div>
                 );
-            case 'processing': 
+            case 'processing':
                 return (
                     <div className="flex items-center gap-1.5 text-amber-600 font-medium">
                         <Clock className="w-4 h-4 animate-pulse" /> İnceleniyor
                     </div>
                 );
-            case 'rejected': 
+            case 'rejected':
                 return (
                     <div className="flex items-center gap-1.5 text-red-600 font-medium">
                         <XCircle className="w-4 h-4" /> Reddedildi
                     </div>
                 );
-            default: 
+            default:
                 return (
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Wallet className="w-4 h-4" /> Ödenmedi
@@ -226,7 +226,7 @@ export default function UserDetailPage() {
             <div className="grid gap-6">
                 {Object.entries(formData).map(([key, value]) => {
                     if (['phone_number', 'school_name', 'birth_date', 'grade', 'city'].includes(key)) return null;
-                    
+
                     return (
                         <div key={key} className="space-y-1.5">
                             <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-2">
@@ -244,9 +244,9 @@ export default function UserDetailPage() {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-10">
+        <div className="space-y-6 animate-fade-in pb-12 max-w-7xl mx-auto">
             <Breadcrumbs items={[{ label: "Kullanıcılar", href: "/admin/users" }, { label: "Kullanıcı Detayı" }]} />
-            
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <Link href="/admin/users">
@@ -332,7 +332,7 @@ export default function UserDetailPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                
+
                                 {/* Committee Block - Only for Delegates or Staff */}
                                 {(user.role !== ROLES.APPLICANT || formSlug === ROLES.DELEGATE) && (
                                     <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">

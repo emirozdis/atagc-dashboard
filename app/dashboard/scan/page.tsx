@@ -35,32 +35,27 @@ export default function ScanPage() {
       const scannedValue = detectedCodes[0].rawValue;
 
       if (scannedValue && scanState !== 'processing' && scanState !== 'success' && scanState !== 'duplicate') {
-        setIsCameraActive(false); 
-        await processScan(scannedValue); 
+        setIsCameraActive(false);
+        await processScan(scannedValue);
       }
     }
   };
 
   const processScan = async (code: string) => {
     setScanState('processing');
-    
-    // Determine type (User Connection vs Roll Call)
+
     let isUserQr = false;
     let targetId = code;
 
     try {
-      // Try parsing as JSON to see if it's a User QR or Dynamic Roll Call
       const parsed = JSON.parse(code);
       if (parsed.t === 'u' && parsed.id) {
-        // User Connection
         isUserQr = true;
         targetId = parsed.id;
       } else if (parsed.t === 'r' && parsed.id && parsed.otp) {
-        // Dynamic Roll Call - Pass the whole JSON string to the API
         isUserQr = false;
       }
     } catch (e) {
-      // Not JSON, assume simple UUID string = Legacy Roll Call
       isUserQr = false;
     }
 
@@ -69,7 +64,7 @@ export default function ScanPage() {
       await handleConnectionScan(targetId);
     } else {
       setScanType('roll-call');
-      await handleRollCallScan(code); // Send raw code (JSON or String)
+      await handleRollCallScan(code);
     }
   };
 
@@ -85,16 +80,16 @@ export default function ScanPage() {
 
       if (res.ok) {
         if (data.status === 'already_connected') {
-           setResultMessage(data.message || "Zaten bağlantınız var.");
-           setScanState('duplicate');
+          setResultMessage(data.message || "Zaten bağlantınız var.");
+          setScanState('duplicate');
         } else if (data.status === 'pending') {
-           setResultMessage(data.message || "İstek zaten gönderildi.");
-           setScanState('duplicate');
+          setResultMessage(data.message || "İstek zaten gönderildi.");
+          setScanState('duplicate');
         } else {
-           setSessionName("Bağlantı İsteği");
-           setResultMessage(data.message || "İstek gönderildi.");
-           setScanState('success');
-           toast.success("İstek Gönderildi");
+          setSessionName("Bağlantı İsteği");
+          setResultMessage(data.message || "İstek gönderildi.");
+          setScanState('success');
+          toast.success("İstek Gönderildi");
         }
       } else {
         throw new Error(data.error || "İşlem başarısız");
@@ -107,7 +102,6 @@ export default function ScanPage() {
 
   const handleRollCallScan = async (code: string) => {
     try {
-      // Send the code exactly as received. The API will parse JSON if needed.
       const res = await fetch("/api/roll-call/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,10 +135,8 @@ export default function ScanPage() {
     setIsCameraActive(true);
   };
 
-  // ... (Rest of UI render remains the same)
-  // Re-including UI code for completeness
   return (
-    <div className="max-w-xl mx-auto space-y-6 md:space-y-8 animate-fade-in py-4 md:py-6 px-4 pb-20 overflow-hidden">
+    <div className="max-w-xl mx-auto space-y-6 md:space-y-8 animate-fade-in py-4 md:py-6 px-4 pb-12 overflow-hidden">
       <Breadcrumbs items={[{ label: "Tara" }]} />
 
       <div className="space-y-2 text-center">
@@ -203,10 +195,10 @@ export default function ScanPage() {
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <Button onClick={resetScan} variant="outline">
-                    Tekrar Tara
+                  Tekrar Tara
                 </Button>
                 <Button onClick={() => window.location.href = scanType === 'connection' ? '/dashboard/connections' : '/dashboard'} variant="default">
-                    {scanType === 'connection' ? 'Bağlantılarım' : 'Panoya Dön'}
+                  {scanType === 'connection' ? 'Bağlantılarım' : 'Panoya Dön'}
                 </Button>
               </div>
             </Card>
@@ -229,10 +221,10 @@ export default function ScanPage() {
               <p className="text-muted-foreground mb-6 md:mb-8 text-base md:text-lg">{resultMessage}</p>
               <div className="grid grid-cols-2 gap-3">
                 <Button onClick={resetScan} variant="outline" className="border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
-                    Tekrar Tara
+                  Tekrar Tara
                 </Button>
                 <Button onClick={() => window.location.href = '/dashboard'} variant="outline" className="border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
-                    Panoya Dön
+                  Panoya Dön
                 </Button>
               </div>
             </Card>
@@ -313,7 +305,3 @@ export default function ScanPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Updated `processScan` logic to detect `t: 'r'` JSON payload for dynamic roll calls and route them correctly.
-// - Fixed typo in fallback logic.

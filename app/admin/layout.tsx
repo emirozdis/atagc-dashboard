@@ -21,7 +21,7 @@ export default function AdminLayout({
       <div className="flex-1 flex flex-col md:pl-64 h-full relative z-0 overflow-x-hidden">
         <Header />
         {/* Adjusted padding: p-4 for mobile, pb-20 + pb-safe to clear bottom nav */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 pb-safe md:pb-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 pb-safe md:pb-8">
           {children}
         </main>
         <AdminMobileNav />

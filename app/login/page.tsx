@@ -23,7 +23,6 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // In development, allow bypassing the UI check if no token is present
     const isDev = process.env.NODE_ENV === "development";
     const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
 
@@ -39,7 +38,7 @@ export default function LoginPage() {
         redirect: false,
         email: formData.email,
         password: formData.password,
-        token: effectiveToken, // Send the effective token (real or bypass)
+        token: effectiveToken,
       });
 
       if (result?.error) {
@@ -170,7 +169,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Updated `handleSubmit` to check `process.env.NODE_ENV === "development"`.
-// - If in development and no token is present, it uses "DEV_BYPASS" as the token string, allowing the request to proceed to the server where the bypass logic exists.

@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Calendar, CheckCircle2, Clock, Info, MapPin, 
-  XCircle, FileQuestion, Users, 
+import {
+  Calendar, CheckCircle2, Clock, Info, MapPin,
+  XCircle, FileQuestion, Users,
   ChevronRight, AlertTriangle, ShieldCheck
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -39,14 +39,20 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-12 p-4">
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-10 w-[300px]" />
-          <Skeleton className="h-4 w-[200px]" />
+      <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-[240px]" />
+            <Skeleton className="h-5 w-[300px]" />
+          </div>
+          <Skeleton className="h-8 w-24 rounded-full" />
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
-          <Skeleton className="h-[200px] lg:col-span-2 rounded-xl" />
-          <Skeleton className="h-[200px] rounded-xl" />
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-[300px] w-full rounded-xl" />
+            <Skeleton className="h-[200px] w-full rounded-xl" />
+          </div>
+          <Skeleton className="h-[400px] rounded-xl" />
         </div>
       </div>
     );
@@ -78,43 +84,43 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
   const getStatusSteps = () => {
     return [
-        {
-            id: 'application',
-            label: "Başvuru",
-            status: appStatus === 'approved' ? 'done' : appStatus === 'rejected' ? 'error' : 'processing',
-            date: application?.submitted_at
-        },
-        {
-            id: 'payment',
-            label: "Ödeme",
-            status: appStatus !== 'approved' ? 'waiting' : 
-                    paymentStatus === PaymentStatusEnum.PAID ? 'done' : 
-                    paymentStatus === PaymentStatusEnum.EXEMPT ? 'exempt' :
-                    paymentStatus === PaymentStatusEnum.PROCESSING ? 'processing' : 
-                    paymentStatus === PaymentStatusEnum.REJECTED ? 'error' : 'pending',
-            date: paymentData?.last_receipt?.created_at,
-            text: paymentStatus === PaymentStatusEnum.EXEMPT ? "Muaf" : undefined
-        },
-        {
-            id: 'committee',
-            label: "Komite",
-            status: !committeeMember ? 'waiting' : 'done',
-            text: committeeMember?.committee?.name
-        }
+      {
+        id: 'application',
+        label: "Başvuru",
+        status: appStatus === 'approved' ? 'done' : appStatus === 'rejected' ? 'error' : 'processing',
+        date: application?.submitted_at
+      },
+      {
+        id: 'payment',
+        label: "Ödeme",
+        status: appStatus !== 'approved' ? 'waiting' :
+          paymentStatus === PaymentStatusEnum.PAID ? 'done' :
+            paymentStatus === PaymentStatusEnum.EXEMPT ? 'exempt' :
+              paymentStatus === PaymentStatusEnum.PROCESSING ? 'processing' :
+                paymentStatus === PaymentStatusEnum.REJECTED ? 'error' : 'pending',
+        date: paymentData?.last_receipt?.created_at,
+        text: paymentStatus === PaymentStatusEnum.EXEMPT ? "Muaf" : undefined
+      },
+      {
+        id: 'committee',
+        label: "Komite",
+        status: !committeeMember ? 'waiting' : 'done',
+        text: committeeMember?.committee?.name
+      }
     ];
   };
 
   const steps = getStatusSteps();
 
   const getStepIcon = (status: string) => {
-      switch (status) {
-          case 'done': return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
-          case 'error': return <XCircle className="w-5 h-5 text-red-500" />;
-          case 'exempt': return <ShieldCheck className="w-5 h-5 text-purple-500" />;
-          case 'processing': return <Clock className="w-5 h-5 text-amber-500 animate-pulse" />;
-          case 'pending': return <AlertTriangle className="w-5 h-5 text-primary" />;
-          default: return <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />;
-      }
+    switch (status) {
+      case 'done': return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
+      case 'error': return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'exempt': return <ShieldCheck className="w-5 h-5 text-purple-500" />;
+      case 'processing': return <Clock className="w-5 h-5 text-amber-500 animate-pulse" />;
+      case 'pending': return <AlertTriangle className="w-5 h-5 text-primary" />;
+      default: return <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />;
+    }
   };
 
   const formatDateRange = (start: string | null | undefined, end: string | null | undefined) => {
@@ -137,10 +143,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-12">
-      {/* ... Header and other parts ... */}
-      
-      {/* (Skipping Header rendering for brevity, assume same structure as previous) */}
+    <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
@@ -161,57 +164,57 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         <div className={cn("flex flex-col gap-6", showIdCard ? "lg:col-span-2" : "lg:col-span-3")}>
           <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
             <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
-                <CardTitle className="text-lg font-medium flex items-center gap-2">
-                    <Info className="w-4 h-4 text-primary" /> Kayıt Durumu
-                </CardTitle>
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <Info className="w-4 h-4 text-primary" /> Kayıt Durumu
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-                <div className="divide-y divide-border/50">
-                    {steps.map((step, idx) => (
-                        <div key={step.id} className="flex items-center justify-between p-4 md:p-6 transition-colors hover:bg-muted/5">
-                            <div className="flex items-center gap-4">
-                                <div className="flex flex-col items-center gap-1">
-                                    {getStepIcon(step.status)}
-                                    {idx < steps.length - 1 && (
-                                        <div className={cn("w-px h-6 my-1", (step.status === 'done' || step.status === 'exempt') ? "bg-emerald-500/30" : "bg-border")} />
-                                    )}
-                                </div>
-                                <div>
-                                    <div className="font-medium text-sm md:text-base">{step.label}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {step.status === 'done' ? (step.text || "Tamamlandı") :
-                                         step.status === 'exempt' ? "Muaf (Tamamlandı)" :
-                                         step.status === 'processing' ? "İnceleniyor" :
-                                         step.status === 'error' ? "Sorun Var" :
-                                         step.status === 'pending' ? "İşlem Bekliyor" : 
-                                         "Bekleniyor"}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-4">
-                                {step.date && (
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline-block bg-secondary/30 px-2 py-1 rounded">
-                                        {new Date(step.date).toLocaleDateString("tr-TR")}
-                                    </span>
-                                )}
-                                
-                                {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
-                                    <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
-                                        <Link href="/dashboard/payment">
-                                            {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
-                                        </Link>
-                                    </Button>
-                                )}
-                                {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
-                                    <Button size="sm" variant="outline" asChild className="h-8 text-xs">
-                                        <Link href="/dashboard/payment">Detay</Link>
-                                    </Button>
-                                )}
-                            </div>
+              <div className="divide-y divide-border/50">
+                {steps.map((step, idx) => (
+                  <div key={step.id} className="flex items-center justify-between p-4 md:p-6 transition-colors hover:bg-muted/5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-center gap-1">
+                        {getStepIcon(step.status)}
+                        {idx < steps.length - 1 && (
+                          <div className={cn("w-px h-6 my-1", (step.status === 'done' || step.status === 'exempt') ? "bg-emerald-500/30" : "bg-border")} />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm md:text-base">{step.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {step.status === 'done' ? (step.text || "Tamamlandı") :
+                            step.status === 'exempt' ? "Muaf (Tamamlandı)" :
+                              step.status === 'processing' ? "İnceleniyor" :
+                                step.status === 'error' ? "Sorun Var" :
+                                  step.status === 'pending' ? "İşlem Bekliyor" :
+                                    "Bekleniyor"}
                         </div>
-                    ))}
-                </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {step.date && (
+                        <span className="text-[10px] text-muted-foreground hidden sm:inline-block bg-secondary/30 px-2 py-1 rounded">
+                          {new Date(step.date).toLocaleDateString("tr-TR")}
+                        </span>
+                      )}
+
+                      {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
+                        <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
+                          <Link href="/dashboard/payment">
+                            {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
+                          </Link>
+                        </Button>
+                      )}
+                      {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
+                        <Button size="sm" variant="outline" asChild className="h-8 text-xs">
+                          <Link href="/dashboard/payment">Detay</Link>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
@@ -256,7 +259,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         )}
       </div>
 
-      {/* Committee & Topic Section (Approved users) */}
+      {/* Committee & Topic Section */}
       {appStatus === ApplicationStatusEnum.APPROVED && (
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
@@ -330,8 +333,3 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     </div>
   );
 }
-
-// Change Log:
-// - Added 'exempt' status handling to the step visualization (purple icon, "Muaf" text).
-// - Payment step is marked as 'done' (visually equivalent to done but specific) if exempt.
-// - Digital ID card is shown if payment status is 'exempt'.

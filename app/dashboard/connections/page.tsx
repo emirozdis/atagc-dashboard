@@ -2,8 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { 
-  Users, UserPlus, Check, X, Trash2, Search, Mail, 
+import {
+  Users, UserPlus, Check, X, Trash2, Search, Mail,
   Shield, User as UserIcon, Loader2, ArrowRight,
   Clock,
   Send
@@ -33,7 +33,7 @@ export default function ConnectionsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("list");
-  
+
   // Dialog State
   const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -95,8 +95,8 @@ export default function ConnectionsPage() {
     }
   };
 
-  const filteredConnections = (data?.connected || []).filter(c => 
-    c.friend.full_name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredConnections = (data?.connected || []).filter(c =>
+    c.friend.full_name.toLowerCase().includes(search.toLowerCase()) ||
     (c.friend.user_details?.school_name || "").toLowerCase().includes(search.toLowerCase())
   );
 
@@ -105,20 +105,20 @@ export default function ConnectionsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto space-y-6 p-4">
+      <div className="max-w-7xl mx-auto space-y-6 pb-12">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-12 w-full rounded-xl" />
         <div className="grid gap-4 md:grid-cols-2">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-24 px-1 md:px-0">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-12">
       <Breadcrumbs items={[{ label: "Bağlantılarım" }]} />
-      
+
       <div className="flex flex-col gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tanıştıklarım</h2>
@@ -153,8 +153,8 @@ export default function ConnectionsPage() {
 
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="İsim veya okul ara..." 
+              <Input
+                placeholder="İsim veya okul ara..."
                 className="pl-9 h-10 bg-card border-border/50"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -183,7 +183,7 @@ export default function ConnectionsPage() {
                         <AvatarImage src={conn.friend.user_details?.profile_picture_url || undefined} className="object-cover" />
                         <AvatarFallback className="bg-primary/5 text-primary">{conn.friend.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      
+
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex justify-between items-start">
                           <h4 className="font-semibold text-sm truncate pr-2">{conn.friend.full_name}</h4>
@@ -191,9 +191,9 @@ export default function ConnectionsPage() {
                             {conn.friend.role === 'applicant' ? 'Delege' : conn.friend.role.replace('_', ' ')}
                           </Badge>
                         </div>
-                        
+
                         <p className="text-xs text-muted-foreground truncate">{conn.friend.user_details?.school_name || "Okul Belirtilmemiş"}</p>
-                        
+
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
                           <Mail className="w-3 h-3 opacity-70" />
                           <span className="truncate max-w-[150px]">{conn.friend.email}</span>
@@ -231,24 +231,24 @@ export default function ConnectionsPage() {
                         <AvatarImage src={req.requester.user_details?.profile_picture_url || undefined} className="object-cover" />
                         <AvatarFallback>{req.requester.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      
+
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-sm truncate">{req.requester.full_name}</h4>
                         <p className="text-xs text-muted-foreground">Bağlantı kurmak istiyor.</p>
                       </div>
 
                       <div className="flex gap-2 shrink-0">
-                        <Button 
-                          size="icon" 
-                          variant="outline" 
+                        <Button
+                          size="icon"
+                          variant="outline"
                           className="h-8 w-8 border-red-500/30 text-red-500 hover:bg-red-500/10 hover:border-red-500/50"
                           onClick={() => respondMutation.mutate({ id: req.id, action: 'reject' })}
                           disabled={respondMutation.isPending}
                         >
                           <X className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          size="icon" 
+                        <Button
+                          size="icon"
                           className="h-8 w-8 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
                           onClick={() => respondMutation.mutate({ id: req.id, action: 'accept' })}
                           disabled={respondMutation.isPending}
@@ -279,7 +279,7 @@ export default function ConnectionsPage() {
                         <AvatarImage src={req.recipient.user_details?.profile_picture_url || undefined} className="object-cover" />
                         <AvatarFallback>{req.recipient.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      
+
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-sm truncate">{req.recipient.full_name}</h4>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -288,9 +288,9 @@ export default function ConnectionsPage() {
                         </div>
                       </div>
 
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => deleteMutation.mutate(req.id)}
                         disabled={deleteMutation.isPending}
@@ -317,8 +317,8 @@ export default function ConnectionsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Vazgeç</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={(e) => { e.preventDefault(); handleDeleteConfirm(); }} 
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteConfirm(); }}
               disabled={isDeleting}
               className="bg-destructive text-white hover:bg-destructive/90"
             >

@@ -7,6 +7,7 @@ import { FileText, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Committee } from "@/types/admin";
 import { CardSkeleton } from "@/components/ui/skeleton-loader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AdminDocumentsPage() {
@@ -25,10 +26,21 @@ export default function AdminDocumentsPage() {
     router.push(`/dashboard/editor?committeeId=${committeeId}`);
   };
 
-  if (isLoading) return <div className="p-4"><CardSkeleton count={4} /></div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
+        <Skeleton className="h-4 w-32" /> {/* Breadcrumbs */}
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <CardSkeleton count={4} />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
       <Breadcrumbs items={[{ label: "Belgeler" }]} />
       <h2 className="text-3xl font-display font-bold text-foreground">Komite Belgeleri</h2>
       <p className="text-muted-foreground">
@@ -62,7 +74,3 @@ export default function AdminDocumentsPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Refactored to `useQuery`.
-// - Added `CardSkeleton` for loading state.

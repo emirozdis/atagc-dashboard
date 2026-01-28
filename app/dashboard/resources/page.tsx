@@ -120,25 +120,23 @@ function ResourceSection({
 
 function LoadingSkeleton() {
   return (
-    <div className="max-w-7xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8 py-8">
-      <div className="space-y-3">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-5 w-96" />
+    <div className="max-w-7xl mx-auto space-y-6 pb-12">
+      <Skeleton className="h-4 w-32" /> {/* Breadcrumbs */}
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-64" />
+            <Skeleton className="h-5 w-96" />
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <Skeleton className="h-11 w-full max-w-md rounded-md" />
       </div>
 
       <div className="space-y-6">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-48 rounded-lg" />
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-6">
-        <Skeleton className="h-12 w-56" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[1, 2].map(i => (
             <Skeleton key={i} className="h-48 rounded-lg" />
           ))}
         </div>
@@ -154,7 +152,6 @@ export default function ParticipantResourcesPage() {
   const committeeSectionRef = useRef<HTMLDivElement>(null);
   const generalSectionRef = useRef<HTMLDivElement>(null);
 
-  // Handle hash-based navigation
   useEffect(() => {
     const hash = window.location.hash.slice(1);
     if (hash === "committee" && committeeSectionRef.current) {
@@ -168,7 +165,6 @@ export default function ParticipantResourcesPage() {
     }
   }, []);
 
-  // Updated Query Key to be unique per user to prevent cache leakage
   const { data: resources = [], isLoading } = useQuery<Resource[]>({
     queryKey: ["resources-participant", session?.user?.id],
     queryFn: async () => {
@@ -195,92 +191,86 @@ export default function ParticipantResourcesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <Breadcrumbs items={[{ label: "Kaynaklar" }]} />
-        {/* Header Section */}
-        <div className="space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-foreground tracking-tight">
-                Kaynaklar
-              </h1>
-              <p className="text-lg text-muted-foreground max-w-2xl">
-                Etkinlik süresince ihtiyaç duyacağınız tüm dokümanlar ve materyaller
-              </p>
-            </div>
-
-            {isChairman && (
-              <ResourceUploadDialog
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["resources-participant", session?.user?.id] })}
-              />
-            )}
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
+      <Breadcrumbs items={[{ label: "Kaynaklar" }]} />
+      {/* Header Section */}
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold text-foreground tracking-tight">
+              Kaynaklar
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl">
+              Etkinlik süresince ihtiyaç duyacağınız tüm dokümanlar ve materyaller
+            </p>
           </div>
 
-          {/* Search Bar */}
-          {resources.length > 0 && (
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Kaynak ara..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11 bg-card border-border/50 focus:border-primary"
-              />
-            </div>
+          {isChairman && (
+            <ResourceUploadDialog
+              onSuccess={() => queryClient.invalidateQueries({ queryKey: ["resources-participant", session?.user?.id] })}
+            />
           )}
         </div>
 
-        {/* Content */}
-        {resources.length === 0 ? (
-          <Card className="border-2 border-dashed border-border/50 bg-muted/20">
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Info className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Henüz Kaynak Yok</h3>
-              <p className="text-muted-foreground max-w-md">
-                Henüz bir kaynak yüklenmedi. Kaynaklar yüklendiğinde burada görünecektir.
-              </p>
-            </CardContent>
-          </Card>
-        ) : filteredResources.length === 0 ? (
-          <Card className="border border-border/50 bg-card/50">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <Search className="w-12 h-12 text-muted-foreground mb-3" />
-              <h3 className="text-lg font-semibold mb-1">Sonuç Bulunamadı</h3>
-              <p className="text-muted-foreground">
-                Aramanızla eşleşen kaynak bulunamadı. Farklı bir terim deneyin.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-12">
-            <div ref={committeeSectionRef}>
-              <ResourceSection
-                title="Komite Kaynakları"
-                icon={Building2}
-                resources={committeeResources}
-                badge={committeeResources.length > 0 ? `${committeeResources.length}` : undefined}
-              />
-            </div>
-
-            <div ref={generalSectionRef}>
-              <ResourceSection
-                title="Genel Kaynaklar"
-                icon={Globe}
-                resources={generalResources}
-                badge={generalResources.length > 0 ? `${generalResources.length}` : undefined}
-              />
-            </div>
+        {/* Search Bar */}
+        {resources.length > 0 && (
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Kaynak ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-11 bg-card border-border/50 focus:border-primary"
+            />
           </div>
         )}
       </div>
+
+      {/* Content */}
+      {resources.length === 0 ? (
+        <Card className="border-2 border-dashed border-border/50 bg-muted/20">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Info className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Henüz Kaynak Yok</h3>
+            <p className="text-muted-foreground max-w-md">
+              Henüz bir kaynak yüklenmedi. Kaynaklar yüklendiğinde burada görünecektir.
+            </p>
+          </CardContent>
+        </Card>
+      ) : filteredResources.length === 0 ? (
+        <Card className="border border-border/50 bg-card/50">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Search className="w-12 h-12 text-muted-foreground mb-3" />
+            <h3 className="text-lg font-semibold mb-1">Sonuç Bulunamadı</h3>
+            <p className="text-muted-foreground">
+              Aramanızla eşleşen kaynak bulunamadı. Farklı bir terim deneyin.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-12">
+          <div ref={committeeSectionRef}>
+            <ResourceSection
+              title="Komite Kaynakları"
+              icon={Building2}
+              resources={committeeResources}
+              badge={committeeResources.length > 0 ? `${committeeResources.length}` : undefined}
+            />
+          </div>
+
+          <div ref={generalSectionRef}>
+            <ResourceSection
+              title="Genel Kaynaklar"
+              icon={Globe}
+              resources={generalResources}
+              badge={generalResources.length > 0 ? `${generalResources.length}` : undefined}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-// Change Log:
-// - Updated `useQuery` key to include `session?.user?.id` to ensure unique caching per user.
-// - Added `enabled: !!session?.user?.id` to prevent fetching before session is ready.

@@ -210,7 +210,7 @@ export default function AdminLogsPage() {
   );
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
       <Breadcrumbs items={[{ label: "Sistem Logları" }]} />
       <div className="flex items-center justify-between">
         <div>
@@ -359,6 +359,3 @@ export default function AdminLogsPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Updated `renderMobileItem` container to use `grid grid-cols-1` to ensure `truncate` behaves correctly on long text content, fixing mobile overflow.

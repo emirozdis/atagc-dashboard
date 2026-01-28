@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Announcement } from "@/types/announcement";
 import { AnnouncementFeed } from "@/components/dashboard/announcements/AnnouncementFeed";
-import { CardSkeleton } from "@/components/ui/skeleton-loader";
+import { CardSkeleton, ListSkeleton } from "@/components/ui/skeleton-loader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AnnouncementsPage() {
@@ -16,10 +17,21 @@ export default function AnnouncementsPage() {
     }
   });
 
-  if (isLoading) return <div className="max-w-4xl mx-auto p-4"><CardSkeleton count={3} /></div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
+        <Skeleton className="h-4 w-32" />
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <ListSkeleton count={3} />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
       <Breadcrumbs items={[{ label: "Duyurular" }]} />
       <div>
         <h2 className="text-3xl font-display font-bold text-foreground">Duyurular</h2>
@@ -32,7 +44,3 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Refactored to `useQuery`.
-// - Uses `CardSkeleton`.

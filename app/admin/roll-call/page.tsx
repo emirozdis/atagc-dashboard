@@ -67,7 +67,7 @@ export default function AdminRollCallsPage() {
         committee_id: committeeFilter,
         start_date: startDate,
         end_date: endDate,
-        sort_by: sortBy === 'ratio' ? 'created_at' : sortBy, 
+        sort_by: sortBy === 'ratio' ? 'created_at' : sortBy,
         sort_order: sortOrder,
       });
       const res = await fetch(`/api/admin/roll-calls?${params}`);
@@ -159,7 +159,7 @@ export default function AdminRollCallsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
       <Breadcrumbs items={[{ label: "Yoklama" }]} />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -270,7 +270,7 @@ export default function AdminRollCallsPage() {
       <Card className="bg-card border-border/50 bg-transparent shadow-none border-none">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-2"><TableSkeleton mobileCards={true} /></div>
+            <div className="p-2"><TableSkeleton cols={5} mobileCards={true} showTitle={false} /></div>
           ) : processedRollCalls.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
               <Search className="w-12 h-12 opacity-20 mb-3" />

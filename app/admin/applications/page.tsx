@@ -126,7 +126,7 @@ export default function ApplicationsPage() {
   const MobileApplicationCard = ({ app }: { app: any }) => {
     const details = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
     const assignedCommittee = app.user.committee_members?.[0]?.committee;
-    
+
     // Fix: Check form slug for display logic
     const formSlug = app.form?.slug || 'delegate';
     const isAcademic = formSlug === 'delegate';
@@ -181,7 +181,7 @@ export default function ApplicationsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in pb-12 max-w-7xl mx-auto">
       <Breadcrumbs items={[{ label: "Başvurular" }]} />
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Başvurular</h2>
@@ -257,10 +257,12 @@ export default function ApplicationsPage() {
       {isLoading ? (
         <div className="space-y-4">
           <div className="hidden md:block">
-            <TableSkeleton cols={6} rows={5} />
+            <TableSkeleton cols={7} rows={limit} showTitle={false} />
           </div>
           <div className="md:hidden space-y-4">
-            {[1, 2, 3].map(i => <div key={i} className="h-40 bg-muted/20 animate-pulse rounded-xl border border-border/30" />)}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-40 bg-muted/20 animate-pulse rounded-xl border border-border/30" />
+            ))}
           </div>
         </div>
       ) : applications.length === 0 ? (
@@ -293,7 +295,7 @@ export default function ApplicationsPage() {
                 {applications.map((app) => {
                   const details = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
                   const assignedCommittee = app.user.committee_members?.[0]?.committee;
-                  
+
                   // Fix: Check form slug
                   const formSlug = app.form?.slug || 'delegate';
                   const isAcademic = formSlug === 'delegate';
@@ -318,7 +320,7 @@ export default function ApplicationsPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="text-[10px] font-normal capitalize">
-                            {app.form?.title || formSlug}
+                          {app.form?.title || formSlug}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate" title={details?.school_name}>
@@ -329,22 +331,22 @@ export default function ApplicationsPage() {
                       </TableCell>
                       <TableCell>
                         {isAcademic ? (
-                            assignedCommittee ? (
+                          assignedCommittee ? (
                             <div className="flex items-center gap-1.5 text-sm">
-                                <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span className="font-medium truncate max-w-[150px]" title={assignedCommittee.name}>
+                              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span className="font-medium truncate max-w-[150px]" title={assignedCommittee.name}>
                                 {assignedCommittee.name}
-                                </span>
+                              </span>
                             </div>
-                            ) : app.status === 'approved' ? (
+                          ) : app.status === 'approved' ? (
                             <Badge variant="outline" className="bg-orange-500/5 text-orange-500 border-orange-500/20 border-dashed whitespace-nowrap">
-                                Atama Bekleniyor
+                              Atama Bekleniyor
                             </Badge>
-                            ) : (
+                          ) : (
                             <span className="text-sm text-muted-foreground">-</span>
-                            )
+                          )
                         ) : (
-                            <span className="text-sm text-muted-foreground opacity-50">-</span>
+                          <span className="text-sm text-muted-foreground opacity-50">-</span>
                         )}
                       </TableCell>
                       <TableCell>{getStatusBadge(app.status)}</TableCell>

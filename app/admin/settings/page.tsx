@@ -91,7 +91,7 @@ export default function SettingsPage() {
 
     if (isLoading || !localSettings) {
         return (
-            <div className="space-y-8 max-w-5xl mx-auto p-4">
+            <div className="space-y-8 max-w-7xl mx-auto pb-12">
                 <div className="flex justify-between items-center">
                     <Skeleton className="h-10 w-[200px]" />
                     <Skeleton className="h-10 w-[150px]" />
@@ -106,7 +106,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="space-y-8 animate-fade-in pb-10 max-w-5xl mx-auto">
+        <div className="space-y-8 animate-fade-in pb-12 max-w-7xl mx-auto">
             <Breadcrumbs items={[{ label: "Ayarlar" }]} />
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>

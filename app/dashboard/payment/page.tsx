@@ -26,10 +26,24 @@ export default function PaymentPage() {
 
     if (isLoading) {
         return (
-            <div className="max-w-3xl mx-auto space-y-8 p-4">
-                <Skeleton className="h-10 w-48" />
-                <Skeleton className="h-40 w-full rounded-2xl" />
-                <Skeleton className="h-96 w-full rounded-2xl" />
+            <div className="max-w-7xl mx-auto space-y-8 pb-12">
+                <Skeleton className="h-4 w-48 mb-6" />
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-64" />
+                        <Skeleton className="h-5 w-48" />
+                    </div>
+                    <div className="flex justify-between items-center py-4">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="flex flex-col items-center gap-2">
+                                <Skeleton className="h-8 w-8 rounded-full" />
+                                <Skeleton className="h-3 w-12" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <Skeleton className="h-48 w-full rounded-2xl" />
+                <Skeleton className="h-64 w-full rounded-2xl" />
             </div>
         );
     }
@@ -50,7 +64,7 @@ export default function PaymentPage() {
     };
 
     return (
-        <div className="max-w-3xl mx-auto space-y-8 animate-fade-in pb-20">
+        <div className="max-w-7xl mx-auto space-y-8 pb-12">
             <Breadcrumbs items={[{ label: "Panel", href: "/dashboard" }, { label: "Ödeme" }]} />
 
             {/* Header & Status Indicator */}
@@ -68,7 +82,7 @@ export default function PaymentPage() {
                             "absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary -z-10 rounded-full transition-all duration-700",
                             isPaid ? "w-full" : isProcessing ? "w-2/3" : isRejected ? "w-1/3 bg-red-500" : "w-1/6"
                         )} />
-                        
+
                         <div className="flex flex-col items-center gap-2 bg-background p-2 rounded-xl">
                             <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</div>
                             <span className="text-[10px] font-medium uppercase">Banka</span>
@@ -79,7 +93,7 @@ export default function PaymentPage() {
                         </div>
                         <div className="flex flex-col items-center gap-2 bg-background p-2 rounded-xl">
                             <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold", (isProcessing || isPaid || isRejected) ? (isRejected ? "bg-red-500" : "bg-primary text-primary-foreground") : "bg-secondary")}>
-                                {isRejected ? <Ban className="w-4 h-4"/> : "3"}
+                                {isRejected ? <Ban className="w-4 h-4" /> : "3"}
                             </div>
                             <span className="text-[10px] font-medium uppercase">Onay</span>
                         </div>
@@ -91,48 +105,48 @@ export default function PaymentPage() {
             <Card className={cn(
                 "border-l-4 shadow-sm transition-all duration-300 overflow-hidden",
                 isExempt ? "border-purple-500 bg-purple-500/5" :
-                isPaid ? "border-emerald-500 bg-emerald-500/5" :
-                isRejected ? "border-red-500 bg-red-500/5" :
-                isProcessing ? "border-amber-500 bg-amber-500/5" :
-                "border-primary bg-card"
+                    isPaid ? "border-emerald-500 bg-emerald-500/5" :
+                        isRejected ? "border-red-500 bg-red-500/5" :
+                            isProcessing ? "border-amber-500 bg-amber-500/5" :
+                                "border-primary bg-card"
             )}>
                 <CardContent className="p-6 md:p-8">
                     <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
                         <div className={cn(
                             "p-4 rounded-full shrink-0 border-4",
                             isExempt ? "bg-purple-500/20 text-purple-600 border-purple-500/10" :
-                            isPaid ? "bg-emerald-500/20 text-emerald-600 border-emerald-500/10" :
-                            isRejected ? "bg-red-500/20 text-red-600 border-red-500/10" :
-                            isProcessing ? "bg-amber-500/20 text-amber-600 border-amber-500/10" :
-                            "bg-primary/10 text-primary border-primary/5"
+                                isPaid ? "bg-emerald-500/20 text-emerald-600 border-emerald-500/10" :
+                                    isRejected ? "bg-red-500/20 text-red-600 border-red-500/10" :
+                                        isProcessing ? "bg-amber-500/20 text-amber-600 border-amber-500/10" :
+                                            "bg-primary/10 text-primary border-primary/5"
                         )}>
                             {isExempt ? <ShieldCheck className="w-8 h-8" /> :
-                             isPaid ? <CheckCircle2 className="w-8 h-8" /> :
-                             isRejected ? <AlertTriangle className="w-8 h-8" /> :
-                             isProcessing ? <Clock className="w-8 h-8 animate-pulse" /> :
-                             <Wallet className="w-8 h-8" />}
+                                isPaid ? <CheckCircle2 className="w-8 h-8" /> :
+                                    isRejected ? <AlertTriangle className="w-8 h-8" /> :
+                                        isProcessing ? <Clock className="w-8 h-8 animate-pulse" /> :
+                                            <Wallet className="w-8 h-8" />}
                         </div>
                         <div className="space-y-1 flex-1">
                             <h3 className={cn(
                                 "text-2xl font-bold tracking-tight",
                                 isExempt ? "text-purple-700 dark:text-purple-400" :
-                                isPaid ? "text-emerald-700 dark:text-emerald-400" :
-                                isRejected ? "text-red-700 dark:text-red-400" :
-                                isProcessing ? "text-amber-700 dark:text-amber-400" :
-                                "text-foreground"
+                                    isPaid ? "text-emerald-700 dark:text-emerald-400" :
+                                        isRejected ? "text-red-700 dark:text-red-400" :
+                                            isProcessing ? "text-amber-700 dark:text-amber-400" :
+                                                "text-foreground"
                             )}>
                                 {isExempt ? "Ödemeden Muaf" :
-                                 isPaid ? "Ödeme Onaylandı" :
-                                 isRejected ? "Ödeme Reddedildi" :
-                                 isProcessing ? "İnceleniyor" :
-                                 "Ödeme Bekleniyor"}
+                                    isPaid ? "Ödeme Onaylandı" :
+                                        isRejected ? "Ödeme Reddedildi" :
+                                            isProcessing ? "İnceleniyor" :
+                                                "Ödeme Bekleniyor"}
                             </h3>
                             <p className="text-base text-muted-foreground/90 leading-relaxed">
                                 {isExempt ? "Rolünüz veya başvurunuz gereği katılım ücretinden muaf tutuldunuz. Herhangi bir işlem yapmanıza gerek yoktur." :
-                                 isPaid ? "Ödemeniz başarıyla alınmış ve kaydınız kesinleşmiştir." :
-                                 isRejected ? "Yüklediğiniz dekont onaylanamadı. Lütfen yeni bir dekont yükleyiniz." :
-                                 isProcessing ? "Dekontunuz finans ekibimiz tarafından incelenmektedir." :
-                                 "Lütfen katılım ücretini aşağıda belirtilen hesaba yatırınız."}
+                                    isPaid ? "Ödemeniz başarıyla alınmış ve kaydınız kesinleşmiştir." :
+                                        isRejected ? "Yüklediğiniz dekont onaylanamadı. Lütfen yeni bir dekont yükleyiniz." :
+                                            isProcessing ? "Dekontunuz finans ekibimiz tarafından incelenmektedir." :
+                                                "Lütfen katılım ücretini aşağıda belirtilen hesaba yatırınız."}
                             </p>
                         </div>
                     </div>
@@ -184,7 +198,7 @@ export default function PaymentPage() {
                     {/* Receipt View */}
                     {(isProcessing || isPaid || isRejected) && receipt?.file_url && (
                         <div className="space-y-4">
-                            <div className="flex items-center gap-2 text-lg font-semibold"><div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold"><FileText className="w-4 h-4"/></div> {isPaid ? "Arşivlenmiş Dekont" : "Yüklenen Dosya"}</div>
+                            <div className="flex items-center gap-2 text-lg font-semibold"><div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold"><FileText className="w-4 h-4" /></div> {isPaid ? "Arşivlenmiş Dekont" : "Yüklenen Dosya"}</div>
                             <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
                                 <div className="bg-muted/30 px-4 py-3 border-b border-border/50 flex justify-between items-center"><span className="text-xs font-mono text-muted-foreground uppercase">{new Date(receipt.created_at).toLocaleString("tr-TR")}</span></div>
                                 <div className="p-0 bg-zinc-950/5 min-h-[300px] flex items-center justify-center relative group">
@@ -201,7 +215,3 @@ export default function PaymentPage() {
         </div>
     );
 }
-
-// Change Log:
-// - Updated component to handle `EXEMPT` status visually (purple card, no upload form).
-// - Uses strict `PaymentStatusEnum`.

@@ -75,30 +75,31 @@ export default function AdminDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 p-4">
-        <div className="flex justify-between">
+      <div className="space-y-6 animate-fade-in pb-12 max-w-7xl mx-auto">
+        <Skeleton className="h-4 w-32 mb-6" /> {/* Breadcrumbs */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border/40 pb-6">
           <div className="space-y-2">
-            <Skeleton className="h-10 w-[200px]" />
-            <Skeleton className="h-4 w-[300px]" />
+            <Skeleton className="h-10 w-[240px]" />
+            <Skeleton className="h-5 w-[320px]" />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Skeleton className="h-10 w-[120px]" />
-            <Skeleton className="h-10 w-[120px]" />
+            <Skeleton className="h-10 w-[160px]" />
           </div>
         </div>
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
-          <Skeleton className="lg:col-span-2 h-[400px] rounded-xl" />
-          <Skeleton className="h-[400px] rounded-xl" />
+          <Skeleton className="lg:col-span-2 h-[500px] rounded-xl" />
+          <Skeleton className="h-[500px] rounded-xl" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
+    <div className="space-y-6 animate-fade-in pb-12 max-w-7xl mx-auto">
       <Breadcrumbs items={[{ label: "Panel" }]} />
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border/40 pb-6">

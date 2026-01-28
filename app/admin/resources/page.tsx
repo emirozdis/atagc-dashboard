@@ -163,7 +163,7 @@ export default function AdminResourcesPage() {
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
       <Breadcrumbs items={[{ label: "Kaynaklar" }]} />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>

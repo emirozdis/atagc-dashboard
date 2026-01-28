@@ -93,7 +93,7 @@ export default function CommitteeRollCallPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto pb-20">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
       <Breadcrumbs items={[{ label: "Komitem", href: "/dashboard/committee" }, { label: "Yoklama" }]} />
       <div>
         <h2 className="text-3xl font-display font-bold text-foreground">Yoklama Oluştur</h2>

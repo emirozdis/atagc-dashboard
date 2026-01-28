@@ -23,12 +23,12 @@ export default function DashboardLayout({
       <div className="flex-1 flex flex-col md:pl-64 h-full relative z-0">
         <Header />
         {/* Adjusted padding: p-4 for mobile */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 pb-safe md:pb-8">
           {children}
         </main>
         <MobileNav />
       </div>
-      
+
       <ConnectionNotification />
       <RoleSyncer />
     </div>

@@ -300,8 +300,3 @@ export default function CollaborativeEditorPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Added `VersionHistorySidebar` component.
-// - Added `handleForceRefresh` to trigger global reload after restore via `provider.sendStateless`.
-// - Added Hocuspocus listener for `client_reload` message.

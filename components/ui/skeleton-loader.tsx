@@ -5,17 +5,20 @@ interface TableSkeletonProps {
   rows?: number;
   cols?: number;
   mobileCards?: boolean;
+  showTitle?: boolean;
 }
 
-export function TableSkeleton({ rows = 5, cols = 4, mobileCards = true }: TableSkeletonProps) {
+export function TableSkeleton({ rows = 5, cols = 4, mobileCards = true, showTitle = true }: TableSkeletonProps) {
   return (
     <>
       {/* Desktop Table View */}
       <div className={cn("space-y-3", mobileCards && "hidden md:block")}>
-        <div className="flex justify-between mb-4">
-          <Skeleton className="h-10 w-[200px] md:w-[250px]" />
-          <Skeleton className="h-10 w-[100px] md:w-[150px]" />
-        </div>
+        {showTitle && (
+          <div className="flex justify-between mb-4">
+            <Skeleton className="h-10 w-[200px] md:w-[250px]" />
+            <Skeleton className="h-10 w-[100px] md:w-[150px]" />
+          </div>
+        )}
         <div className="rounded-md border border-border/50 overflow-hidden">
           <div className="p-4 border-b border-border/50 flex gap-4 bg-muted/30">
             {Array.from({ length: cols }).map((_, i) => (

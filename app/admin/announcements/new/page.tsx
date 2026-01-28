@@ -185,7 +185,7 @@ export default function NewAnnouncementPage() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
+    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in pb-12">
       <Breadcrumbs items={[{ label: "Duyurular", href: "/admin/announcements" }, { label: "Yeni Duyuru" }]} />
       {/* Header */}
       <div className="flex items-center gap-4">

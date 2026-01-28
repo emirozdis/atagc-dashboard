@@ -35,7 +35,7 @@ export default function MyApplicationPage() {
 
     if (isLoading) {
         return (
-            <div className="max-w-4xl mx-auto space-y-6 p-4">
+            <div className="max-w-7xl mx-auto space-y-6 pb-12">
                 <div className="flex gap-4 mb-8">
                     <Skeleton className="h-10 w-24" />
                     <Skeleton className="h-10 w-48" />
@@ -98,7 +98,7 @@ export default function MyApplicationPage() {
     ];
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in pb-12">
+        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in pb-12">
             <Breadcrumbs items={[{ label: "Profil", href: "/dashboard/profile" }, { label: "Başvurum" }]} />
             <div className="flex items-center gap-4">
                 <Link href="/dashboard/profile">
@@ -212,7 +212,3 @@ function TextSection({ label, content }: { label: string, content: string | unde
         </div>
     );
 }
-
-// Change Log:
-// - Created new page `app/dashboard/my-application/page.tsx` for read-only view of application data.
-// - Implemented structured display for all form sections.
