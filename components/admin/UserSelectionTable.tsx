@@ -22,6 +22,7 @@ import { PaymentStatusEnum } from "@/types/payment";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ROLES, ROLE_METADATA, UserRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
 interface UserSelectionTableProps {
   selectedUsers?: string[];
@@ -306,6 +307,14 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
               ))}
             </TableBody>
           </Table>
+          
+          <div className="border-t border-border/50 px-4">
+            <PaginationControls
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </div>
         </div>
       )}
 
