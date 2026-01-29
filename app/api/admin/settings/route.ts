@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 
 export async function GET() {
     const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
@@ -58,10 +58,10 @@ export async function POST(request: Request) {
         
         const { data: existingRecords } = await supabase
             .from("system_settings")
-            .select("id")
+            .select("*")
             .limit(1);
         
-        const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
+        const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : {};
 
         const updateData = {
             applications_open: body.applications_open,
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
             updated_at: new Date().toISOString()
         };
 
-        if (existing) {
+        if (existing.id) {
             const { error } = await supabase
                 .from("system_settings")
                 .update(updateData)
@@ -90,10 +90,18 @@ export async function POST(request: Request) {
             if (error) throw error;
         }
 
-        await logAction(session?.user?.id, "update_settings", { 
-            changes: body,
-            previous_state: existing ? "updated" : "created"
-        }, request);
+        const nextState = { ...existing, ...updateData };
+
+        await Logger.audit(
+            { userId: session?.user?.id, req: request },
+            { 
+                action: "update_settings", 
+                category: "system",
+                resourceType: "settings",
+                prevState: existing,
+                nextState: nextState
+            }
+        );
 
         return NextResponse.json({ success: true });
     } catch (error) {

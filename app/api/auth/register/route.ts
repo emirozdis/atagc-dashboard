@@ -3,8 +3,9 @@ import { supabase } from "@/lib/SERVER_supabase";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { ROLES } from "@/lib/roles";
 
 const registerLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
@@ -26,7 +27,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   // 2. Check if Email is Verified
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  
+
   const { data: verification } = await supabase
     .from("email_verifications")
     .select("id")
@@ -70,7 +71,7 @@ export const POST = apiHandler(async (request: Request) => {
       full_name: fullName,
       email: email,
       password_hash: passwordHash,
-      role: 'applicant',
+      role: ROLES.APPLICANT,
       created_at: now, // Explicit timestamp
       updated_at: now  // Explicit timestamp
     })
@@ -80,7 +81,16 @@ export const POST = apiHandler(async (request: Request) => {
   if (createUserError) throw createUserError;
 
   // 6. Log Action
-  await logAction(newUser.id, "register", { email: newUser.email });
+  await Logger.audit(
+      { userId: newUser.id },
+      { 
+          action: "register", 
+          category: "auth", 
+          resourceType: "user",
+          resourceId: newUser.id,
+          metadata: { email: newUser.email } 
+      }
+  );
 
   return NextResponse.json({
     success: true,
@@ -88,6 +98,3 @@ export const POST = apiHandler(async (request: Request) => {
     user: newUser
   });
 });
-
-// Change Log:
-// - Explicitly added `created_at` and `updated_at` to the user insertion to prevent NULL values if DB defaults are missing.

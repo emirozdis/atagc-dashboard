@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization"; 
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { apiHandler } from "@/lib/api-handler";
@@ -124,12 +124,16 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
-  await logAction(session.user.id, "create_announcement", { 
-      announcement_id: newAnnouncement.id,
-      title: title,
-      target: targetType,
-      previous_state: null
-  }, request);
+  await Logger.audit(
+      { userId: session.user.id, req: request },
+      { 
+          action: "create_announcement", 
+          category: "business",
+          resourceType: "announcement",
+          resourceId: newAnnouncement.id,
+          metadata: { title, target: targetType }
+      }
+  );
 
   return NextResponse.json({ success: true });
 });
@@ -160,10 +164,16 @@ export const DELETE = apiHandler(async (request: Request) => {
 
     if (error) throw error;
 
-    await logAction(session.user.id, "delete_announcement", { 
-        announcement_id: id,
-        previous_state: previousState
-    }, request);
+    await Logger.audit(
+        { userId: session.user.id, req: request },
+        { 
+            action: "delete_announcement", 
+            category: "business",
+            resourceType: "announcement",
+            resourceId: id,
+            metadata: { deleted_title: previousState?.title }
+        }
+    );
 
     return NextResponse.json({ success: true });
 });

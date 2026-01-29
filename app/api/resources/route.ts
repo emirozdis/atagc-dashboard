@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSignedUrls } from "@/lib/storage-utils";
 import { resourceUploadSchema } from "@/lib/schemas";
@@ -155,10 +155,16 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
-  await logAction(session.user.id, "upload_resource", { 
-    resource_id: data.id, 
-    title: validData.title 
-  }, request);
+  await Logger.audit(
+      { userId: session.user.id, req: request },
+      { 
+          action: "upload_resource", 
+          category: "system",
+          resourceType: "resource",
+          resourceId: data.id,
+          metadata: { title: validData.title }
+      }
+  );
 
   return NextResponse.json({ success: true, data });
 });

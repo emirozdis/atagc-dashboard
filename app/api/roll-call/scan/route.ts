@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTOTP } from "@/lib/otp";
 import { apiHandler } from "@/lib/api-handler";
@@ -89,7 +89,16 @@ export const POST = apiHandler(async (request: Request) => {
 
     if (insertError) throw insertError;
 
-    await logAction(session.user.id, "scan_roll_call", { roll_call_id: rollCall.id, session: rollCall.session_name }, request);
+    await Logger.audit(
+        { userId: session.user.id, req: request },
+        { 
+            action: "scan_roll_call", 
+            category: "business",
+            resourceType: "roll_call",
+            resourceId: rollCall.id,
+            metadata: { session: rollCall.session_name } 
+        }
+    );
 
     return NextResponse.json({ 
         success: true, 

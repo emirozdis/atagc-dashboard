@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { getSignedUrl } from "@/lib/storage-utils";
 import { sendSystemNotification } from "@/lib/notification-service";
 import { apiHandler } from "@/lib/api-handler";
@@ -146,7 +146,16 @@ export const POST = apiHandler(async (request: Request) => {
 
         if (updateError) throw updateError;
 
-        await logAction(requesterId, "connection_request_resend", { target_id: targetUserId }, request);
+        await Logger.audit(
+            { userId: requesterId, req: request },
+            { 
+                action: "connection_request_resend", 
+                category: "business",
+                resourceType: "connection",
+                resourceId: existing.id,
+                metadata: { target_id: targetUserId } 
+            }
+        );
         
         await sendSystemNotification(targetUserId, "connection_request");
 
@@ -157,20 +166,31 @@ export const POST = apiHandler(async (request: Request) => {
     }
   }
 
-  const { error } = await supabase
+  const { data: newConnection, error } = await supabase
     .from("user_connections")
     .insert({
       requester_id: requesterId,
       recipient_id: targetUserId,
       status: 'pending',
       created_at: new Date().toISOString()
-    });
+    })
+    .select("id")
+    .single();
 
   if (error) throw error;
 
   const { data: targetUser } = await supabase.from("users").select("full_name").eq("id", targetUserId).single();
 
-  await logAction(requesterId, "connection_request", { target_id: targetUserId }, request);
+  await Logger.audit(
+      { userId: requesterId, req: request },
+      { 
+          action: "connection_request", 
+          category: "business",
+          resourceType: "connection",
+          resourceId: newConnection.id,
+          metadata: { target_id: targetUserId } 
+      }
+  );
 
   await sendSystemNotification(targetUserId, "connection_request");
 

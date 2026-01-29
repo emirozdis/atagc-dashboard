@@ -2,7 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { supabase } from "@/lib/SERVER_supabase";
 import bcrypt from "bcryptjs";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { ROLES, UserRole } from "@/lib/roles";
@@ -155,7 +155,16 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Oturum başlatılamadı (DB Error).");
         }
 
-        await logAction(user.id, "login_success", { role: user.role, session_id: sessionData.id });
+        await Logger.audit(
+            { userId: user.id }, 
+            { 
+                action: "login_success", 
+                category: "auth", 
+                resourceType: "session",
+                resourceId: sessionData.id,
+                metadata: { role: user.role }
+            }
+        );
 
         const userDetails = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
 
@@ -252,7 +261,3 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
-
-// Change Log:
-// - Updated to strictly use `ApplicationStatusEnum`.
-// - Replaced `any` casts with proper Interfaces for DB responses.

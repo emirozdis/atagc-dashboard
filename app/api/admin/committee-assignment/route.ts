@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { sendSystemNotification } from "@/lib/notification-service";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
@@ -23,13 +23,11 @@ async function validateAssignment(userId: string, committeeId: string | null) {
         throw new Error("Süper yöneticiler komiteye atanamaz.");
     }
 
-    // If removing assignment (committeeId is null), we don't need further role checks
     if (!committeeId) return targetUser;
 
     const allowedRoles = [ROLES.DELEGATE, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR];
     const isAllowedRole = allowedRoles.includes(targetUser.role);
 
-    // Check if applicant applied for delegate role specifically
     const app = Array.isArray(targetUser.application) ? targetUser.application[0] : targetUser.application;
     const formObj = Array.isArray(app?.form) ? app.form[0] : app?.form;
     const isDelegateApplicant = targetUser.role === ROLES.APPLICANT && formObj?.slug === ROLES.DELEGATE;
@@ -46,7 +44,8 @@ export const POST = apiHandler(async (request: Request) => {
         requireAuth: true, 
         allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] 
     });
-    if (!auth.ok) throw new Error(auth.message);
+    
+    if (!auth.ok || !auth.session) throw new Error(auth.message || "Unauthorized");
     const session = auth.session;
 
     const body = await request.json();
@@ -70,25 +69,40 @@ export const POST = apiHandler(async (request: Request) => {
                     .eq("id", existing.id);
                 if (error) throw error;
 
-                await logAction(session?.user?.id, "update_committee_assignment", {
-                    target_user_id: userId,
-                    new_committee_id: committeeId,
-                    previous_state: existing
-                }, request);
+                await Logger.audit(
+                    { userId: session.user.id, req: request },
+                    { 
+                        action: "update_committee_assignment", 
+                        category: "access",
+                        resourceType: "committee_member",
+                        resourceId: existing.id,
+                        prevState: { committee_id: existing.committee_id },
+                        nextState: { committee_id: committeeId },
+                        metadata: { target_user_id: userId }
+                    }
+                );
 
                 await sendSystemNotification(userId, "committee_assignment");
             }
         } else {
             // Insert
-            const { error } = await supabase
+            const { data: newMember, error } = await supabase
                 .from("committee_members")
-                .insert({ user_id: userId, committee_id: committeeId });
+                .insert({ user_id: userId, committee_id: committeeId })
+                .select("id")
+                .single();
             if (error) throw error;
 
-            await logAction(session?.user?.id, "create_committee_assignment", {
-                target_user_id: userId,
-                committee_id: committeeId
-            }, request);
+            await Logger.audit(
+                { userId: session.user.id, req: request },
+                { 
+                    action: "create_committee_assignment", 
+                    category: "access",
+                    resourceType: "committee_member",
+                    resourceId: newMember.id,
+                    metadata: { target_user_id: userId, committee_id: committeeId }
+                }
+            );
 
             await sendSystemNotification(userId, "committee_assignment");
         }
@@ -98,10 +112,16 @@ export const POST = apiHandler(async (request: Request) => {
             const { error } = await supabase.from("committee_members").delete().eq("user_id", userId);
             if (error) throw error;
 
-            await logAction(session?.user?.id, "delete_committee_assignment", {
-                target_user_id: userId,
-                previous_state: existing
-            }, request);
+            await Logger.audit(
+                { userId: session.user.id, req: request },
+                { 
+                    action: "delete_committee_assignment", 
+                    category: "access",
+                    resourceType: "committee_member",
+                    resourceId: existing.id,
+                    metadata: { target_user_id: userId, previous_committee_id: existing.committee_id }
+                }
+            );
         }
     }
 

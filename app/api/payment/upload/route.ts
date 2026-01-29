@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'image/jpg'];
@@ -65,7 +65,7 @@ export const POST = apiHandler(async (request: Request) => {
         .update({ payment_status: 'processing' })
         .eq("id", app.id);
 
-    await logAction(userId, "upload_payment_receipt", { file: fileName }, request);
+    await Logger.audit({ userId: userId, req: request }, { action: "upload_payment_receipt", metadata: { file: fileName } });
 
     return NextResponse.json({ success: true });
 });

@@ -3,359 +3,424 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Search,
-  Filter,
-  Calendar,
-  X,
-  ChevronDown
+    Search, Eye, ArrowRight, CalendarDays, ArrowUpDown, X, AlertTriangle, Database
 } from "lucide-react";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+    Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MultiSelectPopover, MultiSelectOption } from "@/components/ui/multi-select-popover";
 
 interface LogEntry {
-  id: string;
-  action: string;
-  details: any;
-  ip_address: string;
-  user_agent: string;
-  created_at: string;
-  user: {
-    full_name: string;
-    email: string;
-    role: string;
-  } | null;
+    id: string;
+    action: string;
+    severity: string;
+    category: string;
+    resource_type: string;
+    details: any;
+    ip_address: string;
+    created_at: string;
+    user: {
+        full_name: string;
+        email: string;
+        role: string;
+    } | null;
 }
 
-const formatActionName = (action: string) => {
-  return action.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-};
+const severityOptions: MultiSelectOption[] = [
+    { value: "audit", label: "Denetim" },
+    { value: "info", label: "Bilgi" },
+    { value: "warning", label: "Uyarı" },
+    { value: "error", label: "Hata" },
+    { value: "critical", label: "Kritik" },
+];
 
-const JsonVisualizer = ({ data }: { data: any }) => {
-  if (data === null) return <Badge variant="outline" className="text-[10px] bg-muted/50 font-mono h-4 px-1">null</Badge>;
-  if (data === undefined) return <span className="text-muted-foreground italic text-xs">undefined</span>;
-  if (typeof data === 'boolean') {
-    return <Badge variant="secondary" className={`text-[10px] h-4 px-1 ${data ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>{String(data)}</Badge>;
-  }
-  if (typeof data !== 'object') {
-    return <span className="text-xs font-medium break-all text-foreground/90">{String(data)}</span>;
-  }
-  if (Array.isArray(data)) {
-    if (data.length === 0) return <span className="text-muted-foreground italic text-xs">[]</span>;
-    return <div className="flex flex-col gap-1 pl-2 border-l border-border/50">{data.map((item, i) => (<div key={i} className="flex gap-2"><span className="text-[10px] text-muted-foreground font-mono shrink-0 mt-0.5 opacity-50 select-none">[{i}]</span><JsonVisualizer data={item} /></div>))}</div>;
-  }
-  const keys = Object.keys(data);
-  if (keys.length === 0) return <span className="text-muted-foreground italic text-xs">{'{}'}</span>;
-  return <div className="grid gap-1.5">{keys.map(key => { const value = data[key]; const isComplex = typeof value === 'object' && value !== null; return (<div key={key} className="relative"><div className={`flex ${isComplex ? 'flex-col gap-0.5' : 'items-baseline gap-2'}`}><span className="font-semibold text-muted-foreground text-[10px] uppercase tracking-wider shrink-0 select-none flex items-center gap-1"><span className="w-0.5 h-0.5 rounded-full bg-border/80"></span>{key.replace(/_/g, ' ')}</span>{!isComplex && <div className="flex-1 border-b border-dashed border-border/40 relative -top-1 mx-2 opacity-30 hidden sm:block"></div>}<div className={`${isComplex ? 'pl-2 border-l border-primary/10 ml-0.5 mt-0.5' : ''}`}><JsonVisualizer data={value} /></div></div></div>); })}</div>;
+const categoryOptions: MultiSelectOption[] = [
+    { value: "auth", label: "Kimlik" },
+    { value: "access", label: "Erişim" },
+    { value: "business", label: "İşlem" },
+    { value: "system", label: "Sistem" },
+    { value: "database", label: "Veritabanı" },
+];
+
+const DiffViewer = ({ changes }: { changes: Record<string, { from: any, to: any }> }) => {
+    if (!changes || Object.keys(changes).length === 0) return null;
+
+    const formatValue = (val: any) => {
+        if (val === null) return <span className="text-muted-foreground italic">null</span>;
+        if (val === undefined) return <span className="text-muted-foreground italic">undefined</span>;
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+    };
+
+    return (
+        <div className="space-y-3 w-full">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Değişiklikler</h4>
+
+            {/* Desktop View: Table */}
+            <div className="hidden md:block bg-muted/30 rounded-lg border border-border/50 overflow-hidden">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="bg-muted/50 text-xs text-muted-foreground border-b border-border/50">
+                            <th className="px-4 py-3 text-left font-medium w-1/4">Alan</th>
+                            <th className="px-4 py-3 text-left font-medium w-[35%]">Eski Değer</th>
+                            <th className="px-2 py-3 text-center w-[5%]"></th>
+                            <th className="px-4 py-3 text-left font-medium w-[35%]">Yeni Değer</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30">
+                        {Object.entries(changes).map(([key, diff]) => (
+                            <tr key={key} className="hover:bg-muted/10 transition-colors">
+                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground align-top break-all">
+                                    {key}
+                                </td>
+                                <td className="px-4 py-3 text-xs font-mono align-top break-all whitespace-pre-wrap">
+                                    <div className="bg-red-500/10 text-red-600 dark:bg-red-950/30 dark:text-red-400 p-2 rounded border border-red-500/20">
+                                        {formatValue(diff.from)}
+                                    </div>
+                                </td>
+                                <td className="px-2 py-3 text-center text-muted-foreground align-top pt-5">
+                                    <ArrowRight className="w-3 h-3 mx-auto" />
+                                </td>
+                                <td className="px-4 py-3 text-xs font-mono align-top break-all whitespace-pre-wrap">
+                                    <div className="bg-green-500/10 text-green-600 dark:bg-green-950/30 dark:text-green-400 p-2 rounded border border-green-500/20">
+                                        {formatValue(diff.to)}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Mobile View: Stacked Cards */}
+            <div className="md:hidden space-y-3">
+                {Object.entries(changes).map(([key, diff]) => (
+                    <div key={key} className="bg-card border border-border/50 rounded-lg p-3 space-y-3 shadow-sm">
+                        <div className="font-mono text-xs font-bold text-foreground border-b border-border/50 pb-2">
+                            {key}
+                        </div>
+                        <div className="grid gap-3">
+                            <div className="space-y-1.5">
+                                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Eski Değer</span>
+                                <div className="bg-red-500/10 text-red-600 dark:bg-red-950/30 dark:text-red-400 p-2.5 rounded-md text-xs font-mono break-all whitespace-pre-wrap border border-red-500/20">
+                                    {formatValue(diff.from)}
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Yeni Değer</span>
+                                <div className="bg-green-500/10 text-green-600 dark:bg-green-950/30 dark:text-green-400 p-2.5 rounded-md text-xs font-mono break-all whitespace-pre-wrap border border-green-500/20">
+                                    {formatValue(diff.to)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 };
 
 export default function AdminLogsPage() {
-  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
+    const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
 
-  // Filters
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [search, setSearch] = useState("");
-  const [actionFilter, setActionFilter] = useState("all");
+    // Filters
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(20);
 
-  // Date Filters
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+    const [severityFilter, setSeverityFilter] = useState<string[]>([]);
+    const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+    const [actionFilter, setActionFilter] = useState("");
 
-  // Debounce Search
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search]);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
-  // TanStack Query
-  const { data, isLoading } = useQuery({
-    queryKey: ['logs', page, limit, debouncedSearch, actionFilter, startDate, endDate],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-        search: debouncedSearch,
-        action: actionFilter
-      });
-      if (startDate) params.append("startDate", startDate);
-      if (endDate) params.append("endDate", endDate);
+    const [sortOrder, setSortOrder] = useState("desc");
 
-      const res = await fetch(`/api/admin/logs?${params}`);
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    placeholderData: (prev) => prev
-  });
+    const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const logs: LogEntry[] = data?.data || [];
-  const totalPages = data?.meta?.totalPages || 1;
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search]);
 
-  const getActionBadge = (action: string) => {
-    if (action.includes("create")) return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] h-5 px-1.5 gap-1 shrink-0">Oluşturma</Badge>;
-    if (action.includes("update")) return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] h-5 px-1.5 gap-1 shrink-0">Güncelleme</Badge>;
-    if (action.includes("delete")) return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 text-[10px] h-5 px-1.5 gap-1 shrink-0">Silme</Badge>;
-    if (action.includes("login")) return <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-[10px] h-5 px-1.5 gap-1 shrink-0">Giriş</Badge>;
-    return <Badge variant="outline" className="text-muted-foreground text-[10px] h-5 px-1.5 shrink-0">{action}</Badge>;
-  };
+    const [debouncedAction, setDebouncedAction] = useState("");
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedAction(actionFilter);
+            setPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [actionFilter]);
 
-  const renderMobileItem = (log: LogEntry) => {
-    const detailsString = log.details ? JSON.stringify(log.details) : "{}";
-    const detailsPreview = log.details?.name ? `Name: ${log.details.name}` :
-      log.details?.title ? `Title: ${log.details.title}` :
-        log.details?.email ? `Email: ${log.details.email}` :
-          detailsString.slice(0, 100);
+    const { data, isLoading } = useQuery({
+        queryKey: ['logs', page, limit, debouncedSearch, severityFilter, categoryFilter, debouncedAction, startDate, endDate, sortOrder],
+        queryFn: async () => {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: limit.toString(),
+                search: debouncedSearch,
+                severity: severityFilter.length > 0 ? severityFilter.join(",") : "all",
+                category: categoryFilter.length > 0 ? categoryFilter.join(",") : "all",
+                action: debouncedAction || "all",
+                sort_by: "created_at",
+                sort_order: sortOrder
+            });
+
+            if (startDate) params.append("startDate", startDate);
+            if (endDate) params.append("endDate", endDate);
+
+            const res = await fetch(`/api/admin/logs?${params}`);
+            if (!res.ok) throw new Error("Failed");
+            return res.json();
+        }
+    });
+
+    const logs: LogEntry[] = data?.data || [];
+    const totalPages = data?.meta?.totalPages || 1;
+
+    const getSeverityBadge = (severity: string) => {
+        switch (severity) {
+            case 'error': return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Hata</Badge>;
+            case 'warning': return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Uyarı</Badge>;
+            case 'audit': return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Denetim</Badge>;
+            case 'critical': return <Badge className="bg-red-600 text-white border-red-600">Kritik</Badge>;
+            default: return <Badge variant="outline" className="text-muted-foreground">Bilgi</Badge>;
+        }
+    };
+
+    const resetFilters = () => {
+        setSearch("");
+        setSeverityFilter([]);
+        setCategoryFilter([]);
+        setActionFilter("");
+        setStartDate("");
+        setEndDate("");
+        setSortOrder("desc");
+        setPage(1);
+    };
+
+    const hasActiveFilters = search !== "" || severityFilter.length > 0 || categoryFilter.length > 0 || actionFilter !== "" || startDate !== "" || endDate !== "" || sortOrder !== "desc";
 
     return (
-      <div
-        key={log.id}
-        className="p-3 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer active:bg-muted/50 overflow-hidden"
-        onClick={() => setSelectedLog(log)}
-      >
-        <div className="flex justify-between items-start gap-3 mb-2">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <Avatar className="w-8 h-8 border border-border/50 shrink-0">
-              <AvatarImage src={undefined} />
-              <AvatarFallback className="text-[10px] bg-secondary">{(log.user?.full_name || "S").substring(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="font-medium text-sm leading-tight text-foreground truncate block">
-                {log.user?.full_name || "Sistem"}
-              </span>
-              <span className="text-[10px] text-muted-foreground truncate opacity-80 block">
-                {log.user?.email || "Bilinmiyor"}
-              </span>
+        <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
+            <Breadcrumbs items={[{ label: "Sistem Logları" }]} />
+
+            <div className="flex flex-col gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
+                <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                        placeholder="Kullanıcı, e-posta veya IP adresi..."
+                        className="pl-9 bg-background border-border/50 h-10"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                        <Input
+                            placeholder="İşlem tipi..."
+                            className="w-[calc(50%-0.25rem)] min-[480px]:w-[140px] h-10 bg-background border-border/50"
+                            value={actionFilter}
+                            onChange={e => setActionFilter(e.target.value)}
+                        />
+
+                        <MultiSelectPopover
+                            options={severityOptions}
+                            selected={severityFilter}
+                            onChange={setSeverityFilter}
+                            placeholder="Önem"
+                            triggerIcon={<AlertTriangle className="w-4 h-4 shrink-0" />}
+                            className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]"
+                        />
+
+                        <MultiSelectPopover
+                            options={categoryOptions}
+                            selected={categoryFilter}
+                            onChange={setCategoryFilter}
+                            placeholder="Kategori"
+                            triggerIcon={<Database className="w-4 h-4 shrink-0" />}
+                            className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]"
+                        />
+
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 w-[calc(50%-0.25rem)] min-[480px]:w-auto justify-start text-muted-foreground hover:text-foreground">
+                                    <CalendarDays className="w-4 h-4 shrink-0" />
+                                    <span className="truncate">{startDate || endDate ? "Tarih Seçildi" : "Tarih"}</span>
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-4" align="start">
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground">Başlangıç</label>
+                                        <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-muted-foreground">Bitiş</label>
+                                        <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-9" />
+                                    </div>
+                                    <div className="flex justify-end pt-2">
+                                        <Button variant="secondary" size="sm" onClick={() => { setStartDate(""); setEndDate(""); }}>Temizle</Button>
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-auto w-full min-[480px]:w-auto justify-end">
+                        <Select value={sortOrder} onValueChange={setSortOrder}>
+                            <SelectTrigger className="w-[130px] h-10 bg-background border-border/50 gap-2">
+                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                                <SelectItem value="desc">En Yeni</SelectItem>
+                                <SelectItem value="asc">En Eski</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {hasActiveFilters && (
+                            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" onClick={resetFilters} title="Filtreleri Temizle">
+                                <X className="w-4 h-4" />
+                            </Button>
+                        )}
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <div className="text-[10px] text-muted-foreground whitespace-nowrap bg-secondary/50 px-1.5 py-0.5 rounded font-mono shrink-0 text-right">
-            <div>{new Date(log.created_at).toLocaleDateString("tr-TR", { month: '2-digit', day: '2-digit' })}</div>
-            <div className="opacity-70">{new Date(log.created_at).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' })}</div>
-          </div>
-        </div>
+            <Card className="border-border/50 shadow-sm overflow-hidden">
+                <CardContent className="p-0">
+                    {isLoading ? <div className="p-4"><TableSkeleton cols={5} rows={10} /></div> : (
+                        <Table>
+                            <TableHeader className="bg-muted/30">
+                                <TableRow>
+                                    <TableHead>Tarih</TableHead>
+                                    <TableHead>Kullanıcı</TableHead>
+                                    <TableHead>İşlem</TableHead>
+                                    <TableHead>Kategori</TableHead>
+                                    <TableHead>Seviye</TableHead>
+                                    <TableHead className="w-[50px]"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {logs.map((log) => (
+                                    <TableRow key={log.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedLog(log)}>
+                                        <TableCell className="text-xs text-muted-foreground font-mono">
+                                            {new Date(log.created_at).toLocaleString("tr-TR")}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <Avatar className="w-6 h-6">
+                                                    <AvatarFallback className="text-[10px]">{log.user?.full_name?.substring(0, 2) || "?"}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium">{log.user?.full_name || "Sistem"}</span>
+                                                    {log.user?.email && <span className="text-[10px] text-muted-foreground hidden sm:inline">{log.user.email}</span>}
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="font-medium text-sm max-w-[150px] truncate" title={log.action}>{log.action}</TableCell>
+                                        <TableCell><Badge variant="secondary" className="text-[10px] uppercase tracking-wider">{log.category}</Badge></TableCell>
+                                        <TableCell>{getSeverityBadge(log.severity)}</TableCell>
+                                        <TableCell><Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="w-4 h-4" /></Button></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                    <div className="p-4 border-t border-border/50">
+                        <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+                    </div>
+                </CardContent>
+            </Card>
 
-        <div className="flex items-center gap-2 mb-2 min-w-0">
-          {getActionBadge(log.action)}
-          <span className="text-xs font-medium text-foreground truncate min-w-0 flex-1">
-            {formatActionName(log.action)}
-          </span>
-        </div>
+            <Dialog open={!!selectedLog} onOpenChange={(val) => !val && setSelectedLog(null)}>
+                <DialogContent className="w-full max-w-[95vw] md:max-w-3xl max-h-[85vh] flex flex-col p-0 bg-background overflow-hidden">
+                    <DialogHeader className="p-6 pb-2 border-b shrink-0 bg-muted/5">
+                        <DialogTitle className="flex items-center gap-2 text-lg">
+                            Log Detayı
+                            {selectedLog && getSeverityBadge(selectedLog.severity)}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="flex-1 w-full">
+                        <div className="p-4 md:p-6 space-y-6">
+                            {selectedLog && (
+                                <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-secondary/10 p-4 rounded-lg border border-border/50">
+                                        <div>
+                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">İşlem ID</span>
+                                            <span className="font-mono text-xs break-all text-foreground select-all">{selectedLog.id}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">IP Adresi</span>
+                                            <span className="font-mono text-xs break-all text-foreground">{selectedLog.ip_address || "-"}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">Kullanıcı</span>
+                                            <span className="font-medium text-foreground">{selectedLog.user?.full_name || "Sistem"}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">Rol</span>
+                                            <Badge variant="outline" className="text-[10px]">{selectedLog.user?.role || "-"}</Badge>
+                                        </div>
+                                    </div>
 
-        <div className="text-[10px] text-muted-foreground bg-secondary/10 p-2 rounded border border-border/30 font-mono w-full grid grid-cols-1">
-          <div className="truncate w-full">
-            {detailsPreview}
-          </div>
+                                    {selectedLog.details?.changes ? (
+                                        <div className="w-full">
+                                            <DiffViewer changes={selectedLog.details.changes} />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2 w-full">
+                                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Ham Veri</h4>
+                                            <div className="w-full rounded-lg border border-border/50 bg-muted/30 p-3 md:p-4 overflow-hidden">
+                                                <div className="overflow-x-auto max-h-[300px]">
+                                                    <pre className="text-xs font-mono text-foreground whitespace-pre-wrap break-all">
+                                                        {JSON.stringify(selectedLog.details, null, 2)}
+                                                    </pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedLog.details?.snapshot && (
+                                        <div className="space-y-2 pt-4 border-t border-border/50 w-full">
+                                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Son Durum (Snapshot)</h4>
+                                            <div className="w-full rounded-lg border border-border/50 bg-muted/30 p-3 md:p-4 overflow-hidden">
+                                                <div className="overflow-x-auto max-h-[200px]">
+                                                    <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
+                                                        {JSON.stringify(selectedLog.details.snapshot, null, 2)}
+                                                    </pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </div>
-      </div>
     );
-  };
-
-  const renderDesktopItem = (log: LogEntry) => (
-    <TableRow
-      key={log.id}
-      className="cursor-pointer hover:bg-muted/40 transition-colors h-9 border-b border-border/40"
-      onClick={() => setSelectedLog(log)}
-    >
-      <TableCell className="py-2">
-        <div className="flex items-center gap-2">
-          <Avatar className="w-5 h-5 border border-white/10">
-            <AvatarImage src={undefined} />
-            <AvatarFallback className="text-[9px]">{(log.user?.full_name || "S").substring(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <span className="font-medium text-xs leading-none">{log.user?.full_name || "Sistem / Bilinmiyor"}</span>
-            {log.user && <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{log.user.email}</span>}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell className="py-2">
-        <div className="flex items-center gap-2">
-          {getActionBadge(log.action)}
-          <span className="text-xs font-medium text-muted-foreground/80">{formatActionName(log.action)}</span>
-        </div>
-      </TableCell>
-      <TableCell className="py-2">
-        <div className="max-w-[250px] truncate text-[11px] text-muted-foreground font-mono bg-secondary/20 px-1.5 py-0.5 rounded border border-border/30">
-          {log.details?.name || log.details?.title || log.details?.email || (log.details?.changes ? "Değişiklikler" : "Detaylar...")}
-        </div>
-      </TableCell>
-      <TableCell className="py-2">
-        <span className="text-[11px] font-mono text-muted-foreground">{log.ip_address || "-"}</span>
-      </TableCell>
-      <TableCell className="py-2 text-right">
-        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-          {new Date(log.created_at).toLocaleString("tr-TR", { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-        </span>
-      </TableCell>
-    </TableRow>
-  );
-
-  return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Sistem Logları" }]} />
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-display font-bold text-foreground">Sistem Kayıtları</h2>
-          <p className="text-xs text-muted-foreground">Sistem olaylarını izleyin.</p>
-        </div>
-      </div>
-
-      <div className="flex flex-col xl:flex-row gap-3 items-stretch bg-secondary/10 p-3 rounded-lg border border-border/50">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Kullanıcı veya IP ara..."
-            className="pl-8 h-9 text-sm"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full xl:w-auto">
-          {/* Date Filters */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-2 text-muted-foreground w-full md:w-auto justify-between md:justify-start col-span-2 md:col-span-1">
-                <span className="flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span className="truncate">{startDate || endDate ? `${startDate || 'Start'} - ${endDate || 'End'}` : "Tarih"}</span>
-                </span>
-                <ChevronDown className="w-3 h-3 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-4 flex flex-col gap-4" align="end">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold">Başlangıç</span>
-                <Input type="date" className="h-8" value={startDate} onChange={e => setStartDate(e.target.value)} />
-              </div>
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold">Bitiş</span>
-                <Input type="date" className="h-8" value={endDate} onChange={e => setEndDate(e.target.value)} />
-              </div>
-              {(startDate || endDate) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
-                  onClick={() => { setStartDate(""); setEndDate(""); }}
-                >
-                  <X className="w-3 h-3 mr-1" /> Temizle
-                </Button>
-              )}
-            </PopoverContent>
-          </Popover>
-
-          <Select value={actionFilter} onValueChange={setActionFilter}>
-            <SelectTrigger className="w-full md:w-[160px] h-9 text-sm">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <Filter className="w-3.5 h-3.5 shrink-0" />
-                <SelectValue placeholder="İşlem Türü" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tümü</SelectItem>
-              <SelectItem value="login">Girişler</SelectItem>
-              <SelectItem value="create">Oluşturmalar</SelectItem>
-              <SelectItem value="update">Güncellemeler</SelectItem>
-              <SelectItem value="delete">Silmeler</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="md:w-auto">
-            <Select value={limit.toString()} onValueChange={(val) => { setLimit(Number(val)); setPage(1); }}>
-              <SelectTrigger className="w-full md:w-[80px] h-9 text-sm">
-                <SelectValue placeholder="Limit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      <Card className="bg-card border-border/50 shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-
-          {/* Mobile View: Cards */}
-          <div className="block md:hidden">
-            {isLoading ? (
-              <div className="p-4 space-y-4">
-                {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-24 bg-secondary/10 rounded animate-pulse" />)}
-              </div>
-            ) : logs.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground text-sm">Kayıt bulunamadı.</div>
-            ) : (
-              logs.map(renderMobileItem)
-            )}
-          </div>
-
-          {/* Desktop View: Table */}
-          <div className="hidden md:block">
-            {isLoading ? (
-              <div className="p-4"><TableSkeleton rows={10} cols={5} /></div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="h-9 hover:bg-transparent">
-                    <TableHead className="w-[200px] h-9 text-xs font-semibold">Kullanıcı</TableHead>
-                    <TableHead className="h-9 text-xs font-semibold">İşlem</TableHead>
-                    <TableHead className="h-9 text-xs font-semibold">Özet</TableHead>
-                    <TableHead className="h-9 text-xs font-semibold w-[120px]">IP Adresi</TableHead>
-                    <TableHead className="h-9 text-xs font-semibold w-[140px] text-right">Tarih</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center text-xs text-muted-foreground">Kayıt bulunamadı.</TableCell>
-                    </TableRow>
-                  ) : logs.map(renderDesktopItem)}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-
-          <div className="border-t border-border/50 px-4 py-2 bg-muted/5">
-            <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={!!selectedLog} onOpenChange={(val) => !val && setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Log Detayı</DialogTitle>
-          </DialogHeader>
-          {selectedLog && (
-            <div className="space-y-4">
-              <JsonVisualizer data={selectedLog.details} />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
 }

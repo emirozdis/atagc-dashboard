@@ -3,7 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import { apiHandler } from "@/lib/api-handler";
 import getAuthorization from "@/lib/getAuthorization";
 import bcrypt from "bcryptjs";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendSystemNotification } from "@/lib/notification-service";
 
@@ -57,9 +57,17 @@ export const POST = apiHandler(async (request: Request) => {
 
     if (updateError) throw updateError;
 
-    await logAction(session.user.id, "change_password", { method: "profile_settings" }, request);
+    await Logger.audit(
+        { userId: session.user.id, req: request },
+        { 
+            action: "change_password", 
+            category: "auth",
+            resourceType: "user",
+            resourceId: session.user.id,
+            metadata: { method: "profile_settings" } 
+        }
+    );
 
-    // NOTIFICATION: Password Changed (Mandatory)
     await sendSystemNotification(session.user.id, "password_changed");
 
     // 5. Handle Device Sign Out Logic
@@ -82,6 +90,3 @@ export const POST = apiHandler(async (request: Request) => {
         message: `Şifreniz başarıyla güncellendi.${signOutMessage}` 
     });
 });
-
-// Change Log:
-// - Added `sendSystemNotification` call for password change security alert.

@@ -3,10 +3,10 @@ import { supabase } from "@/lib/SERVER_supabase";
 import { apiHandler } from "@/lib/api-handler";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
-// Limit: 3 attempts per minute per IP (Strict security)
+// Limit: 3 attempts per minute per IP
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
 
 export const POST = apiHandler(async (request: Request) => {
@@ -55,11 +55,17 @@ export const POST = apiHandler(async (request: Request) => {
   // 5. Get User ID for logging
   const { data: user } = await supabase.from("users").select("id").eq("email", email).single();
   if (user) {
-    await logAction(user.id, "reset_password", { method: "email_recovery" }, request);
+    await Logger.audit(
+        { userId: user.id, req: request },
+        { 
+            action: "reset_password", 
+            category: "auth",
+            resourceType: "user",
+            resourceId: user.id,
+            metadata: { method: "email_recovery" } 
+        }
+    );
   }
 
   return NextResponse.json({ success: true, message: "Password updated." });
 });
-
-// Change Log:
-// - Added strict rate limiting (3 requests/min) to prevent brute-force attacks on the reset endpoint.

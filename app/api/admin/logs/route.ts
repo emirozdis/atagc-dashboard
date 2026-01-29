@@ -15,10 +15,19 @@ export const GET = apiHandler(async (request: Request) => {
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "20");
   const search = searchParams.get("search") || "";
+  
+  // Filters
   const action = searchParams.get("action") || "all";
+  const severity = searchParams.get("severity") || "all";
+  const category = searchParams.get("category") || "all";
+  
   const userId = searchParams.get("userId");
   const startDate = searchParams.get("startDate");
   const endDate = searchParams.get("endDate");
+
+  // Sorting
+  const sortBy = searchParams.get("sort_by") || "created_at";
+  const sortOrder = searchParams.get("sort_order") || "desc";
 
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -29,6 +38,10 @@ export const GET = apiHandler(async (request: Request) => {
       id,
       action,
       details,
+      severity,
+      category,
+      resource_id,
+      resource_type,
       ip_address,
       user_agent,
       created_at,
@@ -37,11 +50,24 @@ export const GET = apiHandler(async (request: Request) => {
         email,
         role
       )
-    `, { count: "exact" })
-    .order("created_at", { ascending: false });
+    `, { count: "exact" });
 
-  if (action !== "all") {
+  if (action !== "all" && action.trim() !== "") {
     query = query.ilike("action", `%${action}%`);
+  }
+
+  if (severity !== "all" && severity.trim() !== "") {
+    const severities = severity.split(",").filter(Boolean);
+    if (severities.length > 0) {
+      query = query.in("severity", severities);
+    }
+  }
+
+  if (category !== "all" && category.trim() !== "") {
+    const categories = category.split(",").filter(Boolean);
+    if (categories.length > 0) {
+      query = query.in("category", categories);
+    }
   }
 
   if (userId) {
@@ -53,6 +79,7 @@ export const GET = apiHandler(async (request: Request) => {
     start.setHours(0, 0, 0, 0);
     query = query.gte("created_at", start.toISOString());
   }
+  
   if (endDate) {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
@@ -63,6 +90,10 @@ export const GET = apiHandler(async (request: Request) => {
     query = query.or(`ip_address.ilike.%${search}%,user.full_name.ilike.%${search}%,user.email.ilike.%${search}%`, { foreignTable: 'user' });
   }
 
+  // Sorting
+  query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+
+  // Pagination
   query = query.range(from, to);
 
   const { data, error, count } = await query;

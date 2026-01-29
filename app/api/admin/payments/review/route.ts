@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { sendSystemNotification } from "@/lib/notification-service";
 import { getSignedUrl } from "@/lib/storage-utils";
 
@@ -62,7 +62,7 @@ export const POST = apiHandler(async (request: Request) => {
 
     const { data: receipt } = await supabase
         .from("payment_receipts")
-        .select("user_id, application_id, status")
+        .select("user_id, application_id, status, admin_note")
         .eq("id", receiptId)
         .single();
 
@@ -73,14 +73,16 @@ export const POST = apiHandler(async (request: Request) => {
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
     const appPaymentStatus = action === 'approve' ? 'paid' : 'rejected';
 
+    const updatePayload = {
+        status: newStatus,
+        admin_note: note || null,
+        reviewed_by: adminId,
+        reviewed_at: now
+    };
+
     const { error: rError } = await supabase
         .from("payment_receipts")
-        .update({
-            status: newStatus,
-            admin_note: note,
-            reviewed_by: adminId,
-            reviewed_at: now
-        })
+        .update(updatePayload)
         .eq("id", receiptId);
 
     if (rError) throw rError;
@@ -92,7 +94,28 @@ export const POST = apiHandler(async (request: Request) => {
 
     if (aError) console.error("Failed to update application status", aError);
 
-    await logAction(adminId, `review_payment_${action}`, { receipt_id: receiptId, user_id: receipt.user_id }, request);
+    const prevState = {
+        status: receipt.status,
+        admin_note: receipt.admin_note
+    };
+
+    const nextState = {
+        status: newStatus,
+        admin_note: note || null
+    };
+
+    await Logger.audit(
+        { userId: adminId, req: request },
+        { 
+            action: `review_payment_${action}`, 
+            category: "business",
+            resourceType: "payment_receipt",
+            resourceId: receiptId,
+            prevState: prevState,
+            nextState: nextState,
+            metadata: { target_user_id: receipt.user_id }
+        }
+    );
     
     if (action === 'approve') {
         await sendSystemNotification(receipt.user_id, "payment_approved");

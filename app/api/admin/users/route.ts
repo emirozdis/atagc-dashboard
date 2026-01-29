@@ -3,7 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 
 interface UserParams {
   page: number;
@@ -36,7 +36,7 @@ async function getFilteredUsers(params: UserParams) {
     "id, full_name, email, role, is_suspended, created_at",
     "user_details(profile_picture_url)",
     "warnings_count:user_warnings!user_warnings_user_id_fkey(count)",
-    "payment_receipts!payment_receipts_user_id_fkey(id)" // FK hint to avoid ambiguity
+    "payment_receipts!payment_receipts_user_id_fkey(id)" 
   ];
 
   if (paymentStatus && paymentStatus.length > 0) {
@@ -49,10 +49,8 @@ async function getFilteredUsers(params: UserParams) {
     selectFields.push("user_warnings!user_warnings_user_id_fkey!inner(id)");
   }
 
-  // 2. Build Query
   let query = supabase.from("users").select(selectFields.join(","), { count: 'exact' });
 
-  // 3. Apply Filters
   if (search) {
     query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
   }
@@ -70,28 +68,22 @@ async function getFilteredUsers(params: UserParams) {
     query = query.in("application.payment_status", paymentStatus);
   }
 
-  // 4. Sorting (Database Level)
-  // Note: 'warnings_count' sorting happens in memory below because PostgREST doesn't support sorting by computed aggregates easily
   if (sortBy !== 'warnings_count') {
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
   } else {
-    // Default sort for pagination stability before re-sorting in memory
     query = query.order('created_at', { ascending: false });
   }
 
-  // 5. Pagination
   query = query.range(from, to);
 
   const { data, error, count } = await query;
   if (error) throw error;
 
-  // 6. Post-Processing & Formatting
   let processedData = (data || []).map((u: any) => ({
     ...u,
     warnings_count: u.warnings_count?.[0]?.count || 0
   }));
 
-  // In-memory sort for aggregates
   if (sortBy === 'warnings_count') {
     processedData.sort((a: any, b: any) => {
       return sortOrder === 'asc' 
@@ -157,25 +149,39 @@ export const PUT = apiHandler(async (request: Request) => {
   if (body.ids && body.role) {
     const { error } = await supabase.from("users").update({ role: body.role }).in("id", body.ids);
     if (error) throw error;
-    await logAction(adminId, "batch_update_role", { ids: body.ids, new_role: body.role }, request);
+    await Logger.audit({ userId: adminId, req: request }, { action: "batch_update_role", metadata: { ids: body.ids, new_role: body.role } });
     return NextResponse.json({ success: true });
   }
 
   // Action: Single User Update
   if (body.id) {
-    // Role Update
-    if (body.role) {
-      const { error } = await supabase.from("users").update({ role: body.role }).eq("id", body.id);
-      if (error) throw error;
-      await logAction(adminId, "update_role", { target_id: body.id, new_role: body.role }, request);
-    }
-    
-    // Suspend Toggle
-    if (typeof body.is_suspended === 'boolean') {
-      const { error } = await supabase.from("users").update({ is_suspended: body.is_suspended }).eq("id", body.id);
-      if (error) throw error;
-      await logAction(adminId, "toggle_suspend", { target_id: body.id, suspended: body.is_suspended }, request);
-    }
+    const { data: previousUser } = await supabase
+      .from("users")
+      .select("role, is_suspended")
+      .eq("id", body.id)
+      .single();
+
+    if (!previousUser) throw new Error("User not found");
+
+    const updatePayload: any = { updated_at: new Date().toISOString() };
+    if (body.role) updatePayload.role = body.role;
+    if (typeof body.is_suspended === 'boolean') updatePayload.is_suspended = body.is_suspended;
+
+    const { error } = await supabase.from("users").update(updatePayload).eq("id", body.id);
+    if (error) throw error;
+
+    const nextState = { ...previousUser, ...updatePayload };
+
+    await Logger.audit(
+        { userId: adminId, req: request }, 
+        { 
+            action: body.role ? "update_role" : "toggle_suspend", 
+            resourceType: "user",
+            resourceId: body.id,
+            prevState: previousUser,
+            nextState: nextState
+        }
+    );
 
     return NextResponse.json({ success: true });
   }
@@ -192,10 +198,20 @@ export const DELETE = apiHandler(async (request: Request) => {
 
   if (!id) throw new Error("Missing ID");
 
+  const { data: userToDelete } = await supabase.from("users").select("email, full_name").eq("id", id).single();
+
   const { error } = await supabase.from("users").delete().eq("id", id);
   if (error) throw error;
 
-  await logAction(auth.session.user.id, "delete_user", { target_id: id }, request);
+  await Logger.audit(
+      { userId: auth.session.user.id, req: request }, 
+      { 
+          action: "delete_user", 
+          resourceType: "user",
+          resourceId: id,
+          metadata: { deleted_user: userToDelete } 
+      }
+  );
 
   return NextResponse.json({ success: true });
 });

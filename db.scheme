@@ -106,6 +106,10 @@ CREATE TABLE public.logs (
   ip_address character varying,
   user_agent character varying,
   created_at timestamp with time zone,
+  severity USER-DEFINED DEFAULT 'info'::log_severity,
+  category USER-DEFINED DEFAULT 'system'::log_category,
+  resource_id uuid,
+  resource_type text,
   CONSTRAINT logs_pkey PRIMARY KEY (id),
   CONSTRAINT logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -180,6 +184,9 @@ CREATE TABLE public.system_settings (
   event_start_date timestamp with time zone,
   event_end_date timestamp with time zone,
   location text DEFAULT 'İTÜ GVO İzmir NESAN Yerleşkesi'::text,
+  bank_name text DEFAULT 'Ziraat Bankası'::text,
+  bank_account_holder text DEFAULT 'ATAGÇ Komitesi'::text,
+  bank_iban text DEFAULT 'TR00 0000 0000 0000 0000 0000 00'::text,
   CONSTRAINT system_settings_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.topics (

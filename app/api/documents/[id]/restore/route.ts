@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 
@@ -36,7 +36,16 @@ export const POST = apiHandler(async (
 
     if (updateError) throw updateError;
 
-    await logAction(auth.session.user.id, "restore_document_version", { committee_id: id, version_id: versionId }, request);
+    await Logger.audit(
+        { userId: auth.session.user.id, req: request },
+        { 
+            action: "restore_document_version", 
+            category: "system",
+            resourceType: "committee_document",
+            resourceId: id,
+            metadata: { version_id: versionId, version_name: version.version_name } 
+        }
+    );
 
     return NextResponse.json({ success: true });
 });

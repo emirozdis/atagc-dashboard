@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { Logger } from "@/lib/logger";
+import { getServerSession } from "next-auth";
+import { authOptions } from "./auth";
 
 type ApiHandlerFunction = (
   req: Request,
@@ -11,7 +14,16 @@ export function apiHandler(handler: ApiHandlerFunction): ApiHandlerFunction {
     try {
       return await handler(req, context);
     } catch (err: any) {
-      console.error("[API Error]:", err);
+      // Get session for logging if available
+      const session = await getServerSession(authOptions as any) as any;
+      const userId = session?.user?.id;
+
+      // New Logger system
+      await Logger.error(
+        { userId, req },
+        `API Error: ${req.method} ${new URL(req.url).pathname}`,
+        err
+      );
 
       // Zod Validation Errors
       if (err instanceof ZodError) {
@@ -51,8 +63,3 @@ export function apiHandler(handler: ApiHandlerFunction): ApiHandlerFunction {
     }
   };
 }
-
-/* Change Log:
-- Created standardized wrapper to handle try/catch blocks globally.
-- Maps specific error types (Zod, DB Unique Constraint, Auth) to HTTP status codes.
-*/

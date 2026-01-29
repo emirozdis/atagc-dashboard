@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 
@@ -53,7 +53,7 @@ export const POST = apiHandler(async (
 
     if (fetchError || !currentDoc) return NextResponse.json({ error: "Document not found" }, { status: 404 });
 
-    const { error: insertError } = await supabase
+    const { data: newVersion, error: insertError } = await supabase
         .from("document_versions")
         .insert({
             committee_id: id,
@@ -62,11 +62,22 @@ export const POST = apiHandler(async (
             is_auto_save: false,
             created_by: auth.session.user.id,
             created_at: new Date().toISOString()
-        });
+        })
+        .select("id")
+        .single();
 
     if (insertError) throw insertError;
 
-    await logAction(auth.session.user.id, "create_document_version", { committee_id: id, version_name: name }, request);
+    await Logger.audit(
+        { userId: auth.session.user.id, req: request },
+        { 
+            action: "create_document_version", 
+            category: "system",
+            resourceType: "document_version",
+            resourceId: newVersion.id,
+            metadata: { committee_id: id, version_name: name } 
+        }
+    );
 
     return NextResponse.json({ success: true });
 });

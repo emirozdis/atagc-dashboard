@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { sendSystemNotification } from "@/lib/notification-service";
 import { apiHandler } from "@/lib/api-handler";
 
@@ -18,7 +18,7 @@ export const PUT = apiHandler(async (request: Request) => {
 
   const { data: connection } = await supabase
       .from("user_connections")
-      .select("*")
+      .select("id, status, requester_id")
       .eq("id", connectionId)
       .eq("recipient_id", userId)
       .eq("status", "pending")
@@ -40,7 +40,18 @@ export const PUT = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
-  await logAction(userId, `connection_${action}`, { connection_id: connectionId, requester_id: connection.requester_id }, request);
+  await Logger.audit(
+      { userId: userId, req: request },
+      { 
+          action: `connection_${action}`, 
+          category: "business",
+          resourceType: "connection",
+          resourceId: connectionId,
+          prevState: { status: connection.status },
+          nextState: { status: newStatus },
+          metadata: { requester_id: connection.requester_id }
+      }
+  );
 
   if (action === 'accept') {
       await sendSystemNotification(connection.requester_id, "connection_accepted");

@@ -7,7 +7,7 @@ import {
     ApplicationStatusEnum 
 } from "@/types/application";
 import { PaymentStatusEnum } from "@/types/payment";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendSystemNotification } from "@/lib/notification-service";
@@ -26,6 +26,8 @@ interface JoinedForm {
 interface ApplicationData {
     status: string;
     user_id: string;
+    review_notes?: string;
+    payment_status?: string;
     form: JoinedForm | JoinedForm[] | null;
 }
 
@@ -220,7 +222,7 @@ async function processApplicationSubmission(
         await supabase.from("user_details").insert(userDetailsUpdate);
     }
 
-    const { error: appError } = await supabase
+    const { data: newApp, error: appError } = await supabase
         .from("applications")
         .insert({
             user_id: userId,
@@ -229,11 +231,22 @@ async function processApplicationSubmission(
             status: ApplicationStatusEnum.PENDING,
             payment_status: PaymentStatusEnum.UNPAID,
             submitted_at: new Date().toISOString()
-        });
+        })
+        .select("id")
+        .single();
 
     if (appError) throw appError;
 
-    await logAction(userId, "submit_application", { form_id: body.formId, role: formTemplate.slug }, req);
+    await Logger.audit(
+        { userId: userId, req: req },
+        { 
+            action: "submit_application", 
+            category: "business",
+            resourceType: "application",
+            resourceId: newApp.id,
+            metadata: { form_id: body.formId, role: formTemplate.slug }
+        }
+    );
     await sendSystemNotification(userId, "application_received");
 }
 
@@ -244,9 +257,10 @@ async function updateApplicationStatus(
 ) {
     const { id, status, review_notes } = input;
 
+    // 1. Fetch current state
     const { data: currentAppData, error: fetchError } = await supabase
         .from("applications")
-        .select("status, user_id, form:application_forms(slug, fee)")
+        .select("status, review_notes, payment_status, user_id, form:application_forms(slug, fee)")
         .eq("id", id)
         .single();
 
@@ -275,6 +289,7 @@ async function updateApplicationStatus(
 
     if (error) throw error;
 
+    // Update Role Logic
     if (status === ApplicationStatusEnum.APPROVED) {
         const targetSlug = formObj?.slug;
         if (targetSlug) {
@@ -284,11 +299,30 @@ async function updateApplicationStatus(
         await supabase.from("users").update({ role: ROLES.APPLICANT }).eq("id", currentApp.user_id);
     }
 
-    await logAction(adminId, "update_application_status", {
-        application_id: id,
-        new_status: status,
-        previous_state: currentApp
-    }, req);
+    // Construct precise objects for diffing
+    const prevState = {
+        status: currentApp.status,
+        review_notes: currentApp.review_notes,
+        payment_status: currentApp.payment_status
+    };
+
+    const nextState = {
+        ...prevState,
+        ...updatePayload
+    };
+
+    await Logger.audit(
+        { userId: adminId, req: req },
+        { 
+            action: "update_application_status", 
+            category: "business",
+            resourceType: "application",
+            resourceId: id,
+            prevState: prevState,
+            nextState: nextState,
+            metadata: { user_id: currentApp.user_id }
+        }
+    );
 
     if (currentApp.status !== status) {
         await sendSystemNotification(currentApp.user_id, "application_status");

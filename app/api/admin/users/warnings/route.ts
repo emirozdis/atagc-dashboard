@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { canManageRole } from "@/lib/permissions";
 import { sendSystemNotification } from "@/lib/notification-service";
 import { apiHandler } from "@/lib/api-handler";
@@ -26,15 +26,25 @@ export const POST = apiHandler(async (request: Request) => {
       return NextResponse.json({ error: "Yetkisiz işlem." }, { status: 403 });
   }
 
-  const { error } = await supabase.from("user_warnings").insert({
+  const { data: warning, error } = await supabase.from("user_warnings").insert({
       user_id: userId,
       issued_by: session.user.id,
       reason
-  });
+  }).select("id").single();
 
   if (error) throw error;
 
-  await logAction(session.user.id, "issue_warning", { target_id: userId, reason }, request);
+  await Logger.audit(
+      { userId: session.user.id, req: request }, 
+      { 
+          action: "issue_warning", 
+          category: "access",
+          resourceType: "warning",
+          resourceId: warning.id,
+          metadata: { target_id: userId, reason } 
+      }
+  );
+  
   await sendSystemNotification(userId, "warning_issued");
 
   return NextResponse.json({ success: true });
@@ -62,6 +72,15 @@ export const DELETE = apiHandler(async (request: Request) => {
     const { error } = await supabase.from("user_warnings").delete().eq("id", id);
     if (error) throw error;
 
-    await logAction(session.user.id, "remove_warning", { warning_id: id }, request);
+    await Logger.audit(
+        { userId: session.user.id, req: request },
+        { 
+            action: "remove_warning", 
+            category: "access",
+            resourceType: "warning",
+            resourceId: id,
+            metadata: { deleted_reason: warning.reason, target_user_id: warning.user_id }
+        }
+    );
     return NextResponse.json({ success: true });
 });

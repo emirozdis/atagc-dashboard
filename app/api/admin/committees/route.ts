@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 import { committeeSchema } from "@/lib/schemas";
@@ -26,7 +26,8 @@ export const POST = apiHandler(async (request: Request) => {
     requireAuth: true, 
     allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] 
   });
-  if (!auth.ok) throw new Error(auth.message);
+  
+  if (!auth.ok || !auth.session) throw new Error(auth.message || "Unauthorized");
   const session = auth.session;
 
   const body = await request.json();
@@ -52,10 +53,16 @@ export const POST = apiHandler(async (request: Request) => {
     if (topicError) console.error("Topic creation failed:", topicError);
   }
 
-  await logAction(session?.user?.id, "create_committee", { 
-      name: validated.name, 
-      committee_id: committee.id
-  }, request);
+  await Logger.audit(
+      { userId: session.user.id, req: request },
+      { 
+          action: "create_committee", 
+          category: "system",
+          resourceType: "committee",
+          resourceId: committee.id,
+          metadata: { name: validated.name }
+      }
+  );
 
   return NextResponse.json({ success: true });
 });
@@ -65,25 +72,31 @@ export const PUT = apiHandler(async (request: Request) => {
     requireAuth: true, 
     allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] 
   });
-  if (!auth.ok) throw new Error(auth.message);
+  
+  if (!auth.ok || !auth.session) throw new Error(auth.message || "Unauthorized");
   const session = auth.session;
 
   const body = await request.json();
   const validated = committeeSchema.parse(body);
   if (!validated.id) throw new Error("ID required for update");
 
+  // Fetch previous state with topic
   const { data: previousState } = await supabase
       .from("committees")
       .select("*, topic:topics(title, description)")
       .eq("id", validated.id)
       .single();
 
+  // Update Committee
   const { error: commError } = await supabase
     .from("committees")
     .update({ name: validated.name, description: validated.description })
     .eq("id", validated.id);
 
   if (commError) throw commError;
+
+  // Update Topic
+  let updatedTopic = previousState.topic;
 
   if (validated.topicTitle) {
     const { data: existingTopic } = await supabase.from("topics").select("id").eq("committee_id", validated.id).maybeSingle();
@@ -100,12 +113,31 @@ export const PUT = apiHandler(async (request: Request) => {
             description: validated.topicDescription
         });
     }
+
+    updatedTopic = [{
+        title: validated.topicTitle,
+        description: validated.topicDescription
+    }];
   }
 
-  await logAction(session?.user?.id, "update_committee", { 
-      committee_id: validated.id, 
-      previous_state: previousState 
-  }, request);
+  const nextState = {
+      ...previousState,
+      name: validated.name,
+      description: validated.description,
+      topic: updatedTopic
+  };
+
+  await Logger.audit(
+      { userId: session.user.id, req: request },
+      { 
+          action: "update_committee", 
+          category: "system",
+          resourceType: "committee",
+          resourceId: validated.id,
+          prevState: previousState,
+          nextState: nextState
+      }
+  );
 
   return NextResponse.json({ success: true });
 });
@@ -115,7 +147,8 @@ export const DELETE = apiHandler(async (request: Request) => {
     requireAuth: true, 
     allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] 
   });
-  if (!auth.ok) throw new Error(auth.message);
+  
+  if (!auth.ok || !auth.session) throw new Error(auth.message || "Unauthorized");
   const session = auth.session;
 
   const { searchParams } = new URL(request.url);
@@ -133,10 +166,16 @@ export const DELETE = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
-  await logAction(session?.user?.id, "delete_committee", { 
-      committee_id: id,
-      previous_state: previousState
-  }, request);
+  await Logger.audit(
+      { userId: session.user.id, req: request },
+      { 
+          action: "delete_committee", 
+          category: "system",
+          resourceType: "committee",
+          resourceId: id,
+          metadata: { deleted_name: previousState?.name }
+      }
+  );
 
   return NextResponse.json({ success: true });
 });

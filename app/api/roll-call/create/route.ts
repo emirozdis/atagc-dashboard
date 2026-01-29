@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { v4 as uuidv4 } from 'uuid';
-import { logAction } from "@/lib/logger";
+import { Logger } from "@/lib/logger";
 import crypto from "crypto";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
@@ -51,7 +51,16 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
-  await logAction(session.user.id, "create_roll_call_session", { roll_call_id: data.id, session_name, committee_id }, request);
+  await Logger.audit(
+      { userId: session.user.id, req: request },
+      { 
+          action: "create_roll_call_session", 
+          category: "business",
+          resourceType: "roll_call",
+          resourceId: data.id,
+          metadata: { session_name, committee_id }
+      }
+  );
 
   return NextResponse.json(data);
 });
