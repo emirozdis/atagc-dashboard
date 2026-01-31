@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Loader2,
@@ -16,6 +16,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -29,13 +30,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { UserSelectionTable } from "@/components/admin/UserSelectionTable";
 import Link from "next/link";
@@ -44,24 +38,21 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { MultiSelectPopover, MultiSelectOption } from "@/components/ui/multi-select-popover";
 
 export default function NewAnnouncementPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
-  // Form State
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
-  // Selection State
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [activePreset, setActivePreset] = useState<"all" | "committee" | "custom">("custom");
 
-  // Committee selection tracking
   const [selectedCommitteeIds, setSelectedCommitteeIds] = useState<string[]>([]);
 
-  // Queries
   const { data: committees = [] } = useQuery<Committee[]>({
     queryKey: ['committees'],
     queryFn: async () => {
@@ -71,11 +62,15 @@ export default function NewAnnouncementPage() {
     }
   });
 
+  const committeeOptions: MultiSelectOption[] = committees.map(c => ({
+    label: c.name,
+    value: c.id
+  }));
+
   const selectedCommitteeNames = committees
     .filter(c => selectedCommitteeIds.includes(c.id))
     .map(c => c.name);
 
-  // Preview Users Query
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const { data: previewUsers = [], isLoading: loadingPreview } = useQuery({
     queryKey: ['preview-users', selectedUserIds],
@@ -119,40 +114,34 @@ export default function NewAnnouncementPage() {
     onError: () => toast.error("Duyuru oluşturulamadı.")
   });
 
-  // Preset Handlers
-  const handlePresetSelect = async (preset: "all" | "committee") => {
+  const handlePresetSelect = (preset: "all" | "committee") => {
     if (preset === 'all') {
-      const toastId = toast.loading("Tüm kullanıcılar ekleniyor...");
-      try {
-        const res = await fetch("/api/admin/users/ids?role=all");
-        if (res.ok) {
-          const ids = await res.json();
-          setSelectedUserIds(prev => Array.from(new Set([...prev, ...ids])));
-          setActivePreset("all");
-          setSelectedCommitteeIds([]);
-          toast.success("Tüm kullanıcılar seçildi.", { id: toastId });
-        }
-      } catch (e) { toast.error("Hata", { id: toastId }); }
+      setActivePreset("all");
+      setSelectedUserIds([]);
+      setSelectedCommitteeIds([]);
+      toast.success("Hedef olarak 'Tüm Kullanıcılar' seçildi.");
     } else {
       setActivePreset("committee");
     }
   };
+  
+  const handleCommitteeSelectionChange = async (newCommitteeIds: string[]) => {
+      const toastId = toast.loading("Komite üyeleri güncelleniyor...");
+      try {
+          const promises = newCommitteeIds.map(id => fetch(`/api/admin/users/ids?committee_id=${id}`).then(res => res.json()));
+          const results = await Promise.all(promises);
 
-  const handleCommitteeAdd = async (committeeId: string) => {
-    if (!committeeId) return;
-    const toastId = toast.loading("Komite üyeleri ekleniyor...");
-    try {
-      const res = await fetch(`/api/admin/users/ids?committee_id=${committeeId}`);
-      if (res.ok) {
-        const ids = await res.json();
-        setSelectedUserIds(prev => Array.from(new Set([...prev, ...ids])));
-        setSelectedCommitteeIds(prev => Array.from(new Set([...prev, committeeId])));
-        toast.success(`${ids.length} üye eklendi.`, { id: toastId });
+          const allUserIds = Array.from(new Set(results.flat()));
+          
+          setSelectedUserIds(allUserIds);
+          setSelectedCommitteeIds(newCommitteeIds);
+
+          toast.success(`Toplam ${allUserIds.length} üye eklendi.`, { id: toastId });
+      } catch (e) {
+          toast.error("Üyeler getirilirken bir hata oluştu.", { id: toastId });
       }
-    } catch (e) { toast.error("Hata", { id: toastId }); }
   };
 
-  // Navigation Logic
   const handleNext = () => {
     if (currentStep === 1) {
       if (!title.trim() || !content.trim()) {
@@ -162,8 +151,8 @@ export default function NewAnnouncementPage() {
       setDirection('forward');
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      if (selectedUserIds.length === 0) {
-        toast.error("En az bir kullanıcı seçmelisiniz.");
+      if (activePreset !== 'all' && selectedUserIds.length === 0) {
+        toast.error("En az bir kullanıcı veya hedef kitle seçmelisiniz.");
         return;
       }
       setDirection('forward');
@@ -203,12 +192,12 @@ export default function NewAnnouncementPage() {
       </div>
 
       {/* Enhanced Stepper */}
-      <div className="relative py-4">
+      <div className="relative py-4 px-8">
         {/* Connecting Lines */}
         <div className="absolute top-1/2 left-0 w-full h-1 bg-secondary -z-10 -translate-y-1/2 rounded-full" />
         <div
           className="absolute top-1/2 left-0 h-1 bg-primary -z-10 -translate-y-1/2 rounded-full transition-all duration-500 ease-in-out"
-          style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+          style={{ width: `calc(${((currentStep - 1) / (steps.length - 1)) * 100}% - 4rem)` }}
         />
 
         <div className="flex justify-between w-full">
@@ -248,7 +237,7 @@ export default function NewAnnouncementPage() {
         </div>
       </div>
 
-      <Separator className="my-8 opacity-0" /> {/* Spacer */}
+      <Separator className="my-8 opacity-0" />
 
       {/* Content Area with Animations */}
       <div className="max-w-4xl mx-auto min-h-[400px] relative overflow-hidden">
@@ -316,8 +305,8 @@ export default function NewAnnouncementPage() {
                 >
                   <Globe className="w-6 h-6 text-primary" />
                   <div className="text-center">
-                    <div className="font-semibold text-sm">Herkesi Ekle</div>
-                    <div className="text-xs text-muted-foreground">Tüm kayıtlı kullanıcılar</div>
+                    <div className="font-semibold text-sm">Tüm Kullanıcılar</div>
+                    <div className="text-xs text-muted-foreground">Herkese açık yayınla</div>
                   </div>
                 </div>
 
@@ -327,7 +316,7 @@ export default function NewAnnouncementPage() {
                 >
                   <Building2 className="w-6 h-6 text-primary" />
                   <div className="text-center">
-                    <div className="font-semibold text-sm">Komite Ekle</div>
+                    <div className="font-semibold text-sm">Komiteye Özel</div>
                     <div className="text-xs text-muted-foreground">Komite üyelerini seç</div>
                   </div>
                 </div>
@@ -336,18 +325,15 @@ export default function NewAnnouncementPage() {
               {activePreset === 'committee' && (
                 <div className="animate-in fade-in slide-in-from-top-2 p-4 bg-secondary/10 rounded-lg border border-border/50">
                   <Label className="mb-2 block">Komite Seçiniz</Label>
-                  <Select onValueChange={handleCommitteeAdd}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Listeye eklenecek komiteyi seçin" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {committees.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <MultiSelectPopover
+                    options={committeeOptions}
+                    selected={selectedCommitteeIds}
+                    onChange={handleCommitteeSelectionChange}
+                    placeholder="Komiteleri seçin"
+                    className="w-full"
+                  />
                   <p className="text-xs text-muted-foreground mt-2">
-                    Seçtiğiniz komitenin üyeleri mevcut listeye eklenecektir.
+                    Seçtiğiniz komitelerin üyeleri alıcı listesine eklenecektir.
                   </p>
                 </div>
               )}
@@ -355,7 +341,7 @@ export default function NewAnnouncementPage() {
               <Separator />
 
               <div className="space-y-2">
-                <Label>Kullanıcı Listesi ({selectedUserIds.length})</Label>
+                <Label>Özelleştirilmiş Kullanıcı Listesi ({selectedUserIds.length})</Label>
                 <UserSelectionTable
                   selectedUsers={selectedUserIds}
                   onSelectionChange={(ids) => {
@@ -518,7 +504,3 @@ export default function NewAnnouncementPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Refactored `useEffect` fetches to `useQuery`.
-// - Refactored submission to `useMutation`.

@@ -6,7 +6,6 @@ import { rateLimit } from "@/lib/rate-limit";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
-import { ApplicationStatusEnum } from "@/types/application";
 
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
@@ -18,70 +17,35 @@ export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: false, requireApproved: true });
   const session = auth.session;
 
-  if (session?.user?.role === ROLES.APPLICANT && session.user.applicationStatus !== ApplicationStatusEnum.APPROVED) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  let query = supabase
-    .from("announcements")
-    .select(`
-        *,
-        author:users!announcements_author_id_fkey(full_name)
-    `)
-    .order("created_at", { ascending: false });
-
   if (!session?.user) {
-     query = query.eq("is_public", true);
-  } else {
-     const role = session.user.role;
-     const userId = session.user.id;
+    const { data: publicAnnouncements, error: publicError } = await supabase
+      .from("announcements")
+      .select(`
+          *,
+          author:users!announcements_author_id_fkey(full_name)
+      `)
+      .eq("is_public", true)
+      .order("created_at", { ascending: false });
 
-     if (role !== ROLES.SUPERADMIN && role !== ROLES.ADMIN) {
-         const { data: memberData } = await supabase
-             .from("committee_members")
-             .select("committee_id")
-             .eq("user_id", userId);
-         
-         const userCommitteeIds = memberData?.map(m => m.committee_id) || [];
-         
-         let orFilter = `is_public.eq.true,target_user_ids.cs.{${userId}}`;
-         
-         if (userCommitteeIds.length > 0) {
-             const idsList = userCommitteeIds.map(id => id).join(',');
-             orFilter += `,committee_ids.ov.{${idsList}}`;
-         }
-         
-         query = query.or(orFilter);
-     }
+    if (publicError) throw publicError;
+    return NextResponse.json(publicAnnouncements);
   }
 
-  const { data, error } = await query;
-
-  if (error) throw error;
+  const { data, error } = await supabase.rpc('get_user_announcements', { p_user_id: session.user.id });
   
-  if (data && data.length > 0) {
-      const allCommIds = new Set<string>();
-      data.forEach((a: any) => {
-          if (a.committee_ids) a.committee_ids.forEach((id: string) => allCommIds.add(id));
-      });
-
-      if (allCommIds.size > 0) {
-          const { data: comms } = await supabase
-              .from("committees")
-              .select("id, name")
-              .in("id", Array.from(allCommIds));
-          
-          const commMap = new Map(comms?.map(c => [c.id, c.name]));
-
-          data.forEach((a: any) => {
-              if (a.committee_ids) {
-                  a.committees_list = a.committee_ids.map((id: string) => ({ name: commMap.get(id) || "Bilinmiyor" }));
-              }
-          });
-      }
+  if (error) {
+    console.error("Error calling get_user_announcements RPC:", error);
+    throw new Error("Failed to fetch announcements.");
   }
+
+
+  const formattedData = data.map((item: any) => ({
+      ...item,
+      author: { full_name: item.author_name },
+      committees_list: item.committees_list || []
+  }));
   
-  return NextResponse.json(data);
+  return NextResponse.json(formattedData);
 });
 
 export const POST = apiHandler(async (request: Request) => {
@@ -102,17 +66,17 @@ export const POST = apiHandler(async (request: Request) => {
       title,
       content: sanitizeHtml(content),
       author_id: session.user.id,
-      is_public: true, 
+      is_public: false,
       committee_ids: null,
       target_user_ids: null,
       created_at: new Date().toISOString()
   };
 
-  if (targetType === 'committee' && committeeIds && committeeIds.length > 0) {
-      insertData.is_public = false;
+  if (targetType === 'all') {
+    insertData.is_public = true;
+  } else if (targetType === 'committee' && committeeIds && committeeIds.length > 0) {
       insertData.committee_ids = committeeIds;
   } else if (targetType === 'user' && userIds && userIds.length > 0) {
-      insertData.is_public = false;
       insertData.target_user_ids = userIds; 
   }
 
