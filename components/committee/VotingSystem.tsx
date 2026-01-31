@@ -20,6 +20,7 @@ import { VoteResults } from "./VoteResults";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
+import { COMMITTEE_LEADS, UserRole } from "@/lib/roles";
 
 interface VotingSystemProps {
   committeeId: string;
@@ -34,7 +35,7 @@ export function VotingSystem({ committeeId, isChairman, userId, variant = "full"
   const { data: session } = useSession();
 
   // Can manage votes? (Chairman OR Co-Chair)
-  const canManage = session?.user?.role === 'committee_chairman' || session?.user?.role === 'deputy_chair';
+  const canManage = COMMITTEE_LEADS.includes(session?.user?.role as UserRole);
 
   // UI States
   const [createOpen, setCreateOpen] = useState(false);
@@ -57,7 +58,7 @@ export function VotingSystem({ committeeId, isChairman, userId, variant = "full"
       if (!res.ok) throw new Error("Failed to fetch votes");
       return res.json();
     },
-    staleTime: 1000 * 30, 
+    staleTime: 1000 * 30,
   });
 
   // --- 2. Realtime Subscription ---
@@ -238,7 +239,7 @@ export function VotingSystem({ committeeId, isChairman, userId, variant = "full"
     );
   }
 
-  // --- VARIANT: FULL MANAGEMENT (Inside Dialog) ---
+  // --- VARIANT: FULL MANAGEMENT ---
   return (
     <div className="space-y-6">
       {/* Header / Actions */}
@@ -323,7 +324,7 @@ export function VotingSystem({ committeeId, isChairman, userId, variant = "full"
       )}
 
       {/* --- DIALOGS (Managed by Parent/Self) --- */}
-      
+
       {/* Create Vote */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -445,9 +446,3 @@ function ActivityIcon() {
     </span>
   )
 }
-
-// Change Log:
-// - Added `variant` prop to toggle between 'sidebar' (widget) and 'full' (management) modes.
-// - Sidebar Mode: Only renders active votes. If no active votes, returns NULL (taking no space). No management controls.
-// - Full Mode: Renders "Oylama Merkezi" header, Create button (for chairs), active votes, and full history list.
-// - Moved Create/History dialogs to be children of the Full Mode view.

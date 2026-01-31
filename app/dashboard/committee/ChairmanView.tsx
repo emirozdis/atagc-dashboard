@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Clock, Users, Info } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VotingSystem } from "@/components/committee/VotingSystem";
@@ -77,10 +78,33 @@ export function ChairmanView({ session }: { session: any }) {
 function LoadingSkeleton() {
   return (
     <div className="space-y-8">
-      <Skeleton className="h-64 w-full rounded-3xl" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Skeleton className="h-96 w-full lg:col-span-2 rounded-xl" />
-        <Skeleton className="h-96 w-full lg:col-span-1 rounded-xl" />
+      <CommitteeHero isLoading={true} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="lg:col-span-8 space-y-8 order-1">
+          <TopicCard isLoading={true} />
+          <Card className="min-h-[400px] border-border/50">
+            <CardHeader>
+              <Skeleton className="h-8 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+
+        <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-6 lg:self-start order-2">
+          <MembersWidget isLoading={true} isManager={true} />
+          <Card className="p-6 border-border/50">
+            <Skeleton className="h-6 w-32 mb-4" />
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </Card>
+          <Skeleton className="h-10 w-full" />
+        </aside>
       </div>
     </div>
   );

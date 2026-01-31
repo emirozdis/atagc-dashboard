@@ -39,9 +39,54 @@ export default function PaymentPage() {
     if (isLoading) {
         return (
             <div className="max-w-7xl mx-auto space-y-8 pb-12">
-                <Skeleton className="h-4 w-48 mb-6" />
-                <Skeleton className="h-64 w-full rounded-2xl" />
-                <Skeleton className="h-64 w-full rounded-2xl" />
+                <Breadcrumbs items={[{ label: "Panel", href: "/dashboard" }, { label: "Ödeme" }]} />
+
+                {/* Header */}
+                <div className="space-y-4">
+                    <div>
+                        <h2 className="text-3xl font-display font-bold">Ödeme ve Kayıt</h2>
+                        <p className="text-muted-foreground mt-1">Etkinlik katılım ücretini tamamlayın.</p>
+                    </div>
+
+                    <div className="flex items-center justify-between relative max-w-lg mx-auto md:mx-0 md:max-w-none opacity-50 grayscale">
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-secondary -z-10 rounded-full" />
+                        <StepNumber active={false} step={1} label="Banka" />
+                        <StepNumber active={false} step={2} label="Dekont" />
+                        <StepNumber active={false} step={3} label="Onay" />
+                    </div>
+                </div>
+
+                {/* Status Card Skeleton */}
+                <Card className="border-l-4 border-border/50 bg-card overflow-hidden">
+                    <CardContent className="p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
+                        <Skeleton className="w-16 h-16 rounded-full shrink-0" />
+                        <div className="space-y-2 flex-1 w-full">
+                            <Skeleton className="h-8 w-48" />
+                            <Skeleton className="h-4 w-full max-w-lg" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Bank Info Skeleton */}
+                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-lg">
+                    <div className="bg-zinc-900 text-white p-4">
+                        <Skeleton className="h-4 w-32" />
+                    </div>
+                    <div className="p-6 md:p-8 space-y-6">
+                        <div className="grid gap-10 md:grid-cols-3">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="space-y-1.5">
+                                    <Skeleton className="h-3 w-12" />
+                                    <Skeleton className="h-6 w-32" />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Skeleton className="h-3 w-12" />
+                            <Skeleton className="h-14 w-full rounded-xl" />
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }

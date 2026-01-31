@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -40,31 +39,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
-import { Application } from "@/types/admin";
 
 export default function ApplicationsPage() {
   const router = useRouter();
 
-  // Pagination & Sort State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [sortValue, setSortValue] = useState("newest"); // composite key for UI
+  const [sortValue, setSortValue] = useState("newest");
 
-  // Filter State
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setPage(1); // Reset to page 1 on search
+      setPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Derived Sort Config
   const getSortConfig = (val: string) => {
     switch (val) {
       case "newest": return { key: "submitted_at", dir: "desc" };
@@ -122,12 +116,10 @@ export default function ApplicationsPage() {
     }
   };
 
-  // Mobile Card Component
   const MobileApplicationCard = ({ app }: { app: any }) => {
     const details = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
     const assignedCommittee = app.user.committee_members?.[0]?.committee;
 
-    // Fix: Check form slug for display logic
     const formSlug = app.form?.slug || 'delegate';
     const isAcademic = formSlug === 'delegate';
 

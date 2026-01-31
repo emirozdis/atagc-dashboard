@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getRoleMeta, ROLES } from "@/lib/roles";
 
@@ -22,9 +23,10 @@ interface MembersWidgetProps {
   members?: CommitteeMember[];
   isManager?: boolean;
   onMemberClick?: (id: string) => void;
+  isLoading?: boolean;
 }
 
-export const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidgetProps) => {
+export const MembersWidget = ({ members, isManager, onMemberClick, isLoading }: MembersWidgetProps) => {
   const [showAll, setShowAll] = useState(false);
 
   if (!members || members.length === 0) {
@@ -62,8 +64,8 @@ export const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidg
     const isExecutive = role === ROLES.CHAIRMAN || role === ROLES.DEPUTY_CHAIR;
 
     return (
-      <div 
-        key={member.id || Math.random()} 
+      <div
+        key={member.id || Math.random()}
         className={cn(
           "flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group",
           isManager && "cursor-pointer active:bg-muted/70"
@@ -108,9 +110,19 @@ export const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidg
       </div>
 
       <div className="space-y-3">
-        {sortedMembers.slice(0, 6).map(renderMemberRow)}
-        
-        {sortedMembers.length > 6 && (
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 p-2">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-2 w-16" />
+              </div>
+            </div>
+          ))
+        ) : sortedMembers.slice(0, 6).map(renderMemberRow)}
+
+        {!isLoading && sortedMembers.length > 6 && (
           <div className="pt-2 px-2">
             <Button
               variant="link"
@@ -126,7 +138,7 @@ export const MembersWidget = ({ members, isManager, onMemberClick }: MembersWidg
         <Dialog open={showAll} onOpenChange={setShowAll}>
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
-              <DialogTitle>Tüm Üyeler ({members.length})</DialogTitle>
+              <DialogTitle>Tüm Üyeler ({members?.length || 0})</DialogTitle>
             </DialogHeader>
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-3">

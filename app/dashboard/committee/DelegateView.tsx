@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VotingSystem } from "@/components/committee/VotingSystem";
@@ -46,7 +47,7 @@ export function DelegateView({ session }: { session: any }) {
 
   const committee = meData.committee;
   const topic = committee.topic;
-  
+
   let members = membersData?.members || [];
   if (membersData?.admin && !members.find((m: any) => m.userId === membersData.admin.userId)) {
     members = [membersData.admin, ...members];
@@ -54,9 +55,9 @@ export function DelegateView({ session }: { session: any }) {
 
   return (
     <>
-      <CommitteeHero 
-        name={committee.name} 
-        description={committee.description || ""} 
+      <CommitteeHero
+        name={committee.name}
+        description={committee.description || ""}
         role={session?.user?.role || 'applicant'}
       />
 
@@ -70,11 +71,11 @@ export function DelegateView({ session }: { session: any }) {
         </div>
 
         <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-6 lg:self-start order-2">
-          <VotingSystem 
-            committeeId={committee.id} 
-            isChairman={false} 
-            userId={session?.user?.id || ""} 
-            variant="sidebar" 
+          <VotingSystem
+            committeeId={committee.id}
+            isChairman={false}
+            userId={session?.user?.id || ""}
+            variant="sidebar"
           />
           <MembersWidget members={members} isManager={false} />
         </aside>
@@ -83,11 +84,11 @@ export function DelegateView({ session }: { session: any }) {
       <Dialog open={isVotingOpen} onOpenChange={setIsVotingOpen}>
         <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
           <ScrollArea className="flex-1 p-6">
-            <VotingSystem 
-                committeeId={committee.id} 
-                isChairman={false} 
-                userId={session?.user?.id || ""} 
-                variant="full" 
+            <VotingSystem
+              committeeId={committee.id}
+              isChairman={false}
+              userId={session?.user?.id || ""}
+              variant="full"
             />
           </ScrollArea>
         </DialogContent>
@@ -99,10 +100,34 @@ export function DelegateView({ session }: { session: any }) {
 function LoadingSkeleton() {
   return (
     <div className="space-y-8">
-      <Skeleton className="h-64 w-full rounded-3xl" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Skeleton className="h-96 w-full lg:col-span-2 rounded-xl" />
-        <Skeleton className="h-96 w-full lg:col-span-1 rounded-xl" />
+      <CommitteeHero isLoading={true} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="lg:col-span-8 space-y-8 order-1">
+          <TopicCard isLoading={true} />
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-1">Hızlı İşlemler</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-3 p-4 rounded-xl border border-border/50 bg-card">
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <aside className="lg:col-span-4 space-y-8 lg:sticky lg:top-6 lg:self-start order-2">
+          <Card className="p-6 border-border/50">
+            <Skeleton className="h-8 w-32 mb-4" />
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </Card>
+          <MembersWidget isLoading={true} />
+        </aside>
       </div>
     </div>
   );

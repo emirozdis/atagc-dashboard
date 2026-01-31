@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle2, Clock, UploadCloud, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +44,22 @@ export function PaymentStatusCard() {
         onError: (e: any) => toast.error(e.message)
     });
 
-    if (isLoading) return <div className="h-48 bg-muted/20 animate-pulse rounded-xl" />;
+    if (isLoading) {
+        return (
+            <Card className="border-border/50 shadow-sm overflow-hidden">
+                <CardHeader className="bg-muted/5 border-b border-border/50 pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <FileText className="w-5 h-5 text-primary" />
+                        Ödeme Durumu
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-4">
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                    <Skeleton className="h-10 w-full rounded-md" />
+                </CardContent>
+            </Card>
+        );
+    }
 
     const status = data?.payment_status || 'unpaid';
     const lastReceipt = data?.last_receipt;

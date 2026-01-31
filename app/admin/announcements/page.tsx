@@ -45,7 +45,7 @@ export default function AdminAnnouncementsPage() {
             <Breadcrumbs items={[{ label: "Duyurular" }]} />
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Duyurular</h1>
+                    <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Duyurular</h2>
                     <p className="text-muted-foreground">Tüm sistem duyurularını buradan yönetebilirsiniz.</p>
                 </div>
                 <Link href="/admin/announcements/new">
@@ -62,6 +62,3 @@ export default function AdminAnnouncementsPage() {
         </div>
     );
 }
-
-// Change Log:
-// - Replaced `CardSkeleton` with `ListSkeleton` to match the vertical feed layout.

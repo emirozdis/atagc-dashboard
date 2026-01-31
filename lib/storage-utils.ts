@@ -9,7 +9,6 @@ function getPathFromPublicUrl(bucket: string, url: string) {
   const index = url.indexOf(searchStr);
   if (index !== -1) {
     const path = url.substring(index + searchStr.length);
-    console.log(`[storage-utils] Extracted path "${path}" from URL "${url}" using bucket "${bucket}"`);
     return path;
   }
   return url;
@@ -35,10 +34,6 @@ export async function getSignedUrl(bucket: string, path: string | null | undefin
   const { data, error } = await supabase.storage
     .from(bucket)
     .createSignedUrl(cleanPath, expiresIn);
-
-  if (data?.signedUrl) {
-    console.log(`[storage-utils] Successfully signed URL for ${bucket}/${cleanPath}`);
-  }
 
   if (error) {
     console.error(`Error signing URL for ${bucket}/${cleanPath}:`, error);

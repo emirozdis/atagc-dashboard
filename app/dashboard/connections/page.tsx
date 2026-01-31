@@ -106,10 +106,44 @@ export default function ConnectionsPage() {
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto space-y-6 pb-12">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <div className="grid gap-4 md:grid-cols-2">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
+        <Breadcrumbs items={[{ label: "Bağlantılarım" }]} />
+
+        <div className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tanıştıklarım</h2>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">
+              Etkinlik süresince tanıştığınız kişilerin listesi.
+            </p>
+          </div>
+
+          <div className="w-full">
+            <div className="flex flex-col md:flex-row justify-between gap-4 items-stretch md:items-center mb-6">
+              <div className="bg-muted/50 p-1 rounded-lg flex items-center gap-1">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-24 sm:w-32 rounded-md" />
+                ))}
+              </div>
+              <Skeleton className="h-10 w-full md:w-64 rounded-md" />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[1, 2, 3, 4].map(i => (
+                <Card key={i} className="border-border/50">
+                  <CardContent className="p-4 flex items-start gap-4">
+                    <Skeleton className="w-12 h-12 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-5 w-16" />
+                      </div>
+                      <Skeleton className="h-3 w-48" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
