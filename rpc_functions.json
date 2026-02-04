@@ -1,0 +1,50 @@
+[
+  {
+    "function_name": "get_admin_dashboard_stats",
+    "arguments": "",
+    "return_type": "json",
+    "security_definer": true
+  },
+  {
+    "function_name": "get_committee_dashboard_data",
+    "arguments": "target_committee_id uuid",
+    "return_type": "json",
+    "security_definer": true
+  },
+  {
+    "function_name": "get_current_user_role",
+    "arguments": "",
+    "return_type": "text",
+    "security_definer": true
+  },
+  {
+    "function_name": "get_participant_me_data",
+    "arguments": "target_user_id uuid",
+    "return_type": "json",
+    "security_definer": true
+  },
+  {
+    "function_name": "get_user_announcements",
+    "arguments": "p_user_id uuid",
+    "return_type": "TABLE(id uuid, title character varying, content text, author_id uuid, created_at timestamp with time zone, is_public boolean, target_user_ids uuid[], committee_ids uuid[], author_name text, committees_list jsonb)",
+    "security_definer": false
+  },
+  {
+    "function_name": "is_admin",
+    "arguments": "",
+    "return_type": "boolean",
+    "security_definer": true
+  },
+  {
+    "function_name": "is_committee_chair",
+    "arguments": "committee_uuid uuid",
+    "return_type": "boolean",
+    "security_definer": true
+  },
+  {
+    "function_name": "is_committee_member",
+    "arguments": "committee_uuid uuid",
+    "return_type": "boolean",
+    "security_definer": true
+  }
+]

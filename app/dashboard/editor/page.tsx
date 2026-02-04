@@ -79,10 +79,9 @@ export default function CollaborativeEditorPage() {
       try {
         const res = await fetch("/api/participant/me");
         const data = await res.json();
-        if (data.committeeMember?.committee) {
-          setCommitteeInfo(data.committeeMember.committee);
-          const dbCanWrite = data.committeeMember.can_write;
-          setCanWrite(dbCanWrite === true);
+        if (data.committee) {
+          setCommitteeInfo(data.committee);
+          setCanWrite(data.committee.can_write === true);
         }
       } catch (e) { console.error(e); }
     };
@@ -154,8 +153,8 @@ export default function CollaborativeEditorPage() {
               toast[msg.canWrite ? 'success' : 'warning'](msg.canWrite ? "Yazma izniniz açıldı." : "Yazma izniniz kısıtlandı.");
             }
             if (msg.type === 'client_reload') {
-                toast.info("Belge geri yüklendi, sayfa yenileniyor...");
-                setTimeout(() => window.location.reload(), 1000);
+              toast.info("Belge geri yüklendi, sayfa yenileniyor...");
+              setTimeout(() => window.location.reload(), 1000);
             }
           } catch (e) { }
         },
@@ -174,9 +173,9 @@ export default function CollaborativeEditorPage() {
   };
 
   const handleForceRefresh = () => {
-      if(provider) {
-          provider.sendStateless(JSON.stringify({ type: 'FORCE_REFRESH' }));
-      }
+    if (provider) {
+      provider.sendStateless(JSON.stringify({ type: 'FORCE_REFRESH' }));
+    }
   };
 
   const handleCommitteeSelect = (val: string) => {
@@ -288,13 +287,13 @@ export default function CollaborativeEditorPage() {
         )}
 
         {committeeInfo && (
-            <VersionHistorySidebar 
-                committeeId={committeeInfo.id}
-                isOpen={showHistory}
-                onClose={() => setShowHistory(false)}
-                canManage={isChair}
-                onRestoreTrigger={handleForceRefresh}
-            />
+          <VersionHistorySidebar
+            committeeId={committeeInfo.id}
+            isOpen={showHistory}
+            onClose={() => setShowHistory(false)}
+            canManage={isChair}
+            onRestoreTrigger={handleForceRefresh}
+          />
         )}
       </div>
     </div>
