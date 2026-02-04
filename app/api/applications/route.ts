@@ -50,7 +50,7 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
             submitted_at,
             review_notes,
             form_data,
-            form:application_forms(title, slug, fee),
+            form:application_forms!inner(title, slug, fee),
             user:users!inner (
                 id,
                 full_name,
@@ -73,7 +73,14 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
         `, { count: "exact" });
 
     if (status !== "all") {
-        query = query.eq("status", status);
+        if (status === 'unassigned') {
+            query = query
+                .eq('status', 'approved')
+                .eq('form.slug', 'delegate')
+                .is('user.committee_members.id', null);
+        } else {
+            query = query.eq("status", status);
+        }
     }
 
     if (search) {
