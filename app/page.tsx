@@ -18,15 +18,15 @@ export default function Home() {
               <img
                 src="/logo.webp"
                 alt="ATAGÇ Logo"
-                className="relative w-24 h-24 md:w-32 md:h-32 object-contain"
+                className="relative w-24 h-24 md:w-36 md:h-36 object-contain"
               />
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold gold-gradient mb-4 tracking-tight">
-              ATAGÇ 2025
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold gold-gradient pb-4 tracking-tight">
+              ATAGÇ 2026
             </h1>
             <p className="text-muted-foreground text-base md:text-lg mb-8 max-w-2xl">
-              Atatürk Gençliği Çalıştayı - Delegasyon Başvuru Formu
+              Atatürk Gençliği Çalıştayı Başvuru Portalı
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-sm md:text-base text-foreground/80 bg-secondary/30 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
@@ -49,14 +49,6 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="max-w-3xl mx-auto">
             <div className="bg-card/80 backdrop-blur-md rounded-3xl p-6 md:p-12 border border-border/50 shadow-xl form-glow">
-              <div className="mb-10 text-center">
-                <h2 className="text-2xl md:text-3xl font-display font-semibold text-foreground mb-3">
-                  Delegasyon Başvurusu
-                </h2>
-                <p className="text-muted-foreground">
-                  Lütfen formu eksiksiz ve doğru bilgilerle doldurunuz.
-                </p>
-              </div>
               <ApplicationForm />
             </div>
           </div>
@@ -77,7 +69,7 @@ export default function Home() {
                 ATAGÇ 2026
               </h3>
               <p className="text-muted-foreground text-sm">
-                İTÜ GVO İzmir Atatürk Gençlik Çalıştayı
+                İTÜ GVO İzmir Atatürk Gençliği Çalıştayı
               </p>
             </div>
 
@@ -93,7 +85,7 @@ export default function Home() {
 
             <div className="w-full max-w-xs border-t border-border/10 pt-6 mt-2">
               <p className="text-muted-foreground/60 text-xs">
-                © 2025 ATAGÇ. Tüm hakları saklıdır.
+                © 2026 ATAGÇ. Tüm hakları saklıdır.
               </p>
             </div>
           </div>
@@ -102,6 +94,3 @@ export default function Home() {
     </main>
   );
 }
-// Change Log:
-// - Replaced hardcoded `bg-[#181818]` with `bg-background`.
-// - Updated card classes to use `bg-card/80` and `border-border/50`.

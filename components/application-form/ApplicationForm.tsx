@@ -1,10 +1,14 @@
+"use client"
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Send, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { signIn, useSession } from "next-auth/react"; // Imported useSession
+import { signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 // Components
 import { StepIndicator } from "./StepIndicator";
@@ -23,7 +27,7 @@ import {
 } from "@/types/application";
 
 export function ApplicationForm() {
-  const { update } = useSession(); // Hook to trigger session refresh
+  const { data: session, update } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,8 +62,19 @@ export function ApplicationForm() {
   }, []);
 
   const handleNext = async () => {
-    // --- STEP 1: Account ---
+    // --- STEP 1: Role Selection ---
     if (currentStep === 1) {
+        if (!selectedFormId) {
+            toast.error("Lütfen bir rol seçiniz.");
+            return;
+        }
+        setCurrentStep(2);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+    }
+
+    // --- STEP 2: Account Creation/Login ---
+    if (currentStep === 2) {
         const values = accountForm.getValues();
         const isDev = process.env.NODE_ENV === "development";
         const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
@@ -69,17 +84,16 @@ export function ApplicationForm() {
             return;
         }
 
-        if (authMode === 'register') {
-            if (!isEmailVerified) {
-                toast.error("E-posta doğrulanmadı.");
-                return;
-            }
-            const isValid = await accountForm.trigger();
-            if (!isValid) return;
+        setIsSubmitting(true);
+        try {
+            if (authMode === 'register') {
+                if (!isEmailVerified) {
+                    toast.error("E-posta doğrulanmadı.");
+                    return;
+                }
+                const isValid = await accountForm.trigger();
+                if (!isValid) return;
 
-            setIsSubmitting(true);
-            try {
-                // Register
                 const res = await fetch("/api/auth/register", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -95,61 +109,28 @@ export function ApplicationForm() {
                     const err = await res.json();
                     throw new Error(err.error || "Kayıt başarısız");
                 }
-
-                // Login
-                const loginRes = await signIn("credentials", {
-                    redirect: false,
-                    email: values.email,
-                    password: values.password,
-                    token: "SKIPPED_AUTO_LOGIN"
-                });
-
-                if (loginRes?.error) throw new Error("Giriş yapılamadı");
-
-                setAccountData(values);
-                setCurrentStep(2);
-                toast.success("Giriş Başarılı");
-            } catch (e: any) {
-                toast.error(e.message);
-            } finally {
-                setIsSubmitting(false);
             }
-        } else {
-            // Login Mode
-            setIsSubmitting(true);
-            try {
-                const res = await signIn("credentials", {
-                    redirect: false,
-                    email: values.email,
-                    password: values.password,
-                    token: effectiveToken
-                });
-                if (res?.error) throw new Error("Giriş başarısız");
-                
-                setAccountData(values);
-                setCurrentStep(2);
-                toast.success("Giriş Başarılı");
-            } catch (e: any) {
-                toast.error(e.message);
-            } finally {
-                setIsSubmitting(false);
-            }
+
+            const loginRes = await signIn("credentials", {
+                redirect: false,
+                email: values.email,
+                password: values.password,
+                token: authMode === 'login' ? effectiveToken : "SKIPPED_AUTO_LOGIN"
+            });
+
+            if (loginRes?.error) throw new Error("Giriş başarısız");
+
+            setAccountData(values);
+            setCurrentStep(3);
+            toast.success("Giriş Başarılı");
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsSubmitting(false);
         }
         return;
     }
 
-    // --- STEP 2: Role Selection ---
-    if (currentStep === 2) {
-        if (!selectedFormId) {
-            toast.error("Lütfen bir rol seçiniz.");
-            return;
-        }
-        setCurrentStep(3);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        return;
-    }
-
-    // --- STEP 3..N: Dynamic Steps ---
     const selectedForm = availableForms.find(f => f.id === selectedFormId);
     if (!selectedForm) return;
 
@@ -157,19 +138,16 @@ export function ApplicationForm() {
     const currentDynamicStep = selectedForm.steps[dynamicStepIndex];
 
     if (currentDynamicStep) {
-        // Validate required fields
         const missingFields = currentDynamicStep.fields.filter(f => f.required && !formAnswers[f.id]);
         if (missingFields.length > 0) {
             toast.error("Lütfen zorunlu alanları doldurunuz.");
             return;
         }
 
-        // Move to next dynamic step or finish
         if (dynamicStepIndex < selectedForm.steps.length - 1) {
             setCurrentStep(prev => prev + 1);
             window.scrollTo({ top: 0, behavior: "smooth" });
         } else {
-            // This was the last step, Trigger Submit
             handleSubmit();
         }
     }
@@ -198,10 +176,7 @@ export function ApplicationForm() {
             throw new Error(err.error || "Gönderim başarısız");
         }
 
-        // --- FIX: Force session refresh ---
-        // This calls the JWT callback with trigger='update', forcing a DB refetch of the role.
         await update(); 
-
         setIsSubmitted(true);
         toast.success("Başvuru Alındı");
     } catch (e: any) {
@@ -218,23 +193,44 @@ export function ApplicationForm() {
   if (isSubmitted) return <SuccessScreen onReset={() => window.location.reload()} />;
 
   const selectedForm = availableForms.find(f => f.id === selectedFormId);
-  const dynamicSteps = selectedForm ? selectedForm.steps.map((s, i) => ({ number: i + 3, title: s.title })) : [];
   
-  const steps = [
-      { number: 1, title: "Hesap" },
-      { number: 2, title: "Rol" },
-      ...dynamicSteps
+  const displaySteps = [
+      { number: 1, title: "Rol" },
+      { number: 2, title: "Hesap" },
+      { number: 3, title: "Bilgiler" }
   ];
 
-  const dynamicStepIndex = currentStep - 3;
-  const currentDynamicStep = selectedForm?.steps[dynamicStepIndex];
+  const indicatorStep = currentStep >= 3 ? 3 : currentStep;
+  const totalDynamicSteps = selectedForm?.steps.length || 0;
+  const currentDynamicStep = selectedForm?.steps[currentStep - 3];
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
-        <StepIndicator steps={steps} currentStep={currentStep} />
+    <div className="w-full max-w-3xl mx-auto relative">
+        {/* Already Applied Badge - Absolute Positioned 16px from top/right */}
+        {session && (
+            <div className="flex justify-center mb-10 z-10 animate-in fade-in slide-in-from-top-2 duration-500">
+                <Link href="/dashboard">
+                    <Badge variant="outline" className="py-2 px-2 bg-primary/5 hover:bg-primary/10 cursor-pointer flex gap-2 border-primary/20 backdrop-blur-sm transition-all group rounded-full">
+                        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        <span className="text-base font-medium group-hover:text-primary transition-colors tracking-tight">Mevcut Başvurularım</span>
+                        <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </Badge>
+                </Link>
+            </div>
+        )}
 
-        <div className="mb-8 min-h-[300px]">
+        <StepIndicator steps={displaySteps} currentStep={indicatorStep} />
+
+        <div className="mb-8 min-h-[350px]">
             {currentStep === 1 && (
+                <RoleSelectionStep 
+                    forms={availableForms}
+                    selectedId={selectedFormId}
+                    onSelect={setSelectedFormId}
+                />
+            )}
+
+            {currentStep === 2 && (
                 <AccountCreationStep 
                     form={accountForm}
                     isEmailVerified={isEmailVerified}
@@ -244,20 +240,23 @@ export function ApplicationForm() {
                 />
             )}
 
-            {currentStep === 2 && (
-                <RoleSelectionStep 
-                    forms={availableForms}
-                    selectedId={selectedFormId}
-                    onSelect={setSelectedFormId}
-                />
-            )}
-
             {currentStep >= 3 && currentDynamicStep && (
-                <DynamicFormStep 
-                    step={currentDynamicStep}
-                    answers={formAnswers}
-                    onAnswerChange={(id, val) => setFormAnswers(prev => ({ ...prev, [id]: val }))}
-                />
+                <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                        <div className="space-y-1">
+                            <h3 className="text-xl font-display font-semibold">{currentDynamicStep.title}</h3>
+                            <p className="text-xs text-muted-foreground uppercase tracking-widest">Başvuru Detayları</p>
+                        </div>
+                        <div className="bg-secondary/30 px-3 py-1 rounded-full border border-border/50">
+                            <span className="text-xs font-mono font-medium">Adım {currentStep - 2} / {totalDynamicSteps}</span>
+                        </div>
+                    </div>
+                    <DynamicFormStep 
+                        step={currentDynamicStep}
+                        answers={formAnswers}
+                        onAnswerChange={(id, val) => setFormAnswers(prev => ({ ...prev, [id]: val }))}
+                    />
+                </div>
             )}
         </div>
 
@@ -266,17 +265,12 @@ export function ApplicationForm() {
                 <ArrowLeft className="w-4 h-4 mr-2" /> Geri
             </Button>
             
-            <Button onClick={handleNext} disabled={isSubmitting} className="bg-primary text-primary-foreground">
+            <Button onClick={handleNext} disabled={isSubmitting} className="min-w-[120px] bg-primary text-primary-foreground hover:bg-primary/90 shadow-md">
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 
-                 (currentStep === steps.length ? "Gönder" : "İleri")}
-                 {!isSubmitting && currentStep !== steps.length && <ArrowRight className="w-4 h-4 ml-2" />}
+                 (currentStep >= 3 && currentStep - 2 === totalDynamicSteps ? "Başvuruyu Tamamla" : "İleri")}
+                 {!isSubmitting && !(currentStep >= 3 && currentStep - 2 === totalDynamicSteps) && <ArrowRight className="w-4 h-4 ml-2" />}
             </Button>
         </div>
     </div>
   );
 }
-
-// Change Log:
-// - Added `const { update } = useSession()` hook.
-// - In `handleSubmit`, added `await update()` after successful API response.
-// - This triggers the server-side JWT callback to re-fetch the user role (which was updated by the API) and update the session cookie.

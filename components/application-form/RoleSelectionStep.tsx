@@ -1,8 +1,7 @@
 import { ApplicationFormTemplate } from "@/types/application";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, User, Camera, FileText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, User, Camera, Users, ShieldCheck, GraduationCap, FileText } from "lucide-react";
 
 interface RoleSelectionStepProps {
     forms: ApplicationFormTemplate[];
@@ -13,24 +12,25 @@ interface RoleSelectionStepProps {
 export function RoleSelectionStep({ forms, selectedId, onSelect }: RoleSelectionStepProps) {
     
     const getIcon = (slug: string) => {
-        switch(slug) {
-            case 'delegate': return User;
-            case 'press': return Camera;
-            case 'observer': return FileText;
-            default: return User;
-        }
+        const s = slug.toLowerCase();
+        if (s.includes('delegate')) return User;
+        if (s.includes('press')) return Camera;
+        if (s.includes('delegation')) return Users;
+        if (s.includes('chair')) return GraduationCap;
+        if (s.includes('admin') || s.includes('observer')) return ShieldCheck;
+        return FileText; 
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center space-y-2">
-                <h3 className="text-xl font-semibold">Başvuru Türünü Seçiniz</h3>
+                <h3 className="text-2xl font-display font-semibold">Hangi rol için başvuruyorsunuz?</h3>
                 <p className="text-muted-foreground text-sm">
-                    Lütfen başvurmak istediğiniz pozisyonu belirleyiniz.
+                    Lütfen katılım sağlamak istediğiniz pozisyonu seçiniz.
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex flex-wrap justify-center gap-4">
                 {forms.map((form) => {
                     const Icon = getIcon(form.slug);
                     const isSelected = selectedId === form.id;
@@ -39,47 +39,47 @@ export function RoleSelectionStep({ forms, selectedId, onSelect }: RoleSelection
                         <Card 
                             key={form.id}
                             className={cn(
-                                "cursor-pointer transition-all duration-300 relative overflow-hidden border-2",
+                                "cursor-pointer transition-all duration-300 relative overflow-hidden border-2 group min-h-[160px]",
+                                "w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)]", // Flexible widths for 5 items
                                 isSelected 
-                                    ? "border-primary bg-primary/5 shadow-md scale-[1.02]" 
-                                    : "border-border hover:border-primary/50 hover:bg-secondary/20"
+                                    ? "border-primary bg-primary/5 shadow-lg scale-[1.02]" 
+                                    : "border-border/40 bg-secondary/10 hover:border-primary/40 hover:bg-secondary/20 shadow-sm"
                             )}
                             onClick={() => onSelect(form.id)}
                         >
                             {isSelected && (
-                                <div className="absolute top-3 right-3 text-primary">
-                                    <CheckCircle2 className="w-5 h-5" />
+                                <div className="absolute top-3 right-3 text-primary animate-in zoom-in duration-300">
+                                    <CheckCircle2 className="w-5 h-5 fill-background" />
                                 </div>
                             )}
                             
-                            <div className="p-6 flex flex-col items-center text-center gap-4 h-full">
+                            <div className="p-6 flex flex-col items-center text-center justify-center gap-4 h-full">
                                 <div className={cn(
-                                    "p-4 rounded-full transition-colors",
-                                    isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                                    "p-3 rounded-2xl transition-all duration-300",
+                                    isSelected 
+                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                                        : "bg-background text-muted-foreground group-hover:text-primary group-hover:scale-110"
                                 )}>
-                                    <Icon className="w-8 h-8" />
+                                    <Icon className="w-7 h-7" />
                                 </div>
                                 
-                                <div className="space-y-1">
-                                    <h4 className="font-bold text-lg">{form.title}</h4>
-                                    <p className="text-xs text-muted-foreground line-clamp-3">
-                                        {form.description}
-                                    </p>
-                                </div>
-
-                                <div className="mt-auto pt-4 w-full">
-                                    <Badge variant="outline" className="w-full justify-center py-1 bg-background">
-                                        {form.fee > 0 ? `${form.fee} ₺` : "Ücretsiz"}
-                                    </Badge>
-                                </div>
+                                <h4 className={cn(
+                                    "font-bold text-base leading-tight transition-colors px-2",
+                                    isSelected ? "text-primary" : "text-foreground"
+                                )}>
+                                    {form.title}
+                                </h4>
                             </div>
                         </Card>
                     );
                 })}
+
+                {forms.length === 0 && (
+                    <div className="w-full text-center py-10 border-2 border-dashed rounded-3xl border-border/50">
+                        <p className="text-muted-foreground">Şu an aktif bir başvuru formu bulunmamaktadır.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
-
-// Change Log:
-// - New component to display available roles as cards with icons and fees.
