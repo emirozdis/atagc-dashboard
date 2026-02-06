@@ -374,7 +374,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/50"></div>
-            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Komite ve Çalışma</h3>
+            <h3 className="text-lg font-display font-semibold text-muted-foreground tracking-widest text-sm">KOMİTE VE ÇALIŞMA</h3>
             <div className="h-px flex-1 bg-border/50"></div>
           </div>
 

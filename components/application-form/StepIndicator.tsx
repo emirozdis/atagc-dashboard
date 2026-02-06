@@ -25,7 +25,7 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
                     ? "bg-primary border-primary text-primary-foreground"
                     : currentStep === step.number
                       ? "border-primary text-primary"
-                      : "border-muted text-muted-foreground"
+                      : "border-primary/10 text-muted-foreground"
                 )}
               >
                 {currentStep > step.number ? (
@@ -46,8 +46,8 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
             {index < steps.length - 1 && (
               <div
                 className={cn(
-                  "h-[2px] flex-1 mx-2 transition-colors duration-300",
-                  currentStep > step.number ? "bg-primary" : "bg-muted"
+                  "h-[2px] flex-1 mx-2 transition-colors duration-300 mb-7", // Added margin to align with circles
+                  currentStep > step.number ? "bg-primary" : "bg-primary/10"
                 )}
               />
             )}
@@ -55,13 +55,11 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
         ))}
       </div>
       {/* Mobile Title */}
-      <p className="text-center text-sm font-medium text-foreground mt-4 sm:hidden">
-        {steps[currentStep - 1]?.title}
-      </p>
+      <div className="sm:hidden text-center mt-4">
+        <p className="text-sm font-medium text-foreground">
+          {steps[currentStep - 1]?.title}
+        </p>
+      </div>
     </div>
   );
 }
-
-// Change Log:
-// - Ensured `StepIndicator` is exported as a named export `export function StepIndicator`.
-// - Refined Tailwind classes for better visual consistency with the new theme (using flex utils for centering).
