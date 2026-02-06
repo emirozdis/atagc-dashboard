@@ -265,7 +265,7 @@ export function ApplicationForm() {
                 <ArrowLeft className="w-4 h-4 mr-2" /> Geri
             </Button>
             
-            <Button onClick={handleNext} disabled={isSubmitting} className="min-w-[120px] bg-primary text-primary-foreground hover:bg-primary/90 shadow-md">
+            <Button onClick={handleNext} disabled={isSubmitting} className="min-w-[120px] shadow-md">
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 
                  (currentStep >= 3 && currentStep - 2 === totalDynamicSteps ? "Başvuruyu Tamamla" : "İleri")}
                  {!isSubmitting && !(currentStep >= 3 && currentStep - 2 === totalDynamicSteps) && <ArrowRight className="w-4 h-4 ml-2" />}
