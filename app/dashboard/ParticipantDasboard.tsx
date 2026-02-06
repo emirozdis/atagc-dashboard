@@ -46,6 +46,17 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     }
   });
 
+  // Observer-specific data fetching
+  const { data: observerData, isLoading: observerLoading } = useQuery({
+    queryKey: ['observer-info'],
+    queryFn: async () => {
+      const res = await fetch("/api/observer/info");
+      if (!res.ok) throw new Error("Failed to fetch observer data");
+      return res.json();
+    },
+    enabled: profile?.profile?.role === 'observer',
+  });
+
   const isLoading = profileLoading || paymentLoading;
 
   const { profile: userProfile, application, committee } = profile || {};
@@ -286,8 +297,80 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         </div>
       </div>
 
-      {/* Committee & Topic Section */}
-      {(isLoading || appStatus === ApplicationStatusEnum.APPROVED) && (
+      {/* Observer Section - Independent from delegates */}
+      {userProfile?.role === 'observer' && (
+        <div className="space-y-6 pt-4">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border/50"></div>
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Gözlemci Bilgileri</h3>
+            <div className="h-px flex-1 bg-border/50"></div>
+          </div>
+
+          {observerLoading ? (
+            <Card className="bg-card border-border/40">
+              <CardContent className="p-6">
+                <Skeleton className="h-8 w-48 mb-4" />
+                <Skeleton className="h-6 w-full" />
+              </CardContent>
+            </Card>
+          ) : observerData?.allocatedCommittee ? (
+            <Card className="bg-card border-border/40">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  Atanan Komite
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="text-xl font-bold mb-3 text-foreground">
+                    {observerData.allocatedCommitteeName || observerData.allocatedCommittee}
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Komite gözlemcisi olarak atandınız.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : observerData?.allocatedArea ? (
+            <Card className="bg-card border-border/40">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  Atanan Alan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="text-xl font-bold mb-3 text-foreground">{observerData.allocatedArea}</div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Alan gözlemcisi olarak atandınız.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-secondary/10 border-dashed border-border/60">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mb-5 animate-pulse">
+                  <MapPin className="w-7 h-7 text-muted-foreground" />
+                </div>
+                <h4 className="font-semibold text-xl text-foreground mb-2">Atama Bekleniyor</h4>
+                <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
+                  Gözlemci olarak henüz bir komite veya alana atanmadınız. Atama yapıldığında bilgilendirileceksiniz.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Committee & Topic Section - Only for delegates/participants */}
+      {userProfile?.role !== 'observer' && (isLoading || appStatus === ApplicationStatusEnum.APPROVED) && (
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/50"></div>
