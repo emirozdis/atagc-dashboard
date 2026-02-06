@@ -1,0 +1,122 @@
+[
+  {
+    "schemaname": "public",
+    "tablename": "committee_documents",
+    "policyname": "secure_view_documents",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(is_admin() OR is_committee_chair(committee_id) OR is_committee_member(committee_id))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "logs",
+    "policyname": "Enable insert for authenticated users",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "logs",
+    "policyname": "Enable select for admins",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE ((users.id = auth.uid()) AND ((users.role)::text = ANY ((ARRAY['superadmin'::character varying, 'admin'::character varying])::text[])))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "roll_call_logs",
+    "policyname": "insert_own_roll_call_log",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "roll_call_logs",
+    "policyname": "secure_view_roll_call_logs",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(is_admin() OR (EXISTS ( SELECT 1\n   FROM roll_calls rc\n  WHERE ((rc.id = roll_call_logs.roll_call_id) AND is_committee_chair(rc.committee_id)))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "users",
+    "policyname": "Read Own Profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "users",
+    "policyname": "Staff Read All Profiles",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(get_current_user_role() = ANY (ARRAY['superadmin'::text, 'admin'::text, 'staff'::text, 'staffleader'::text, 'committee_chairman'::text]))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "vote_responses",
+    "policyname": "Users can vote for themselves",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "vote_responses",
+    "policyname": "secure_view_vote_responses",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(is_admin() OR (auth.uid() = user_id) OR (EXISTS ( SELECT 1\n   FROM votes v\n  WHERE ((v.id = vote_responses.vote_id) AND is_committee_chair(v.committee_id)))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "votes",
+    "policyname": "Chairmen can create votes",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE ((users.id = auth.uid()) AND ((users.role)::text = ANY ((ARRAY['committee_chairman'::character varying, 'superadmin'::character varying])::text[])))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "votes",
+    "policyname": "Chairmen can update votes",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "UPDATE",
+    "qual": "(EXISTS ( SELECT 1\n   FROM users\n  WHERE ((users.id = auth.uid()) AND ((users.role)::text = ANY ((ARRAY['committee_chairman'::character varying, 'superadmin'::character varying])::text[])))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "votes",
+    "policyname": "secure_view_votes",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(is_admin() OR is_committee_chair(committee_id) OR is_committee_member(committee_id))",
+    "with_check": null
+  }
+]

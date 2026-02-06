@@ -381,39 +381,43 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
           {isLoading ? (
             <div className="grid gap-6 md:grid-cols-2">
               <TopicCard isLoading={true} />
-              <Card className="bg-card border-border/40">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2.5 text-lg">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
-                    <Skeleton className="h-6 w-32" />
-                  </CardTitle>
+              <Card className="bg-card border-border/50 shadow-sm flex flex-col h-full min-h-[250px]">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <Skeleton className="h-6 w-24 rounded-full" />
+                  </div>
+                  <Skeleton className="h-9 w-3/4" />
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-9 w-full" />
+                <CardContent className="space-y-3 flex-grow">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-9 w-full mt-auto" />
                 </CardContent>
               </Card>
             </div>
           ) : committee ? (
             <div className="grid gap-6 md:grid-cols-2">
-              <Card className="bg-card border-border/40 hover:bg-card/50 transition-colors group">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2.5 text-lg">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
-                      <Users className="w-5 h-5" />
+              <Card className="group relative overflow-hidden bg-card border-border/50 shadow-sm flex flex-col h-full min-h-[250px] transition-all hover:shadow-md hover:border-primary/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-50 pointer-events-none" />
+
+                <CardHeader className="pb-4 relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase shadow-sm">
+                      <Users className="w-3.5 h-3.5" />
+                      Komite Bilgisi
                     </div>
-                    Komite Bilgisi
+                  </div>
+                  <CardTitle className="text-2xl md:text-3xl font-display font-bold leading-tight text-foreground tracking-tight">
+                    {committee.name}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="text-xl font-bold mb-3 text-foreground">{committee.name}</div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {committee.description || "Açıklama bulunmuyor."}
-                    </p>
+
+                <CardContent className="flex-grow relative z-10 flex flex-col justify-between space-y-4">
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed text-base">
+                    {committee.description || "Açıklama bulunmuyor."}
                   </div>
-                  <Button variant="outline" size="sm" asChild className="w-full">
+                  <Button variant="outline" size="sm" asChild className="w-full mt-auto">
                     <Link href="/dashboard/committee" className="flex items-center gap-2">
                       Komite Sayfasına Git <ChevronRight className="w-4 h-4" />
                     </Link>

@@ -32,13 +32,24 @@ export const GET = apiHandler(async (
             const { data: committee } = await supabase.from("committees").select("admin_id").eq("id", rollCall.committee_id).single();
             
             let isAuthorized = false;
-            if (committee?.admin_id === session.user.id) isAuthorized = true;
-            else {
-                const { data: member } = await supabase.from("committee_members").select("id").eq("committee_id", rollCall.committee_id).eq("user_id", session.user.id).maybeSingle();
+            
+            if (committee?.admin_id === session.user.id) {
+                isAuthorized = true;
+            } 
+            else if (session.user.role === ROLES.DEPUTY_CHAIR) {
+                const { data: member } = await supabase
+                    .from("committee_members")
+                    .select("id")
+                    .eq("committee_id", rollCall.committee_id)
+                    .eq("user_id", session.user.id)
+                    .maybeSingle();
+                
                 if (member) isAuthorized = true;
             }
 
-            if (!isAuthorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            if (!isAuthorized) {
+                return NextResponse.json({ error: "Forbidden: Insufficient permissions to generate token." }, { status: 403 });
+            }
     }
 
     if (!rollCall.secret_key) {
