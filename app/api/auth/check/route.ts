@@ -30,12 +30,13 @@ export const GET = apiHandler(async (request: Request) => {
   }
 
   const app = Array.isArray(user.application) ? user.application[0] : user.application;
-  
+
   const isStaff = [
-      ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR, 
-      ROLES.DELEGATE, ROLES.PRESS, ROLES.OBSERVER
+    ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR,
+    ROLES.DELEGATE, ROLES.PRESS, ROLES.OBSERVER
   ].includes(user.role);
-  const status = app?.status || (isStaff ? 'approved' : 'pending');
+
+  const status = app?.status || (isStaff ? 'approved' : undefined);
 
   return NextResponse.json({
     role: user.role,

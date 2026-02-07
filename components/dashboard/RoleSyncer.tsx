@@ -10,7 +10,6 @@ export function RoleSyncer() {
   const isUpdatingRef = useRef(false);
   const [hasUpdated, setHasUpdated] = useState(false);
 
-  // Use the new lightweight endpoint for polling
   const { data: checkResult } = useQuery({
     queryKey: ["auth-check-role"],
     queryFn: async () => {
@@ -18,12 +17,10 @@ export function RoleSyncer() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    // Polling optimization: Check every 2 minutes instead of 15 seconds.
-    // Role changes are rare events.
+
     refetchInterval: 1000 * 60 * 2, 
     staleTime: 0,
     retry: false,
-    // Important: Check immediately when user returns to tab
     refetchOnWindowFocus: true, 
   });
 

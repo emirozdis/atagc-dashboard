@@ -41,6 +41,9 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
 
         if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
 
+        // 3. Payment Check (Hide if no application)
+        if (item.href === '/dashboard/payment' && !status) return false;
+
         return true;
     });
 

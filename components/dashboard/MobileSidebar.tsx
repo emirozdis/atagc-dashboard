@@ -32,6 +32,10 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
     const items = participantItems.filter((item) => {
         if (item.roles && role && !item.roles.includes(role)) return false;
         if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
+
+        // Payment Check (Hide if no application)
+        if (item.href === '/dashboard/payment' && !status) return false;
+
         return true;
     });
 

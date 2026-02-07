@@ -96,8 +96,8 @@ export const authOptions: NextAuthOptions = {
         if (!isValid) return null;
 
         // 5. Fetch Application Status & Type
-        let appStatus: ApplicationStatusEnum = ApplicationStatusEnum.PENDING;
-        let applicantType: UserRole = ROLES.DELEGATE; 
+        let appStatus: ApplicationStatusEnum | undefined = undefined; // Default to undefined (no application)
+        let applicantType: UserRole = ROLES.DELEGATE;
 
         const { data: appData } = await supabase
           .from("applications")
@@ -118,9 +118,9 @@ export const authOptions: NextAuthOptions = {
           if (app.form) {
             const form = Array.isArray(app.form) ? app.form[0] : app.form;
             if (form && form.slug) {
-                applicantType = Object.values(ROLES).includes(form.slug as UserRole) 
-                    ? (form.slug as UserRole) 
-                    : ROLES.DELEGATE;
+              applicantType = Object.values(ROLES).includes(form.slug as UserRole)
+                ? (form.slug as UserRole)
+                : ROLES.DELEGATE;
             }
           }
         }
@@ -131,10 +131,10 @@ export const authOptions: NextAuthOptions = {
         }
 
         const approvedRoles: string[] = [
-            ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR, 
-            ROLES.DELEGATE, ROLES.PRESS, ROLES.OBSERVER
+          ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR,
+          ROLES.DELEGATE, ROLES.PRESS, ROLES.OBSERVER
         ];
-        
+
         if (approvedRoles.includes(user.role)) {
           appStatus = ApplicationStatusEnum.APPROVED;
         }
@@ -156,14 +156,14 @@ export const authOptions: NextAuthOptions = {
         }
 
         await Logger.audit(
-            { userId: user.id }, 
-            { 
-                action: "login_success", 
-                category: "auth", 
-                resourceType: "session",
-                resourceId: sessionData.id,
-                metadata: { role: user.role }
-            }
+          { userId: user.id },
+          {
+            action: "login_success",
+            category: "auth",
+            resourceType: "session",
+            resourceId: sessionData.id,
+            metadata: { role: user.role }
+          }
         );
 
         const userDetails = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
@@ -221,8 +221,8 @@ export const authOptions: NextAuthOptions = {
               .maybeSingle();
 
             const approvedRoles: string[] = [
-                ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR, 
-                ROLES.DELEGATE, ROLES.PRESS, ROLES.OBSERVER
+              ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR,
+              ROLES.DELEGATE, ROLES.PRESS, ROLES.OBSERVER
             ];
 
             if (appData) {
