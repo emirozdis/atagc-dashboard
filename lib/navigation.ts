@@ -16,7 +16,8 @@ import {
     Smartphone,
     Building2,
     Globe,
-    ShieldCheck
+    ShieldCheck,
+    MessageSquare
 } from "lucide-react";
 
 export interface NavigationSubItem {
@@ -85,7 +86,7 @@ export const participantItems: NavigationItem[] = [
         icon: CreditCard,
         roles: ["applicant", "delegate", "press", "observer"],
         mobileCore: false,
-        requiresApproved: false, 
+        requiresApproved: false,
     },
     {
         title: "Komitem",
@@ -123,7 +124,6 @@ export const participantItems: NavigationItem[] = [
         title: "Tara",
         href: "/dashboard/scan",
         icon: ScanLine,
-        // Removed 'applicant' - only approved roles can access
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
         requiresApproved: true,
@@ -132,7 +132,6 @@ export const participantItems: NavigationItem[] = [
         title: "Tanıştıklarım",
         href: "/dashboard/connections",
         icon: UsersRound,
-        // Removed 'applicant'
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
         requiresApproved: true,
@@ -161,7 +160,6 @@ export const participantItems: NavigationItem[] = [
         title: "Kaynaklar",
         href: "/dashboard/resources",
         icon: FolderOpen,
-        // Removed 'applicant'
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
         requiresApproved: true,
@@ -184,14 +182,16 @@ export const participantItems: NavigationItem[] = [
         title: "Duyurular",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        // Removed 'applicant'
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
         requiresApproved: true,
     },
+    {
+        title: "Destek",
+        href: "/dashboard/tickets",
+        icon: MessageSquare,
+        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        mobileCore: false,
+        requiresApproved: false,
+    },
 ];
-
-// Change Log:
-// - Removed "applicant" from `roles` for: Tara, Tanıştıklarım, Kaynaklar, Duyurular.
-// - This ensures users with 'applicant' role (unapproved applications) only see Dashboard, Payment, and Profile.
-// - Once approved, their role changes to 'delegate'/'press'/'observer', granting access to other pages.
