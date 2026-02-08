@@ -17,7 +17,7 @@ export const POST = apiHandler(async (request: Request) => {
   const session = auth.session;
 
   const body = await request.json();
-  const { userId, reason } = warningSchema.parse(body);
+  const { userId, category, reason } = warningSchema.parse(body);
 
   const { data: targetUser } = await supabase.from("users").select("role").eq("id", userId).single();
   if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -29,6 +29,7 @@ export const POST = apiHandler(async (request: Request) => {
   const { data: warning, error } = await supabase.from("user_warnings").insert({
       user_id: userId,
       issued_by: session.user.id,
+      category,
       reason
   }).select("id").single();
 
@@ -41,7 +42,7 @@ export const POST = apiHandler(async (request: Request) => {
           category: "access",
           resourceType: "warning",
           resourceId: warning.id,
-          metadata: { target_id: userId, reason } 
+          metadata: { target_id: userId, category, reason } 
       }
   );
   
@@ -79,7 +80,7 @@ export const DELETE = apiHandler(async (request: Request) => {
             category: "access",
             resourceType: "warning",
             resourceId: id,
-            metadata: { deleted_reason: warning.reason, target_user_id: warning.user_id }
+            metadata: { deleted_category: warning.category, deleted_reason: warning.reason, target_user_id: warning.user_id }
         }
     );
     return NextResponse.json({ success: true });

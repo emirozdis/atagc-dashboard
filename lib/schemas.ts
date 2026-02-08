@@ -17,6 +17,7 @@ export const committeeSchema = z.object({
 
 export const warningSchema = z.object({
   userId: z.uuid(),
+  category: z.enum(['behavior', 'attendance', 'dress_code', 'academic', 'other']),
   reason: z.string().min(3, "Sebep en az 3 karakter olmalıdır."),
 });
 
@@ -72,7 +73,7 @@ export const updateApplicationSchema = z.object({
   review_notes: z.string().optional(),
 });
 
-// Tickets (formerly Feedback)
+// Tickets
 export const createTicketSchema = z.object({
   category: z.enum(['general', 'person_report', 'dashboard', 'other']),
   subject: z.string().min(3, "Konu en az 3 karakter olmalıdır.").max(100),
@@ -97,9 +98,3 @@ export const trackTicketSchema = z.object({
   ticketId: z.string().uuid("Geçersiz bilet ID formatı"),
   accessToken: z.string().uuid("Geçersiz erişim anahtarı formatı"),
 });
-
-// Backward compatibility aliases
-export const createFeedbackSchema = createTicketSchema;
-export const replyFeedbackSchema = replyTicketSchema;
-export const updateFeedbackStatusSchema = updateTicketStatusSchema;
-export const trackFeedbackSchema = trackTicketSchema;

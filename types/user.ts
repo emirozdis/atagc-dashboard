@@ -17,8 +17,11 @@ export interface UserDetail {
     };
 }
 
+export type WarningCategory = 'behavior' | 'attendance' | 'dress_code' | 'academic' | 'other';
+
 export interface Warning {
     id: string;
+    category: WarningCategory;
     reason: string;
     created_at: string;
     issuer: {
@@ -112,6 +115,3 @@ export interface User {
     user_warnings?: Warning[];
     warnings_count?: number;
 }
-
-// Change Log:
-// - Updated type definitions to use strict status types from `./payment` and `./application`.

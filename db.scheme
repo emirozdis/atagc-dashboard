@@ -280,6 +280,7 @@ CREATE TABLE public.user_warnings (
   issued_by uuid NOT NULL,
   reason text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
+  category USER-DEFINED NOT NULL DEFAULT 'other'::warning_category_enum,
   CONSTRAINT user_warnings_pkey PRIMARY KEY (id),
   CONSTRAINT user_warnings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT user_warnings_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES public.users(id)

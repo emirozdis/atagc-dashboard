@@ -6,6 +6,12 @@
     "security_definer": true
   },
   {
+    "function_name": "get_admin_user_profile",
+    "arguments": "p_user_id uuid",
+    "return_type": "jsonb",
+    "security_definer": true
+  },
+  {
     "function_name": "get_committee_dashboard_data",
     "arguments": "target_committee_id uuid",
     "return_type": "json",
