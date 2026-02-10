@@ -3,6 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { getSignedUrl } from "@/lib/storage-utils";
 
 export const GET = apiHandler(async (
     request: Request,
@@ -38,15 +39,24 @@ export const GET = apiHandler(async (
         }
     }
 
-    const { data, error } = await supabase
-        .from("v_full_user_profiles")
-        .select("*")
-        .eq("id", id)
-        .single();
+    const { data: user, error } = await supabase
+        .rpc('get_admin_user_profile', { p_user_id: id });
 
-    if (error || !data) {
+    if (error) {
+        console.error("RPC Error:", error);
+        throw new Error("Failed to fetch user profile");
+    }
+
+    if (!user) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json(data);
+    if (user.user_details && user.user_details.profile_picture_url) {
+        user.user_details.profile_picture_url = await getSignedUrl(
+            "profile-pictures", 
+            user.user_details.profile_picture_url
+        );
+    }
+
+    return NextResponse.json(user);
 });

@@ -18,7 +18,8 @@ import {
     FolderOpen,
     User,
     CreditCard,
-    FileEdit
+    FileEdit,
+    MessageSquare
 } from "lucide-react";
 
 interface AdminMobileSidebarProps {
@@ -39,7 +40,7 @@ const adminItems = [
         roles: ["superadmin", "admin"]
     },
     {
-        title: "Formlar", // New
+        title: "Formlar",
         href: "/admin/forms",
         icon: FileEdit,
         roles: ["superadmin"]
@@ -61,6 +62,12 @@ const adminItems = [
         href: "/admin/roll-call",
         icon: QrCode,
         roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
+    },
+    {
+        title: "Destek Talepleri",
+        href: "/admin/tickets",
+        icon: MessageSquare,
+        roles: ["superadmin", "admin"]
     },
     {
         title: "Kaynaklar",

@@ -17,6 +17,7 @@ export const committeeSchema = z.object({
 
 export const warningSchema = z.object({
   userId: z.uuid(),
+  category: z.enum(['behavior', 'attendance', 'dress_code', 'academic', 'other']),
   reason: z.string().min(3, "Sebep en az 3 karakter olmalıdır."),
 });
 
@@ -68,6 +69,32 @@ export const searchParamsSchema = z.object({
 
 export const updateApplicationSchema = z.object({
   id: z.uuid(),
-  status: z.enum(ApplicationStatusEnum),
+  status: z.enum(Object.values(ApplicationStatusEnum) as [string, ...string[]]),
   review_notes: z.string().optional(),
+});
+
+// Tickets
+export const createTicketSchema = z.object({
+  category: z.enum(['general', 'person_report', 'dashboard', 'other']),
+  subject: z.string().min(3, "Konu en az 3 karakter olmalıdır.").max(100),
+  message: z.string().min(10, "Mesaj en az 10 karakter olmalıdır.").max(2000),
+  is_anonymous: z.preprocess((val) => val === 'true' || val === true, z.boolean()),
+  attachments: z.any().optional()
+});
+
+export const replyTicketSchema = z.object({
+  message: z.string().max(2000).optional(),
+  ticketId: z.string().uuid(),
+  accessToken: z.string().uuid().optional(),
+  attachments: z.any().optional()
+});
+
+export const updateTicketStatusSchema = z.object({
+  ticketId: z.string().uuid(),
+  status: z.enum(['submitted', 'reviewing', 'answered', 'closed']),
+});
+
+export const trackTicketSchema = z.object({
+  ticketId: z.string().uuid("Geçersiz bilet ID formatı"),
+  accessToken: z.string().uuid("Geçersiz erişim anahtarı formatı"),
 });

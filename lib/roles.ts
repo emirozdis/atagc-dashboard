@@ -9,7 +9,7 @@ import {
   Crown
 } from "lucide-react";
 
-// 1. Role Constants (The Source of Truth)
+// 1. Role Constants
 export const ROLES = {
   SUPERADMIN: "superadmin",
   ADMIN: "admin",
@@ -22,10 +22,10 @@ export const ROLES = {
   APPLICANT: "applicant",
 } as const;
 
-// 2. Type Definition derived from constants
+// 2. Type Definition
 export type UserRole = typeof ROLES[keyof typeof ROLES];
 
-// 3. Role Groups (Centralized Lists to avoid hardcoding arrays in components)
+// 3. Role Groups
 export const STAFF_ROLES: UserRole[] = [
   ROLES.SUPERADMIN, 
   ROLES.ADMIN, 
@@ -50,7 +50,7 @@ export const PARTICIPANT_ROLES: UserRole[] = [
   ROLES.APPLICANT
 ];
 
-// 4. Role Metadata (Labels, Ranks, Icons, Colors)
+// 4. Role Metadata
 export const ROLE_METADATA: Record<UserRole, {
   label: string;
   rank: number; // Higher number = Higher authority
@@ -143,11 +143,6 @@ export const ROLE_METADATA: Record<UserRole, {
   }
 };
 
-// 5. Helper to get metadata safely
 export function getRoleMeta(role: string) {
   return ROLE_METADATA[role as UserRole] || ROLE_METADATA[ROLES.APPLICANT];
 }
-
-// Change Log:
-// - Added exported arrays `STAFF_ROLES`, `MANAGEMENT_ROLES`, `COMMITTEE_LEADS`, `PARTICIPANT_ROLES`.
-// - These arrays are typed as `UserRole[]`, which solves the TypeScript `includes()` incompatibility.

@@ -25,6 +25,9 @@ export function MobileNav() {
       // Approval check
       if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
 
+      // Payment Check (Hide if no application)
+      if (item.href === '/dashboard/payment' && !status) return false;
+
       return true;
     });
 

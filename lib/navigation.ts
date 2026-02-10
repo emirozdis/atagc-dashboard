@@ -17,6 +17,7 @@ import {
     Building2,
     Globe,
     ShieldCheck,
+    MessageSquare,
     ClipboardList,
     ListTodo
 } from "lucide-react";
@@ -87,7 +88,7 @@ export const participantItems: NavigationItem[] = [
         icon: CreditCard,
         roles: ["applicant", "delegate", "press", "observer"],
         mobileCore: false,
-        requiresApproved: false, 
+        requiresApproved: false,
     },
     {
         title: "Komitem",
@@ -125,7 +126,6 @@ export const participantItems: NavigationItem[] = [
         title: "Tara",
         href: "/dashboard/scan",
         icon: ScanLine,
-        // Removed 'applicant' - only approved roles can access
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
         requiresApproved: true,
@@ -134,7 +134,6 @@ export const participantItems: NavigationItem[] = [
         title: "Tanıştıklarım",
         href: "/dashboard/connections",
         icon: UsersRound,
-        // Removed 'applicant'
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: true,
         requiresApproved: true,
@@ -163,7 +162,6 @@ export const participantItems: NavigationItem[] = [
         title: "Kaynaklar",
         href: "/dashboard/resources",
         icon: FolderOpen,
-        // Removed 'applicant'
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
         requiresApproved: true,
@@ -186,10 +184,17 @@ export const participantItems: NavigationItem[] = [
         title: "Duyurular",
         href: "/dashboard/announcements",
         icon: Megaphone,
-        // Removed 'applicant'
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
         requiresApproved: true,
+    },
+    {
+        title: "Destek",
+        href: "/dashboard/tickets",
+        icon: MessageSquare,
+        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        mobileCore: false,
+        requiresApproved: false,
     },
 ];
 
@@ -218,7 +223,7 @@ export const organisationItems: NavigationItem[] = [
         mobileCore: true,
         requiresApproved: false,
     },
-{
+    {
         title: "Gözlemci Atama",
         href: "/organisation/assign-observers",
         icon: ListTodo,

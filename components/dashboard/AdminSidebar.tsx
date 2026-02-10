@@ -14,7 +14,8 @@ import {
     FolderOpen,
     User,
     CreditCard,
-    FileEdit
+    FileEdit,
+    MessageSquare
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -58,13 +59,19 @@ const adminItems = [
         roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
     {
+        title: "Destek Talepleri",
+        href: "/admin/tickets",
+        icon: MessageSquare,
+        roles: ["superadmin", "admin"]
+    },
+    {
         title: "Kaynaklar",
         href: "/admin/resources",
         icon: FolderOpen,
         roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
     },
-        {
-        title: "Ödemeler", 
+    {
+        title: "Ödemeler",
         href: "/admin/payments",
         icon: CreditCard,
         roles: ["superadmin", "admin"]

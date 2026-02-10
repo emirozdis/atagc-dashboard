@@ -18,7 +18,7 @@ interface SidebarProps {
 export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  
+
   const role = session?.user?.role;
   const status = session?.user?.applicationStatus;
 
@@ -30,10 +30,13 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   const items = participantItems.filter(item => {
     // 1. Role Check
     if (item.roles && role && !item.roles.includes(role)) return false;
-    
+
     // 2. Approval Check
     if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
-    
+
+    // 3. Payment Check (Hide if no application)
+    if (item.href === '/dashboard/payment' && !status) return false;
+
     return true;
   });
 
@@ -44,7 +47,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   })();
 
   const shouldPollConnections = !!session && status === 'approved';
-  
+
   const { data: connectionData } = useQuery<ConnectionState>({
     queryKey: ['connections'],
     queryFn: async () => {
@@ -53,7 +56,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
       return res.json();
     },
     staleTime: 1000 * 60,
-    refetchInterval: 60000, 
+    refetchInterval: 60000,
     enabled: shouldPollConnections
   });
 
@@ -96,7 +99,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
               <item.icon className="w-4 h-4" />
               {item.title}
             </div>
-            
+
             {item.href === "/dashboard/connections" && pendingCount > 0 && (
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
                 {pendingCount > 9 ? '9+' : pendingCount}

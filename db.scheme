@@ -113,6 +113,30 @@ CREATE TABLE public.logs (
   CONSTRAINT logs_pkey PRIMARY KEY (id),
   CONSTRAINT logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.observer_allocations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  allocated_committee uuid,
+  allocated_field text,
+  field_observer boolean NOT NULL DEFAULT true,
+  CONSTRAINT observer_allocations_pkey PRIMARY KEY (id),
+  CONSTRAINT observer_allocations_id_fkey FOREIGN KEY (id) REFERENCES public.users(id),
+  CONSTRAINT observer_allocations_allocated_committee_fkey FOREIGN KEY (allocated_committee) REFERENCES public.committees(id)
+);
+CREATE TABLE public.observer_tasks (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  assigned_by uuid,
+  assigned_to uuid,
+  assigned_task text,
+  assigned_committee uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  status USER-DEFINED NOT NULL DEFAULT 'created'::task_status_enum,
+  task_description text,
+  CONSTRAINT observer_tasks_pkey PRIMARY KEY (id),
+  CONSTRAINT observer_tasks_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(id),
+  CONSTRAINT observer_tasks_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.users(id),
+  CONSTRAINT observer_tasks_assigned_committee_fkey FOREIGN KEY (assigned_committee) REFERENCES public.committees(id)
+);
 CREATE TABLE public.password_resets (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   email character varying NOT NULL,
@@ -189,6 +213,31 @@ CREATE TABLE public.system_settings (
   bank_iban text DEFAULT 'TR00 0000 0000 0000 0000 0000 00'::text,
   CONSTRAINT system_settings_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.ticket_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  ticket_id uuid NOT NULL,
+  sender_id uuid,
+  is_staff_reply boolean NOT NULL DEFAULT false,
+  message text NOT NULL,
+  attachments ARRAY,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT ticket_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT feedback_messages_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id),
+  CONSTRAINT feedback_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.tickets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  is_anonymous boolean NOT NULL DEFAULT false,
+  access_token uuid DEFAULT gen_random_uuid(),
+  category USER-DEFINED NOT NULL DEFAULT 'general'::feedback_category_enum,
+  subject character varying NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'submitted'::feedback_status_enum,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tickets_pkey PRIMARY KEY (id),
+  CONSTRAINT feedback_tickets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.topics (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   committee_id uuid,
@@ -231,6 +280,7 @@ CREATE TABLE public.user_warnings (
   issued_by uuid NOT NULL,
   reason text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
+  category USER-DEFINED NOT NULL DEFAULT 'other'::warning_category_enum,
   CONSTRAINT user_warnings_pkey PRIMARY KEY (id),
   CONSTRAINT user_warnings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT user_warnings_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES public.users(id)
