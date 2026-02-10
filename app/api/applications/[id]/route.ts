@@ -34,6 +34,7 @@ export const GET = apiHandler(async (
       id,
       full_name,
       email,
+      role,
       user_details (
         id,
         phone_number,

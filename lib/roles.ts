@@ -1,11 +1,12 @@
-import { 
-  ShieldAlert, 
-  ShieldCheck, 
-  Shield, 
-  Users, 
-  User, 
-  Camera, 
-  Eye 
+import {
+  ShieldAlert,
+  ShieldCheck,
+  Shield,
+  Users,
+  User,
+  Camera,
+  Eye,
+  Crown
 } from "lucide-react";
 
 // 1. Role Constants (The Source of Truth)
@@ -13,10 +14,11 @@ export const ROLES = {
   SUPERADMIN: "superadmin",
   ADMIN: "admin",
   CHAIRMAN: "committee_chairman",
-  DEPUTY_CHAIR: "deputy_chair",
+  DEPUTY_CHAIR: "chair",
   DELEGATE: "delegate",
   PRESS: "press",
   OBSERVER: "observer",
+  HEAD_OBSERVER: "head_observer",
   APPLICANT: "applicant",
 } as const;
 
@@ -120,6 +122,15 @@ export const ROLE_METADATA: Record<UserRole, {
     colorClass: "text-cyan-600",
     bgClass: "bg-cyan-500/10",
     borderClass: "border-cyan-500/20"
+  },
+  [ROLES.HEAD_OBSERVER]: {
+    label: "Baş Gözlemci",
+    rank: 20,
+    description: "Gözlemci ekibini yönetir ve görev atar.",
+    icon: Crown,
+    colorClass: "text-teal-600",
+    bgClass: "bg-teal-500/10",
+    borderClass: "border-teal-500/20"
   },
   [ROLES.APPLICANT]: {
     label: "Başvuru Sahibi",

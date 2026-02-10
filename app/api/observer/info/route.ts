@@ -46,6 +46,8 @@ export const GET = apiHandler(async (request: Request) => {
     .eq("id", userId)
     .single();
 
+  
+    
   if (observerError) throw observerError;
   if (!observerData) return NextResponse.json({ error: "Observer data not found" }, { status: 404 });
 
@@ -84,12 +86,22 @@ export const GET = apiHandler(async (request: Request) => {
     committeeName = committeeData?.name || null;
   }
 
+  // Fetch tasks assigned to this observer
+  const { data: tasks, error: tasksError } = await supabase
+    .from("observer_tasks")
+    .select("id, assigned_by, assigned_task, task_description, status, created_at")
+    .eq("assigned_to", userId)
+    .order("created_at", { ascending: false });
+
+  if (tasksError) throw tasksError;
+
   // Construct Clean Response
   const response = {
     allocatedArea: allocation?.allocated_field || '',
     allocatedCommittee: allocation?.allocated_committee || null,
     allocatedCommitteeName: committeeName,
     fieldObserver: allocation?.field_observer || null,
+    tasks: tasks || [],
   };
 
   return NextResponse.json(response);

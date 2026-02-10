@@ -289,8 +289,8 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
 
-          {/* Assignment Panel (Only if Approved AND Delegate) */}
-          {application.status === 'approved' && applicantType === 'delegate' && (
+          {/* Assignment Panel (Only if Approved AND Delegate/Deputy Chair/Chairman) */}
+          {application.status === 'approved' && ['delegate', 'chair', 'committee_chairman'].includes(user.role) && (
             <div className="bg-primary/5 border border-primary/20 p-5 rounded-xl space-y-4 shadow-sm">
               <h3 className="font-semibold flex items-center gap-2 text-primary text-sm uppercase tracking-wide">
                 <Briefcase className="w-4 h-4" /> Komite Ataması

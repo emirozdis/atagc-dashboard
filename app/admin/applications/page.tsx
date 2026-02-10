@@ -290,7 +290,7 @@ export default function ApplicationsPage() {
 
                   // Fix: Check form slug
                   const formSlug = app.form?.slug || 'delegate';
-                  const isAcademic = formSlug === 'delegate';
+                  const isAcademic = formSlug === 'delegate' || formSlug === 'committee_chairman' || formSlug === 'chair' || formSlug === 'deputy_chair';
 
                   return (
                     <TableRow

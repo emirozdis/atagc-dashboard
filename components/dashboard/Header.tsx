@@ -14,6 +14,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { MobileSidebar } from "./MobileSidebar";
 import { AdminMobileSidebar } from "./AdminMobileSidebar";
+import { OrganisationMobileSidebar } from "../organisation/OrganisationMobileSidebar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getRoleMeta } from "@/lib/roles";
@@ -26,6 +27,7 @@ export function Header() {
   const [openMobileMenu, setOpenMobileMenu] = useState(false);
 
   const isAdminRoute = pathname?.startsWith("/admin");
+  const isOrganisationRoute = pathname?.startsWith("/organisation");
 
   const { data: profile } = useQuery({
     queryKey: ["profile"],
@@ -62,6 +64,8 @@ export function Header() {
             </SheetHeader>
             {isAdminRoute ? (
               <AdminMobileSidebar onClose={() => setOpenMobileMenu(false)} />
+            ) : isOrganisationRoute ? (
+              <OrganisationMobileSidebar onClose={() => setOpenMobileMenu(false)} />
             ) : (
               <MobileSidebar onClose={() => setOpenMobileMenu(false)} />
             )}

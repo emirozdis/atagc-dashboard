@@ -16,7 +16,9 @@ import {
     Smartphone,
     Building2,
     Globe,
-    ShieldCheck
+    ShieldCheck,
+    ClipboardList,
+    ListTodo
 } from "lucide-react";
 
 export interface NavigationSubItem {
@@ -188,6 +190,41 @@ export const participantItems: NavigationItem[] = [
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
         requiresApproved: true,
+    },
+];
+
+export const organisationItems: NavigationItem[] = [
+    {
+        title: "Genel Durum",
+        href: "/organisation",
+        icon: LayoutDashboard,
+        roles: ["observer", "head_observer"],
+        mobileCore: true,
+        requiresApproved: false,
+    },
+    {
+        title: "Görev Oluştur",
+        href: "/organisation/tasks",
+        icon: ClipboardList,
+        roles: ["head_observer", "admin", "superadmin"],
+        mobileCore: true,
+        requiresApproved: false,
+    },
+    {
+        title: "Görevlerim",
+        href: "/organisation/my-tasks",
+        icon: ListTodo,
+        roles: ["observer"],
+        mobileCore: true,
+        requiresApproved: false,
+    },
+{
+        title: "Gözlemci Atama",
+        href: "/organisation/assign-observers",
+        icon: ListTodo,
+        roles: ["head_observer", 'admin', 'superadmin'],
+        mobileCore: true,
+        requiresApproved: false,
     },
 ];
 
