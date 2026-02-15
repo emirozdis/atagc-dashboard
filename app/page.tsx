@@ -1,3 +1,5 @@
+// app/page.tsx
+
 "use client"
 
 import { ApplicationForm } from "@/components/application-form/ApplicationForm";

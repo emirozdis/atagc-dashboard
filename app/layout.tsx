@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || "http://localhost:3000"),
-  title: "ATAGÇ 2026 - Panel",
-  description: "ATAGÇ 2026 Etkinlik Paneli",
+  title: "ATAGÇ 2026",
+  description: "ATAGÇ 2026",
   keywords: ["ATAGÇ", "2026", "İTÜ GVO", "İzmir", "Atatürk Gençliği Çalıştayı"],
   authors: [{ name: "ATAGÇ" }],
   icons: {
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "ATAGÇ 2026 - Panel",
-    description: "ATAGÇ 2026 Etkinlik Paneli",
+    description: "ATAGÇ 2026",
     images: ["/logo.png"],
   },
 };

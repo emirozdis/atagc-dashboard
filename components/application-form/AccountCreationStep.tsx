@@ -1,3 +1,5 @@
+// components/application-form/AccountCreationStep.tsx
+
 import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
@@ -23,9 +25,11 @@ interface AccountCreationStepProps {
     onVerify: (status: boolean) => void;
     onModeChange: (mode: 'register' | 'login') => void;
     onTokenChange: (token: string) => void;
+    onNext: () => Promise<void>;
+    isSubmitting: boolean;
 }
 
-export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeChange, onTokenChange }: AccountCreationStepProps) {
+export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeChange, onTokenChange, onNext, isSubmitting }: AccountCreationStepProps) {
     const { register, formState: { errors }, watch, getValues, trigger, setValue } = form;
     
     // States
@@ -186,7 +190,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                                     id="email"
                                     placeholder="ornek@email.com"
                                     {...register("email")}
-                                    className="pl-10 h-11 bg-background/50 border-border/50"
+                                    className="pl-10 h-11 bg-background/50 border-border/50 cursor-pointer"
                                     onKeyDown={(e) => e.key === 'Enter' && !isEmailButtonDisabled && handleCheckEmail()}
                                 />
                             </div>
@@ -194,7 +198,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                                 type="button" 
                                 onClick={handleCheckEmail} 
                                 disabled={isEmailButtonDisabled}
-                                className="h-11 px-6 shadow-md"
+                                className="h-11 px-6 shadow-md cursor-pointer"
                             >
                                 {emailCheckLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                             </Button>
@@ -227,7 +231,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             />
                             <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-500 animate-in zoom-in" />
                         </div>
-                        <Button variant="ghost" onClick={resetFlow} className="h-11 px-3 text-muted-foreground hover:text-destructive">
+                        <Button variant="ghost" onClick={resetFlow} className="h-11 px-3 text-muted-foreground hover:text-destructive cursor-pointer">
                             <RefreshCcw className="w-4 h-4" />
                         </Button>
                     </div>
@@ -253,7 +257,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             type="password" 
                             placeholder="••••••••" 
                             {...register("password")} 
-                            className="bg-background"
+                            className="bg-background cursor-pointer"
                         />
                         <div className="flex justify-end">
                             <a href="/forgot-password" target="_blank" className="text-xs text-primary hover:underline">Şifremi Unuttum</a>
@@ -267,6 +271,10 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             onVerify={setTurnstileToken}
                         />
                     </div>
+
+                    <Button onClick={onNext} disabled={isSubmitting} className="w-full cursor-pointer">
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Devam Et"}
+                    </Button>
                 </div>
             )}
 
@@ -279,17 +287,21 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                     <div className="flex justify-center gap-2">
                         <Input 
                             value={verificationCode}
-                            onChange={(e) => setVerificationCode(e.target.value)}
-                            className="text-center text-lg tracking-[0.5em] font-mono h-12 w-48 bg-background"
+                            onChange={(e) => {
+                                const value = e.target.value.replace(/[^0-9]/g, '');
+                                setVerificationCode(value);
+                            }}
+                            className="text-center text-lg tracking-[0.5em] pb-1 font-mono h-12 w-48 bg-background"
                             maxLength={6}
+                            inputMode="numeric"
                             placeholder="000000"
                         />
-                        <Button onClick={handleVerifyCode} disabled={loading || verificationCode.length < 6} className="h-12 w-12 p-0">
+                        <Button onClick={handleVerifyCode} disabled={loading || verificationCode.length < 6} className="h-12 w-12 p-0 cursor-pointer">
                             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
                         </Button>
                     </div>
                     <div className="text-center">
-                        <button onClick={sendVerificationCode} disabled={loading} className="text-xs text-muted-foreground hover:text-primary underline">
+                        <button onClick={sendVerificationCode} disabled={loading} className="text-xs text-muted-foreground hover:text-primary underline cursor-pointer">
                             Kodu Tekrar Gönder
                         </button>
                     </div>
@@ -301,14 +313,14 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                 <div className="space-y-6 animate-in slide-in-from-top-4 fade-in">
                     <div className="space-y-2">
                         <Label>Ad Soyad <span className="text-destructive">*</span></Label>
-                        <Input {...register("adSoyad")} placeholder="Adınız Soyadınız" className="h-11 bg-background/50" />
+                        <Input {...register("adSoyad")} placeholder="Adınız Soyadınız" className="h-11 bg-background/50 cursor-pointer" />
                         {errors.adSoyad && <p className="text-sm text-destructive">{errors.adSoyad.message}</p>}
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-3">
                             <Label>Şifre Oluştur <span className="text-destructive">*</span></Label>
-                            <Input type="password" {...register("password")} placeholder="••••••••" className="h-11 bg-background/50" />
+                            <Input type="password" {...register("password")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer" />
                             
                             {/* Password Strength Indicators */}
                             <div className="grid grid-cols-2 gap-2 mt-2">
@@ -321,18 +333,14 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
 
                         <div className="space-y-2">
                             <Label>Şifre Tekrar <span className="text-destructive">*</span></Label>
-                            <Input type="password" {...register("confirmPassword")} placeholder="••••••••" className="h-11 bg-background/50" />
+                            <Input type="password" {...register("confirmPassword")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer" />
                             {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
                         </div>
                     </div>
 
-                    <div className="pt-2">
-                        <Turnstile 
-                            key={`turnstile-details-${turnstileKey}`}
-                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                            onVerify={setTurnstileToken}
-                        />
-                    </div>
+                    <Button onClick={onNext} disabled={isSubmitting} className="w-full cursor-pointer">
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Devam Et"}
+                    </Button>
                 </div>
             )}
         </div>
@@ -347,8 +355,3 @@ function Requirement({ label, met }: { label: string, met: boolean }) {
         </div>
     );
 }
-
-// Change Log:
-// - Updated `handleCheckEmail` and `sendVerificationCode` to allow bypass if `process.env.NODE_ENV === "development"`.
-// - The UI button is now enabled if no token is present but we are in dev mode.
-// - Uses "DEV_BYPASS" token string in dev mode when calling the API.

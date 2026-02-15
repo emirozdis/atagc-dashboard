@@ -1,13 +1,14 @@
+// components/application-form/ApplicationForm.tsx
+
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Send, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 // Components
@@ -31,6 +32,8 @@ export function ApplicationForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
   
   // Data States
   const [availableForms, setAvailableForms] = useState<ApplicationFormTemplate[]>([]);
@@ -61,18 +64,21 @@ export function ApplicationForm() {
       .catch(console.error);
   }, []);
 
-  const handleNext = async () => {
-    // --- STEP 1: Role Selection ---
-    if (currentStep === 1) {
-        if (!selectedFormId) {
-            toast.error("Lütfen bir rol seçiniz.");
-            return;
-        }
-        setCurrentStep(2);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        return;
+  // Scroll to form top when step changes (but not on initial render)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [currentStep]);
 
+  const handleRoleSelect = (formId: string) => {
+    setSelectedFormId(formId);
+    setCurrentStep(2);
+  };
+
+  const handleNext = async () => {
     // --- STEP 2: Account Creation/Login ---
     if (currentStep === 2) {
         const values = accountForm.getValues();
@@ -131,6 +137,7 @@ export function ApplicationForm() {
         return;
     }
 
+    // --- STEP 3+: Dynamic Form Steps ---
     const selectedForm = availableForms.find(f => f.id === selectedFormId);
     if (!selectedForm) return;
 
@@ -146,7 +153,6 @@ export function ApplicationForm() {
 
         if (dynamicStepIndex < selectedForm.steps.length - 1) {
             setCurrentStep(prev => prev + 1);
-            window.scrollTo({ top: 0, behavior: "smooth" });
         } else {
             handleSubmit();
         }
@@ -205,39 +211,40 @@ export function ApplicationForm() {
   const currentDynamicStep = selectedForm?.steps[currentStep - 3];
 
   return (
-    <div className="w-full max-w-3xl mx-auto relative">
-        {/* Already Applied Badge - Absolute Positioned 16px from top/right */}
-        {session && (
-            <div className="flex justify-center mb-10 z-10 animate-in fade-in slide-in-from-top-2 duration-500">
-                <Link href="/dashboard">
-                    <Badge variant="outline" className="py-2 px-2 bg-primary/5 hover:bg-primary/10 cursor-pointer flex gap-2 border-primary/20 backdrop-blur-sm transition-all group rounded-full">
-                        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                        <span className="text-base font-medium group-hover:text-primary transition-colors tracking-tight">Mevcut Başvurularım</span>
-                        <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </Badge>
-                </Link>
-            </div>
-        )}
-
+    <div className="w-full max-w-3xl mx-auto relative" ref={formRef}>
         <StepIndicator steps={displaySteps} currentStep={indicatorStep} />
 
-        <div className="mb-8 min-h-[350px]">
+        <div>
             {currentStep === 1 && (
                 <RoleSelectionStep 
                     forms={availableForms}
                     selectedId={selectedFormId}
-                    onSelect={setSelectedFormId}
+                    onSelect={handleRoleSelect}
                 />
             )}
 
             {currentStep === 2 && (
-                <AccountCreationStep 
-                    form={accountForm}
-                    isEmailVerified={isEmailVerified}
-                    onVerify={setIsEmailVerified}
-                    onModeChange={setAuthMode}
-                    onTokenChange={setTurnstileToken}
-                />
+                <div className="space-y-6">
+                    <AccountCreationStep 
+                        form={accountForm}
+                        isEmailVerified={isEmailVerified}
+                        onVerify={setIsEmailVerified}
+                        onModeChange={setAuthMode}
+                        onTokenChange={setTurnstileToken}
+                        onNext={handleNext}
+                        isSubmitting={isSubmitting}
+                    />
+                    <div className="flex gap-3 pt-4">
+                        <Button 
+                            variant="ghost" 
+                            onClick={handleBack} 
+                            disabled={isSubmitting}
+                            className="cursor-pointer"
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" /> Geri
+                        </Button>
+                    </div>
+                </div>
             )}
 
             {currentStep >= 3 && currentDynamicStep && (
@@ -248,7 +255,7 @@ export function ApplicationForm() {
                             <p className="text-xs text-muted-foreground uppercase tracking-widest">Başvuru Detayları</p>
                         </div>
                         <div className="bg-secondary/30 px-3 py-1 rounded-full border border-border/50">
-                            <span className="text-xs font-mono font-medium">Adım {currentStep - 2} / {totalDynamicSteps}</span>
+                            <span className="font-medium">{currentStep - 2}. Adım</span>
                         </div>
                     </div>
                     <DynamicFormStep 
@@ -256,20 +263,28 @@ export function ApplicationForm() {
                         answers={formAnswers}
                         onAnswerChange={(id, val) => setFormAnswers(prev => ({ ...prev, [id]: val }))}
                     />
+                    <div className="flex gap-3 pt-4">
+                        {currentStep > 1 && (
+                            <Button 
+                                variant="ghost" 
+                                onClick={handleBack} 
+                                disabled={isSubmitting}
+                                className="cursor-pointer"
+                            >
+                                <ArrowLeft className="w-4 h-4 mr-2" /> Geri
+                            </Button>
+                        )}
+                        <Button 
+                            onClick={handleNext} 
+                            disabled={isSubmitting} 
+                            className="ml-auto shadow-md cursor-pointer"
+                        >
+                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 
+                             (currentStep >= 3 && currentStep - 2 === totalDynamicSteps ? "Başvuruyu Tamamla" : "İleri")} <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                    </div>
                 </div>
             )}
-        </div>
-
-        <div className="flex justify-between pt-6 border-t border-border">
-            <Button variant="ghost" onClick={handleBack} disabled={currentStep === 1 || isSubmitting}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Geri
-            </Button>
-            
-            <Button onClick={handleNext} disabled={isSubmitting} className="min-w-[120px] shadow-md">
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 
-                 (currentStep >= 3 && currentStep - 2 === totalDynamicSteps ? "Başvuruyu Tamamla" : "İleri")}
-                 {!isSubmitting && !(currentStep >= 3 && currentStep - 2 === totalDynamicSteps) && <ArrowRight className="w-4 h-4 ml-2" />}
-            </Button>
         </div>
     </div>
   );
