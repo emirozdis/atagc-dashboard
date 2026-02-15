@@ -302,6 +302,24 @@ async function updateApplicationStatus(
         if (targetSlug) {
             await supabase.from("users").update({ role: targetSlug }).eq("id", currentApp.user_id);
         }
+
+        // Add user to catering_database when approved
+        const { data: existingCatering } = await supabase
+            .from("catering_database")
+            .select("user_id")
+            .eq("user_id", currentApp.user_id)
+            .maybeSingle();
+
+        if (!existingCatering) {
+            await supabase
+                .from("catering_database")
+                .insert({
+                    user_id: currentApp.user_id,
+                    day1: false,
+                    day2: false,
+                    day3: false
+                });
+        }
     } else {
         await supabase.from("users").update({ role: ROLES.APPLICANT }).eq("id", currentApp.user_id);
     }

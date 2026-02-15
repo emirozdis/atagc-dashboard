@@ -19,7 +19,8 @@ import {
     ShieldCheck,
     MessageSquare,
     ClipboardList,
-    ListTodo
+    ListTodo,
+    UtensilsCrossed
 } from "lucide-react";
 
 export interface NavigationSubItem {
@@ -184,6 +185,14 @@ export const participantItems: NavigationItem[] = [
         title: "Duyurular",
         href: "/dashboard/announcements",
         icon: Megaphone,
+        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        mobileCore: false,
+        requiresApproved: true,
+    },
+    {
+        title: "Yemek",
+        href: "/dashboard/catering",
+        icon: UtensilsCrossed,
         roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
         mobileCore: false,
         requiresApproved: true,
