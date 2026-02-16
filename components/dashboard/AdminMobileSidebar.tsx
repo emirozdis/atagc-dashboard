@@ -22,6 +22,7 @@ import {
     MessageSquare,
     UtensilsCrossed
 } from "lucide-react";
+import { ROLES } from "@/lib/roles";
 
 interface AdminMobileSidebarProps {
     onClose?: () => void;
@@ -32,55 +33,55 @@ const adminItems = [
         title: "Panel",
         href: "/admin",
         icon: LayoutDashboard,
-        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
         title: "Başvurular",
         href: "/admin/applications",
         icon: FileText,
-        roles: ["superadmin", "admin"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
         title: "Formlar",
         href: "/admin/forms",
         icon: FileEdit,
-        roles: ["superadmin"]
+        roles: [ROLES.SUPERADMIN]
     },
     {
         title: "Kullanıcılar",
         href: "/admin/users",
         icon: Users,
-        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
         title: "Komiteler",
         href: "/admin/committees",
         icon: CalendarDays,
-        roles: ["superadmin", "admin"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
         title: "Yoklama",
         href: "/admin/roll-call",
         icon: QrCode,
-        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
         title: "Destek Talepleri",
         href: "/admin/tickets",
         icon: MessageSquare,
-        roles: ["superadmin", "admin"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
         title: "Kaynaklar",
         href: "/admin/resources",
         icon: FolderOpen,
-        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
         title: "Ödemeler",
         href: "/admin/payments",
         icon: CreditCard,
-        roles: ["superadmin", "admin"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
         title: "Yemek Yönetimi",
@@ -92,25 +93,25 @@ const adminItems = [
         title: "Duyurular",
         href: "/admin/announcements",
         icon: Megaphone,
-        roles: ["superadmin", "admin"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
         title: "Sistem Kayıtları",
         href: "/admin/logs",
         icon: ScrollText,
-        roles: ["superadmin", "admin"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
         title: "Profilim",
         href: "/admin/profile",
         icon: User,
-        roles: ["superadmin", "admin", "committee_chairman", "deputy_chair"]
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
         title: "Ayarlar",
         href: "/admin/settings",
         icon: Settings,
-        roles: ["superadmin"]
+        roles: [ROLES.SUPERADMIN]
     },
 ];
 
@@ -119,11 +120,11 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
     const { data: session } = useSession();
     const role = session?.user?.role;
 
-    const filteredItems = adminItems.filter(item => !item.roles || item.roles.includes(role || ""));
+    const filteredItems = adminItems.filter(item => !item.roles || item.roles.includes(role as any));
 
     const roleTag = (() => {
-        if (role === 'superadmin' || role === 'admin') return "Yönetim";
-        if (role === 'committee_chairman' || role === 'deputy_chair') return "Akademi";
+        if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return "Yönetim";
+        if (role === ROLES.CHAIRMAN || role === ROLES.DEPUTY_CHAIR) return "Akademi";
         return null;
     })();
 
@@ -180,7 +181,3 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
         </div>
     );
 }
-
-// Change Log:
-// - Added "Formlar" link to Mobile Sidebar.
-// - Added role filtering to sidebar items (e.g., Academy roles shouldn't see Payments/Logs).

@@ -59,6 +59,8 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
                     id,
                     phone_number,
                     school_name,
+                    city,
+                    grade,
                     profile_picture_url,
                     additional_info
                 ),
@@ -89,6 +91,8 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
 
     if (sort_by === 'full_name') {
         query = query.order('full_name', { foreignTable: 'users', ascending: sort_order === 'asc' });
+    } else if (sort_by === 'school_name') {
+        query = query.order('submitted_at', { ascending: sort_order === 'asc' });
     } else {
         query = query.order(sort_by, { ascending: sort_order === 'asc' });
     }
@@ -190,12 +194,15 @@ async function processApplicationSubmission(
 
     const steps = formTemplate.steps as Array<{ fields: Array<{ id: string; system_map?: string }> }>;
     
+    // Explicit Static Columns in DB (including new 'city' and 'grade')
+    const STATIC_COLUMNS = ['phone_number', 'school_name', 'birth_date', 'city', 'grade'];
+
     if (Array.isArray(steps)) {
         steps.forEach(step => {
             step.fields.forEach(field => {
                 const value = body.formData[field.id];
                 if (value !== undefined && field.system_map) {
-                    if (['phone_number', 'school_name', 'birth_date'].includes(field.system_map)) {
+                    if (STATIC_COLUMNS.includes(field.system_map)) {
                         userDetailsUpdate[field.system_map] = value;
                     } else {
                         additionalInfo[field.system_map] = value;
@@ -220,12 +227,16 @@ async function processApplicationSubmission(
         userDetailsUpdate.additional_info = {
             ...(existingDetails.additional_info as object),
             ...additionalInfo,
-            kvkk_approved: body.kvkkApproved
+            kvkk_approved: body.kvkkApproved,
+            kvkk_approved_at: new Date().toISOString(),
+            kvkk_approved_ip: ip
         };
         await supabase.from("user_details").update(userDetailsUpdate).eq("user_id", userId);
     } else {
         userDetailsUpdate.user_id = userId;
         userDetailsUpdate.additional_info.kvkk_approved = body.kvkkApproved;
+        userDetailsUpdate.additional_info.kvkk_approved_at = new Date().toISOString();
+        userDetailsUpdate.additional_info.kvkk_approved_ip = ip;
         await supabase.from("user_details").insert(userDetailsUpdate);
     }
 

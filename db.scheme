@@ -48,6 +48,16 @@ CREATE TABLE public.applications (
   CONSTRAINT applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT applications_form_id_fkey FOREIGN KEY (form_id) REFERENCES public.application_forms(id)
 );
+CREATE TABLE public.catering_logs (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid,
+  datetime timestamp with time zone,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT catering_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT catering_database_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT catering_database_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
 CREATE TABLE public.committee_documents (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   committee_id uuid NOT NULL UNIQUE,
@@ -271,6 +281,8 @@ CREATE TABLE public.user_details (
   is_profile_picture_hidden boolean DEFAULT false,
   allow_connections boolean NOT NULL DEFAULT true,
   notification_preferences jsonb DEFAULT '{"social": true, "system": true, "committee": true, "application": true}'::jsonb,
+  city text,
+  grade USER-DEFINED,
   CONSTRAINT user_details_pkey PRIMARY KEY (id),
   CONSTRAINT user_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );

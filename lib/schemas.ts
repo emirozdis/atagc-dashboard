@@ -51,6 +51,7 @@ export const updateProfileSchema = z.object({
   school_name: z.string().optional(),
   birth_date: z.string().optional(),
   city: z.string().optional(),
+  grade: z.enum(['prep', '9', '10', '11', '12', 'university']).optional(),
   profile_picture_url: z.string().nullable().optional(),
   is_profile_picture_hidden: z.boolean().optional(),
   allow_connections: z.boolean().optional(),
@@ -63,7 +64,8 @@ export const searchParamsSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(10),
   search: z.string().optional().default(""),
   status: z.string().optional().default("all"),
-  sort_by: z.enum(["submitted_at", "status", "full_name"]).default("submitted_at"),
+  // Added "school_name" to the enum to match frontend options and API logic
+  sort_by: z.enum(["submitted_at", "status", "full_name", "school_name"]).default("submitted_at"),
   sort_order: z.enum(["asc", "desc"]).default("desc"),
 });
 

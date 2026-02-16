@@ -10,7 +10,7 @@ export const GET = apiHandler(async (
 ) => {
     const auth = await getAuthorization({ 
         requireAuth: true, 
-        allowedRoles: [ROLES.SUPERADMIN] 
+        allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] 
     });
     if (!auth.ok) throw new Error(auth.message);
 
@@ -40,6 +40,8 @@ export const GET = apiHandler(async (
         phone_number,
         school_name,
         birth_date,
+        city,
+        grade,
         additional_info,
         profile_picture_url
       ),

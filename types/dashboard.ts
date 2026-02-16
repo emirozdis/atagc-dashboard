@@ -1,3 +1,6 @@
+import { GradeEnum } from "./user";
+import { FormStep } from "./application";
+
 export interface ProfileData {
     profile: {
         id: string;
@@ -19,6 +22,8 @@ export interface ProfileData {
             birth_date: string;
             phone_number: string;
             school_name: string;
+            city?: string;
+            grade?: GradeEnum;
             profile_picture_url?: string | null;
             is_profile_picture_hidden?: boolean;
             allow_connections?: boolean;
@@ -29,8 +34,6 @@ export interface ProfileData {
                 system: boolean;
             };
             additional_info: {
-                grade?: string;
-                city?: string;
                 mun_experience?: string;
                 previous_conferences?: string;
                 committee_pref_1?: string;
@@ -49,6 +52,13 @@ export interface ProfileData {
         status: string;
         submitted_at: string;
         review_notes: string | null;
+        form_data?: Record<string, any>;
+        form?: {
+            id: string;
+            slug: string;
+            title: string;
+            steps: FormStep[];
+        } | null;
     } | null;
     committee: {
         id: string;

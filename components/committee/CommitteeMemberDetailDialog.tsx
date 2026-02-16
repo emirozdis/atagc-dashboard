@@ -2,13 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Mail, Phone, GraduationCap, Building2 } from "lucide-react";
+import { Loader2, Mail, Phone, GraduationCap, Building2, MapPin } from "lucide-react";
 import { WarningManager } from "@/components/admin/WarningManager";
 import { User, UserDetail } from "@/types/user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { GRADE_OPTIONS } from "@/lib/constants";
 
 interface CommitteeMemberDetailDialogProps {
     memberId: string | null;
@@ -17,7 +18,6 @@ interface CommitteeMemberDetailDialogProps {
 }
 
 export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: CommitteeMemberDetailDialogProps) {
-    // Only fetch if open and memberId exists
     const { data: user, isLoading, error } = useQuery<User>({
         queryKey: ['user', memberId],
         queryFn: async () => {
@@ -32,7 +32,6 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
     if (!memberId) return null;
 
     const details = user?.user_details as UserDetail | undefined;
-    const additional = details?.additional_info || {};
 
     const getRoleLabel = (role: string) => {
         switch (role) {
@@ -42,6 +41,8 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
             default: return role;
         }
     };
+
+    const gradeLabel = details?.grade ? GRADE_OPTIONS.find(opt => opt.value === details.grade)?.label : null;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,7 +110,13 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
                                     <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
                                         <Building2 className="w-3 h-3" /> Sınıf
                                     </span>
-                                    <p>{additional.grade || "-"}</p>
+                                    <p>{gradeLabel || "-"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                                        <MapPin className="w-3 h-3" /> Şehir
+                                    </span>
+                                    <p>{details?.city || "-"}</p>
                                 </div>
                             </div>
 
@@ -125,8 +132,3 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
         </Dialog>
     );
 }
-
-// Change Log:
-// - New component to display member details in a dialog.
-// - Reuses `WarningManager` for disciplinary actions.
-// - Fetches user data on open.

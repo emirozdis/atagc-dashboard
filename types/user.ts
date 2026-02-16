@@ -1,15 +1,20 @@
 import { PaymentStatus } from "./payment";
 import { ApplicationStatus } from "./application";
 
+export type GradeEnum = 'prep' | '9' | '10' | '11' | '12' | 'university';
+
 export interface UserDetail {
-    school_name?: string;
-    phone_number?: string;
-    birth_date?: string;
+    school_name: string;
+    phone_number: string;
+    birth_date: string;
     profile_picture_url?: string | null;
-    is_profile_picture_hidden?: boolean;
-    additional_info?: any;
-    allow_connections?: boolean;
-    notification_preferences?: {
+    is_profile_picture_hidden: boolean;
+    city: string;
+    grade: GradeEnum;
+    
+    additional_info: any;
+    allow_connections: boolean;
+    notification_preferences: {
         application: boolean;
         committee: boolean;
         social: boolean;
@@ -40,7 +45,7 @@ export interface User {
     created_at: string;
 
     // Relations
-    user_details?: UserDetail | UserDetail[] | null;
+    user_details: UserDetail | UserDetail[] | null;
 
     committee_members?: {
         committee: {
@@ -112,6 +117,6 @@ export interface User {
         id: string;
     }[];
 
-    user_warnings?: Warning[];
-    warnings_count?: number;
+    user_warnings: Warning[];
+    warnings_count: number;
 }

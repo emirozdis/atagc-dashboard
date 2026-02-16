@@ -24,14 +24,17 @@ export const GET = apiHandler(async (request: Request) => {
     .select(`
         id, full_name, email, role, created_at,
         user_details (
-            id, phone_number, school_name, birth_date, profile_picture_url, 
+            id, phone_number, school_name, birth_date, city, grade, profile_picture_url, 
             is_profile_picture_hidden, allow_connections, notification_preferences, additional_info
         ),
         user_warnings:user_warnings!user_warnings_user_id_fkey ( 
             id, reason, created_at, 
             issuer:users!user_warnings_issued_by_fkey(full_name, role) 
         ),
-        application:applications ( id, status, submitted_at, review_notes ),
+        application:applications ( 
+            id, status, submitted_at, review_notes, form_data,
+            form:application_forms (id, slug, title, steps)
+        ),
         committee_members (
             can_write,
             committee:committees (
@@ -104,6 +107,11 @@ export const GET = apiHandler(async (request: Request) => {
           committeeData.admin.profile_picture_url = await getSignedUrl("profile-pictures", adminDetails.profile_picture_url);
       }
   }
+  
+  // Unwrap nested form from application
+  if (application && application.form) {
+      application.form = Array.isArray(application.form) ? application.form[0] : application.form;
+  }
 
   // Construct Clean Response
   const response = {
@@ -144,23 +152,15 @@ export const PUT = apiHandler(async (request: Request) => {
   }
 
   // Update User Details Table
-  const { city, ...restDetails } = validData;
+  const { city, grade, ...restDetails } = validData;
   const detailsUpdate: any = { ...restDetails };
+
+  if (city) detailsUpdate.city = city;
+  if (grade) detailsUpdate.grade = grade;
 
   Object.keys(detailsUpdate).forEach(key => detailsUpdate[key] === undefined && delete detailsUpdate[key]);
   delete detailsUpdate.full_name;
-
-  if (city) {
-    const { data: current } = await supabase
-      .from("user_details")
-      .select("additional_info")
-      .eq("user_id", session.user.id)
-      .maybeSingle();
-    
-    const currentInfo = current?.additional_info || {};
-    detailsUpdate.additional_info = { ...currentInfo, city };
-  }
-
+  
   if (Object.keys(detailsUpdate).length > 0) {
     const { error } = await supabase
       .from("user_details")

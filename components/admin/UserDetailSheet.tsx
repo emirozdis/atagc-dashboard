@@ -26,6 +26,7 @@ import {
   XCircle
 } from "lucide-react";
 import { User, UserDetail } from "@/types/user";
+import { GRADE_OPTIONS } from "@/lib/constants";
 
 interface UserDetailSheetProps {
   user: User | null;
@@ -73,6 +74,8 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
         return <Badge variant="outline">Başvuru Yok</Badge>;
     }
   };
+
+  const gradeLabel = details?.grade ? GRADE_OPTIONS.find(opt => opt.value === details.grade)?.label : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -139,8 +142,12 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
                   <span className="font-medium">{details?.school_name || "-"}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
+                    <span className="text-muted-foreground flex items-center gap-2"><Building2 className="w-3.5 h-3.5" /> Sınıf</span>
+                    <span className="font-medium">{gradeLabel || "-"}</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
                   <span className="text-muted-foreground flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> Şehir</span>
-                  <span className="font-medium">{additional.city || "-"}</span>
+                  <span className="font-medium">{details?.city || "-"}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <span className="text-muted-foreground flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> Doğum Tarihi</span>
@@ -184,6 +191,3 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
     </Sheet>
   );
 }
-
-// Change Log:
-// - Updated role labels to include Co-Chair and remove Staff.

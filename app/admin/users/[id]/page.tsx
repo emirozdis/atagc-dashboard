@@ -20,7 +20,8 @@ import {
     XCircle,
     Wallet,
     UploadCloud,
-    UserIcon
+    UserIcon,
+    MapPin
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
 import { cn } from "@/lib/utils";
 import { AdminPaymentUploadDialog } from "@/components/admin/AdminPaymentUploadDialog";
 import { ROLES, ROLE_METADATA, UserRole } from "@/lib/roles";
+import { GRADE_OPTIONS } from "@/lib/constants";
 
 export default function UserDetailPage() {
     const params = useParams();
@@ -133,8 +135,7 @@ export default function UserDetailPage() {
     };
 
     const details = getFirstItem<UserDetail>(user.user_details);
-    const additional = details?.additional_info || {};
-
+    
     const managedCommittee = user.managed_committees?.[0];
     const memberCommittee = user.committee_members?.[0]?.committee;
     const activeCommittee = managedCommittee || memberCommittee;
@@ -209,6 +210,8 @@ export default function UserDetailPage() {
         }
         return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     };
+
+    const gradeLabel = details?.grade ? GRADE_OPTIONS.find(opt => opt.value === details.grade)?.label : null;
 
     const renderDynamicData = () => {
         if (!formData || Object.keys(formData).length === 0) {
@@ -311,7 +314,7 @@ export default function UserDetailPage() {
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Şehir</span>
-                                        <div className="text-sm font-medium leading-tight">{additional.city || "-"}</div>
+                                        <div className="text-sm font-medium leading-tight">{details?.city || "-"}</div>
                                     </div>
                                 </div>
                             </div>
@@ -418,7 +421,7 @@ export default function UserDetailPage() {
                                         <div className="grid sm:grid-cols-2 gap-y-4 gap-x-8">
                                             <div className="space-y-1">
                                                 <span className="text-xs text-muted-foreground">Sınıf</span>
-                                                <div className="text-sm font-medium">{additional.grade || "-"}</div>
+                                                <div className="text-sm font-medium">{gradeLabel || "-"}</div>
                                             </div>
                                             <div className="space-y-1">
                                                 <span className="text-xs text-muted-foreground">Doğum Tarihi</span>

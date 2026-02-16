@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import Link from "next/link";
 import { Committee } from "@/types/admin";
+import { GRADE_OPTIONS } from "@/lib/constants";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -165,6 +166,8 @@ export default function ApplicationDetailPage() {
       default: return <FileText className="w-4 h-4" />;
     }
   };
+  
+  const gradeLabel = GRADE_OPTIONS.find(opt => opt.value === details?.grade)?.label;
 
   const renderFormData = () => {
     if (Object.keys(formData).length === 0) {
@@ -271,13 +274,13 @@ export default function ApplicationDetailPage() {
                 <GraduationCap className="w-4 h-4 shrink-0" />
                 <div className="flex flex-col">
                   <span className="text-foreground font-medium leading-tight">{details?.school_name || "Belirtilmemiş"}</span>
-                  {formData.grade && <span className="text-xs">{formData.grade}. Sınıf</span>}
+                  {gradeLabel && <span className="text-xs">{gradeLabel}</span>}
                 </div>
               </div>
               <Separator />
               <div className="flex items-center gap-3 text-muted-foreground">
                 <MapPin className="w-4 h-4 shrink-0" />
-                <span className="text-foreground">{formData.city || details?.additional_info?.city || "-"}</span>
+                <span className="text-foreground">{details?.city || "-"}</span>
               </div>
               <Separator />
               <div className="flex items-center gap-3 text-muted-foreground">

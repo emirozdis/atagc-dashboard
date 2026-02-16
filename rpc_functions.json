@@ -8,8 +8,8 @@
   {
     "function_name": "get_admin_user_profile",
     "arguments": "p_user_id uuid",
-    "return_type": "jsonb",
-    "security_definer": true
+    "return_type": "json",
+    "security_definer": false
   },
   {
     "function_name": "get_committee_dashboard_data",

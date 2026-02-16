@@ -21,6 +21,7 @@ import { EditorToolbar } from '@/components/dashboard/collaboration/EditorToolba
 import { JoinRoomCard } from '@/components/dashboard/collaboration/JoinRoomCard';
 import { ChairmanPanel } from '@/components/dashboard/collaboration/ChairmanPanel';
 import { VersionHistorySidebar } from '@/components/dashboard/collaboration/VersionHistorySidebar';
+import { ROLES } from '@/lib/roles';
 
 const COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
@@ -51,7 +52,8 @@ export default function CollaborativeEditorPage() {
 
       const role = session.user.role;
 
-      if (role === 'superadmin') {
+      // 1. Superadmin Logic
+      if (role === ROLES.SUPERADMIN) {
         try {
           const res = await fetch('/api/admin/committees');
           if (res.ok) {
@@ -63,7 +65,8 @@ export default function CollaborativeEditorPage() {
         return;
       }
 
-      if (role === 'committee_chairman' || role === 'deputy_chair') {
+      // 2. Chairman & Deputy Chair Logic
+      if (role === ROLES.CHAIRMAN || role === ROLES.DEPUTY_CHAIR) {
         try {
           const cRes = await fetch("/api/committee/my-committee");
           if (cRes.ok) {
@@ -76,6 +79,7 @@ export default function CollaborativeEditorPage() {
         } catch (e) { console.error(e); }
       }
 
+      // 3. Delegate / Other Logic
       try {
         const res = await fetch("/api/participant/me");
         const data = await res.json();
@@ -214,7 +218,7 @@ export default function CollaborativeEditorPage() {
     );
   }
 
-  const isChair = session?.user?.role === 'committee_chairman' || session?.user?.role === 'superadmin';
+  const isChair = session?.user?.role === ROLES.CHAIRMAN || session?.user?.role === ROLES.SUPERADMIN;
 
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-120px)] animate-fade-in relative overflow-hidden">
@@ -225,7 +229,7 @@ export default function CollaborativeEditorPage() {
             <div>
               <h2 className="text-2xl font-display font-bold flex items-center gap-2">
                 Ortak Çalışma
-                {session?.user?.role === 'committee_chairman' && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Yönetici</span>}
+                {session?.user?.role === ROLES.CHAIRMAN && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Yönetici</span>}
               </h2>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm font-medium text-muted-foreground">{committeeInfo?.name}</span>
@@ -246,7 +250,7 @@ export default function CollaborativeEditorPage() {
                 Geçmiş
               </Button>
 
-              {session?.user?.role === 'committee_chairman' && (
+              {session?.user?.role === ROLES.CHAIRMAN && (
                 <Button
                   variant={showChairmanPanel ? "secondary" : "outline"}
                   size="sm"
@@ -278,7 +282,7 @@ export default function CollaborativeEditorPage() {
         </div>
 
         {/* Panels */}
-        {session?.user?.role === 'committee_chairman' && (
+        {session?.user?.role === ROLES.CHAIRMAN && (
           <ChairmanPanel
             isOpen={showChairmanPanel}
             members={members.filter(m => m.userId !== session?.user?.id)}
