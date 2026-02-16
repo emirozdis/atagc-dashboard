@@ -21,7 +21,7 @@ export const GET = apiHandler(async (request: Request) => {
   const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
 
   const { data, error } = await supabase
-    .from("catering_database")
+    .from("catering_logs")
     .select("id")
     .eq("user_id", userId)
     .gte("datetime", startOfDay)

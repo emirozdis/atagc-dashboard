@@ -305,14 +305,14 @@ async function updateApplicationStatus(
 
         // Add user to catering_database when approved
         const { data: existingCatering } = await supabase
-            .from("catering_database")
+            .from("catering_logs")
             .select("user_id")
             .eq("user_id", currentApp.user_id)
             .maybeSingle();
 
         if (!existingCatering) {
             await supabase
-                .from("catering_database")
+                .from("catering_logs")
                 .insert({
                     user_id: currentApp.user_id,
                     day1: false,

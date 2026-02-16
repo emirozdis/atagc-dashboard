@@ -34,31 +34,44 @@ export const POST = apiHandler(async (request: Request) => {
   }
 
   const body = await request.json();
-  const { short_id } = body;
+  const { short_id, user_id } = body;
 
-  if (!short_id || typeof short_id !== "string") {
-
-    throw new Error("Missing short_id parameter");
+  if (!short_id && !user_id) {
+    throw new Error("Missing short_id or user_id parameter");
   }
 
-  // Resolve short_id to full user_id
-  // ShortId algorithm (from DigitalIdCard): user.id.split('-')[0].toUpperCase()
-  // UUID first segment is 8 hex chars, so we filter by id prefix
-  const prefix = short_id.toLowerCase();
+  let matchedUser: { id: string; full_name: string } | null = null;
 
-  // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-  // Construct range bounds using the prefix as the first 8 chars
-  const lowerBound = `${prefix}-0000-0000-0000-000000000000`;
-  const upperBound = `${prefix}-ffff-ffff-ffff-ffffffffffff`;
+  if (user_id) {
+    // Direct user_id lookup (from QR code scan)
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, full_name")
+      .eq("id", user_id)
+      .maybeSingle();
 
-  const { data: matchedUser, error: lookupError } = await supabase
-    .from("users")
-    .select("id, full_name")
-    .gte("id", lowerBound)
-    .lte("id", upperBound)
-    .maybeSingle();
+    if (error) throw error;
+    matchedUser = data;
+  } else {
+    // Resolve short_id to full user_id
+    // ShortId algorithm (from DigitalIdCard): user.id.split('-')[0].toUpperCase()
+    const prefix = short_id.toLowerCase();
 
-  if (lookupError) throw lookupError;
+    // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    // Construct range bounds using the prefix as the first 8 chars
+    const lowerBound = `${prefix}-0000-0000-0000-000000000000`;
+    const upperBound = `${prefix}-ffff-ffff-ffff-ffffffffffff`;
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, full_name")
+      .gte("id", lowerBound)
+      .lte("id", upperBound)
+      .maybeSingle();
+
+    if (error) throw error;
+    matchedUser = data;
+  }
 
   if (!matchedUser) {
     throw new Error("Bu kimlik numarasına ait kullanıcı bulunamadı.");
@@ -72,7 +85,7 @@ export const POST = apiHandler(async (request: Request) => {
   const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
 
   const { data: existingLog, error: checkError } = await supabase
-    .from("catering_database")
+    .from("catering_logs")
     .select("id")
     .eq("user_id", userId)
     .gte("datetime", startOfDay)
@@ -90,7 +103,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   // Insert a new catering log row
   const { error: insertError } = await supabase
-    .from("catering_database")
+    .from("catering_logs")
     .insert({
       user_id: userId,
       datetime: new Date().toISOString(),
