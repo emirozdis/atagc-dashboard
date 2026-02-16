@@ -10,31 +10,25 @@ export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await readLimiter.check(60, ip);
 
-  // Check auth - all roles allowed
   const auth = await getAuthorization({ requireAuth: true });
   if (!auth.ok || !auth.session) throw new Error(auth.message);
 
   const userId = auth.session.user.id;
 
-  // Query the catering_database table for this user
+  // Check if the user has a catering log for today (same calendar day)
+  const today = new Date();
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
   const { data, error } = await supabase
     .from("catering_database")
-    .select("day1, day2, day3")
+    .select("id")
     .eq("user_id", userId)
-    .single();
+    .gte("datetime", startOfDay)
+    .lt("datetime", endOfDay)
+    .maybeSingle();
 
-  if (error) {
-    // If no record exists, return default false values
-    if (error.code === "PGRST116") {
-      return NextResponse.json([false, false, false]);
-    }
-    throw error;
-  }
+  if (error) throw error;
 
-  // Return array of day statuses
-  return NextResponse.json([
-    data.day1 ?? false,
-    data.day2 ?? false,
-    data.day3 ?? false
-  ]);
+  return NextResponse.json(!!data);
 });

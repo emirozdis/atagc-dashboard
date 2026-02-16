@@ -8,80 +8,107 @@ import { ROLES } from "@/lib/roles";
 
 const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
 
+// Placeholder: specific user IDs allowed to log catering beyond superadmin/admin
+const ALLOWED_USER_IDS: string[] = [
+  // "uuid-of-allowed-user-1",
+  // "uuid-of-allowed-user-2",
+];
+
 export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await writeLimiter.check(10, ip);
 
-  // Check auth with specific roles (to be specified later)
-  // For now, allowing SUPERADMIN and ADMIN only
-  const auth = await getAuthorization({
-    requireAuth: true,
-    allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN]
-  });
+  const auth = await getAuthorization({ requireAuth: true });
   if (!auth.ok || !auth.session) throw new Error(auth.message);
 
+  const callerRole = auth.session.user?.role;
+  const callerId = auth.session.user.id;
+
+  // Only superadmin, admin, or specifically allowed users can call this
+  const isRoleAllowed = callerRole === ROLES.SUPERADMIN || callerRole === ROLES.ADMIN;
+  const isUserAllowed = ALLOWED_USER_IDS.includes(callerId);
+
+  if (!isRoleAllowed && !isUserAllowed) {
+    Logger.info("User role", { role: callerRole });
+    throw new Error("Unauthorized: You do not have permission to log catering status.");
+  }
+
   const body = await request.json();
-  const { userid, day } = body;
+  const { short_id } = body;
 
-  // Validate inputs
-  if (!userid) {
-    throw new Error("Missing userid parameter");
+  if (!short_id || typeof short_id !== "string") {
+
+    throw new Error("Missing short_id parameter");
   }
 
-  if (typeof day !== "number" || day < 1 || day > 3) {
-    throw new Error("Invalid day parameter. Must be integer 1-3");
-  }
+  // Resolve short_id to full user_id
+  // ShortId algorithm (from DigitalIdCard): user.id.split('-')[0].toUpperCase()
+  // UUID first segment is 8 hex chars, so we filter by id prefix
+  const prefix = short_id.toLowerCase();
 
-  // Determine which column to update
-  const dayColumn = `day${day}` as "day1" | "day2" | "day3";
+  // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  // Construct range bounds using the prefix as the first 8 chars
+  const lowerBound = `${prefix}-0000-0000-0000-000000000000`;
+  const upperBound = `${prefix}-ffff-ffff-ffff-ffffffffffff`;
 
-  // Check if record exists
-  const { data: existing, error: fetchError } = await supabase
-    .from("catering_database")
-    .select("*")
-    .eq("user_id", userid)
+  const { data: matchedUser, error: lookupError } = await supabase
+    .from("users")
+    .select("id, full_name")
+    .gte("id", lowerBound)
+    .lte("id", upperBound)
     .maybeSingle();
 
-  if (fetchError) throw fetchError;
+  if (lookupError) throw lookupError;
 
-  let updateData: any = {};
-  updateData[dayColumn] = true;
-
-  if (existing) {
-    // Update existing record
-    const { error: updateError } = await supabase
-      .from("catering_database")
-      .update(updateData)
-      .eq("user_id", userid);
-
-    if (updateError) throw updateError;
-  } else {
-    // Insert new record with the specific day set to true
-    const insertData = {
-      userid,
-      day1: day === 1,
-      day2: day === 2,
-      day3: day === 3
-    };
-
-    const { error: insertError } = await supabase
-      .from("catering_database")
-      .insert(insertData);
-
-    if (insertError) throw insertError;
+  if (!matchedUser) {
+    throw new Error("Bu kimlik numarasına ait kullanıcı bulunamadı.");
   }
 
-  // Log the action
+  const userId = matchedUser.id;
+
+  // Check if the user has already been logged today (same calendar day)
+  const today = new Date();
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
+  const { data: existingLog, error: checkError } = await supabase
+    .from("catering_database")
+    .select("id")
+    .eq("user_id", userId)
+    .gte("datetime", startOfDay)
+    .lt("datetime", endOfDay)
+    .maybeSingle();
+
+  if (checkError) throw checkError;
+
+  if (existingLog) {
+    return NextResponse.json(
+      { success: false, message: "Bu kullanıcı bugün zaten kaydedilmiş." },
+      { status: 409 }
+    );
+  }
+
+  // Insert a new catering log row
+  const { error: insertError } = await supabase
+    .from("catering_database")
+    .insert({
+      user_id: userId,
+      datetime: new Date().toISOString(),
+      created_by: callerId,
+    });
+
+  if (insertError) throw insertError;
+
   await Logger.audit(
-    { userId: auth.session.user.id, req: request },
+    { userId: callerId, req: request },
     {
-      action: "update_catering_status",
+      action: "log_catering",
       category: "business",
       resourceType: "catering",
-      resourceId: userid,
-      metadata: { day, affected_user: userid }
+      resourceId: userId,
+      metadata: { affected_user: userId, short_id }
     }
   );
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, user_name: matchedUser.full_name });
 });

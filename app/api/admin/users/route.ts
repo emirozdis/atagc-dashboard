@@ -36,7 +36,7 @@ async function getFilteredUsers(params: UserParams) {
     "id, full_name, email, role, is_suspended, created_at",
     "user_details(profile_picture_url)",
     "warnings_count:user_warnings!user_warnings_user_id_fkey(count)",
-    "payment_receipts!payment_receipts_user_id_fkey(id)" 
+    "payment_receipts!payment_receipts_user_id_fkey(id)"
   ];
 
   if (paymentStatus && paymentStatus.length > 0) {
