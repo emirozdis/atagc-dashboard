@@ -23,12 +23,12 @@ import { ProfileData } from "@/types/dashboard";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { GRADE_OPTIONS } from "@/lib/constants";
 import { FormField, FormFieldOption } from "@/types/application";
-import { UserDetail } from "@/types/user";
 
-// Icon mapping for dynamic fields
+// Icon mapping for dynamic fields - Updated school_name to high_school_id
 const iconMap: Record<string, React.ElementType> = {
     phone_number: Phone,
-    school_name: School,
+    high_school_id: School,
+    school_name: School, // Keep for backward compatibility with form definitions
     grade: GraduationCap,
     city: MapPin,
     birth_date: Calendar,
@@ -83,13 +83,25 @@ export default function MyApplicationPage() {
     const info = (details?.additional_info || {}) as Record<string, any>;
 
     const getFieldValue = (field: FormField) => {
-        if (field.system_map) {
-            const staticColumns: (keyof UserDetail)[] = ['phone_number', 'school_name', 'birth_date', 'city', 'grade'];
-            if (staticColumns.includes(field.system_map as keyof UserDetail)) {
-                return details?.[field.system_map as keyof UserDetail];
+        const mapKey = field.system_map;
+
+        if (mapKey) {
+            // SPECIAL CASE: School Name Resolution
+            if (mapKey === 'high_school_id' || mapKey === 'school_name') {
+                return (details as any)?.high_schools?.school_name || info.manual_school_name;
             }
-            return info[field.system_map];
+
+            // Static Columns in UserDetail (matching dashboard.ts ProfileData interface)
+            const staticColumns = ['phone_number', 'birth_date', 'city', 'grade'];
+            if (staticColumns.includes(mapKey)) {
+                return (details as any)[mapKey];
+            }
+
+            // Fallback to additional_info JSONB
+            return info[mapKey];
         }
+
+        // Dynamic fields not mapped to system
         return application?.form_data?.[field.id];
     };
 
@@ -156,8 +168,11 @@ export default function MyApplicationPage() {
                                 if (field.type === 'textarea') {
                                     return (
                                         <div key={field.id} className="md:col-span-2 space-y-2">
-                                            <Label className="text-primary font-semibold">{field.label}</Label>
-                                            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                                <Icon className="w-3.5 h-3.5" />
+                                                {field.label}
+                                            </div>
+                                            <p className="text-sm leading-relaxed text-foreground/90 bg-secondary/5 p-4 rounded-lg border border-border/40 whitespace-pre-wrap">
                                                 {displayValue}
                                             </p>
                                         </div>
@@ -191,8 +206,4 @@ function InfoItem({ icon: Icon, label, value }: { icon: any, label: string, valu
             <div className="text-base font-medium">{value || "-"}</div>
         </div>
     );
-}
-
-function Label({ children, className }: { children: React.ReactNode, className?: string }) {
-    return <div className={className}>{children}</div>;
 }

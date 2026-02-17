@@ -36,6 +36,96 @@
     "security_definer": false
   },
   {
+    "function_name": "gin_extract_query_trgm",
+    "arguments": "text, internal, smallint, internal, internal, internal, internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "gin_extract_value_trgm",
+    "arguments": "text, internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "gin_trgm_consistent",
+    "arguments": "internal, smallint, text, integer, internal, internal, internal, internal",
+    "return_type": "boolean",
+    "security_definer": false
+  },
+  {
+    "function_name": "gin_trgm_triconsistent",
+    "arguments": "internal, smallint, text, integer, internal, internal, internal",
+    "return_type": "\"char\"",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_compress",
+    "arguments": "internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_consistent",
+    "arguments": "internal, text, smallint, oid, internal",
+    "return_type": "boolean",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_decompress",
+    "arguments": "internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_distance",
+    "arguments": "internal, text, smallint, oid, internal",
+    "return_type": "double precision",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_in",
+    "arguments": "cstring",
+    "return_type": "gtrgm",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_options",
+    "arguments": "internal",
+    "return_type": "void",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_out",
+    "arguments": "gtrgm",
+    "return_type": "cstring",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_penalty",
+    "arguments": "internal, internal, internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_picksplit",
+    "arguments": "internal, internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_same",
+    "arguments": "gtrgm, gtrgm, internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "gtrgm_union",
+    "arguments": "internal, internal",
+    "return_type": "gtrgm",
+    "security_definer": false
+  },
+  {
     "function_name": "is_admin",
     "arguments": "",
     "return_type": "boolean",
@@ -52,5 +142,131 @@
     "arguments": "committee_uuid uuid",
     "return_type": "boolean",
     "security_definer": true
+  },
+  {
+    "function_name": "search_high_schools",
+    "arguments": "search_text text",
+    "return_type": "TABLE(id bigint, school_name text, city text, district text)",
+    "security_definer": true
+  },
+  {
+    "function_name": "set_limit",
+    "arguments": "real",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "show_limit",
+    "arguments": "",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "show_trgm",
+    "arguments": "text",
+    "return_type": "text[]",
+    "security_definer": false
+  },
+  {
+    "function_name": "similarity",
+    "arguments": "text, text",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "similarity_dist",
+    "arguments": "text, text",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "similarity_op",
+    "arguments": "text, text",
+    "return_type": "boolean",
+    "security_definer": false
+  },
+  {
+    "function_name": "strict_word_similarity",
+    "arguments": "text, text",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "strict_word_similarity_commutator_op",
+    "arguments": "text, text",
+    "return_type": "boolean",
+    "security_definer": false
+  },
+  {
+    "function_name": "strict_word_similarity_dist_commutator_op",
+    "arguments": "text, text",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "strict_word_similarity_dist_op",
+    "arguments": "text, text",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "strict_word_similarity_op",
+    "arguments": "text, text",
+    "return_type": "boolean",
+    "security_definer": false
+  },
+  {
+    "function_name": "unaccent",
+    "arguments": "text",
+    "return_type": "text",
+    "security_definer": false
+  },
+  {
+    "function_name": "unaccent",
+    "arguments": "regdictionary, text",
+    "return_type": "text",
+    "security_definer": false
+  },
+  {
+    "function_name": "unaccent_init",
+    "arguments": "internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "unaccent_lexize",
+    "arguments": "internal, internal, internal, internal",
+    "return_type": "internal",
+    "security_definer": false
+  },
+  {
+    "function_name": "word_similarity",
+    "arguments": "text, text",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "word_similarity_commutator_op",
+    "arguments": "text, text",
+    "return_type": "boolean",
+    "security_definer": false
+  },
+  {
+    "function_name": "word_similarity_dist_commutator_op",
+    "arguments": "text, text",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "word_similarity_dist_op",
+    "arguments": "text, text",
+    "return_type": "real",
+    "security_definer": false
+  },
+  {
+    "function_name": "word_similarity_op",
+    "arguments": "text, text",
+    "return_type": "boolean",
+    "security_definer": false
   }
 ]

@@ -18,7 +18,8 @@ import {
   GraduationCap,
   Camera,
   Eye,
-  FileText
+  FileText,
+  School
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,7 +82,7 @@ export default function ApplicationDetailPage() {
       });
       if (!res.ok) throw new Error("Failed");
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast.success("İşlem Başarılı");
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       setRejectionMode(false);
@@ -119,7 +120,6 @@ export default function ApplicationDetailPage() {
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="w-full lg:w-[350px] space-y-6">
             <Skeleton className="h-[400px] w-full rounded-xl" />
-            <Skeleton className="h-[150px] w-full rounded-xl" />
           </div>
           <div className="flex-1">
             <Skeleton className="h-[600px] w-full rounded-xl" />
@@ -134,9 +134,13 @@ export default function ApplicationDetailPage() {
   const user = application.user;
   const details = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
   const formData = application.form_data || {};
-
   const formDef = Array.isArray(application.form) ? application.form[0] : application.form;
   const applicantType = formDef?.slug || 'delegate';
+
+  // --- School Name Logic ---
+  // 1. From joined table
+  // 2. From manual entry in additional_info
+  const schoolName = details?.high_schools?.school_name || details?.additional_info?.manual_school_name || "Belirtilmemiş";
 
   const getFieldLabel = (key: string) => {
     if (formDef?.steps) {
@@ -152,34 +156,26 @@ export default function ApplicationDetailPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "approved": return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Onaylı</Badge>;
-      case "rejected": return <Badge className="bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"><XCircle className="w-3 h-3 mr-1" /> Reddedildi</Badge>;
-      default: return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20"><Clock className="w-3 h-3 mr-1" /> Bekliyor</Badge>;
+      case "approved": return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Onaylı</Badge>;
+      case "rejected": return <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="w-3 h-3 mr-1" /> Reddedildi</Badge>;
+      default: return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="w-3 h-3 mr-1" /> Bekliyor</Badge>;
     }
   };
 
-  const getRoleIcon = (slug: string) => {
-    switch (slug) {
-      case 'delegate': return <User className="w-4 h-4" />;
-      case 'press': return <Camera className="w-4 h-4" />;
-      case 'observer': return <Eye className="w-4 h-4" />;
-      default: return <FileText className="w-4 h-4" />;
-    }
-  };
-  
   const gradeLabel = GRADE_OPTIONS.find(opt => opt.value === details?.grade)?.label;
 
   const renderFormData = () => {
-    if (Object.keys(formData).length === 0) {
+    const entries = Object.entries(formData).filter(([key]) => 
+        !['phone_number', 'school_name', 'birth_date', 'grade', 'city', 'high_school_id', 'manual_school_name'].includes(key)
+    );
+
+    if (entries.length === 0) {
       return <div className="text-center text-muted-foreground text-sm italic py-8">Ek form verisi bulunmamaktadır.</div>;
     }
 
     return (
       <div className="grid grid-cols-1 gap-6">
-        {Object.entries(formData).map(([key, value]) => {
-          if (['phone_number', 'school_name', 'birth_date', 'grade', 'city'].includes(key)) return null;
-
-          return (
+        {entries.map(([key, value]) => (
             <div key={key} className="space-y-1.5">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-2">
                 <div className="w-1 h-1 rounded-full bg-primary/50" />
@@ -189,8 +185,7 @@ export default function ApplicationDetailPage() {
                 {String(value || "-")}
               </div>
             </div>
-          );
-        })}
+        ))}
       </div>
     );
   };
@@ -199,7 +194,6 @@ export default function ApplicationDetailPage() {
     <div className="animate-fade-in pb-12 max-w-7xl mx-auto space-y-6">
       <Breadcrumbs items={[{ label: "Başvurular", href: "/admin/applications" }, { label: formDef?.title || "Başvuru" }]} />
 
-      {/* Action Bar */}
       <div className="bg-card border border-border/50 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 sticky top-4 z-20 shadow-sm">
         <div className="flex items-center gap-3">
           <Link href="/admin/applications">
@@ -209,7 +203,6 @@ export default function ApplicationDetailPage() {
             <span className="font-bold text-lg leading-none">{user.full_name}</span>
             <span className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
               <Badge variant="outline" className="text-[10px] px-2 py-0 h-5 gap-1.5 font-medium border-primary/20 text-primary bg-primary/5">
-                {getRoleIcon(applicantType)}
                 {formDef?.title || "Başvuru"}
               </Badge>
               <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
@@ -229,7 +222,6 @@ export default function ApplicationDetailPage() {
         </div>
       </div>
 
-      {/* Rejection Modal */}
       {rejectionMode && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-card border p-6 rounded-lg max-w-md w-full shadow-2xl space-y-4">
@@ -249,8 +241,6 @@ export default function ApplicationDetailPage() {
       )}
 
       <div className="flex flex-col lg:flex-row gap-6">
-
-        {/* Left Column: Profile Card */}
         <div className="w-full lg:w-[350px] space-y-6">
           <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
             <div className="bg-gradient-to-b from-muted/50 to-card p-6 flex flex-col items-center text-center border-b border-border/50">
@@ -271,10 +261,12 @@ export default function ApplicationDetailPage() {
               </div>
               <Separator />
               <div className="flex items-center gap-3 text-muted-foreground">
-                <GraduationCap className="w-4 h-4 shrink-0" />
+                <School className="w-4 h-4 shrink-0" />
                 <div className="flex flex-col">
-                  <span className="text-foreground font-medium leading-tight">{details?.school_name || "Belirtilmemiş"}</span>
-                  {gradeLabel && <span className="text-xs">{gradeLabel}</span>}
+                  <span className="text-foreground font-medium leading-tight">{schoolName}</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {gradeLabel && <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-normal">{gradeLabel}</Badge>}
+                  </div>
                 </div>
               </div>
               <Separator />
@@ -292,7 +284,6 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
 
-          {/* Assignment Panel (Only if Approved AND Delegate/Deputy Chair/Chairman) */}
           {application.status === 'approved' && ['delegate', 'chair', 'committee_chairman'].includes(user.role) && (
             <div className="bg-primary/5 border border-primary/20 p-5 rounded-xl space-y-4 shadow-sm">
               <h3 className="font-semibold flex items-center gap-2 text-primary text-sm uppercase tracking-wide">
@@ -320,7 +311,6 @@ export default function ApplicationDetailPage() {
           )}
         </div>
 
-        {/* Right Column: Dynamic Form Data */}
         <div className="flex-1">
           <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
             <div className="bg-muted/30 px-6 py-4 border-b border-border/50 flex items-center gap-2">
@@ -332,7 +322,6 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

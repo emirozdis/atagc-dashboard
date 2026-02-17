@@ -108,6 +108,14 @@ CREATE TABLE public.email_verifications (
   created_at timestamp with time zone NOT NULL DEFAULT (now() AT TIME ZONE 'utc'::text),
   CONSTRAINT email_verifications_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.high_schools (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  city text NOT NULL,
+  district text NOT NULL,
+  school_name text NOT NULL,
+  address text,
+  CONSTRAINT high_schools_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.logs (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,

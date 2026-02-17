@@ -24,7 +24,35 @@ export const accountCreationSchema = z.object({
   path: ["confirmPassword"],
 });
 
+// Schema used during the final POST submission to handle existing/resumed accounts
+export const submissionAccountSchema = z.object({
+  adSoyad: z.string().optional(),
+  email: z.string().email("Geçerli bir e-posta adresi giriniz"),
+  password: z.string().min(1, "Şifre zorunludur"),
+  confirmPassword: z.string().optional(),
+});
+
 export type AccountCreationData = z.infer<typeof accountCreationSchema>;
+
+// --- Personal Details Schema ---
+export const personalDetailsSchema = z.object({
+  phone_number: z.string().min(10, "Geçerli bir telefon numarası giriniz"),
+  birth_date: z.string().min(1, "Doğum tarihi zorunludur"),
+  city: z.string().min(1, "Şehir seçimi zorunludur"),
+  grade: z.enum(['prep', '9', '10', '11', '12', 'university']),
+  high_school_id: z.number().min(-1, "Okul seçimi zorunludur"),
+  manual_school_name: z.string().optional(),
+}).refine((data) => {
+  if (data.high_school_id === -1) {
+    return !!data.manual_school_name && data.manual_school_name.length > 3;
+  }
+  return true;
+}, {
+  message: "Lütfen okul adınızı en az 4 karakter olacak şekilde yazınız",
+  path: ["manual_school_name"]
+});
+
+export type PersonalDetailsData = z.infer<typeof personalDetailsSchema>;
 
 // --- Dynamic Form Types ---
 
@@ -62,11 +90,9 @@ export interface ApplicationFormTemplate {
 export type DynamicFormData = Record<string, any>;
 
 export interface FullApplicationSubmission {
-  account: AccountCreationData;
+  account: z.infer<typeof submissionAccountSchema>;
+  personalDetails: PersonalDetailsData;
   formId: string;
   formData: DynamicFormData;
   kvkkApproved: boolean;
 }
-
-// Change Log:
-// - Added `ApplicationStatusEnum`.

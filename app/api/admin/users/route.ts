@@ -32,9 +32,10 @@ async function getFilteredUsers(params: UserParams) {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
+  // Updated select to include high_schools join and high_school_id
   const selectFields = [
     "id, full_name, email, role, is_suspended, created_at",
-    "user_details(profile_picture_url)",
+    "user_details(id, phone_number, high_school_id, city, grade, profile_picture_url, additional_info, high_schools(school_name))",
     "warnings_count:user_warnings!user_warnings_user_id_fkey(count)",
     "payment_receipts!payment_receipts_user_id_fkey(id)"
   ];

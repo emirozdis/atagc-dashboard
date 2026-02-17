@@ -44,6 +44,7 @@ export interface ProfileData {
                 expectations?: string;
                 self_introduction?: string;
                 kvkk_approved?: boolean;
+                manual_school_name?: string; // Added to fix TS error
             };
         } | null;
     };

@@ -21,7 +21,8 @@ import {
     Wallet,
     UploadCloud,
     UserIcon,
-    MapPin
+    MapPin,
+    School
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -136,6 +137,11 @@ export default function UserDetailPage() {
 
     const details = getFirstItem<UserDetail>(user.user_details);
     
+    // Resolve School Name from joined table or manual entry in additional_info
+    const schoolName = (details as any)?.high_schools?.school_name || 
+                       details?.additional_info?.manual_school_name || 
+                       "Belirtilmemiş";
+
     const managedCommittee = user.managed_committees?.[0];
     const memberCommittee = user.committee_members?.[0]?.committee;
     const activeCommittee = managedCommittee || memberCommittee;
@@ -145,7 +151,6 @@ export default function UserDetailPage() {
     const paymentStatus = application?.payment_status || "unpaid";
 
     const appForm = Array.isArray(application?.form) ? application.form[0] : application?.form;
-    const formSlug = appForm?.slug || ROLES.DELEGATE;
     const formData = application?.form_data || {};
 
     const handlePaymentClick = () => {
@@ -228,7 +233,7 @@ export default function UserDetailPage() {
         return (
             <div className="grid gap-6">
                 {Object.entries(formData).map(([key, value]) => {
-                    if (['phone_number', 'school_name', 'birth_date', 'grade', 'city'].includes(key)) return null;
+                    if (['phone_number', 'school_name', 'birth_date', 'grade', 'city', 'high_school_id', 'manual_school_name'].includes(key)) return null;
 
                     return (
                         <div key={key} className="space-y-1.5">
@@ -310,7 +315,7 @@ export default function UserDetailPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Okul</span>
-                                        <div className="text-sm font-medium leading-tight line-clamp-2" title={details?.school_name}>{details?.school_name || "-"}</div>
+                                        <div className="text-sm font-medium leading-tight line-clamp-2" title={schoolName}>{schoolName}</div>
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Şehir</span>
@@ -337,7 +342,7 @@ export default function UserDetailPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                                 {/* Committee Block - Only for Delegates or Staff */}
-                                {(user.role !== ROLES.APPLICANT || formSlug === ROLES.DELEGATE) && (
+                                {(user.role !== ROLES.APPLICANT || (appForm && appForm.slug === ROLES.DELEGATE)) && (
                                     <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
                                         <div className="flex items-center gap-3">
                                             <div className="p-2 bg-background rounded-full border border-border/50">

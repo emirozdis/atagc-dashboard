@@ -24,7 +24,7 @@ export const GET = apiHandler(async (request: Request) => {
     .select(`
         id, full_name, email, role, created_at,
         user_details (
-            id, phone_number, school_name, birth_date, city, grade, profile_picture_url, 
+            id, phone_number, high_school_id, birth_date, city, grade, profile_picture_url, 
             is_profile_picture_hidden, allow_connections, notification_preferences, additional_info
         ),
         user_warnings:user_warnings!user_warnings_user_id_fkey ( 

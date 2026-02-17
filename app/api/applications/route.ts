@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { 
-    accountCreationSchema, 
+    submissionAccountSchema, 
     FullApplicationSubmission, 
-    ApplicationStatusEnum 
+    ApplicationStatusEnum,
+    personalDetailsSchema 
 } from "@/types/application";
 import { PaymentStatusEnum } from "@/types/payment";
 import { Logger } from "@/lib/logger";
@@ -58,7 +59,7 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
                 user_details (
                     id,
                     phone_number,
-                    school_name,
+                    high_school_id,
                     city,
                     grade,
                     profile_picture_url,
@@ -91,8 +92,6 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
 
     if (sort_by === 'full_name') {
         query = query.order('full_name', { foreignTable: 'users', ascending: sort_order === 'asc' });
-    } else if (sort_by === 'school_name') {
-        query = query.order('submitted_at', { ascending: sort_order === 'asc' });
     } else {
         query = query.order(sort_by, { ascending: sort_order === 'asc' });
     }
@@ -126,23 +125,16 @@ async function processApplicationSubmission(
         throw new Error("Başvurular şu anda kapalıdır.");
     }
 
-    const accountData = accountCreationSchema.parse(body.account);
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const accountData = submissionAccountSchema.parse(body.account);
+    const personalData = personalDetailsSchema.parse(body.personalDetails);
 
-    const { data: verification } = await supabase
-        .from("email_verifications")
-        .select("id")
-        .eq("email", accountData.email)
-        .eq("verified", true)
-        .gt("created_at", oneHourAgo)
-        .limit(1)
-        .maybeSingle();
+    // Determine Final high_school_id
+    let finalHighSchoolId: number | null = personalData.high_school_id === -1 ? null : personalData.high_school_id;
 
-    if (!verification) throw new Error("E-posta adresi doğrulanmamış veya doğrulama süresi dolmuş.");
-
+    // Check if user already exists (Resume Flow)
     const { data: existingUser } = await supabase
         .from("users")
-        .select("id")
+        .select("id, full_name")
         .eq("email", accountData.email)
         .maybeSingle();
 
@@ -160,6 +152,23 @@ async function processApplicationSubmission(
             throw new Error("Bu kullanıcı hesabıyla zaten bir başvuru yapılmış.");
         }
     } else {
+        // Registration Flow: adSoyad is mandatory here
+        if (!accountData.adSoyad) {
+            throw new Error("Yeni hesap oluşturmak için Ad Soyad alanı zorunludur.");
+        }
+
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        const { data: verification } = await supabase
+            .from("email_verifications")
+            .select("id")
+            .eq("email", accountData.email)
+            .eq("verified", true)
+            .gt("created_at", oneHourAgo)
+            .limit(1)
+            .maybeSingle();
+
+        if (!verification) throw new Error("E-posta adresi doğrulanmamış veya doğrulama süresi dolmuş.");
+
         const randomHash = Math.random().toString(36).substring(2);
         const now = new Date().toISOString();
         
@@ -188,23 +197,27 @@ async function processApplicationSubmission(
 
     if (!formTemplate) throw new Error("Geçersiz başvuru formu şablonu.");
 
-    const userDetailsUpdate: Record<string, any> = {};
+    // Prepare Additional Info
     const additionalInfo: Record<string, any> = {};
-    const cleanFormData = { ...body.formData };
+    
+    // Logic: If "Other" school is selected, store string name in JSONB
+    if (personalData.high_school_id === -1 && personalData.manual_school_name) {
+        additionalInfo.manual_school_name = personalData.manual_school_name;
+    }
 
+    const cleanFormData = { ...body.formData };
     const steps = formTemplate.steps as Array<{ fields: Array<{ id: string; system_map?: string }> }>;
     
-    // Explicit Static Columns in DB (including new 'city' and 'grade')
-    const STATIC_COLUMNS = ['phone_number', 'school_name', 'birth_date', 'city', 'grade'];
+    // Explicit Static Columns (Should not be moved to additional_info if found in dynamic form)
+    // Note: school_name removed from static columns list as it is no longer a primary DB column
+    const STATIC_COLUMNS = ['phone_number', 'birth_date', 'city', 'grade', 'high_school_id'];
 
     if (Array.isArray(steps)) {
         steps.forEach(step => {
             step.fields.forEach(field => {
                 const value = body.formData[field.id];
                 if (value !== undefined && field.system_map) {
-                    if (STATIC_COLUMNS.includes(field.system_map)) {
-                        userDetailsUpdate[field.system_map] = value;
-                    } else {
+                    if (!STATIC_COLUMNS.includes(field.system_map)) {
                         additionalInfo[field.system_map] = value;
                     }
                 }
@@ -212,10 +225,19 @@ async function processApplicationSubmission(
         });
     }
 
-    userDetailsUpdate.notification_preferences = {
-        application: true, committee: true, social: true, system: true
+    // Update User Details (school_name is intentionally omitted as requested)
+    const userDetailsUpdate: Record<string, any> = {
+        user_id: userId,
+        phone_number: personalData.phone_number,
+        birth_date: personalData.birth_date,
+        city: personalData.city,
+        grade: personalData.grade,
+        high_school_id: finalHighSchoolId,
+        additional_info: additionalInfo,
+        notification_preferences: {
+            application: true, committee: true, social: true, system: true
+        }
     };
-    userDetailsUpdate.additional_info = additionalInfo;
 
     const { data: existingDetails } = await supabase
         .from("user_details")

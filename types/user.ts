@@ -4,7 +4,7 @@ import { ApplicationStatus } from "./application";
 export type GradeEnum = 'prep' | '9' | '10' | '11' | '12' | 'university';
 
 export interface UserDetail {
-    school_name: string;
+    high_school_id: number | null; 
     phone_number: string;
     birth_date: string;
     profile_picture_url?: string | null;
@@ -12,7 +12,10 @@ export interface UserDetail {
     city: string;
     grade: GradeEnum;
     
-    additional_info: any;
+    additional_info: {
+        manual_school_name?: string;
+        [key: string]: any;
+    };
     allow_connections: boolean;
     notification_preferences: {
         application: boolean;
@@ -37,14 +40,13 @@ export interface Warning {
 }
 
 export interface User {
-    id: string; // UUID
+    id: string; 
     full_name: string;
     email: string;
     role: string;
     is_suspended: boolean;
     created_at: string;
 
-    // Relations
     user_details: UserDetail | UserDetail[] | null;
 
     committee_members?: {
@@ -54,13 +56,11 @@ export interface User {
         };
     }[] | null;
 
-    // For Committee Chairmen
     managed_committees?: {
         id: string;
         name: string;
     }[];
 
-    // Updated Application Structure
     application?: {
         id: string;
         status: ApplicationStatus;

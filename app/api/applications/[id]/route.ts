@@ -19,47 +19,51 @@ export const GET = apiHandler(async (
     const { data, error } = await supabase
         .from("applications")
         .select(`
-    id,
-    status,
-    submitted_at,
-    review_notes,
-    form_data,
-    form:application_forms (
-        id,
-        title,
-        slug,
-        steps
-    ),
-    user:users (
-      id,
-      full_name,
-      email,
-      role,
-      user_details (
-        id,
-        phone_number,
-        school_name,
-        birth_date,
-        city,
-        grade,
-        additional_info,
-        profile_picture_url
-      ),
-      committee_members (
-        id,
-        committee:committees (
-          id,
-          name
-        )
-      )
-    )
-  `)
+            id,
+            status,
+            submitted_at,
+            review_notes,
+            form_data,
+            form:application_forms (
+                id,
+                title,
+                slug,
+                steps
+            ),
+            user:users (
+                id,
+                full_name,
+                email,
+                role,
+                user_details (
+                    id,
+                    phone_number,
+                    high_school_id,
+                    city,
+                    birth_date,
+                    grade,
+                    additional_info,
+                    profile_picture_url,
+                    high_schools (
+                        school_name
+                    )
+                ),
+                committee_members (
+                    id,
+                    committee:committees (
+                        id,
+                        name
+                    )
+                )
+            )
+        `)
         .eq("id", id)
         .single();
 
     if (error) {
+        console.error("[Application Detail API Error]:", error);
         return NextResponse.json(
-            { error: "Database error", message: "Başvuru bulunamadı." },
+            { error: "Database error", message: "Başvuru detayları getirilemedi." },
             { status: 404 }
         );
     }

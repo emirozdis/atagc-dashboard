@@ -145,7 +145,7 @@ export function CateringManagementTable() {
       {/* Table */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         {isLoading ? (
-          <TableSkeleton columns={5} rows={limit} />
+          <TableSkeleton cols={5} rows={limit} />
         ) : (
           <Table>
             <TableHeader>

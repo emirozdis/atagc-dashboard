@@ -23,7 +23,8 @@ import {
   FileText,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  School
 } from "lucide-react";
 import { User, UserDetail } from "@/types/user";
 import { GRADE_OPTIONS } from "@/lib/constants";
@@ -51,11 +52,16 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
   const activeCommittee = managedCommittee || memberCommittee;
   const additional = details?.additional_info || {};
 
+  // Resolve School Name logic
+  const schoolName = (details as any)?.high_schools?.school_name || 
+                     additional?.manual_school_name || 
+                     "Belirtilmemiş";
+
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'applicant': return 'Katılımcı';
       case 'committee_chairman': return 'Komite Başkanı';
-      case 'deputy_chair': return 'Başkan Yardımcısı';
+      case 'chair': return 'Başkan Yardımcısı';
       case 'admin': return 'Yönetici';
       case 'superadmin': return 'Süper Yönetici';
       default: return role;
@@ -138,11 +144,11 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
                   <span className="font-medium">{details?.phone_number || "-"}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-muted-foreground flex items-center gap-2"><GraduationCap className="w-3.5 h-3.5" /> Okul</span>
-                  <span className="font-medium">{details?.school_name || "-"}</span>
+                  <span className="text-muted-foreground flex items-center gap-2"><School className="w-3.5 h-3.5" /> Okul</span>
+                  <span className="font-medium truncate max-w-[200px]" title={schoolName}>{schoolName}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                    <span className="text-muted-foreground flex items-center gap-2"><Building2 className="w-3.5 h-3.5" /> Sınıf</span>
+                    <span className="text-muted-foreground flex items-center gap-2"><GraduationCap className="w-3.5 h-3.5" /> Sınıf</span>
                     <span className="font-medium">{gradeLabel || "-"}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
@@ -160,29 +166,22 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
 
             <Separator />
 
-            {Object.keys(additional).length > 0 ? (
+            {application?.form_data && (
               <div className="space-y-4">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5" /> Başvuru Detayları
+                  <FileText className="w-3.5 h-3.5" /> Form Cevapları
                 </h4>
-
-                {additional.mun_experience && (
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">MUN Deneyimi</span>
-                    <div className="text-sm bg-muted/30 p-2 rounded">{additional.mun_experience}</div>
-                  </div>
-                )}
-
-                {additional.reason_for_joining && (
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Katılım Nedeni</span>
-                    <div className="text-sm bg-muted/30 p-2 rounded max-h-32 overflow-y-auto whitespace-pre-wrap">{additional.reason_for_joining}</div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-muted-foreground text-sm italic">
-                Ek başvuru bilgisi bulunmamaktadır.
+                <div className="space-y-4">
+                    {Object.entries(application.form_data).map(([key, val]) => {
+                        if (['phone_number', 'birth_date', 'city', 'grade', 'high_school_id', 'manual_school_name'].includes(key)) return null;
+                        return (
+                            <div key={key} className="space-y-1">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold">{key.replace(/_/g, ' ')}</span>
+                                <div className="text-sm bg-muted/30 p-2 rounded">{String(val)}</div>
+                            </div>
+                        )
+                    })}
+                </div>
               </div>
             )}
           </div>

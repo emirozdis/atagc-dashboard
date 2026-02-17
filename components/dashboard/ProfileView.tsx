@@ -14,7 +14,7 @@ import {
   Loader2, Mail, MapPin, Phone, GraduationCap, Building2,
   Lock, Laptop, Smartphone, LogOut, Globe, EyeOff, Shield,
   User as UserIcon, Calendar,
-  QrCode, UserPlus, Bell, AlertTriangle, FileText
+  QrCode, UserPlus, Bell, AlertTriangle, FileText, School
 } from "lucide-react";
 import { ProfileData } from "@/types/dashboard";
 import { toast } from "sonner";
@@ -108,7 +108,6 @@ export function ProfileView() {
     system: true
   });
 
-  // Updated Data Access from new structure
   const profile = profileData?.profile;
   const application = profileData?.application;
 
@@ -231,6 +230,11 @@ export function ProfileView() {
 
   const gradeLabel = details?.grade ? GRADE_OPTIONS.find(opt => opt.value === details.grade)?.label : null;
 
+  // Resolve School Name using casting for joined relation and type-safe access for additional_info
+  const schoolName = (details as any)?.high_schools?.school_name || 
+                     details?.additional_info?.manual_school_name || 
+                     "Belirtilmemiş";
+
   const getRoleBadge = (role: string) => {
     const styles: Record<string, string> = {
       superadmin: "bg-red-500/10 text-red-600 border-red-500/20",
@@ -328,7 +332,7 @@ export function ProfileView() {
             </CardHeader>
             <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-6">
               <InfoItem icon={Phone} label="Telefon" value={details?.phone_number} />
-              <InfoItem icon={GraduationCap} label="Okul" value={details?.school_name} />
+              <InfoItem icon={School} label="Okul" value={schoolName} />
               <InfoItem icon={Building2} label="Sınıf" value={gradeLabel || "-"} />
               <InfoItem icon={MapPin} label="Şehir" value={details?.city} />
             </CardContent>

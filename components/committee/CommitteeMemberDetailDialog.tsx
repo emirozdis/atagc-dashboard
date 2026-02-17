@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Mail, Phone, GraduationCap, Building2, MapPin } from "lucide-react";
+import { Loader2, Mail, Phone, School, Building2, MapPin } from "lucide-react";
 import { WarningManager } from "@/components/admin/WarningManager";
 import { User, UserDetail } from "@/types/user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,12 +37,17 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
         switch (role) {
             case 'applicant': return 'Delege';
             case 'committee_chairman': return 'Komite Başkanı';
-            case 'deputy_chair': return 'Başkan Yrd.';
+            case 'chair': return 'Başkan Yrd.';
             default: return role;
         }
     };
 
     const gradeLabel = details?.grade ? GRADE_OPTIONS.find(opt => opt.value === details.grade)?.label : null;
+
+    // Resolve School Name logic
+    const schoolName = (details as any)?.high_schools?.school_name || 
+                       details?.additional_info?.manual_school_name || 
+                       "Belirtilmemiş";
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,7 +90,7 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
                                         <Badge variant="secondary" className="text-xs font-normal">
                                             {getRoleLabel(user.role)}
                                         </Badge>
-                                        {user.is_suspended && <Badge variant="destructive" className="text-[10px]">Askıda</Badge>}
+                                        {user.is_suspended && <Badge variant="destructive" className="text-[10px]">Askıya Alındı</Badge>}
                                     </div>
                                 </div>
                             </div>
@@ -102,9 +107,9 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
                                 </div>
                                 <div className="space-y-1">
                                     <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                                        <GraduationCap className="w-3 h-3" /> Okul
+                                        <School className="w-3 h-3" /> Okul
                                     </span>
-                                    <p className="line-clamp-1" title={details?.school_name}>{details?.school_name || "-"}</p>
+                                    <p className="line-clamp-1" title={schoolName}>{schoolName}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
