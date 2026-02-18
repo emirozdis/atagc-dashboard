@@ -289,6 +289,10 @@ async function processApplicationSubmission(
         }
     );
     await sendSystemNotification(userId, "application_received");
+
+    if (formTemplate.slug === "delegation") {
+        await supabase.from("delegations").insert({ created_by: userId });
+    }
 }
 
 async function updateApplicationStatus(
