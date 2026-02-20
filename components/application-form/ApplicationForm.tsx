@@ -1,3 +1,5 @@
+// components/application-form/ApplicationForm.tsx
+
 "use client"
 
 import { useState, useEffect, useRef } from "react";
@@ -5,7 +7,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -29,16 +30,22 @@ import {
     PersonalDetailsData
 } from "@/types/application";
 
-export function ApplicationForm() {
+interface ApplicationFormProps {
+  initialForms?: ApplicationFormTemplate[];
+  hasExistingApplication?: boolean;
+}
+
+export function ApplicationForm({ initialForms = [], hasExistingApplication = false }: ApplicationFormProps) {
   const { data: session, update } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForm, setShowForm] = useState(!hasExistingApplication);
   const formRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   
   // Data States
-  const [availableForms, setAvailableForms] = useState<ApplicationFormTemplate[]>([]);
+  const [availableForms, setAvailableForms] = useState<ApplicationFormTemplate[]>(initialForms);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [accountData, setAccountData] = useState<AccountCreationData | null>(null);
   
@@ -61,15 +68,17 @@ export function ApplicationForm() {
     mode: "onChange"
   });
 
-  // Fetch Forms on Mount
+  // Fallback fetch if no initial forms
   useEffect(() => {
-    fetch("/api/forms")
-      .then(res => res.json())
-      .then(data => {
-          if (Array.isArray(data)) setAvailableForms(data);
-      })
-      .catch(console.error);
-  }, []);
+    if (initialForms.length === 0) {
+      fetch("/api/forms")
+        .then(res => res.json())
+        .then(data => {
+            if (Array.isArray(data)) setAvailableForms(data);
+        })
+        .catch(console.error);
+    }
+  }, [initialForms]);
 
   // Scroll to form top when step changes (but not on initial render)
   useEffect(() => {
@@ -230,21 +239,35 @@ export function ApplicationForm() {
   const totalDynamicSteps = selectedForm?.steps.length || 0;
   const currentDynamicStep = currentStep >= 4 ? selectedForm?.steps[currentStep - 4] : null;
 
+  // Show buttons if user has existing application
+  if (!showForm && hasExistingApplication) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
+        <div className="space-y-2 mb-8">
+          <h2 className="text-3xl font-display font-bold">Hoşgeldiniz!</h2>
+          <p className="text-muted-foreground">Yapmak istediğiniz işlemi seçiniz.</p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+          <Link href="/dashboard" className="flex-1">
+            <Button className="w-full h-12 cursor-pointer" variant="outline">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Mevcut Başvurularım
+            </Button>
+          </Link>
+          <Button 
+            onClick={() => setShowForm(true)}
+            className="flex-1 h-12 cursor-pointer"
+          >
+            Yeni Bir Başvuru Yap
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-3xl mx-auto relative" ref={formRef}>
-        {/* Already Applied Badge */}
-        {session && (
-            <div className="flex justify-center mb-10 z-10 animate-in fade-in slide-in-from-top-2 duration-500">
-                <Link href="/dashboard">
-                    <Badge variant="outline" className="py-2 px-2 bg-primary/5 hover:bg-primary/10 cursor-pointer flex gap-2 border-primary/20 backdrop-blur-sm transition-all group rounded-full">
-                        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                        <span className="text-base font-medium group-hover:text-primary transition-colors tracking-tight">Mevcut Başvurularım</span>
-                        <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </Badge>
-                </Link>
-            </div>
-        )}
-
         <StepIndicator steps={displaySteps} currentStep={indicatorStep} />
 
         <div className="min-h-[400px]">

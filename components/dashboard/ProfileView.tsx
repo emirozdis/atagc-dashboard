@@ -243,8 +243,8 @@ export function ProfileView() {
       deputy_chair: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
       press: "bg-pink-500/10 text-pink-600 border-pink-500/20",
       observer: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
-      delegate: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-      applicant: "bg-gray-200/10 text-blue-600 border-blue-500/20"
+      delegate: "bg-gray-500/10 text-yellow-600 border-yellow-500/20",
+      applicant: "bg-gray-200/10 text-yellow-600 border-yellow-500/20"
     };
     const labels: Record<string, string> = {
       superadmin: "Süper Yönetici",

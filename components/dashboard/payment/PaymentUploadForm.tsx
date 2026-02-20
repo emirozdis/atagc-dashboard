@@ -1,3 +1,5 @@
+// components/dashboard/payment/PaymentUploadForm.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,7 +15,6 @@ export function PaymentUploadForm() {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
 
-    // Cleanup preview URL to prevent memory leaks
     useEffect(() => {
         return () => {
             if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -23,7 +24,6 @@ export function PaymentUploadForm() {
     const handleFileSelection = (selectedFile: File) => {
         setFile(selectedFile);
         
-        // Generate preview for images
         if (selectedFile.type.startsWith('image/')) {
             const url = URL.createObjectURL(selectedFile);
             setPreviewUrl(url);
@@ -91,7 +91,6 @@ export function PaymentUploadForm() {
         return (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
                 <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                    {/* Image Preview Header */}
                     {previewUrl ? (
                         <div className="h-48 w-full bg-zinc-950/5 relative flex items-center justify-center overflow-hidden border-b border-border/50">
                             <img src={previewUrl} alt="Preview" className="h-full w-full object-contain p-2" />
@@ -112,7 +111,7 @@ export function PaymentUploadForm() {
                             size="icon" 
                             onClick={removeFile}
                             disabled={uploadMutation.isPending}
-                            className="text-muted-foreground hover:text-destructive shrink-0"
+                            className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
                         >
                             <Trash2 className="w-4 h-4" />
                         </Button>
@@ -124,14 +123,14 @@ export function PaymentUploadForm() {
                         variant="outline" 
                         onClick={removeFile}
                         disabled={uploadMutation.isPending}
-                        className="flex-1"
+                        className="flex-1 cursor-pointer"
                     >
                         İptal
                     </Button>
                     <Button 
                         onClick={() => uploadMutation.mutate(file)}
                         disabled={uploadMutation.isPending}
-                        className="flex-[2] bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        className="flex-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-colors hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                     >
                         {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Onaya Gönder</>}
                     </Button>
@@ -143,10 +142,10 @@ export function PaymentUploadForm() {
     return (
         <div 
             className={cn(
-                "border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center text-center gap-4 transition-all duration-300 cursor-pointer relative overflow-hidden group",
+                "border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center text-center gap-4 transition-colors duration-300 cursor-pointer relative overflow-hidden group",
                 dragActive 
-                    ? "border-primary bg-primary/5 scale-[0.99] ring-4 ring-primary/10" 
-                    : "border-border hover:border-primary/50 hover:bg-secondary/20"
+                    ? "border-primary bg-primary/5 ring-4 ring-primary/10" 
+                    : "border-border bg-secondary/20 hover:border-primary/50 hover:bg-card"
             )}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -161,8 +160,8 @@ export function PaymentUploadForm() {
                 disabled={uploadMutation.isPending}
             />
             
-            <div className="p-4 bg-background shadow-sm rounded-full group-hover:scale-110 group-hover:shadow-md transition-all duration-300 border border-border">
-                <UploadCloud className={cn("w-8 h-8", dragActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
+            <div className="p-4 bg-background shadow-sm rounded-full transition-all duration-300 border border-border group-hover:shadow-md group-hover:scale-110">
+                <UploadCloud className={cn("w-8 h-8 transition-colors duration-300", dragActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
             </div>
             
             <div className="space-y-1 pointer-events-none">

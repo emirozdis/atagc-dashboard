@@ -1,9 +1,51 @@
-"use client"
+// app/page.tsx
 
 import { ApplicationForm } from "@/components/application-form/ApplicationForm";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { supabase } from "@/lib/SERVER_supabase";
 import { Calendar, MapPin, Instagram } from "lucide-react";
+import { ApplicationFormTemplate } from "@/types/application";
 
-export default function Home() {
+async function getApplicationForms(): Promise<ApplicationFormTemplate[]> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/forms`, {
+      cache: 'force-cache',
+      next: { revalidate: 3600 }
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch (error) {
+    console.error("Failed to fetch forms:", error);
+    return [];
+  }
+}
+
+async function checkUserHasApplication(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("applications")
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1)
+      .single();
+
+    if (error) return false;
+    return !!data;
+  } catch (error) {
+    return false;
+  }
+}
+
+export default async function Home() {
+  const session = await getServerSession(authOptions);
+  const initialForms = await getApplicationForms();
+  
+  let hasExistingApplication = false;
+  if (session?.user?.id) {
+    hasExistingApplication = await checkUserHasApplication(session.user.id);
+  }
+
   return (
     <main className="min-h-screen bg-background relative overflow-x-hidden">
       {/* Background decoration */}
@@ -49,7 +91,10 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="max-w-3xl mx-auto">
             <div className="bg-card/80 backdrop-blur-md rounded-3xl p-6 md:p-12 border border-border/50 shadow-xl form-glow">
-              <ApplicationForm />
+              <ApplicationForm 
+                initialForms={initialForms}
+                hasExistingApplication={hasExistingApplication}
+              />
             </div>
           </div>
         </div>

@@ -1,3 +1,5 @@
+// app/dashboard/payment/page.tsx
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
@@ -6,7 +8,7 @@ import { PaymentUploadForm } from "@/components/dashboard/payment/PaymentUploadF
 import { Card, CardContent } from "@/components/ui/card";
 import {
     CheckCircle2, Clock, ExternalLink, FileText, Wallet,
-    Copy, AlertTriangle, Ban, CreditCard, ShieldCheck
+    Copy, AlertTriangle, Ban, CreditCard, ShieldCheck, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,22 +43,15 @@ export default function PaymentPage() {
             <div className="max-w-7xl mx-auto space-y-8 pb-12">
                 <Breadcrumbs items={[{ label: "Panel", href: "/dashboard" }, { label: "Ödeme" }]} />
 
-                {/* Header */}
                 <div className="space-y-4">
                     <div>
                         <h2 className="text-3xl font-display font-bold">Ödeme ve Kayıt</h2>
                         <p className="text-muted-foreground mt-1">Etkinlik katılım ücretini tamamlayın.</p>
                     </div>
 
-                    <div className="flex items-center justify-between relative max-w-lg mx-auto md:mx-0 md:max-w-none opacity-50 grayscale">
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-secondary -z-10 rounded-full" />
-                        <StepNumber active={false} step={1} label="Banka" />
-                        <StepNumber active={false} step={2} label="Dekont" />
-                        <StepNumber active={false} step={3} label="Onay" />
-                    </div>
+                    <PaymentStepIndicator currentStep={1} isExempt={false} />
                 </div>
 
-                {/* Status Card Skeleton */}
                 <Card className="border-l-4 border-border/50 bg-card overflow-hidden">
                     <CardContent className="p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
                         <Skeleton className="w-16 h-16 rounded-full shrink-0" />
@@ -67,7 +62,6 @@ export default function PaymentPage() {
                     </CardContent>
                 </Card>
 
-                {/* Bank Info Skeleton */}
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-lg">
                     <div className="bg-zinc-900 text-white p-4">
                         <Skeleton className="h-4 w-32" />
@@ -101,6 +95,11 @@ export default function PaymentPage() {
     const isExempt = status === PaymentStatusEnum.EXEMPT;
     const isUnpaid = status === PaymentStatusEnum.UNPAID;
 
+    // Calculate current step based on payment status
+    let currentStep = 1;
+    if (isProcessing || isRejected) currentStep = 2;
+    if (isPaid) currentStep = 3;
+
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         toast.success("Kopyalandı");
@@ -110,7 +109,6 @@ export default function PaymentPage() {
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
             <Breadcrumbs items={[{ label: "Panel", href: "/dashboard" }, { label: "Ödeme" }]} />
 
-            {/* Header */}
             <div className="space-y-4">
                 <div>
                     <h2 className="text-3xl font-display font-bold">Ödeme ve Kayıt</h2>
@@ -118,26 +116,14 @@ export default function PaymentPage() {
                 </div>
 
                 {!isExempt && (
-                    <div className="flex items-center justify-between relative max-w-lg mx-auto md:mx-0 md:max-w-none">
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-secondary -z-10 rounded-full" />
-                        <div className={cn(
-                            "absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary -z-10 rounded-full transition-all duration-700",
-                            isPaid ? "w-full" : isProcessing ? "w-2/3" : isRejected ? "w-1/3 bg-red-500" : "w-1/6"
-                        )} />
-
-                        <StepNumber active step={1} label="Banka" />
-                        <StepNumber active={!isUnpaid} step={2} label="Dekont" />
-                        <StepNumber
-                            active={isProcessing || isPaid || isRejected}
-                            step={3}
-                            label="Onay"
-                            error={isRejected}
-                        />
-                    </div>
+                    <PaymentStepIndicator 
+                        currentStep={currentStep} 
+                        isExempt={false}
+                        hasError={isRejected}
+                    />
                 )}
             </div>
 
-            {/* Status Card */}
             <Card className={cn(
                 "border-l-4 shadow-sm transition-all duration-300 overflow-hidden",
                 isExempt ? "border-purple-500 bg-purple-500/5" :
@@ -197,7 +183,6 @@ export default function PaymentPage() {
 
             {!isExempt && (
                 <div className="grid gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    {/* Bank Info */}
                     {!isPaid && !isProcessing && (
                         <div className="relative group">
                             <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-lg">
@@ -224,7 +209,10 @@ export default function PaymentPage() {
                                     <div className="space-y-1.5">
                                         <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">IBAN</span>
                                         <div
-                                            className="bg-secondary/30 border border-border/50 p-4 rounded-xl font-mono text-base md:text-xl flex justify-between items-center cursor-pointer hover:bg-secondary/50 transition-colors"
+                                            className={cn(
+                                                "border border-border/50 p-4 rounded-xl font-mono text-base md:text-xl flex justify-between items-center cursor-pointer",
+                                                "bg-secondary/30"
+                                            )}
                                             onClick={() => copyToClipboard(settings?.bank_iban || "")}
                                         >
                                             <span className="break-all">{settings?.bank_iban || "IBAN Bilgisi Yok"}</span>
@@ -236,7 +224,6 @@ export default function PaymentPage() {
                         </div>
                     )}
 
-                    {/* Upload */}
                     {(isUnpaid || isRejected) && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 text-lg font-semibold">
@@ -247,7 +234,6 @@ export default function PaymentPage() {
                         </div>
                     )}
 
-                    {/* Receipt View */}
                     {(isProcessing || isPaid || isRejected) && receipt?.file_url && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 text-lg font-semibold">
@@ -258,11 +244,11 @@ export default function PaymentPage() {
                                 <div className="bg-muted/30 px-4 py-3 border-b border-border/50 flex justify-between items-center">
                                     <span className="text-xs font-mono text-muted-foreground uppercase">{new Date(receipt.created_at).toLocaleString("tr-TR")}</span>
                                 </div>
-                                <div className="p-0 bg-zinc-950/5 min-h-[300px] flex items-center justify-center relative group">
+                                <div className="p-0 bg-zinc-950/5 min-h-75 flex items-center justify-center relative group">
                                     {receipt.file_type === 'application/pdf' ? (
-                                        <iframe src={`${receipt.file_url}#toolbar=0`} className="w-full h-[500px] bg-white" />
+                                        <iframe src={`${receipt.file_url}#toolbar=0`} className="w-full h-125 bg-white" />
                                     ) : (
-                                        <img src={receipt.file_url} className="max-h-[500px] w-auto object-contain" alt="Dekont" />
+                                        <img src={receipt.file_url} className="max-h-125 w-auto object-contain" alt="Dekont" />
                                     )}
                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
                                         <Button variant="secondary" asChild>
@@ -279,17 +265,66 @@ export default function PaymentPage() {
     );
 }
 
-function StepNumber({ step, label, active, error }: { step: number, label: string, active: boolean, error?: boolean }) {
+function PaymentStepIndicator({ currentStep, isExempt, hasError = false }: { currentStep: number, isExempt: boolean, hasError?: boolean }) {
+    const steps = [
+        { number: 1, title: "Banka" },
+        { number: 2, title: "Dekont" },
+        { number: 3, title: "Onay" }
+    ];
+
+    if (isExempt) return null;
+
     return (
-        <div className="flex flex-col items-center gap-2 bg-background p-2 rounded-xl min-w-[60px]">
-            <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
-                error ? "bg-red-500 text-white" :
-                    active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
-            )}>
-                {error ? <Ban className="w-4 h-4" /> : step}
+        <div className="w-full">
+            <div className="flex items-center justify-between">
+                {steps.map((step, index) => (
+                    <div key={step.number} className="flex items-center flex-1 last:flex-none">
+                        <div className="flex flex-col items-center">
+                            <div
+                                className={cn(
+                                    "flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors duration-300",
+                                    hasError && currentStep === step.number
+                                        ? "border-red-500 text-red-600 bg-red-500/10"
+                                        : currentStep > step.number
+                                            ? "bg-primary border-primary text-primary-foreground"
+                                            : currentStep === step.number
+                                                ? "border-primary text-primary"
+                                                : "border-primary/10 text-muted-foreground"
+                                )}
+                            >
+                                {hasError && currentStep === step.number ? (
+                                    <AlertTriangle className="w-5 h-5" />
+                                ) : currentStep > step.number ? (
+                                    <Check className="w-5 h-5" />
+                                ) : (
+                                    <span className="text-sm font-semibold">{step.number}</span>
+                                )}
+                            </div>
+                            <span
+                                className={cn(
+                                    "mt-2 text-xs md:text-sm font-medium text-center hidden sm:block",
+                                    currentStep >= step.number ? "text-primary" : "text-muted-foreground"
+                                )}
+                            >
+                                {step.title}
+                            </span>
+                        </div>
+                        {index < steps.length - 1 && (
+                            <div
+                                className={cn(
+                                    "h-0.5 flex-1 mx-2 transition-colors duration-300 mb-7",
+                                    currentStep > step.number ? "bg-primary" : "bg-primary/10"
+                                )}
+                            />
+                        )}
+                    </div>
+                ))}
             </div>
-            <span className="text-[10px] font-medium uppercase text-muted-foreground">{label}</span>
+            <div className="sm:hidden text-center mt-4">
+                <p className="text-sm font-medium text-foreground">
+                    {steps[currentStep - 1]?.title}
+                </p>
+            </div>
         </div>
     );
 }

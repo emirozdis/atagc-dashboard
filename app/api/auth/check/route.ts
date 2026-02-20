@@ -1,3 +1,5 @@
+// app/api/auth/check/route.ts
+
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";

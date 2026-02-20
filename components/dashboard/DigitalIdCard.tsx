@@ -1,3 +1,5 @@
+// components/dashboard/DigitalIdCard.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -30,7 +32,6 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
   const shortId = user?.id.split('-')[0].toUpperCase() || "";
   const joinDate = user?.created_at ? new Date(user.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
-  // Generate a payload that identifies this as a User ID, not a Roll Call
   const qrPayload = user ? JSON.stringify({ t: "u", id: user.id }) : "";
 
   useEffect(() => {
@@ -43,32 +44,28 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
-  // Sync with external defaultOpen prop changes
   useEffect(() => {
     if (defaultOpen) {
       setIsOpen(true);
     }
   }, [defaultOpen]);
 
-  const transition = { type: "spring", damping: 25, stiffness: 300 } as const;
-  const layoutKey = user ? `${uniqueId}-${user.id}` : uniqueId;
-
   return (
     <>
       <motion.div
-        layoutId={`card-container-${layoutKey}`}
         className={cn(
           "relative overflow-hidden rounded-xl bg-card border border-border shadow-sm hover:shadow-md cursor-pointer group transition-shadow",
           className
         )}
         onClick={() => !isLoading && setIsOpen(true)}
-        style={{ borderRadius: 16 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
       >
         <div className="p-5 flex flex-col h-full relative z-10">
           <div className="flex justify-between items-start mb-4">
-            <div
-              className="flex items-center gap-2 text-muted-foreground"
-            >
+            <div className="flex items-center gap-2 text-muted-foreground">
               <User className="w-4 h-4" />
               <span className="text-[10px] font-bold tracking-widest uppercase">Dijital Kimlik</span>
             </div>
@@ -90,37 +87,23 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
               </>
             ) : (
               <>
-                <motion.div
-                  layoutId={`card-qr-container-${layoutKey}`}
-                  className="bg-white p-2 rounded-lg"
-                  style={{ borderRadius: 12 }}
-                >
+                <div className="bg-white p-2 rounded-lg">
                   <QRCodeSVG value={qrPayload} size={90} level="M" />
-                </motion.div>
+                </div>
 
-                <motion.div
-                  layout="position"
-                  className="text-center space-y-1.5"
-                >
-                  <motion.h3
-                    layout="position"
-                    className="text-base font-bold text-foreground tracking-tight leading-none"
-                  >
+                <div className="text-center space-y-1.5">
+                  <h3 className="text-base font-bold text-foreground tracking-tight leading-none">
                     {user?.full_name}
-                  </motion.h3>
-                  <motion.div layout="position">
-                    <Badge variant="secondary" className="font-medium text-[10px] px-2 h-5">
-                      {roleName}
-                    </Badge>
-                  </motion.div>
-                </motion.div>
+                  </h3>
+                  <Badge variant="secondary" className="font-medium text-[10px] px-2 h-5">
+                    {roleName}
+                  </Badge>
+                </div>
               </>
             )}
           </div>
 
-          <div
-            className="mt-4 pt-3 border-t border-border flex justify-between items-center text-[10px] font-mono text-muted-foreground"
-          >
+          <div className="mt-4 pt-3 border-t border-border flex justify-between items-center text-[10px] font-mono text-muted-foreground">
             {isLoading ? (
               <>
                 <Skeleton className="h-3 w-12" />
@@ -147,33 +130,36 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={() => setIsOpen(false)}
               />
 
               <motion.div
-                layoutId={`card-container-${layoutKey}`}
-                className="relative w-full max-w-[360px] bg-card border border-border shadow-2xl overflow-hidden flex flex-col"
-                transition={transition}
-                style={{ borderRadius: 24 }}
+                className="relative w-full max-w-[360px] max-h-[calc(100vh-2rem)] bg-card border border-border shadow-2xl overflow-y-auto rounded-2xl flex flex-col"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                   onClick={() => setIsOpen(false)}
-                  className="absolute top-4 right-4 p-2 rounded-full bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors z-20"
+                  className="absolute top-4 right-4 p-2 rounded-full bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors z-20 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </motion.button>
 
-                <div className="p-8 flex flex-col items-center text-center space-y-8 h-full bg-card">
+                <div className="p-8 flex flex-col items-center text-center space-y-8">
 
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
+                    transition={{ delay: 0.05, duration: 0.2 }}
                     className="space-y-3 pt-2"
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -190,9 +176,10 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                   </motion.div>
 
                   <motion.div
-                    layoutId={`card-qr-container-${layoutKey}`}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1, duration: 0.2 }}
                     className="bg-white p-4 rounded-xl shadow-sm ring-1 ring-black/5"
-                    style={{ borderRadius: 16 }}
                   >
                     <QRCodeSVG value={qrPayload} size={200} level="H" className="w-full h-auto max-w-[200px]" />
                   </motion.div>
@@ -200,7 +187,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0.15, duration: 0.2 }}
                     className="w-full space-y-3"
                   >
                     <DetailRow icon={Hash} label="Kimlik No" value={shortId} isLoading={isLoading} mono />
@@ -226,8 +213,8 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                    className="text-[10px] text-muted-foreground max-w-xs leading-relaxed pt-2"
+                    transition={{ delay: 0.2, duration: 0.2 }}
+                    className="text-[10px] text-muted-foreground max-w-xs leading-relaxed pt-2 pb-4"
                   >
                     Bu QR kod etkinlik alanına giriş, yoklama ve diğer katılımcılarla bağlantı kurmak için kullanılır.
                   </motion.div>
@@ -258,5 +245,3 @@ function DetailRow({ icon: Icon, label, value, mono = false, isLoading }: { icon
     </div>
   );
 }
-// Change Log:
-// - Updated QR Payload to be `JSON.stringify({ t: "u", id: user.id })` to allow differentiation in scanner.

@@ -134,9 +134,6 @@ export function Header() {
                 <DropdownMenuItem asChild>
                   <Link href="/dashboard/profile" className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Profilim</span></Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile" className="cursor-pointer"><Settings className="mr-2 h-4 w-4" /><span>Ayarlar</span></Link>
-                </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20 cursor-pointer" onClick={() => signOut({ callbackUrl: "/login" })}>
