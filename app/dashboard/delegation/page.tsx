@@ -37,6 +37,7 @@ export default function DelegationPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [usesLeft, setUsesLeft] = useState("");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [magicLinkEmail, setMagicLinkEmail] = useState("");
 
   const { data, isLoading, error } = useQuery<{ success: boolean; data: InviteCode[] }>({
     queryKey: ["delegation-invite-codes"],
@@ -83,6 +84,30 @@ export default function DelegationPage() {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const magicLinkMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await fetch("/api/delegation/create_magiclink", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sent_to: email }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || err.error || "Magic link oluşturulamadı");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      console.log("Magic link created:", data);
+      setMagicLinkEmail("");
+    },
+  });
+
+  const handleMagicLink = () => {
+    if (!magicLinkEmail.trim()) return;
+    magicLinkMutation.mutate(magicLinkEmail.trim());
   };
 
   const inviteCodes = data?.data ?? [];
@@ -145,6 +170,30 @@ export default function DelegationPage() {
             )}
           </DialogContent>
         </Dialog>
+      </div>
+
+      <div className="bg-card/80 backdrop-blur-md rounded-2xl border border-border/50 shadow-xl p-6 space-y-3">
+        <h3 className="text-lg font-semibold text-foreground">Magic Link Gönder</h3>
+        <div className="flex items-center gap-3">
+          <Input
+            type="email"
+            placeholder="E-posta adresi"
+            value={magicLinkEmail}
+            onChange={(e) => setMagicLinkEmail(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleMagicLink()}
+          />
+          <Button onClick={handleMagicLink} disabled={magicLinkMutation.isPending}>
+            {magicLinkMutation.isPending ? "Gönderiliyor..." : "Gönder"}
+          </Button>
+        </div>
+        {magicLinkMutation.isError && (
+          <p className="text-sm text-destructive">
+            {(magicLinkMutation.error as Error).message}
+          </p>
+        )}
+        {magicLinkMutation.isSuccess && (
+          <p className="text-sm text-emerald-500">Magic link başarıyla oluşturuldu.</p>
+        )}
       </div>
 
       <div className="bg-card/80 backdrop-blur-md rounded-2xl border border-border/50 shadow-xl overflow-hidden">
