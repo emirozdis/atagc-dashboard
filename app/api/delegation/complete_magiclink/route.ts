@@ -39,7 +39,7 @@ export const POST = apiHandler(async (req) => {
     // Fetch and validate magiclink
     const { data: magiclink, error: fetchError } = await supabase
         .from("delegation_magiclinks")
-        .select("id, sent_to, delegation, used")
+        .select("id, sent_to, delegation, is_used")
         .eq("id", magiclink_id)
         .maybeSingle();
 
@@ -47,7 +47,7 @@ export const POST = apiHandler(async (req) => {
         throw new Error(fetchError.message);
     }
 
-    if (!magiclink || magiclink.used) {
+    if (!magiclink || magiclink.is_used) {
         return NextResponse.json(
             { error: "Bad Request", message: "Magic link is invalid or already used" },
             { status: 400 }
@@ -193,7 +193,7 @@ export const POST = apiHandler(async (req) => {
     // Mark magiclink as used
     const { error: updateError } = await supabase
         .from("delegation_magiclinks")
-        .update({ used: true })
+        .update({ is_used: true })
         .eq("id", magiclink_id);
 
     if (updateError) {

@@ -238,9 +238,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
 
             {/* 2. Resume / Login Mode */}
             {stepState === 'login' && (
-                <div className="p-6 rounded-xl bg-blue-500/5 border border-blue-500/20 space-y-4 animate-in slide-in-from-top-4 fade-in">
+                <div className="p-6 rounded-xl bg-secondary/10 border border-border/50 space-y-4 animate-in slide-in-from-top-4 fade-in">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/10 rounded-full text-blue-600">
+                        <div className="p-2 bg-primary/10 rounded-full text-primary">
                             <User className="w-5 h-5" />
                         </div>
                         <div>

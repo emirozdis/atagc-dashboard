@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Components
 import { StepIndicator } from "./StepIndicator";
@@ -17,6 +18,9 @@ import { RoleSelectionStep } from "./RoleSelectionStep";
 import { DynamicFormStep } from "./DynamicFormStep";
 import { PersonalDetailsStep } from "./PersonalDetailsStep";
 import { SuccessScreen } from "./SuccessScreen";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+
 
 // Types
 import { 
@@ -36,6 +40,7 @@ interface ApplicationFormProps {
 
 export function ApplicationForm({ initialForms = [], hasExistingApplication = false }: ApplicationFormProps) {
   const { data: session, update } = useSession();
+  const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,10 +56,8 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
   // Dynamic Answers Store
   const [formAnswers, setFormAnswers] = useState<DynamicFormData>({});
   
-  // Delegation Join (only for delegates)
+  // Delegation Join
   const [inviteCode, setInviteCode] = useState("");
-  const [delegationJoined, setDelegationJoined] = useState(false);
-  const [isJoiningDelegation, setIsJoiningDelegation] = useState(false);
 
   // Auth Flow Control
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -70,6 +73,41 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
   const personalForm = useForm<PersonalDetailsData>({
     resolver: zodResolver(personalDetailsSchema),
     mode: "onChange"
+  });
+
+  const { data: profileData, isLoading: isLoadingProfile } = useQuery({
+    queryKey: ['my-profile-for-app-form'],
+    queryFn: async () => {
+      const res = await fetch('/api/participant/me');
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      return res.json();
+    },
+    enabled: !!session?.user, // Only run if user is logged in
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const existingDelegation = profileData?.profile?.delegation;
+
+  const joinDelegationMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const res = await fetch("/api/delegation/join_delegation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: code }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Delegasyona katılım başarısız");
+      }
+    },
+    onSuccess: () => {
+      toast.success("Delegasyona katılım isteği gönderildi! Liderin onayı bekleniyor.");
+      queryClient.invalidateQueries({ queryKey: ['my-profile-for-app-form'] });
+      setInviteCode("");
+    },
+    onError: (e: any) => {
+      toast.error(e.message);
+    },
   });
 
   // Fallback fetch if no initial forms
@@ -98,29 +136,12 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     setCurrentStep(2);
   };
 
-  const handleJoinDelegation = async () => {
+  const handleJoinDelegation = () => {
     if (!inviteCode.trim()) {
       toast.error("Lütfen davet kodunu giriniz.");
       return;
     }
-    setIsJoiningDelegation(true);
-    try {
-      const res = await fetch("/api/delegation/join_delegation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invite_code: inviteCode.trim() }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Delegasyona katılım başarısız");
-      }
-      setDelegationJoined(true);
-      toast.success("Delegasyona katılım isteği gönderildi! Delegasyon liderinin onayı bekleniyor.");
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setIsJoiningDelegation(false);
-    }
+    joinDelegationMutation.mutate(inviteCode.trim());
   };
 
   const handleNext = async () => {
@@ -352,10 +373,26 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                                 <Users className="w-4 h-4 text-primary" />
                                 <h4 className="font-semibold text-sm">Delegasyona Katıl</h4>
                             </div>
-                            {delegationJoined ? (
-                                <div className="flex items-center gap-2 text-sm text-green-600">
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    <span>Katılım isteği gönderildi. Delegasyon liderinin onayı bekleniyor.</span>
+                            {isLoadingProfile ? (
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-10 w-full" />
+                                </div>
+                            ) : existingDelegation ? (
+                                <div className="space-y-2">
+                                    <p className="text-xs text-muted-foreground">
+                                        Mevcut bir delegasyon kaydınız bulunuyor.
+                                    </p>
+                                    <div className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-border/50">
+                                        <span className="font-semibold text-sm">{existingDelegation.name}</span>
+                                        {existingDelegation.accepted === true ? (
+                                            <Badge className="bg-green-500/10 text-green-600">Onaylandı</Badge>
+                                        ) : existingDelegation.accepted === false ? (
+                                            <Badge variant="destructive">Reddedildi</Badge>
+                                        ) : (
+                                            <Badge variant="outline">Onay Bekleniyor</Badge>
+                                        )}
+                                    </div>
                                 </div>
                             ) : (
                                 <>
@@ -372,11 +409,11 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                                         <Button
                                             type="button"
                                             onClick={handleJoinDelegation}
-                                            disabled={isJoiningDelegation || !inviteCode.trim()}
+                                            disabled={joinDelegationMutation.isPending || !inviteCode.trim()}
                                             className="cursor-pointer"
                                             size="sm"
                                         >
-                                            {isJoiningDelegation ? (
+                                            {joinDelegationMutation.isPending ? (
                                                 <Loader2 className="w-4 h-4 animate-spin" />
                                             ) : (
                                                 "Katıl"

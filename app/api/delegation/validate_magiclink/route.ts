@@ -15,7 +15,7 @@ export const GET = apiHandler(async (req) => {
 
     const { data: magiclink, error: fetchError } = await supabase
         .from("delegation_magiclinks")
-        .select("id, sent_to, delegation, used")
+        .select("id, sent_to, delegation, is_used")
         .eq("id", id)
         .maybeSingle();
 
@@ -23,7 +23,7 @@ export const GET = apiHandler(async (req) => {
         throw new Error(fetchError.message);
     }
 
-    if (!magiclink || magiclink.used) {
+    if (!magiclink || magiclink.is_used) {
         return NextResponse.json({ valid: false });
     }
 

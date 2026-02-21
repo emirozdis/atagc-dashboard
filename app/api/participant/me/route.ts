@@ -96,7 +96,7 @@ export const GET = apiHandler(async (request: Request) => {
     }
   }
 
-  const delegationMember = user.delegation_members?.[0];
+  const delegationMember = Array.isArray(user.delegation_members) ? user.delegation_members[0] : user.delegation_members;
   let delegationData = null;
   if (delegationMember?.delegation) {
     const del = Array.isArray(delegationMember.delegation) ? delegationMember.delegation[0] : delegationMember.delegation;
