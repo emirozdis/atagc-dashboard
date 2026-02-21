@@ -43,7 +43,8 @@ export function Header() {
   const userDetails = profile?.userDetails || (Array.isArray(profile?.user?.user_details) ? profile?.user?.user_details[0] : profile?.user?.user_details);
   const profileImage = userDetails?.profile_picture_url || undefined;
 
-  const roleLabel = session?.user?.role ? getRoleMeta(session.user.role).label : "Misafir";
+  const roleMeta = getRoleMeta(session?.user?.role);
+  const roleLabel = session?.user ? roleMeta.label : "Misafir";
 
   return (
     <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 transition-colors">
@@ -132,7 +133,7 @@ export function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile" className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Profilim</span></Link>
+                  <Link href="/profile" className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Profilim</span></Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

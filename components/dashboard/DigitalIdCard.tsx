@@ -1,5 +1,3 @@
-// components/dashboard/DigitalIdCard.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { X, Maximize2, ShieldCheck, Calendar, Hash, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
+import { getRoleMeta } from "@/lib/roles";
 
 interface DigitalIdCardProps {
   user?: {
@@ -28,7 +27,9 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [mounted, setMounted] = useState(false);
 
-  const roleName = user?.role === 'applicant' ? 'DELEGE' : user?.role.toUpperCase().replace('_', ' ');
+  const roleMeta = getRoleMeta(user?.role);
+  const roleName = roleMeta.label.toUpperCase();
+  
   const shortId = user?.id.split('-')[0].toUpperCase() || "";
   const joinDate = user?.created_at ? new Date(user.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
@@ -95,7 +96,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                   <h3 className="text-base font-bold text-foreground tracking-tight leading-none">
                     {user?.full_name}
                   </h3>
-                  <Badge variant="secondary" className="font-medium text-[10px] px-2 h-5">
+                  <Badge variant="secondary" className={cn("font-medium text-[10px] px-2 h-5", roleMeta.colorClass)}>
                     {roleName}
                   </Badge>
                 </div>
@@ -169,7 +170,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                     {isLoading ? (
                       <Skeleton className="h-6 w-24 mx-auto" />
                     ) : (
-                      <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 px-3 py-1 text-xs">
+                      <Badge className={cn("bg-primary/10 border-primary/20 hover:bg-primary/20 px-3 py-1 text-xs", roleMeta.colorClass, roleMeta.bgClass)}>
                         {roleName}
                       </Badge>
                     )}

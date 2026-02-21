@@ -1,14 +1,12 @@
-// app/dashboard/payment/page.tsx
-
 "use client";
 
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { PaymentView } from "@/components/dashboard/payment/PaymentView";
 
-export default function PaymentPage() {
+export default function SharedPaymentPage() {
     return (
         <div className="max-w-7xl mx-auto pb-12">
-            <Breadcrumbs items={[{ label: "Panel", href: "/dashboard" }, { label: "Ödeme" }]} />
+            <Breadcrumbs items={[{ label: "Ödeme" }]} />
             <div className="mt-6">
                 <PaymentView />
             </div>

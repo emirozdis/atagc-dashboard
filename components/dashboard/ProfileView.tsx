@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-
 import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card, CardContent, CardHeader, CardTitle
@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
 import { GRADE_OPTIONS } from "@/lib/constants";
+import { getRoleMeta } from "@/lib/roles";
 
 interface DeviceSession {
   id: string;
@@ -45,8 +46,10 @@ interface NotificationPrefs {
 
 export function ProfileView() {
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
   const [resetLoading, setResetLoading] = useState(false);
   const [digitalIdOpen, setDigitalIdOpen] = useState(false);
+  
   const personalInfoRef = useRef<HTMLDivElement>(null);
   const digitalIdRef = useRef<HTMLDivElement>(null);
   const securityRef = useRef<HTMLDivElement>(null);
@@ -230,34 +233,11 @@ export function ProfileView() {
 
   const gradeLabel = details?.grade ? GRADE_OPTIONS.find(opt => opt.value === details.grade)?.label : null;
 
-  // Resolve School Name using casting for joined relation and type-safe access for additional_info
   const schoolName = (details as any)?.high_schools?.school_name || 
                      details?.additional_info?.manual_school_name || 
                      "Belirtilmemiş";
 
-  const getRoleBadge = (role: string) => {
-    const styles: Record<string, string> = {
-      superadmin: "bg-red-500/10 text-red-600 border-red-500/20",
-      admin: "bg-orange-500/10 text-orange-600 border-orange-500/20",
-      committee_chairman: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-      deputy_chair: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
-      press: "bg-pink-500/10 text-pink-600 border-pink-500/20",
-      observer: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
-      delegate: "bg-gray-500/10 text-yellow-600 border-yellow-500/20",
-      applicant: "bg-gray-200/10 text-yellow-600 border-yellow-500/20"
-    };
-    const labels: Record<string, string> = {
-      superadmin: "Süper Yönetici",
-      admin: "Yönetici",
-      committee_chairman: "Komite Başkanı",
-      deputy_chair: "Başkan Yardımcısı",
-      press: "Basın",
-      observer: "Gözlemci",
-      delegate: "Delege",
-      applicant: "Başvuru Sahibi"
-    };
-    return <Badge variant="outline" className={cn("px-2.5 py-0.5", styles[role] || styles.applicant)}>{labels[role] || "Kullanıcı"}</Badge>;
-  };
+  const roleMeta = getRoleMeta(profile.role);
 
   const getDeviceIcon = (os: string, type: string) => {
     const lower = (os + type).toLowerCase();
@@ -282,7 +262,9 @@ export function ProfileView() {
             <div className="flex-1 space-y-1 pb-1">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-2xl font-bold text-foreground">{profile.full_name}</h2>
-                {getRoleBadge(profile.role)}
+                <Badge variant="outline" className={cn("px-2.5 py-0.5", roleMeta.colorClass, roleMeta.bgClass, roleMeta.borderClass)}>
+                    {roleMeta.label}
+                </Badge>
               </div>
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">
@@ -298,7 +280,7 @@ export function ProfileView() {
 
             <div className="flex gap-2 items-center">
               {application && (
-                <Link href="/dashboard/my-application">
+                <Link href="/my-application">
                   <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 bg-background/50 backdrop-blur-sm">
                     <FileText className="w-3.5 h-3.5" />
                     Başvurum

@@ -1,36 +1,40 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { ADMIN_ROLES, DASHBOARD_ROLES, ORGANISATION_ROLES, OBSERVER_TEAM, PRESS_TEAM, SECURITY_TEAM, UserRole, getEffectiveRole } from "@/lib/roles";
 
 export default withAuth(
   function proxy(req) {
     const token = req.nextauth.token;
     const isAuth = !!token;
     const isLoginPage = req.nextUrl.pathname.startsWith("/login");
+
+    // Define base paths
     const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
+    const isDashboardRoute = req.nextUrl.pathname.startsWith("/dashboard");
+    const isOrganisationRoute = req.nextUrl.pathname.startsWith("/organisation");
+
+    // Define Shared/Common routes that any authenticated user can access
+    const isSharedRoute = [
+        "/profile", "/payment", "/connections", "/announcements", 
+        "/catering", "/tickets", "/resources", "/my-application"
+    ].some(path => req.nextUrl.pathname.startsWith(path));
 
     // 1. Handle Login Page
     if (isLoginPage) {
       if (isAuth) {
-        // If already logged in, redirect to the appropriate dashboard based on role
-        if (token.role === "superadmin") {
+        const effectiveRole = getEffectiveRole(token);
+        
+        if (ADMIN_ROLES.includes(effectiveRole)) {
           return NextResponse.redirect(new URL("/admin", req.url));
+        } else if (ORGANISATION_ROLES.includes(effectiveRole)) {
+          return NextResponse.redirect(new URL("/organisation", req.url));
+        } else {
+          return NextResponse.redirect(new URL("/dashboard", req.url));
         }
-        return NextResponse.redirect(new URL("/dashboard", req.url));
       }
       return null;
     }
 
-    // 2. Protect Admin Routes
-    if (isAdminRoute) {
-      const allowedAdminRoles = ["superadmin"];
-      if (!token?.role || !allowedAdminRoles.includes(token.role as string)) {
-        // If not an admin role, redirect to participant dashboard (or 403 page)
-        return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-      return null;
-    }
-
-    // 3. Protect generic Dashboard Routes (Participant View)
     if (!isAuth) {
       let from = req.nextUrl.pathname;
       if (req.nextUrl.search) {
@@ -41,19 +45,61 @@ export default withAuth(
       );
     }
 
-    // 4. Redirect Superadmin from Dashboard to Admin
-    if (req.nextUrl.pathname.startsWith("/dashboard") && token?.role === "superadmin") {
-      return NextResponse.redirect(new URL("/admin", req.url));
+    // Determine the user's role including their targeted application type
+    const effectiveRole = getEffectiveRole(token);
+
+    // If it's a shared route, let them in based solely on authentication
+    if (isSharedRoute) {
+        return null;
     }
+
+    // 2. Protect /admin
+    if (isAdminRoute) {
+      if (!ADMIN_ROLES.includes(effectiveRole)) {
+        if (ORGANISATION_ROLES.includes(effectiveRole)) return NextResponse.redirect(new URL("/organisation", req.url));
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    }
+
+    // 3. Protect /dashboard (Academic specific)
+    if (isDashboardRoute) {
+      if (!DASHBOARD_ROLES.includes(effectiveRole)) {
+        if (ADMIN_ROLES.includes(effectiveRole)) return NextResponse.redirect(new URL("/admin", req.url));
+        if (ORGANISATION_ROLES.includes(effectiveRole)) return NextResponse.redirect(new URL("/organisation", req.url));
+      }
+    }
+
+    // 4. Protect /organisation
+    if (isOrganisationRoute) {
+      if (!ORGANISATION_ROLES.includes(effectiveRole) && !ADMIN_ROLES.includes(effectiveRole)) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+
+      if (ADMIN_ROLES.includes(effectiveRole)) {
+        return NextResponse.redirect(new URL("/admin", req.url));
+      }
+
+      // Sub-section team enforcement
+      const path = req.nextUrl.pathname;
+      if (path.startsWith("/organisation/observers") && !OBSERVER_TEAM.includes(effectiveRole)) {
+        return NextResponse.redirect(new URL("/organisation", req.url));
+      }
+      if (path.startsWith("/organisation/press") && !PRESS_TEAM.includes(effectiveRole)) {
+        return NextResponse.redirect(new URL("/organisation", req.url));
+      }
+      if (path.startsWith("/organisation/security") && !SECURITY_TEAM.includes(effectiveRole)) {
+        return NextResponse.redirect(new URL("/organisation", req.url));
+      }
+    }
+
+    return null;
   },
   {
     callbacks: {
       authorized: ({ token, req }) => {
-        // Always allow access to login page
         if (req.nextUrl.pathname.startsWith("/login")) {
           return true;
         }
-        // For protected routes, require a token
         return !!token;
       },
     },
@@ -61,10 +107,18 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/login"],
+  matcher: [
+      "/dashboard/:path*", 
+      "/admin/:path*", 
+      "/organisation/:path*", 
+      "/login",
+      "/profile", 
+      "/payment", 
+      "/connections", 
+      "/announcements", 
+      "/catering", 
+      "/tickets", 
+      "/resources", 
+      "/my-application"
+  ],
 };
-
-// Change log:
-// - Created `proxy.ts` to replace the deprecated `middleware.ts` convention in Next.js 16+.
-// - Logic migrated directly from `middleware.ts`.
-// - Fixed a duplicate comment in section 3.

@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { participantItems } from "@/lib/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MANAGEMENT_ROLES, COMMITTEE_LEADS, STAFF_ROLES } from "@/lib/roles";
+import { MANAGEMENT_ROLES, COMMITTEE_LEADS, STAFF_ROLES, getEffectiveRole, UserRole } from "@/lib/roles";
 import { useQuery } from "@tanstack/react-query";
 
 interface MobileSidebarProps {
@@ -18,10 +18,11 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
 
-    const role = session?.user?.role;
+    const actualRole = session?.user?.role;
+    const effectiveRole = session?.user ? getEffectiveRole(session.user) : null;
     const status = session?.user?.applicationStatus;
 
-    const isStaff = role ? STAFF_ROLES.includes(role) : false;
+    const isStaff = actualRole ? STAFF_ROLES.includes(actualRole) : false;
 
     const { data: hasDelegation } = useQuery<boolean>({
         queryKey: ['delegation-check'],
@@ -36,22 +37,16 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
     });
 
     const roleTag = (() => {
-        if (role && MANAGEMENT_ROLES.includes(role)) return "Yönetim";
-        if (role && COMMITTEE_LEADS.includes(role)) return "Akademi";
+        if (effectiveRole && MANAGEMENT_ROLES.includes(effectiveRole as UserRole)) return "Yönetim";
+        if (effectiveRole && COMMITTEE_LEADS.includes(effectiveRole as UserRole)) return "Akademi";
         return null;
     })();
 
     // Filter items
     const items = participantItems.filter((item) => {
-        if (item.roles && role && !item.roles.includes(role)) return false;
+        if (item.roles && effectiveRole && !item.roles.includes(effectiveRole)) return false;
         if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
-
-        // Payment Check (Hide if not approved)
-        if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
-
-        // Delegation Check
         if (item.requiresDelegation && !hasDelegation) return false;
-
         return true;
     });
 

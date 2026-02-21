@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { PaymentStatusEnum } from "@/types/payment";
 import { ApplicationStatusEnum } from "@/types/application";
 import { ParticipantDashboardProps, ProfileData, SystemSettings } from "@/types/dashboard";
+import { ROLE_METADATA, UserRole } from "@/lib/roles";
 
 export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   const { data: profile, isLoading: profileLoading } = useQuery<ProfileData>({
@@ -49,16 +50,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     }
   });
 
-  const { data: observerData, isLoading: observerLoading } = useQuery({
-    queryKey: ['observer-info'],
-    queryFn: async () => {
-      const res = await fetch("/api/observer/info");
-      if (!res.ok) throw new Error("Failed to fetch observer data");
-      return res.json();
-    },
-    enabled: profile?.profile?.role === 'observer',
-  });
-
   const isLoading = profileLoading || paymentLoading;
 
   const { profile: userProfile, application, committee } = profile || {};
@@ -85,13 +76,21 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     );
   }
 
+  const appliedRoleSlug = application?.form?.slug;
+  const appliedRoleLabel = appliedRoleSlug ? ROLE_METADATA[appliedRoleSlug as UserRole]?.label : "Katılımcı";
+
   const getStatusSteps = () => {
     return [
       {
         id: 'application',
         label: "Başvuru",
         status: appStatus === 'approved' ? 'done' : appStatus === 'rejected' ? 'error' : 'processing',
-        date: application?.submitted_at
+        date: application?.submitted_at,
+        text: appStatus === 'approved' 
+                ? "Onaylandı" 
+                : appStatus === 'rejected' 
+                  ? `${appliedRoleLabel} Başvurusu Reddedildi`
+                  : `${appliedRoleLabel} Başvurusu İnceleniyor`
       },
       {
         id: 'payment',
@@ -144,6 +143,14 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       return "Tarih Formatı Hatalı";
     }
   };
+
+  // Ensure Digital ID displays default user role ("BAŞVURU SAHİBİ" if not approved)
+  const userForDigitalId = userProfile ? {
+      id: userProfile.id,
+      full_name: userProfile.full_name,
+      role: userProfile.role,
+      created_at: userProfile.created_at
+  } : undefined;
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-12">
@@ -201,12 +208,14 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                         <div>
                           <div className="font-medium text-sm md:text-base">{step.label}</div>
                           <div className="text-xs text-muted-foreground">
-                            {step.status === 'done' ? (step.text || "Tamamlandı") :
+                            {step.text || (
+                              step.status === 'done' ? "Tamamlandı" :
                               step.status === 'exempt' ? "Muaf (Tamamlandı)" :
-                                step.status === 'processing' ? "İnceleniyor" :
-                                  step.status === 'error' ? "Sorun Var" :
-                                    step.status === 'pending' ? "İşlem Bekliyor" :
-                                      "Bekleniyor"}
+                              step.status === 'processing' ? "İnceleniyor" :
+                              step.status === 'error' ? "Sorun Var" :
+                              step.status === 'pending' ? "İşlem Bekliyor" :
+                              "Bekleniyor"
+                            )}
                           </div>
                         </div>
                       </div>
@@ -220,14 +229,14 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
                         {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
                           <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
-                            <Link href="/dashboard/payment">
+                            <Link href="/payment">
                               {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
                         )}
                         {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
                           <Button size="sm" variant="outline" asChild className="h-8 text-xs">
-                            <Link href="/dashboard/payment">Detay</Link>
+                            <Link href="/payment">Detay</Link>
                           </Button>
                         )}
                         {step.id === 'committee' && step.status === 'done' && (
@@ -313,90 +322,19 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
           </Card>
         </div>
 
-        <div className="lg:col-span-1 h-full min-h-[400px]">
-          {(isLoading || (showIdCard && userProfile)) && (
-            <DigitalIdCard
-              user={userProfile}
-              className="h-full"
-              uniqueId="dashboard"
-              isLoading={isLoading}
-            />
-          )}
-        </div>
+        {showIdCard && (
+            <div className="lg:col-span-1 h-full min-h-[400px]">
+                <DigitalIdCard
+                user={userForDigitalId}
+                className="h-full"
+                uniqueId="dashboard"
+                isLoading={isLoading}
+                />
+            </div>
+        )}
       </div>
 
-      {userProfile?.role === 'observer' && (
-        <div className="space-y-6 pt-4">
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-border/50"></div>
-            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Gözlemci Bilgileri</h3>
-            <div className="h-px flex-1 bg-border/50"></div>
-          </div>
-
-          {observerLoading ? (
-            <Card className="bg-card border-border/40">
-              <CardContent className="p-6">
-                <Skeleton className="h-8 w-48 mb-4" />
-                <Skeleton className="h-6 w-full" />
-              </CardContent>
-            </Card>
-          ) : observerData?.allocatedCommittee ? (
-            <Card className="bg-card border-border/40">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2.5 text-lg">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  Atanan Komite
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="text-xl font-bold mb-3 text-foreground">
-                    {observerData.allocatedCommitteeName || observerData.allocatedCommittee}
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Komite gözlemcisi olarak atandınız.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : observerData?.allocatedArea ? (
-            <Card className="bg-card border-border/40">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2.5 text-lg">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  Atanan Alan
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="text-xl font-bold mb-3 text-foreground">{observerData.allocatedArea}</div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Alan gözlemcisi olarak atandınız.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="bg-secondary/10 border-dashed border-border/60">
-              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mb-5 animate-pulse">
-                  <MapPin className="w-7 h-7 text-muted-foreground" />
-                </div>
-                <h4 className="font-semibold text-xl text-foreground mb-2">Atama Bekleniyor</h4>
-                <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                  Gözlemci olarak henüz bir komite veya alana atanmadınız. Atama yapıldığında bilgilendirileceksiniz.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {userProfile?.role !== 'observer' && (isLoading || appStatus === ApplicationStatusEnum.APPROVED) && (
+      {(isLoading || appStatus === ApplicationStatusEnum.APPROVED) && (
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/50"></div>

@@ -6,47 +6,87 @@ import {
   User,
   Camera,
   Eye,
-  Crown
+  Crown,
+  Lock,
+  Megaphone
 } from "lucide-react";
 
 // 1. Role Constants
 export const ROLES = {
+  // Admin Zone
   SUPERADMIN: "superadmin",
   ADMIN: "admin",
+
+  // Academic / Dashboard Zone
   CHAIRMAN: "committee_chairman",
   DEPUTY_CHAIR: "chair",
   DELEGATE: "delegate",
-  PRESS: "press",
-  OBSERVER: "observer",
-  HEAD_OBSERVER: "head_observer",
   APPLICANT: "applicant",
+
+  // Organisation Zone - Observers
+  HEAD_OBSERVER: "head_observer",
+  OBSERVER: "observer",
+
+  // Organisation Zone - Press
+  HEAD_PRESS: "head_press",
+  PRESS: "press",
+
+  // Organisation Zone - Security
+  HEAD_SECURITY: "head_security",
+  SECURITY: "security",
 } as const;
 
 // 2. Type Definition
 export type UserRole = typeof ROLES[keyof typeof ROLES];
 
-// 3. Role Groups
-export const STAFF_ROLES: UserRole[] = [
-  ROLES.SUPERADMIN, 
-  ROLES.ADMIN, 
-  ROLES.CHAIRMAN, 
-  ROLES.DEPUTY_CHAIR
-];
+// 3. Role Groups (For Middleware & Access Control)
 
-export const MANAGEMENT_ROLES: UserRole[] = [
-  ROLES.SUPERADMIN, 
+// Group 1: /admin
+export const ADMIN_ROLES: UserRole[] = [
+  ROLES.SUPERADMIN,
   ROLES.ADMIN
 ];
 
+// Group 2: /dashboard
+export const DASHBOARD_ROLES: UserRole[] = [
+  ROLES.CHAIRMAN,
+  ROLES.DEPUTY_CHAIR,
+  ROLES.DELEGATE,
+  ROLES.APPLICANT
+];
+
+// Group 3: /organisation
+export const ORGANISATION_ROLES: UserRole[] = [
+  ROLES.HEAD_OBSERVER,
+  ROLES.OBSERVER,
+  ROLES.HEAD_PRESS,
+  ROLES.PRESS,
+  ROLES.HEAD_SECURITY,
+  ROLES.SECURITY
+];
+
+// Sub-groups within Organisation for internal permission checks
+export const OBSERVER_TEAM: UserRole[] = [ROLES.HEAD_OBSERVER, ROLES.OBSERVER];
+export const PRESS_TEAM: UserRole[] = [ROLES.HEAD_PRESS, ROLES.PRESS];
+export const SECURITY_TEAM: UserRole[] = [ROLES.HEAD_SECURITY, ROLES.SECURITY];
+
+// Legacy / Helper Arrays
+export const STAFF_ROLES: UserRole[] = [
+  ...ADMIN_ROLES,
+  ROLES.CHAIRMAN,
+  ROLES.DEPUTY_CHAIR,
+  ...ORGANISATION_ROLES.filter(r => r !== ROLES.OBSERVER && r !== ROLES.PRESS && r !== ROLES.SECURITY) // Heads are staff
+];
+
+export const MANAGEMENT_ROLES: UserRole[] = ADMIN_ROLES;
+
 export const COMMITTEE_LEADS: UserRole[] = [
-  ROLES.CHAIRMAN, 
+  ROLES.CHAIRMAN,
   ROLES.DEPUTY_CHAIR
 ];
 
 export const PARTICIPANT_ROLES: UserRole[] = [
-  ROLES.DELEGATE, 
-  ROLES.PRESS, 
-  ROLES.OBSERVER, 
+  ROLES.DELEGATE,
   ROLES.APPLICANT
 ];
 
@@ -105,14 +145,24 @@ export const ROLE_METADATA: Record<UserRole, {
     bgClass: "bg-blue-500/10",
     borderClass: "border-blue-500/20"
   },
-  [ROLES.PRESS]: {
-    label: "Basın",
-    rank: 10,
-    description: "Basın ekibi üyesi.",
-    icon: Camera,
-    colorClass: "text-pink-600",
-    bgClass: "bg-pink-500/10",
-    borderClass: "border-pink-500/20"
+  [ROLES.APPLICANT]: {
+    label: "Başvuru Sahibi",
+    rank: 1,
+    description: "Henüz onaylanmamış başvuru sahibi.",
+    icon: Users,
+    colorClass: "text-gray-500",
+    bgClass: "bg-gray-500/10",
+    borderClass: "border-gray-500/20"
+  },
+  // Organisation Roles
+  [ROLES.HEAD_OBSERVER]: {
+    label: "Baş Gözlemci",
+    rank: 45,
+    description: "Gözlemci ekibini yönetir.",
+    icon: Crown,
+    colorClass: "text-teal-600",
+    bgClass: "bg-teal-500/10",
+    borderClass: "border-teal-500/20"
   },
   [ROLES.OBSERVER]: {
     label: "Gözlemci",
@@ -123,26 +173,60 @@ export const ROLE_METADATA: Record<UserRole, {
     bgClass: "bg-cyan-500/10",
     borderClass: "border-cyan-500/20"
   },
-  [ROLES.HEAD_OBSERVER]: {
-    label: "Baş Gözlemci",
-    rank: 20,
-    description: "Gözlemci ekibini yönetir ve görev atar.",
-    icon: Crown,
-    colorClass: "text-teal-600",
-    bgClass: "bg-teal-500/10",
-    borderClass: "border-teal-500/20"
+  [ROLES.HEAD_PRESS]: {
+    label: "Basın Başkanı",
+    rank: 45,
+    description: "Basın ekibini yönetir.",
+    icon: Megaphone,
+    colorClass: "text-pink-700",
+    bgClass: "bg-pink-500/10",
+    borderClass: "border-pink-500/20"
   },
-  [ROLES.APPLICANT]: {
-    label: "Başvuru Sahibi",
-    rank: 1,
-    description: "Henüz onaylanmamış başvuru sahibi.",
-    icon: Users,
-    colorClass: "text-gray-500",
-    bgClass: "bg-gray-500/10",
-    borderClass: "border-gray-500/20"
+  [ROLES.PRESS]: {
+    label: "Basın",
+    rank: 10,
+    description: "Basın ekibi üyesi.",
+    icon: Camera,
+    colorClass: "text-pink-600",
+    bgClass: "bg-pink-500/10",
+    borderClass: "border-pink-500/20"
+  },
+  [ROLES.HEAD_SECURITY]: {
+    label: "Güvenlik Şefi",
+    rank: 45,
+    description: "Güvenlik ekibini yönetir.",
+    icon: ShieldAlert,
+    colorClass: "text-zinc-800 dark:text-zinc-200",
+    bgClass: "bg-zinc-500/10",
+    borderClass: "border-zinc-500/20"
+  },
+  [ROLES.SECURITY]: {
+    label: "Güvenlik",
+    rank: 10,
+    description: "Güvenlik ekibi üyesi.",
+    icon: Lock,
+    colorClass: "text-zinc-600 dark:text-zinc-400",
+    bgClass: "bg-zinc-500/10",
+    borderClass: "border-zinc-500/20"
   }
 };
 
-export function getRoleMeta(role: string) {
-  return ROLE_METADATA[role as UserRole] || ROLE_METADATA[ROLES.APPLICANT];
+/**
+ * Helper to determine the true effective role of a user for routing and permissions.
+ * If they are 'applicant', it evaluates their submitted form to show their targeted role.
+ */
+export function getEffectiveRole(user: { role?: string | UserRole, applicantType?: string | UserRole }): UserRole {
+  if (!user.role) return ROLES.APPLICANT;
+  if (user.role === ROLES.APPLICANT && user.applicantType) {
+    return user.applicantType as UserRole;
+  }
+  return user.role as UserRole;
+}
+
+/**
+ * Returns metadata and visual properties strictly based on actual DB role.
+ * Unapproved users will correctly show as "Başvuru Sahibi".
+ */
+export function getRoleMeta(role?: string) {
+  return ROLE_METADATA[(role as UserRole)] || ROLE_METADATA[ROLES.APPLICANT];
 }

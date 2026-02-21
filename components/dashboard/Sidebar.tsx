@@ -8,7 +8,7 @@ import { signOut, useSession } from "next-auth/react";
 import { participantItems } from "@/lib/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ConnectionState } from "@/types/connection";
-import { STAFF_ROLES, MANAGEMENT_ROLES, COMMITTEE_LEADS } from "@/lib/roles";
+import { STAFF_ROLES, MANAGEMENT_ROLES, COMMITTEE_LEADS, getEffectiveRole, UserRole } from "@/lib/roles";
 
 interface SidebarProps {
   className?: string;
@@ -19,16 +19,15 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const role = session?.user?.role;
+  const actualRole = session?.user?.role;
+  const effectiveRole = session?.user ? getEffectiveRole(session.user) : null;
   const status = session?.user?.applicationStatus;
 
-  // Check if current user is Staff using the centralized array
-  const isStaff = role ? STAFF_ROLES.includes(role) : false;
+  const isStaff = actualRole ? STAFF_ROLES.includes(actualRole) : false;
 
   const { data: hasDelegation } = useQuery<boolean>({
     queryKey: ['delegation-check'],
     queryFn: async () => {
-      // Use the newly updated API which returns `has_delegation` flag
       const res = await fetch("/api/delegation/list_delegation_members");
       if (!res.ok) return false;
       const json = await res.json();
@@ -40,24 +39,21 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 
   // Filter items
   const items = participantItems.filter(item => {
-    // 1. Role Check
-    if (item.roles && role && !item.roles.includes(role)) return false;
+    // 1. Role Check using Effective Role
+    if (item.roles && effectiveRole && !item.roles.includes(effectiveRole)) return false;
 
     // 2. Approval Check
     if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
 
-    // 3. Payment Check (Hide if not approved)
-    if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
-
-    // 4. Delegation Check
+    // 3. Delegation Check
     if (item.requiresDelegation && !hasDelegation) return false;
 
     return true;
   });
 
   const roleTag = (() => {
-    if (role && MANAGEMENT_ROLES.includes(role)) return "Yönetim";
-    if (role && COMMITTEE_LEADS.includes(role)) return "Akademi";
+    if (effectiveRole && MANAGEMENT_ROLES.includes(effectiveRole as UserRole)) return "Yönetim";
+    if (effectiveRole && COMMITTEE_LEADS.includes(effectiveRole as UserRole)) return "Akademi";
     return null;
   })();
 
@@ -115,7 +111,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
               {item.title}
             </div>
 
-            {item.href === "/dashboard/connections" && pendingCount > 0 && (
+            {item.href === "/connections" && pendingCount > 0 && (
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
                 {pendingCount > 9 ? '9+' : pendingCount}
               </span>

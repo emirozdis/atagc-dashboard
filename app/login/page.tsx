@@ -105,7 +105,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@atagc.com.tr"
+                  placeholder="ornek@mail.com"
                   className="pl-9"
                   required
                   value={formData.email}

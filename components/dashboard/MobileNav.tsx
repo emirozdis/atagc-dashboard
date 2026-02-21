@@ -7,15 +7,17 @@ import { participantItems } from "@/lib/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { ConnectionState } from "@/types/connection";
-import { STAFF_ROLES } from "@/lib/roles";
+import { STAFF_ROLES, getEffectiveRole } from "@/lib/roles";
 
 export function MobileNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const role = session?.user?.role;
+  const actualRole = session?.user?.role;
+  const effectiveRole = session?.user ? getEffectiveRole(session.user) : null;
   const status = session?.user?.applicationStatus;
-  const isStaff = role ? STAFF_ROLES.includes(role) : false;
+  
+  const isStaff = actualRole ? STAFF_ROLES.includes(actualRole) : false;
 
   const { data: hasDelegation } = useQuery<boolean>({
     queryKey: ['delegation-check'],
@@ -33,17 +35,9 @@ export function MobileNav() {
   const items = participantItems
     .filter(item => item.mobileCore)
     .filter(item => {
-      // Role check
-      if (item.roles && role && !item.roles.includes(role)) return false;
-      // Approval check
-      if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
-
-      // Payment Check (Hide if not approved)
-      if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
-
-      // Delegation Check
+      if (item.roles && effectiveRole && !item.roles.includes(effectiveRole)) return false;
+      if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
       if (item.requiresDelegation && !hasDelegation) return false;
-
       return true;
     });
 
@@ -68,7 +62,7 @@ export function MobileNav() {
       <div className="flex justify-around items-center h-16">
         {items.map((item) => {
           const isActive = pathname === item.href;
-          const isConnections = item.href === "/dashboard/connections";
+          const isConnections = item.href === "/connections";
 
           return (
             <Link

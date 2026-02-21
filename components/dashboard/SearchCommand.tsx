@@ -17,8 +17,8 @@ import {
     ChevronRight
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
-import { participantItems } from "@/lib/navigation";
-import { STAFF_ROLES } from "@/lib/roles";
+import { participantItems, organisationItems } from "@/lib/navigation";
+import { STAFF_ROLES, getEffectiveRole, ORGANISATION_ROLES } from "@/lib/roles";
 
 interface SearchCommandProps {
     open: boolean;
@@ -29,21 +29,20 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
     const router = useRouter();
     const { data: session } = useSession();
 
-    const role = session?.user?.role;
+    const actualRole = session?.user?.role;
+    const effectiveRole = session?.user ? getEffectiveRole(session.user) : null;
     const status = session?.user?.applicationStatus;
+    
+    const isStaff = actualRole ? STAFF_ROLES.includes(actualRole) : false;
 
-    const items = participantItems.filter(item => {
-        // 1. Role Check
-        if (item.roles && role && !item.roles.includes(role)) return false;
+    // Use organization items if user is organization, else dashboard items
+    const sourceItems = effectiveRole && ORGANISATION_ROLES.includes(effectiveRole as any) 
+        ? organisationItems 
+        : participantItems;
 
-        // 2. Approval Check
-        const isStaff = role ? STAFF_ROLES.includes(role) : false;
-
+    const items = sourceItems.filter(item => {
+        if (item.roles && effectiveRole && !item.roles.includes(effectiveRole)) return false;
         if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
-
-        // 3. Payment Check (Hide if not approved)
-        if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
-
         return true;
     });
 
@@ -71,7 +70,7 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
 
                 <CommandGroup heading="Genel">
                     {items.map((item) => {
-                        if (item.href === "/dashboard/profile" || item.href === "/dashboard/payment") {
+                        if (item.href === "/profile" || item.href === "/payment") {
                             return null;
                         }
                         return (
@@ -103,12 +102,12 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
 
                 <CommandGroup heading="Profil ve Ödeme">
                     {items
-                        .filter(item => item.href === "/dashboard/profile" || item.href === "/dashboard/payment")
+                        .filter(item => item.href === "/profile" || item.href === "/payment")
                         .map((item) => (
                             <div key={item.href}>
                                 <CommandItem
                                     onSelect={() => runCommand(() => router.push(item.href))}
-                                    keywords={item.href === "/dashboard/profile" ? ['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings'] : []}
+                                    keywords={item.href === "/profile" ? ['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings'] : []}
                                 >
                                     <item.icon className="mr-2 h-4 w-4" />
                                     {item.title}
@@ -129,7 +128,7 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
                         ))}
                     <CommandItem
                         keywords={['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings']}
-                        onSelect={() => runCommand(() => router.push("/dashboard/profile#security"))}
+                        onSelect={() => runCommand(() => router.push("/profile#security"))}
                     >
                         <Settings className="mr-2 h-4 w-4" />
                         Şifre ve Ayarlar

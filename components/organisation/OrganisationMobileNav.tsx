@@ -5,23 +5,23 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { organisationItems } from "@/lib/navigation";
 import { useSession } from "next-auth/react";
+import { UserRole, getEffectiveRole, STAFF_ROLES } from "@/lib/roles";
 
 export function OrganisationMobileNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const role = session?.user?.role;
+  const actualRole = session?.user?.role;
+  const effectiveRole = session?.user ? getEffectiveRole(session.user) : null;
   const status = session?.user?.applicationStatus;
+  
+  const isStaff = actualRole ? STAFF_ROLES.includes(actualRole) : false;
 
-  // Filter items for mobile navigation
   const items = organisationItems
     .filter(item => item.mobileCore)
     .filter(item => {
-      // Role check
-      if (item.roles && role && !item.roles.includes(role)) return false;
-      // Approval check
-      if (status !== 'approved' && item.requiresApproved) return false;
-
+      if (!effectiveRole || !item.roles.includes(effectiveRole)) return false;
+      if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
       return true;
     });
 

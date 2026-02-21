@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { organisationItems } from "@/lib/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { UserRole, OBSERVER_TEAM, PRESS_TEAM, SECURITY_TEAM, getEffectiveRole, STAFF_ROLES } from "@/lib/roles";
 
 interface OrganisationMobileSidebarProps {
     onClose?: () => void;
@@ -16,24 +17,35 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
     const pathname = usePathname();
     const { data: session } = useSession();
 
-    const role = session?.user?.role;
+    const actualRole = session?.user?.role;
+    const effectiveRole = session?.user ? getEffectiveRole(session.user) : null;
     const status = session?.user?.applicationStatus;
+    
+    const isStaff = actualRole ? STAFF_ROLES.includes(actualRole) : false;
 
-    const items = organisationItems.filter((item) => {
-        if (item.roles && role && !item.roles.includes(role)) return false;
-        if (status !== 'approved' && item.requiresApproved) return false;
+    const items = organisationItems.filter(item => {
+        if (!effectiveRole || !item.roles.includes(effectiveRole)) return false;
+        if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
         return true;
     });
+
+    const getTeamLabel = () => {
+        if (!effectiveRole) return "Organizasyon";
+        if (OBSERVER_TEAM.includes(effectiveRole as UserRole)) return "Gözlemci Ekibi";
+        if (PRESS_TEAM.includes(effectiveRole as UserRole)) return "Basın Ekibi";
+        if (SECURITY_TEAM.includes(effectiveRole as UserRole)) return "Güvenlik Ekibi";
+        return "Organizasyon";
+    };
 
     return (
         <div className="flex flex-col h-full bg-background border-r border-border">
             <div className="p-6 border-b border-border">
                 <Link href="/organisation" className="flex items-center gap-3" onClick={onClose}>
                     <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
-                    <span className="font-display font-bold text-lg text-primary">
+                    <span className="font-display font-bold text-lg text-primary flex flex-col leading-none">
                         ATAGÇ
-                        <span className="text-xs ml-2 bg-primary/20 px-1.5 py-0.5 rounded text-primary-foreground">
-                            Organizasyon
+                        <span className="text-[10px] font-normal text-muted-foreground mt-1 uppercase tracking-wider">
+                            {getTeamLabel()}
                         </span>
                     </span>
                 </Link>
@@ -41,7 +53,7 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
 
             <ScrollArea className="flex-1 p-4">
                 <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Organizasyon Menüsü
+                    Menü
                 </div>
 
                 <nav className="space-y-1">

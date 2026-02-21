@@ -9,20 +9,20 @@ import {
     FolderOpen,
     UsersRound,
     CreditCard,
-    UserPlus,
-    Send,
-    BarChart,
-    Shield,
-    Smartphone,
-    Building2,
-    Globe,
     ShieldCheck,
     MessageSquare,
     ClipboardList,
     ListTodo,
     UtensilsCrossed,
-    Users
+    Users,
+    Camera,
 } from "lucide-react";
+import {
+    DASHBOARD_ROLES,
+    OBSERVER_TEAM,
+    PRESS_TEAM,
+    SECURITY_TEAM,
+} from "./roles";
 
 export interface NavigationSubItem {
     title: string;
@@ -42,56 +42,31 @@ export interface NavigationItem {
     subItems?: NavigationSubItem[];
 }
 
+// 1. Dashboard Items (Delegates, Chairs)
 export const participantItems: NavigationItem[] = [
     {
         title: "Genel Durum",
         href: "/dashboard",
         icon: LayoutDashboard,
-        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: DASHBOARD_ROLES,
         mobileCore: true,
         requiresApproved: false,
     },
     {
         title: "Profilim",
-        href: "/dashboard/profile",
+        href: "/profile",
         icon: User,
-        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: DASHBOARD_ROLES,
         mobileCore: true,
         requiresApproved: false,
-        subItems: [
-            {
-                title: "Kişisel Bilgiler",
-                href: "/dashboard/profile#personal",
-                icon: User,
-                keywords: ["kişisel", "personal", "bilgi", "info", "detay"]
-            },
-            {
-                title: "Dijital Kimlik",
-                href: "/dashboard/profile#digital-id",
-                icon: ShieldCheck,
-                keywords: ["dijital", "digital", "kimlik", "id", "kart", "card", "qr"]
-            },
-            {
-                title: "Güvenlik",
-                href: "/dashboard/profile#security",
-                icon: Shield,
-                keywords: ["güvenlik", "security", "şifre", "password", "ayarlar", "settings"]
-            },
-            {
-                title: "Cihazlar",
-                href: "/dashboard/profile#devices",
-                icon: Smartphone,
-                keywords: ["cihaz", "device", "oturum", "session", "giriş"]
-            }
-        ]
     },
     {
         title: "Ödeme",
-        href: "/dashboard/payment",
+        href: "/payment",
         icon: CreditCard,
-        roles: ["applicant", "delegate", "press", "observer"],
+        roles: ["applicant", "delegate"],
         mobileCore: false,
-        requiresApproved: false,
+        requiresApproved: true, // Kullanıcı onaylanmadan ödemeyi göremez
     },
     {
         title: "Delegasyon",
@@ -99,30 +74,22 @@ export const participantItems: NavigationItem[] = [
         icon: Users,
         roles: ["applicant", "delegate"],
         mobileCore: false,
-        requiresApproved: false,
+        requiresApproved: false, // Delegasyon davetine yanıt verebilmesi için onaysızken de görmeli
         requiresDelegation: true,
     },
     {
         title: "Komitem",
         href: "/dashboard/committee",
         icon: Briefcase,
-        roles: ["delegate", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: ["delegate", "committee_chairman", "chair"],
         mobileCore: true,
         requiresApproved: true,
-        subItems: [
-            {
-                title: "Oylama Merkezi",
-                href: "/dashboard/committee#voting",
-                icon: BarChart,
-                keywords: ["oylama", "vote", "poll", "ballot"]
-            }
-        ]
     },
     {
         title: "Yoklama Yönetimi",
         href: "/dashboard/committee/roll-call",
         icon: QrCode,
-        roles: ["committee_chairman", "deputy_chair"],
+        roles: ["committee_chairman", "chair"],
         mobileCore: false,
         requiresApproved: true,
     },
@@ -130,125 +97,168 @@ export const participantItems: NavigationItem[] = [
         title: "Ortak Çalışma",
         href: "/dashboard/editor",
         icon: PenTool,
-        roles: ["delegate", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: ["delegate", "committee_chairman", "chair"],
         mobileCore: false,
-        requiresApproved: true,
-    },
-    {
-        title: "Tara",
-        href: "/dashboard/scan",
-        icon: ScanLine,
-        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
-        mobileCore: true,
         requiresApproved: true,
     },
     {
         title: "Tanıştıklarım",
-        href: "/dashboard/connections",
+        href: "/connections",
         icon: UsersRound,
-        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: DASHBOARD_ROLES,
         mobileCore: true,
         requiresApproved: true,
-        subItems: [
-            {
-                title: "Bağlantılar",
-                href: "/dashboard/connections#list",
-                icon: UsersRound,
-                keywords: ["bağlantı", "connection", "list", "liste"]
-            },
-            {
-                title: "Gelen İstekler",
-                href: "/dashboard/connections#pending",
-                icon: UserPlus,
-                keywords: ["gelen", "incoming", "pending", "istek", "request", "bekleyen"]
-            },
-            {
-                title: "Giden İstekler",
-                href: "/dashboard/connections#sent",
-                icon: Send,
-                keywords: ["giden", "outgoing", "sent", "gönderilen"]
-            }
-        ]
     },
     {
         title: "Kaynaklar",
-        href: "/dashboard/resources",
+        href: "/resources",
         icon: FolderOpen,
-        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: DASHBOARD_ROLES,
         mobileCore: false,
         requiresApproved: true,
-        subItems: [
-            {
-                title: "Komite Kaynakları",
-                href: "/dashboard/resources#committee",
-                icon: Building2,
-                keywords: ["komite", "committee", "özel"]
-            },
-            {
-                title: "Genel Kaynaklar",
-                href: "/dashboard/resources#general",
-                icon: Globe,
-                keywords: ["genel", "general", "public", "herkes"]
-            }
-        ]
     },
     {
         title: "Duyurular",
-        href: "/dashboard/announcements",
+        href: "/announcements",
         icon: Megaphone,
-        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: DASHBOARD_ROLES,
         mobileCore: false,
         requiresApproved: true,
     },
     {
         title: "Yemek",
-        href: "/dashboard/catering",
+        href: "/catering",
         icon: UtensilsCrossed,
-        roles: ["delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: DASHBOARD_ROLES,
         mobileCore: false,
         requiresApproved: true,
     },
     {
         title: "Destek",
-        href: "/dashboard/tickets",
+        href: "/tickets",
         icon: MessageSquare,
-        roles: ["applicant", "delegate", "press", "observer", "committee_chairman", "deputy_chair", "superadmin"],
+        roles: DASHBOARD_ROLES,
         mobileCore: false,
         requiresApproved: false,
     },
 ];
 
+// 2. Organisation Items (Observers, Press, Security)
 export const organisationItems: NavigationItem[] = [
     {
         title: "Genel Durum",
         href: "/organisation",
         icon: LayoutDashboard,
-        roles: ["observer", "head_observer"],
+        roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
         mobileCore: true,
         requiresApproved: false,
     },
     {
-        title: "Görev Oluştur",
-        href: "/organisation/tasks",
-        icon: ClipboardList,
-        roles: ["head_observer", "admin", "superadmin"],
+        title: "Profilim",
+        href: "/profile",
+        icon: User,
+        roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
         mobileCore: true,
         requiresApproved: false,
+    },
+    {
+        title: "Ödeme",
+        href: "/payment",
+        icon: CreditCard,
+        roles: [...OBSERVER_TEAM, ...PRESS_TEAM],
+        mobileCore: false,
+        requiresApproved: true,
+    },
+    // Observer Specific
+    {
+        title: "Görev Oluştur",
+        href: "/organisation/observers/tasks",
+        icon: ClipboardList,
+        roles: ["head_observer"],
+        mobileCore: true,
+        requiresApproved: true,
     },
     {
         title: "Görevlerim",
-        href: "/organisation/my-tasks",
+        href: "/organisation/observers/my-tasks",
         icon: ListTodo,
-        roles: ["observer"],
+        roles: OBSERVER_TEAM,
         mobileCore: true,
-        requiresApproved: false,
+        requiresApproved: true,
     },
     {
         title: "Gözlemci Atama",
-        href: "/organisation/assign-observers",
-        icon: ListTodo,
-        roles: ["head_observer", 'admin', 'superadmin'],
+        href: "/organisation/observers/assign",
+        icon: Users,
+        roles: ["head_observer"],
         mobileCore: true,
-        requiresApproved: false,
+        requiresApproved: true,
     },
+    // Press Specific
+    {
+        title: "Basın Galerisi",
+        href: "/organisation/press/gallery",
+        icon: Camera,
+        roles: PRESS_TEAM,
+        mobileCore: true,
+        requiresApproved: true,
+    },
+    {
+        title: "Dosya Yükle",
+        href: "/organisation/press/upload",
+        icon: FolderOpen,
+        roles: PRESS_TEAM,
+        mobileCore: true,
+        requiresApproved: true,
+    },
+    // Security Specific
+    {
+        title: "QR Tara",
+        href: "/organisation/security/scan",
+        icon: ScanLine,
+        roles: SECURITY_TEAM,
+        mobileCore: true,
+        requiresApproved: true,
+    },
+    {
+        title: "Giriş Logları",
+        href: "/organisation/security/logs",
+        icon: ShieldCheck,
+        roles: ["head_security"],
+        mobileCore: false,
+        requiresApproved: true,
+    },
+    // Shared Org Items
+    {
+        title: "Tanıştıklarım",
+        href: "/connections",
+        icon: UsersRound,
+        roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
+        mobileCore: true,
+        requiresApproved: true,
+    },
+    {
+        title: "Yemek",
+        href: "/catering",
+        icon: UtensilsCrossed,
+        roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
+        mobileCore: false,
+        requiresApproved: true,
+    },
+    {
+        title: "Duyurular",
+        href: "/announcements",
+        icon: Megaphone,
+        roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
+        mobileCore: false,
+        requiresApproved: true,
+    },
+    {
+        title: "Destek",
+        href: "/tickets",
+        icon: MessageSquare,
+        roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
+        mobileCore: false,
+        requiresApproved: false,
+    }
 ];

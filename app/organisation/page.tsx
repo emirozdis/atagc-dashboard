@@ -2,32 +2,29 @@
 
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { OBSERVER_TEAM, PRESS_TEAM, SECURITY_TEAM, UserRole, getEffectiveRole, ROLE_METADATA } from "@/lib/roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
-import {
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Info,
-  MapPin,
-  XCircle,
-  AlertTriangle,
-  ShieldCheck,
-  Briefcase,
-  Eye
-} from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Camera, ShieldAlert, Eye, User, MapPin, Calendar,
+  CheckCircle2, Clock, Info, ChevronRight, Users,
+  XCircle, AlertTriangle, ShieldCheck
+} from "lucide-react";
+import { PaymentStatusEnum } from "@/types/payment";
+import { ApplicationStatusEnum } from "@/types/application";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ProfileData, SystemSettings } from "@/types/dashboard";
 
 export default function OrganisationPage() {
   const { data: session } = useSession();
-  const router = useRouter();
-
-  const { data: profile, isLoading: profileLoading } = useQuery({
+  const role = session?.user?.role as UserRole;
+  
+  const { data: profile, isLoading: profileLoading } = useQuery<ProfileData>({
     queryKey: ['participant-me'],
     queryFn: async () => {
       const res = await fetch("/api/participant/me");
@@ -36,7 +33,7 @@ export default function OrganisationPage() {
     }
   });
 
-  const { data: settings, isLoading: settingsLoading } = useQuery({
+  const { data: settings, isLoading: settingsLoading } = useQuery<SystemSettings>({
     queryKey: ['public-settings'],
     queryFn: async () => {
       const res = await fetch("/api/settings");
@@ -45,72 +42,111 @@ export default function OrganisationPage() {
     }
   });
 
+  const { profile: userProfile, application } = profile || {};
+  const effectiveRole = getEffectiveRole({ role, applicantType: application?.form?.slug });
+  const appStatus = application?.status || "pending";
+
+  // Payment status — press and observer roles have payment flows
+  const hasPaymentFlow = OBSERVER_TEAM.includes(effectiveRole) || PRESS_TEAM.includes(effectiveRole);
+
   const { data: paymentData, isLoading: paymentLoading } = useQuery({
     queryKey: ['payment-status-dashboard'],
     queryFn: async () => {
       const res = await fetch("/api/payment/status");
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    }
-  });
-
-  const { profile: userProfile } = profile || {};
-  const isObserver = userProfile?.role === 'observer';
-
-  const { data: observerInfo, isLoading: observerLoading } = useQuery({
-    queryKey: ['observer-info'],
-    queryFn: async () => {
-      const res = await fetch("/api/observer/info");
+      if (res.status === 403 || res.status === 401) {
+        return { payment_status: "unpaid" };
+      }
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    enabled: isObserver
+    enabled: hasPaymentFlow,
   });
 
-  const isLoading = profileLoading || paymentLoading || (isObserver && observerLoading);
-  const { application } = profile || {};
-  const paymentStatus = paymentData?.payment_status || "unpaid";
-  const appStatus = application?.status || "pending";
+  // Observer-specific allocation data
+  const { data: observerData, isLoading: observerLoading } = useQuery({
+    queryKey: ['observer-info'],
+    queryFn: async () => {
+      const res = await fetch("/api/observer/info");
+      if (!res.ok) throw new Error("Failed to fetch observer data");
+      return res.json();
+    },
+    enabled: OBSERVER_TEAM.includes(effectiveRole),
+  });
 
-  const isPaymentComplete = paymentStatus === "paid" || paymentStatus === "exempt";
-  const showIdCard = userProfile && (userProfile.role !== 'applicant' || (appStatus === "approved" && isPaymentComplete));
+  const isLoading = profileLoading || (hasPaymentFlow && paymentLoading);
 
-  const isAssignedToCommittee = isObserver && observerInfo?.allocatedCommittee;
+  const showIdCard = userProfile && (userProfile.role !== 'applicant' || appStatus === 'approved');
+
+  const isObserver = OBSERVER_TEAM.includes(effectiveRole);
+  const isPress = PRESS_TEAM.includes(effectiveRole);
+  const isSecurity = SECURITY_TEAM.includes(effectiveRole);
+
+  const teamLabel = isObserver ? "Gözlemci Ekibi"
+    : isPress ? "Basın Ekibi"
+      : isSecurity ? "Güvenlik Ekibi"
+        : "Organizasyon";
+
+  const teamColor = isObserver ? "cyan"
+    : isPress ? "pink"
+      : isSecurity ? "zinc"
+        : "primary";
+
+  const paymentStatus = paymentData?.payment_status || PaymentStatusEnum.UNPAID;
+
+  const appliedRoleSlug = application?.form?.slug;
+  const appliedRoleLabel = appliedRoleSlug ? ROLE_METADATA[appliedRoleSlug as UserRole]?.label : "Organizasyon";
 
   const getStatusSteps = () => {
-    const assignmentStatus = isObserver
-      ? (isAssignedToCommittee ? 'done' : 'waiting')
-      : 'waiting';
+    const steps: {
+      id: string;
+      label: string;
+      status: string;
+      text?: string;
+      date?: string;
+    }[] = [];
 
-    const assignmentText = isObserver
-      ? (isAssignedToCommittee ? observerInfo?.allocatedCommitteeName || "Atandı" : "Beklemede")
-      : "Beklemede";
+    // Step 1: Account / Role confirmation
+    steps.push({
+      id: 'account',
+      label: "Başvuru Durumu",
+      status: userProfile && appStatus === 'approved' ? 'done' : appStatus === 'rejected' ? 'error' : 'processing',
+      text: appStatus === 'approved' 
+              ? appliedRoleLabel 
+              : appStatus === 'rejected' 
+                ? `${appliedRoleLabel} Başvurusu Reddedildi`
+                : `${appliedRoleLabel} Başvurusu İnceleniyor`,
+    });
 
-    return [
-      {
-        id: 'application',
-        label: "Başvuru",
-        status: appStatus === 'approved' ? 'done' : appStatus === 'rejected' ? 'error' : 'processing',
-        date: application?.submitted_at
-      },
-      {
+    // Step 2: Payment
+    if (hasPaymentFlow) {
+      steps.push({
         id: 'payment',
         label: "Ödeme",
-        status: appStatus !== 'approved' ? 'waiting' :
-          paymentStatus === "paid" ? 'done' :
-            paymentStatus === "exempt" ? 'exempt' :
-              paymentStatus === "processing" ? 'processing' :
-                paymentStatus === "rejected" ? 'error' : 'pending',
+        status:
+          appStatus !== 'approved' ? 'waiting' :
+          paymentStatus === PaymentStatusEnum.PAID ? 'done' :
+            paymentStatus === PaymentStatusEnum.EXEMPT ? 'exempt' :
+              paymentStatus === PaymentStatusEnum.PROCESSING ? 'processing' :
+                paymentStatus === PaymentStatusEnum.REJECTED ? 'error' : 'pending',
         date: paymentData?.last_receipt?.created_at,
-        text: paymentStatus === "exempt" ? "Muaf" : undefined
-      },
-      {
-        id: 'assignment',
-        label: "Atama",
-        status: assignmentStatus,
-        text: assignmentText
-      }
-    ];
+        text: paymentStatus === PaymentStatusEnum.EXEMPT ? "Muaf" : undefined
+      });
+    }
+
+    // Step 3: Observer allocation
+    if (isObserver) {
+      const hasAllocation = observerData?.allocatedCommittee || observerData?.allocatedArea;
+      steps.push({
+        id: 'allocation',
+        label: "Gözlemci Ataması",
+        status: hasAllocation ? 'done' : 'waiting',
+        text: hasAllocation
+          ? (observerData?.allocatedCommitteeName || observerData?.allocatedArea || "Atandı")
+          : "Atama bekleniyor",
+      });
+    }
+
+    return steps;
   };
 
   const steps = getStatusSteps();
@@ -132,7 +168,6 @@ export default function OrganisationPage() {
       const startDate = new Date(start);
       const endDate = end ? new Date(end) : null;
       const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-
       if (endDate) {
         if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
           return `${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`;
@@ -140,13 +175,22 @@ export default function OrganisationPage() {
         return `${startDate.toLocaleDateString('tr-TR', options)} - ${endDate.toLocaleDateString('tr-TR', options)}`;
       }
       return startDate.toLocaleDateString('tr-TR', options);
-    } catch (e) {
+    } catch {
       return "Tarih Formatı Hatalı";
     }
   };
 
+  // Ensure Digital ID displays default user role ("BAŞVURU SAHİBİ" if not approved)
+  const userForDigitalId = userProfile ? {
+      id: userProfile.id,
+      full_name: userProfile.full_name,
+      role: userProfile.role,
+      created_at: userProfile.created_at
+  } : undefined;
+
   return (
-    <div className="animate-fade-in max-w-7xl mx-auto pb-12 space-y-8">
+    <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-12">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <Breadcrumbs items={[{ label: "Organizasyon" }]} />
@@ -154,32 +198,41 @@ export default function OrganisationPage() {
             Merhaba, <span className="text-primary">{session?.user?.name?.split(" ")[0]}</span>
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Kayıt sürecinizi buradan takip edebilirsiniz.
+            Organizasyon paneline hoş geldiniz.
           </p>
         </div>
-        {settingsLoading ? (
-          <Skeleton className="h-8 w-32 rounded-full" />
-        ) : settings?.term_name && (
-          <Badge variant="outline" className="w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider bg-secondary/50">
-            {settings.term_name}
+        <div className="flex items-center gap-2">
+          {settingsLoading ? (
+            <Skeleton className="h-8 w-32 rounded-full" />
+          ) : settings?.term_name && (
+            <Badge variant="outline" className="w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider bg-secondary/50">
+              {settings.term_name}
+            </Badge>
+          )}
+          <Badge variant="outline" className={cn(
+            "w-fit px-3 py-1.5 text-xs font-medium uppercase tracking-wider",
+            `bg-${teamColor}-500/10 text-${teamColor}-600 border-${teamColor}-500/20`
+          )}>
+            {teamLabel}
           </Badge>
-        )}
+        </div>
       </div>
 
+      {/* Main Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left/Main Column */}
         <div className={cn("flex flex-col gap-6", (showIdCard || isLoading) ? "lg:col-span-2" : "lg:col-span-3")}>
-          {/* Kayıt Durumu */}
+
+          {/* Status Steps Card */}
           <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
             <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
-                <Info className="w-4 h-4 text-primary" /> Kayıt Durumu
+                <Info className="w-4 h-4 text-primary" /> Durum Bilgisi
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-border/50">
                 {isLoading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
+                  Array.from({ length: 2 }).map((_, i) => (
                     <div key={i} className="flex items-center justify-between p-4 md:p-6">
                       <div className="flex items-center gap-4">
                         <Skeleton className="w-5 h-5 rounded-full" />
@@ -198,18 +251,23 @@ export default function OrganisationPage() {
                         <div className="flex flex-col items-center gap-1">
                           {getStepIcon(step.status)}
                           {idx < steps.length - 1 && (
-                            <div className={cn("w-px h-6 my-1", (step.status === 'done' || step.status === 'exempt') ? "bg-emerald-500/30" : "bg-border")} />
+                            <div className={cn(
+                              "w-px h-6 my-1",
+                              step.status === 'done' ? "bg-emerald-500/30" : "bg-border"
+                            )} />
                           )}
                         </div>
                         <div>
                           <div className="font-medium text-sm md:text-base">{step.label}</div>
                           <div className="text-xs text-muted-foreground">
-                            {step.status === 'done' ? (step.text || "Tamamlandı") :
+                            {step.text || (
+                              step.status === 'done' ? "Tamamlandı" :
                               step.status === 'exempt' ? "Muaf (Tamamlandı)" :
-                                step.status === 'processing' ? "İnceleniyor" :
-                                  step.status === 'error' ? "Sorun Var" :
-                                    step.status === 'pending' ? "İşlem Bekliyor" :
-                                      "Bekleniyor"}
+                              step.status === 'processing' ? "İnceleniyor" :
+                              step.status === 'error' ? "Sorun Var" :
+                              step.status === 'pending' ? "İşlem Bekliyor" :
+                              "Bekleniyor"
+                            )}
                           </div>
                         </div>
                       </div>
@@ -220,6 +278,27 @@ export default function OrganisationPage() {
                             {new Date(step.date).toLocaleDateString("tr-TR")}
                           </span>
                         )}
+
+                        {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
+                          <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
+                            <Link href="/payment">
+                              {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
+                            </Link>
+                          </Button>
+                        )}
+                        {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
+                          <Button size="sm" variant="outline" asChild className="h-8 text-xs">
+                            <Link href="/payment">Detay</Link>
+                          </Button>
+                        )}
+
+                        {step.id === 'allocation' && step.status === 'done' && (
+                          <Button size="sm" variant="outline" asChild className="h-8 text-xs">
+                            <Link href="/organisation/observers/my-tasks">
+                              Görevlerim <ChevronRight className="w-3 h-3 ml-1" />
+                            </Link>
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))
@@ -228,59 +307,7 @@ export default function OrganisationPage() {
             </CardContent>
           </Card>
 
-          {/* Observer Committee Assignment Card */}
-          {isObserver && !isLoading && (
-            <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
-              <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
-                <CardTitle className="text-lg font-medium flex items-center gap-2">
-                  {isAssignedToCommittee ? (
-                    <><Briefcase className="w-4 h-4 text-primary" /> Komite Atamanız</>
-                  ) : (
-                    <><Eye className="w-4 h-4 text-primary" /> Gözlemci Durumu</>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {isAssignedToCommittee ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium text-foreground">
-                          Komiteye atandınız
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {observerInfo?.allocatedCommitteeName}
-                          {observerInfo?.allocatedArea && ` — ${observerInfo.allocatedArea}`}
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => router.push("/dashboard/committee")}
-                      className="w-full"
-                    >
-                      <Briefcase className="w-4 h-4 mr-2" />
-                      Komiteye Git
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <Clock className="w-5 h-5 text-amber-500 shrink-0" />
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        Henüz bir komiteye atanmadınız
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Atama yapıldığında burada görüntülenecektir. Lütfen bekleyiniz.
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Etkinlik Detayları */}
+          {/* Event Details Card */}
           <Card className="bg-card border-border/50 shadow-sm flex flex-col flex-1">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -305,7 +332,6 @@ export default function OrganisationPage() {
                       </div>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
                     <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
@@ -321,18 +347,162 @@ export default function OrganisationPage() {
           </Card>
         </div>
 
-        {/* Right Column: Digital ID */}
-        <div className="lg:col-span-1 h-full min-h-[400px]">
-          {(isLoading || (showIdCard && userProfile)) && (
-            <DigitalIdCard
-              user={userProfile}
-              className="h-full"
-              uniqueId="organisation"
-              isLoading={isLoading}
-            />
+        {/* Digital ID Card Column */}
+        {showIdCard && (
+            <div className="lg:col-span-1 h-full min-h-[400px]">
+                <DigitalIdCard
+                    user={userForDigitalId}
+                    className="h-full"
+                    uniqueId="organisation"
+                    isLoading={isLoading}
+                />
+            </div>
+        )}
+      </div>
+
+      {/* Role-Specific Sections */}
+
+      {/* OBSERVER SECTION */}
+      {isObserver && appStatus === 'approved' && (
+        <div className="space-y-6 pt-4">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border/50" />
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Gözlemci Bilgileri</h3>
+            <div className="h-px flex-1 bg-border/50" />
+          </div>
+
+          {observerLoading ? (
+            <Card className="bg-card border-border/40">
+              <CardContent className="p-6">
+                <Skeleton className="h-8 w-48 mb-4" />
+                <Skeleton className="h-6 w-full" />
+              </CardContent>
+            </Card>
+          ) : observerData?.allocatedCommittee ? (
+            <Card className="bg-card border-border/40">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  Atanan Komite
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="text-xl font-bold mb-3 text-foreground">
+                    {observerData.allocatedCommitteeName || observerData.allocatedCommittee}
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Komite gözlemcisi olarak atandınız.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : observerData?.allocatedArea ? (
+            <Card className="bg-card border-border/40">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  Atanan Alan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="text-xl font-bold mb-3 text-foreground">{observerData.allocatedArea}</div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Alan gözlemcisi olarak atandınız.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-secondary/10 border-dashed border-border/60">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center mb-5 animate-pulse">
+                  <Eye className="w-7 h-7 text-cyan-500" />
+                </div>
+                <h4 className="font-semibold text-xl text-foreground mb-2">Atama Bekleniyor</h4>
+                <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
+                  Gözlemci olarak henüz bir komite veya alana atanmadınız. Atama yapıldığında bilgilendirileceksiniz.
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
-      </div>
+      )}
+
+      {/* PRESS SECTION */}
+      {isPress && appStatus === 'approved' && (
+        <div className="space-y-6 pt-4">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border/50" />
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Basın Modülü</h3>
+            <div className="h-px flex-1 bg-border/50" />
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="group relative overflow-hidden bg-card border-border/50 shadow-sm hover:shadow-md hover:border-pink-500/20 transition-all">
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 via-transparent to-transparent opacity-50 pointer-events-none" />
+              <CardHeader className="relative z-10">
+                <CardTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="p-2 rounded-lg bg-pink-500/10 text-pink-600">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  Basın Galerisi
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative z-10 space-y-4">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Fotoğraf ve medya içeriklerini görüntüleyin ve yönetin.
+                </p>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href="/organisation/press/gallery" className="flex items-center gap-2">
+                    Galeriye Git <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* SECURITY SECTION */}
+      {isSecurity && appStatus === 'approved' && (
+        <div className="space-y-6 pt-4">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border/50" />
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Güvenlik Modülü</h3>
+            <div className="h-px flex-1 bg-border/50" />
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="group relative overflow-hidden bg-card border-border/50 shadow-sm hover:shadow-md hover:border-zinc-500/20 transition-all">
+              <div className="absolute inset-0 bg-gradient-to-br from-zinc-500/5 via-transparent to-transparent opacity-50 pointer-events-none" />
+              <CardHeader className="relative z-10">
+                <CardTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="p-2 rounded-lg bg-zinc-500/10 text-zinc-600 dark:text-zinc-400">
+                    <ShieldAlert className="w-5 h-5" />
+                  </div>
+                  QR Tarama
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative z-10 space-y-4">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Katılımcı giriş kartlarını tarayın ve kontrol edin.
+                </p>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href="/organisation/security/scan" className="flex items-center gap-2">
+                    Taramaya Başla <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
