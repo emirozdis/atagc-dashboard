@@ -100,7 +100,7 @@ CREATE TABLE public.delegation_magiclinks (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   delegation smallint NOT NULL,
   sent_to text NOT NULL,
-  used boolean NOT NULL DEFAULT false,
+  is_used boolean NOT NULL DEFAULT false,
   CONSTRAINT delegation_magiclinks_pkey PRIMARY KEY (id),
   CONSTRAINT delegation_magiclinks_delegation_fkey FOREIGN KEY (delegation) REFERENCES public.delegations(id)
 );

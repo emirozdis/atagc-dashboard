@@ -32,7 +32,7 @@
   {
     "function_name": "get_participant_me_data",
     "arguments": "target_user_id uuid",
-    "return_type": "json",
+    "return_type": "jsonb",
     "security_definer": true
   },
   {

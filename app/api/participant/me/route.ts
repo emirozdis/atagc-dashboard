@@ -18,56 +18,18 @@ export const GET = apiHandler(async (request: Request) => {
   const session = auth.session;
   const userId = session.user.id;
 
+  // Use the RPC to fetch consolidated data
   const { data: userData, error } = await supabase
-    .from("users")
-    .select(`
-        id, full_name, email, role, created_at,
-        user_details (
-            id, phone_number, high_school_id, birth_date, city, grade, profile_picture_url, 
-            is_profile_picture_hidden, allow_connections, notification_preferences, additional_info,
-            high_schools(school_name)
-        ),
-        user_warnings:user_warnings!user_warnings_user_id_fkey ( 
-            id, reason, created_at, 
-            issuer:users!user_warnings_issued_by_fkey(full_name, role) 
-        ),
-        application:applications ( 
-            id, status, submitted_at, review_notes, form_data,
-            form:application_forms (id, slug, title, steps)
-        ),
-        committee_members (
-            can_write,
-            committee:committees (
-                id, name, description,
-                topic:topics ( title, description ),
-                admin:users!committees_admin_id_fkey (
-                    id, full_name, user_details ( profile_picture_url, is_profile_picture_hidden )
-                )
-            )
-        ),
-        managed_committees:committees (
-            id, name, description,
-            topic:topics ( title, description )
-        ),
-        delegation_members (
-            accepted,
-            delegation:delegations (
-                id,
-                name,
-                leader:users!delegations_created_by_fkey(full_name)
-            )
-        )
-    `)
-    .eq("id", userId)
-    .single();
+    .rpc('get_participant_me_data', { target_user_id: userId });
 
   if (error) throw error;
   if (!userData) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   const user = userData as any;
 
-  const details = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
-  const application = Array.isArray(user.application) ? user.application[0] : user.application;
+  // Extract objects built by RPC
+  const details = user.user_details;
+  const application = user.application;
 
   let committeeData: any = null;
   const memberRecord = user.committee_members?.[0];
@@ -96,7 +58,7 @@ export const GET = apiHandler(async (request: Request) => {
     }
   }
 
-  const delegationMember = Array.isArray(user.delegation_members) ? user.delegation_members[0] : user.delegation_members;
+  const delegationMember = user.delegation_members;
   let delegationData = null;
   if (delegationMember?.delegation) {
     const del = Array.isArray(delegationMember.delegation) ? delegationMember.delegation[0] : delegationMember.delegation;
@@ -109,6 +71,7 @@ export const GET = apiHandler(async (request: Request) => {
     };
   }
 
+  // Generate Signed URLs for private storage files
   if (details?.profile_picture_url) {
     details.profile_picture_url = await getSignedUrl("profile-pictures", details.profile_picture_url);
   }
