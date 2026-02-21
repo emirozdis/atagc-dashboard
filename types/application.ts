@@ -42,7 +42,10 @@ export const personalDetailsSchema = z.object({
   grade: z.enum(['prep', '9', '10', '11', '12', 'university']),
   high_school_id: z.number().min(-1, "Okul seçimi zorunludur"),
   manual_school_name: z.string().optional(),
-  delegation_name: z.string().optional(), // Added static delegation name
+  delegation_name: z.string().optional(), 
+  kvkk_consent: z.boolean().refine(val => val === true, {
+    message: "Devam etmek için KVKK Aydınlatma Metni'ni onaylamanız gerekmektedir."
+  }),
 }).refine((data) => {
   if (data.high_school_id === -1) {
     return !!data.manual_school_name && data.manual_school_name.length > 3;
@@ -95,5 +98,4 @@ export interface FullApplicationSubmission {
   personalDetails: PersonalDetailsData;
   formId: string;
   formData: DynamicFormData;
-  kvkkApproved: boolean;
 }

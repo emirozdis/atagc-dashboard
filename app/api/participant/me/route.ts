@@ -31,6 +31,14 @@ export const GET = apiHandler(async (request: Request) => {
   const details = user.user_details;
   const application = user.application;
 
+  // Fetch Consents
+  const { data: consents } = await supabase
+    .from("user_consents")
+    .select("id, consent_type, consent_version, action, created_at, ip_address")
+    .eq("user_id", userId)
+    .eq("action", "GRANTED")
+    .order("created_at", { ascending: false });
+
   let committeeData: any = null;
   const memberRecord = user.committee_members?.[0];
   const managedRecord = user.managed_committees?.[0];
@@ -94,6 +102,7 @@ export const GET = apiHandler(async (request: Request) => {
     profile: {
       ...user,
       details,
+      consents: consents || [],
       delegation: delegationData,
       user_details: undefined, 
       user_warnings: user.user_warnings,

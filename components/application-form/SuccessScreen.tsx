@@ -24,7 +24,7 @@ export function SuccessScreen({ onReset }: SuccessScreenProps) {
       </p>
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-        <Button asChild className="w-full sm:w-auto h-12 px-8 shadow-lg shadow-primary/20">
+        <Button asChild className="w-full sm:w-auto h-12 px-8">
           <Link href="/dashboard">
             <LayoutDashboard className="w-4 h-4 mr-2" />
             Panelime Git

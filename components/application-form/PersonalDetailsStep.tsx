@@ -9,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CITY_OPTIONS, GRADE_OPTIONS } from "@/lib/constants";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Loader2, PlusCircle, Users } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, PlusCircle, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
+import { KvkkDialog } from "./KvkkDialog";
 
 interface PersonalDetailsStepProps {
   form: UseFormReturn<PersonalDetailsData>;
@@ -25,9 +27,11 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
   const [openSchool, setOpenSchool] = useState(false);
   const [schoolSearch, setSchoolSearch] = useState("");
   const [selectedSchoolLabel, setSelectedSchoolLabel] = useState("");
+  const [showKvkk, setShowKvkk] = useState(false);
   const debouncedSchoolSearch = useDebounce(schoolSearch, 300);
 
   const selectedHighSchoolId = watch("high_school_id");
+  const kvkkConsent = watch("kvkk_consent");
   
   const { data: schools = [], isLoading: schoolsLoading } = useQuery({
     queryKey: ["high-schools", debouncedSchoolSearch],
@@ -49,7 +53,7 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
 
       <div className="grid md:grid-cols-2 gap-6">
         
-        {/* Delegation Name Field - Renders only for Delegation Leaders */}
+        {/* Delegation Name Field */}
         {isDelegation && (
           <div className="md:col-span-2 space-y-2 p-4 bg-primary/5 rounded-xl border border-primary/20 mb-2">
             <Label className="flex items-center gap-2 text-primary font-semibold">
@@ -181,7 +185,31 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
           
           {errors.high_school_id && <p className="text-xs text-destructive">{errors.high_school_id.message}</p>}
         </div>
+
+        {/* KVKK Consent */}
+        <div className="md:col-span-2 pt-4 border-t border-border/50">
+          <div className="flex items-start gap-3 p-4 rounded-xl border bg-secondary/5 transition-colors hover:bg-secondary/10">
+            <Checkbox 
+              id="kvkk" 
+              checked={kvkkConsent} 
+              onCheckedChange={(c) => setValue("kvkk_consent", c as boolean, { shouldValidate: true })}
+              className="mt-1"
+            />
+            <div className="space-y-1">
+              <Label htmlFor="kvkk" className="text-sm font-medium cursor-pointer">
+                KVKK Aydınlatma Metni'ni Okudum ve Onaylıyorum <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Kişisel verilerinizin işlenmesi hakkında detaylı bilgi için <button type="button" onClick={() => setShowKvkk(true)} className="text-primary hover:underline font-medium inline-flex items-center gap-1">Aydınlatma Metni <FileText className="w-3 h-3" /></button>'ni inceleyebilirsiniz.
+              </p>
+              {errors.kvkk_consent && <p className="text-xs text-destructive font-medium">{errors.kvkk_consent.message}</p>}
+            </div>
+          </div>
+        </div>
+
       </div>
+
+      <KvkkDialog open={showKvkk} onOpenChange={setShowKvkk} />
     </div>
   );
 }

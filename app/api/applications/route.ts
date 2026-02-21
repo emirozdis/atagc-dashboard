@@ -120,6 +120,7 @@ async function processApplicationSubmission(
     req: Request
 ) {
     await limiter.check(5, ip);
+    const userAgent = req.headers.get("user-agent") || "Unknown";
 
     const { data: settings } = await supabase.from("system_settings").select("applications_open").single();
     if (settings && settings.applications_open === false) {
@@ -128,6 +129,11 @@ async function processApplicationSubmission(
 
     const accountData = submissionAccountSchema.parse(body.account);
     const personalData = personalDetailsSchema.parse(body.personalDetails);
+
+    // KVKK Consent Check (Server Side)
+    if (personalData.kvkk_consent !== true) {
+        throw new Error("KVKK Aydınlatma Metni'ni onaylamanız gerekmektedir.");
+    }
 
     let finalHighSchoolId: number | null = personalData.high_school_id === -1 ? null : personalData.high_school_id;
 
@@ -210,7 +216,6 @@ async function processApplicationSubmission(
 
     const cleanFormData = { ...body.formData };
     const steps = formTemplate.steps as Array<{ fields: Array<{ id: string; system_map?: string }> }>;
-
     const STATIC_COLUMNS = ['phone_number', 'birth_date', 'city', 'grade', 'high_school_id'];
 
     if (Array.isArray(steps)) {
@@ -249,18 +254,25 @@ async function processApplicationSubmission(
         userDetailsUpdate.additional_info = {
             ...(existingDetails.additional_info as object),
             ...additionalInfo,
-            kvkk_approved: body.kvkkApproved,
+            kvkk_approved: true,
             kvkk_approved_at: new Date().toISOString(),
-            kvkk_approved_ip: ip
         };
         await supabase.from("user_details").update(userDetailsUpdate).eq("user_id", userId);
     } else {
-        userDetailsUpdate.user_id = userId;
-        userDetailsUpdate.additional_info.kvkk_approved = body.kvkkApproved;
+        userDetailsUpdate.additional_info.kvkk_approved = true;
         userDetailsUpdate.additional_info.kvkk_approved_at = new Date().toISOString();
-        userDetailsUpdate.additional_info.kvkk_approved_ip = ip;
         await supabase.from("user_details").insert(userDetailsUpdate);
     }
+
+    await supabase.from("user_consents").insert({
+        user_id: userId,
+        consent_type: 'KVKK_CLARIFICATION',
+        consent_version: 'v1.0', 
+        action: 'GRANTED',
+        ip_address: ip,
+        user_agent: userAgent,
+        created_at: new Date().toISOString()
+    });
 
     const { data: newApp, error: appError } = await supabase
         .from("applications")

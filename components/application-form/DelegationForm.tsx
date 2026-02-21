@@ -57,6 +57,11 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
         mode: "onChange",
     });
 
+    const accountValues = accountForm.watch();
+    const personalValues = personalForm.watch();
+    const { isValid: isAccountValid } = accountForm.formState;
+    const { isValid: isPersonalValid } = personalForm.formState;
+
     // Lock the email field to the magiclink email
     useEffect(() => {
         accountForm.setValue("email", magiclinkEmail);
@@ -81,6 +86,47 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
         }
         formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, [currentStep]);
+
+    const totalDynamicSteps = delegateForm?.steps.length || 0;
+    const currentDynamicStep = currentStep >= 3 ? delegateForm?.steps[currentStep - 3] : null;
+
+    // Validation Logic
+    const checkIsNextDisabled = () => {
+        if (isSubmitting) return true;
+
+        // Step 1: Account
+        if (currentStep === 1) {
+            const isDev = process.env.NODE_ENV === "development";
+            if (!turnstileToken && !isDev) return true;
+
+            if (authMode === 'login') {
+                return !accountValues.email || !accountValues.password;
+            } else {
+                return !isAccountValid || !isEmailVerified;
+            }
+        }
+
+        // Step 2: Personal (includes KVKK via schema)
+        if (currentStep === 2) {
+            return !isPersonalValid;
+        }
+
+        // Step 3+: Dynamic
+        if (currentStep >= 3 && currentDynamicStep) {
+            return !currentDynamicStep.fields.every(field => {
+                if (!field.required) return true;
+                const val = formAnswers[field.id];
+                
+                if (field.type === 'checkbox') return val === true;
+                
+                return val !== "" && val !== null && val !== undefined;
+            });
+        }
+
+        return false;
+    };
+
+    const isNextDisabled = checkIsNextDisabled();
 
     const handleNext = async () => {
         // Step 1: Account Creation/Login
@@ -165,22 +211,16 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
         }
 
         // Step 3+: Dynamic Form Steps
-        if (delegateForm) {
-            const dynamicStepIndex = currentStep - 3;
-            const currentDynamicStep = delegateForm.steps[dynamicStepIndex];
+        if (delegateForm && currentDynamicStep) {
+            if (isNextDisabled) {
+                toast.error("Lütfen zorunlu alanları doldurunuz.");
+                return;
+            }
 
-            if (currentDynamicStep) {
-                const missingFields = currentDynamicStep.fields.filter(f => f.required && !formAnswers[f.id]);
-                if (missingFields.length > 0) {
-                    toast.error("Lütfen zorunlu alanları doldurunuz.");
-                    return;
-                }
-
-                if (dynamicStepIndex < delegateForm.steps.length - 1) {
-                    setCurrentStep(prev => prev + 1);
-                } else {
-                    await handleSubmit();
-                }
+            if (currentStep - 2 < delegateForm.steps.length) {
+                setCurrentStep(prev => prev + 1);
+            } else {
+                await handleSubmit();
             }
         }
     };
@@ -219,9 +259,6 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
     };
 
     if (isSubmitted) return <SuccessScreen onReset={() => (window.location.href = "/")} />;
-
-    const totalDynamicSteps = delegateForm?.steps.length || 0;
-    const currentDynamicStep = currentStep >= 3 ? delegateForm?.steps[currentStep - 3] : null;
 
     const displaySteps = [
         { number: 1, title: "Hesap" },
@@ -301,7 +338,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
 
                 <Button
                     onClick={handleNext}
-                    disabled={isSubmitting}
+                    disabled={isNextDisabled}
                     className="min-w-[140px] shadow-md cursor-pointer"
                 >
                     {isSubmitting ? (

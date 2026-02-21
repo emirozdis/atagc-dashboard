@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
-  Loader2, Mail, MapPin, Phone, GraduationCap, Building2,
+  Loader2, Mail, MapPin, Phone, Building2,
   Lock, Laptop, Smartphone, LogOut, Globe, EyeOff, Shield,
   User as UserIcon, Calendar,
-  QrCode, UserPlus, Bell, AlertTriangle, FileText, School
+  QrCode, UserPlus, Bell, AlertTriangle, FileText, School,
+  FileCheck2, ShieldCheck, Scale
 } from "lucide-react";
 import { ProfileData } from "@/types/dashboard";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
 import { GRADE_OPTIONS } from "@/lib/constants";
 import { getRoleMeta } from "@/lib/roles";
+import { KvkkDialog } from "@/components/application-form/KvkkDialog";
 
 interface DeviceSession {
   id: string;
@@ -49,6 +51,7 @@ export function ProfileView() {
   const { data: session } = useSession();
   const [resetLoading, setResetLoading] = useState(false);
   const [digitalIdOpen, setDigitalIdOpen] = useState(false);
+  const [kvkkOpen, setKvkkOpen] = useState(false);
   
   const personalInfoRef = useRef<HTMLDivElement>(null);
   const digitalIdRef = useRef<HTMLDivElement>(null);
@@ -113,6 +116,7 @@ export function ProfileView() {
 
   const profile = profileData?.profile;
   const application = profileData?.application;
+  const consents = profile?.consents || [];
 
   useEffect(() => {
     if (profile?.details?.notification_preferences) {
@@ -243,6 +247,14 @@ export function ProfileView() {
     const lower = (os + type).toLowerCase();
     if (lower.includes("mobile") || lower.includes("android") || lower.includes("ios")) return <Smartphone className="w-4 h-4" />;
     return <Laptop className="w-4 h-4" />;
+  };
+
+  const getConsentLabel = (type: string) => {
+    switch (type) {
+        case 'KVKK_CLARIFICATION': return 'KVKK Aydınlatma Metni';
+        case 'ETK_CONSENT': return 'Elektronik İleti İzni';
+        default: return type;
+    }
   };
 
   return (
@@ -457,7 +469,7 @@ export function ProfileView() {
           </Card>
         </div>
 
-        {/* Right Column: E-posta Tercihleri + Digital ID */}
+        {/* Right Column: E-posta Tercihleri + Consents + Digital ID */}
         <div className="lg:col-span-1 flex flex-col gap-6">
           <Card className="border-border/50">
             <CardHeader className="pb-3 border-b border-border/50">
@@ -487,6 +499,43 @@ export function ProfileView() {
               </p>
             </CardContent>
           </Card>
+          
+          <Card className="border-border/50">
+            <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-primary" /> Onaylar
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+                {consents.length > 0 ? (
+                    consents.map(consent => (
+                        <div key={consent.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
+                            <div className="space-y-1">
+                                <div className="text-sm font-medium flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                                    {getConsentLabel(consent.consent_type)}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground">
+                                    {new Date(consent.created_at).toLocaleDateString('tr-TR')} • {consent.consent_version}
+                                </div>
+                            </div>
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-7 text-xs px-2"
+                                onClick={() => setKvkkOpen(true)}
+                            >
+                                <FileCheck2 className="w-3 h-3 mr-1" /> Oku
+                            </Button>
+                        </div>
+                    ))
+                ) : (
+                    <div className="text-center py-4 text-muted-foreground text-xs">
+                        Kayıtlı izin bulunamadı.
+                    </div>
+                )}
+            </CardContent>
+          </Card>
 
           {showIdCard && (
             <div ref={digitalIdRef} className="space-y-4">
@@ -507,6 +556,8 @@ export function ProfileView() {
         </div>
 
       </div>
+
+      <KvkkDialog open={kvkkOpen} onOpenChange={setKvkkOpen} />
     </div>
   );
 }

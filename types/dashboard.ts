@@ -1,6 +1,15 @@
 import { GradeEnum } from "./user";
 import { FormStep } from "./application";
 
+export interface UserConsent {
+    id: string;
+    consent_type: string;
+    consent_version: string;
+    ip_address: string;
+    action: string;
+    created_at: string;
+}
+
 export interface ProfileData {
     profile: {
         id: string;
@@ -53,6 +62,7 @@ export interface ProfileData {
             leader_name: string;
             accepted: boolean | null;
         } | null;
+        consents?: UserConsent[];
     };
     application: {
         id: string;

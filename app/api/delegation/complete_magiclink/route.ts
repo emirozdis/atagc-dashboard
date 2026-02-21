@@ -8,6 +8,7 @@ import { sendSystemNotification } from "@/lib/notification-service";
 
 export const POST = apiHandler(async (req) => {
     const ip = req.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const userAgent = req.headers.get("user-agent") || "Unknown";
     const auth = await getAuthorization({ requireAuth: true });
 
     if (!auth.ok) {
@@ -27,11 +28,19 @@ export const POST = apiHandler(async (req) => {
         );
     }
 
-    // Validate personal details
+    // Validate personal details including KVKK
     const parsed = personalDetailsSchema.safeParse(personal_details);
     if (!parsed.success) {
         return NextResponse.json(
             { error: "Validation Error", details: parsed.error.format() },
+            { status: 400 }
+        );
+    }
+
+    // Explicit check for KVKK (though schema handles it, double check logic)
+    if (parsed.data.kvkk_consent !== true) {
+        return NextResponse.json(
+            { error: "Validation Error", message: "KVKK onayı zorunludur." },
             { status: 400 }
         );
     }
@@ -91,9 +100,9 @@ export const POST = apiHandler(async (req) => {
         additionalInfo.manual_school_name = parsed.data.manual_school_name;
     }
 
+    // Store deprecated flag in JSON
     additionalInfo.kvkk_approved = true;
     additionalInfo.kvkk_approved_at = new Date().toISOString();
-    additionalInfo.kvkk_approved_ip = ip;
 
     // Check if user is already in this delegation
     const { data: existingMember } = await supabase
@@ -151,6 +160,18 @@ export const POST = apiHandler(async (req) => {
 
         if (detailsError) throw new Error(detailsError.message);
     }
+
+    // --- CRITICAL: Log Consent to Immutable Ledger ---
+    await supabase.from("user_consents").insert({
+        user_id: userId,
+        consent_type: 'KVKK_CLARIFICATION',
+        consent_version: 'v1.0', 
+        action: 'GRANTED',
+        ip_address: ip,
+        user_agent: userAgent,
+        created_at: new Date().toISOString()
+    });
+    // ------------------------------------------------
 
     // Create Application Entry
     if (form_id) {

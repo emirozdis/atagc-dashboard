@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Loader2, ExternalLink, Users, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, ExternalLink, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signIn, useSession } from "next-auth/react";
@@ -75,6 +75,12 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     mode: "onChange"
   });
 
+  // Watch values for real-time validation
+  const accountValues = accountForm.watch();
+  const personalValues = personalForm.watch();
+  const { isValid: isAccountValid } = accountForm.formState;
+  const { isValid: isPersonalValid } = personalForm.formState;
+
   const { data: profileData, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['my-profile-for-app-form'],
     queryFn: async () => {
@@ -144,6 +150,55 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     joinDelegationMutation.mutate(inviteCode.trim());
   };
 
+  const selectedForm = availableForms.find(f => f.id === selectedFormId);
+  const isDelegationLeaderForm = selectedForm?.slug === "delegation";
+  const totalDynamicSteps = selectedForm?.steps.length || 0;
+  const currentDynamicStep = currentStep >= 4 ? selectedForm?.steps[currentStep - 4] : null;
+
+  // Validation Logic
+  const checkIsNextDisabled = () => {
+    if (isSubmitting) return true;
+
+    // Step 2: Account
+    if (currentStep === 2) {
+        const isDev = process.env.NODE_ENV === "development";
+        if (!turnstileToken && !isDev) return true;
+
+        if (authMode === 'login') {
+            return !accountValues.email || !accountValues.password;
+        } else {
+            return !isAccountValid || !isEmailVerified;
+        }
+    }
+
+    // Step 3: Personal
+    if (currentStep === 3) {
+        if (!isPersonalValid) return true;
+        
+        if (isDelegationLeaderForm) {
+            const delName = personalValues.delegation_name;
+            if (!delName || delName.trim().length < 3) return true;
+        }
+        return false;
+    }
+
+    // Step 4+: Dynamic
+    if (currentStep >= 4 && currentDynamicStep) {
+        return !currentDynamicStep.fields.every(field => {
+            if (!field.required) return true;
+            const val = formAnswers[field.id];
+            
+            if (field.type === 'checkbox') return val === true;
+            
+            return val !== "" && val !== null && val !== undefined;
+        });
+    }
+
+    return false;
+  };
+
+  const isNextDisabled = checkIsNextDisabled();
+
   const handleNext = async () => {
     // --- STEP 2: Account Creation/Login ---
     if (currentStep === 2) {
@@ -207,10 +262,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     if (currentStep === 3) {
         let isValid = await personalForm.trigger();
         
-        const selectedForm = availableForms.find(f => f.id === selectedFormId);
-        const isDelegationLeader = selectedForm?.slug === "delegation";
-
-        if (isDelegationLeader) {
+        if (isDelegationLeaderForm) {
             const delName = personalForm.getValues("delegation_name");
             if (!delName || delName.trim().length < 3) {
                 personalForm.setError("delegation_name", { type: "manual", message: "Delegasyon adı en az 3 karakter olmalıdır." });
@@ -227,19 +279,18 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     }
 
     // --- STEP 4+: Dynamic Form Steps ---
-    const selectedForm = availableForms.find(f => f.id === selectedFormId);
-    if (!selectedForm) return;
-
-    const dynamicStepIndex = currentStep - 4;
-    const currentDynamicStep = selectedForm.steps[dynamicStepIndex];
-
     if (currentDynamicStep) {
-        const missingFields = currentDynamicStep.fields.filter(f => f.required && !formAnswers[f.id]);
-        if (missingFields.length > 0) {
+        if (isNextDisabled) {
             toast.error("Lütfen zorunlu alanları doldurunuz.");
             return;
         }
 
+        if (!selectedForm) {
+            toast.error("Form verisi yüklenemedi.");
+            return;
+        }
+
+        const dynamicStepIndex = currentStep - 4;
         if (dynamicStepIndex < selectedForm.steps.length - 1) {
             setCurrentStep(prev => prev + 1);
         } else {
@@ -258,7 +309,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
             personalDetails: personalForm.getValues(),
             formId: selectedFormId,
             formData: formAnswers,
-            kvkkApproved: true
+            // kvkkApproved is intentionally removed as it is now part of personalDetails
         };
 
         const res = await fetch("/api/applications", {
@@ -297,9 +348,6 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
 
   if (isSubmitted) return <SuccessScreen onReset={() => window.location.reload()} />;
 
-  const selectedForm = availableForms.find(f => f.id === selectedFormId);
-  const isDelegationLeaderForm = selectedForm?.slug === "delegation";
-  
   const displaySteps = [
       { number: 1, title: "Rol" },
       { number: 2, title: "Hesap" },
@@ -308,8 +356,6 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
   ];
 
   const indicatorStep = currentStep >= 4 ? 4 : currentStep;
-  const totalDynamicSteps = selectedForm?.steps.length || 0;
-  const currentDynamicStep = currentStep >= 4 ? selectedForm?.steps[currentStep - 4] : null;
 
   // Show buttons if user has existing application
   if (!showForm && hasExistingApplication) {
@@ -463,7 +509,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
             {currentStep !== 1 && (
                 <Button 
                     onClick={handleNext} 
-                    disabled={isSubmitting} 
+                    disabled={isNextDisabled} 
                     className="min-w-[140px] shadow-md cursor-pointer"
                 >
                     {isSubmitting ? (
