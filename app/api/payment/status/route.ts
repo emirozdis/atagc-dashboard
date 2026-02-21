@@ -6,8 +6,8 @@ import { getSignedUrl } from "@/lib/storage-utils";
 import { PaymentStatusEnum } from "@/types/payment";
 
 export const GET = apiHandler(async (request: Request) => {
-    const auth = await getAuthorization({ requireAuth: true });
-    if (!auth.ok || !auth.session) throw new Error("Unauthorized");
+    const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
+    if (!auth.ok || !auth.session) throw new Error(auth.message || "Unauthorized");
     const userId = auth.session.user.id;
 
     const { data: app } = await supabase
@@ -34,13 +34,13 @@ export const GET = apiHandler(async (request: Request) => {
 
     const formData = Array.isArray(app?.form) ? app.form[0] : app?.form;
     const fee = formData?.fee || 0;
-    
+
     // If exempt, force amount to 0
     const finalAmount = app?.payment_status === PaymentStatusEnum.EXEMPT ? 0 : fee;
 
     return NextResponse.json({
         payment_status: app?.payment_status || PaymentStatusEnum.UNPAID,
-        amount_required: finalAmount, 
+        amount_required: finalAmount,
         last_receipt: receipt || null
     });
 });

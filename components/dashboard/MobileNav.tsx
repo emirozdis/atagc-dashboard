@@ -7,6 +7,7 @@ import { participantItems } from "@/lib/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { ConnectionState } from "@/types/connection";
+import { STAFF_ROLES } from "@/lib/roles";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -15,6 +16,7 @@ export function MobileNav() {
   const role = session?.user?.role;
   const status = session?.user?.applicationStatus;
   const type = session?.user?.applicantType || "delegate";
+  const isStaff = role ? STAFF_ROLES.includes(role) : false;
 
   // Filter items
   const items = participantItems
@@ -25,8 +27,8 @@ export function MobileNav() {
       // Approval check
       if (role === 'applicant' && status !== 'approved' && item.requiresApproved) return false;
 
-      // Payment Check (Hide if no application)
-      if (item.href === '/dashboard/payment' && !status) return false;
+      // Payment Check (Hide if not approved)
+      if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
 
       return true;
     });

@@ -1,6 +1,7 @@
 import { getServerSession, Session } from "next-auth";
 import { authOptions } from "./auth";
 import { supabase } from "./SERVER_supabase";
+import "server-only";
 
 type AuthOptions = {
   /** If true, require a logged in user (default true) */
@@ -68,8 +69,3 @@ export async function getAuthorization(opts: AuthOptions = {}) {
 }
 
 export default getAuthorization;
-
-// Change Log:
-// - Added `requireApproved` option.
-// - Implemented logic to block `applicant` users if `applicationStatus` is not `approved`.
-// - Staff roles bypass this check automatically.

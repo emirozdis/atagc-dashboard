@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle2, AlertCircle, Clock, CreditCard } from "lucide-react";
 import Link from "next/link";
@@ -78,7 +77,7 @@ export function PaymentSummaryCard() {
                         <div className="text-xs text-muted-foreground">{config.desc}</div>
                     </div>
                 </div>
-                
+
                 <Button size="sm" variant="ghost" asChild className="shrink-0 h-8 text-xs">
                     <Link href="/dashboard/payment">
                         Detaylar <ArrowRight className="w-3 h-3 ml-1.5" />

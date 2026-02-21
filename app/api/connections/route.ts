@@ -52,7 +52,7 @@ export const GET = apiHandler(async (request: Request) => {
         id, created_at, updated_at,
         friend:users!user_connections_recipient_id_fkey (
             id, full_name, email, role,
-            user_details ( profile_picture_url, school_name, additional_info )
+            user_details ( profile_picture_url, school_name, additional_info, high_schools(school_name) )
         )
     `)
     .eq("requester_id", userId)
@@ -64,7 +64,7 @@ export const GET = apiHandler(async (request: Request) => {
         id, created_at, updated_at,
         friend:users!user_connections_requester_id_fkey (
             id, full_name, email, role,
-            user_details ( profile_picture_url, school_name, additional_info )
+            user_details ( profile_picture_url, school_name, additional_info, high_schools(school_name) )
         )
     `)
     .eq("recipient_id", userId)
@@ -83,7 +83,7 @@ export const GET = apiHandler(async (request: Request) => {
 
   const receivedFormatted = await signImages(received, 'requester');
   const sentFormatted = await signImages(sent, 'recipient');
-  
+
   const allConnected = [...(sentConnections || []), ...(receivedConnections || [])];
   const connectedFormatted = await signImages(allConnected, 'friend');
 
@@ -133,30 +133,30 @@ export const POST = apiHandler(async (request: Request) => {
     if (existing.status === 'blocked') {
       return NextResponse.json({ error: "İşlem gerçekleştirilemedi." }, { status: 403 });
     }
-    
+
     if (existing.status === 'rejected') {
       if (existing.requester_id === requesterId) {
         const { error: updateError } = await supabase
           .from("user_connections")
-          .update({ 
-              status: 'pending', 
-              updated_at: new Date().toISOString() 
+          .update({
+            status: 'pending',
+            updated_at: new Date().toISOString()
           })
           .eq("id", existing.id);
 
         if (updateError) throw updateError;
 
         await Logger.audit(
-            { userId: requesterId, req: request },
-            { 
-                action: "connection_request_resend", 
-                category: "business",
-                resourceType: "connection",
-                resourceId: existing.id,
-                metadata: { target_id: targetUserId } 
-            }
+          { userId: requesterId, req: request },
+          {
+            action: "connection_request_resend",
+            category: "business",
+            resourceType: "connection",
+            resourceId: existing.id,
+            metadata: { target_id: targetUserId }
+          }
         );
-        
+
         await sendSystemNotification(targetUserId, "connection_request");
 
         return NextResponse.json({ success: true, message: "İstek tekrar gönderildi." });
@@ -182,20 +182,20 @@ export const POST = apiHandler(async (request: Request) => {
   const { data: targetUser } = await supabase.from("users").select("full_name").eq("id", targetUserId).single();
 
   await Logger.audit(
-      { userId: requesterId, req: request },
-      { 
-          action: "connection_request", 
-          category: "business",
-          resourceType: "connection",
-          resourceId: newConnection.id,
-          metadata: { target_id: targetUserId } 
-      }
+    { userId: requesterId, req: request },
+    {
+      action: "connection_request",
+      category: "business",
+      resourceType: "connection",
+      resourceId: newConnection.id,
+      metadata: { target_id: targetUserId }
+    }
   );
 
   await sendSystemNotification(targetUserId, "connection_request");
 
-  return NextResponse.json({ 
-    success: true, 
-    message: `Bağlantı isteği gönderildi: ${targetUser?.full_name}` 
+  return NextResponse.json({
+    success: true,
+    message: `Bağlantı isteği gönderildi: ${targetUser?.full_name}`
   });
 });

@@ -26,7 +26,8 @@ export const GET = apiHandler(async (request: Request) => {
                 user_details (
                     phone_number,
                     school_name,
-                    additional_info
+                    additional_info,
+                    high_schools(school_name)
                 )
             ),
             reviewer:users!payment_receipts_reviewed_by_fkey ( full_name )
@@ -45,9 +46,9 @@ export const GET = apiHandler(async (request: Request) => {
 
 export const POST = apiHandler(async (request: Request) => {
     const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
-    
+
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
-    
+
     const adminId = auth.session.user.id;
 
     const { receiptId, action, note } = await request.json();
@@ -106,8 +107,8 @@ export const POST = apiHandler(async (request: Request) => {
 
     await Logger.audit(
         { userId: adminId, req: request },
-        { 
-            action: `review_payment_${action}`, 
+        {
+            action: `review_payment_${action}`,
             category: "business",
             resourceType: "payment_receipt",
             resourceId: receiptId,
@@ -116,7 +117,7 @@ export const POST = apiHandler(async (request: Request) => {
             metadata: { target_user_id: receipt.user_id }
         }
     );
-    
+
     if (action === 'approve') {
         await sendSystemNotification(receipt.user_id, "payment_approved");
     } else {

@@ -97,7 +97,7 @@ export default function ConnectionsPage() {
 
   const filteredConnections = (data?.connected || []).filter(c =>
     c.friend.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.friend.user_details?.school_name || "").toLowerCase().includes(search.toLowerCase())
+    ((c.friend as any).user_details?.high_schools?.school_name || (c.friend as any).user_details?.additional_info?.manual_school_name || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const pendingReceivedCount = data?.pending.length || 0;
@@ -226,7 +226,7 @@ export default function ConnectionsPage() {
                           </Badge>
                         </div>
 
-                        <p className="text-xs text-muted-foreground truncate">{conn.friend.user_details?.school_name || "Okul Belirtilmemiş"}</p>
+                        <p className="text-xs text-muted-foreground truncate">{(conn.friend as any).user_details?.high_schools?.school_name || (conn.friend as any).user_details?.additional_info?.manual_school_name || "Okul Belirtilmemiş"}</p>
 
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
                           <Mail className="w-3 h-3 opacity-70" />

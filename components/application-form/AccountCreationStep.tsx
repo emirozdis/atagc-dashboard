@@ -1,19 +1,19 @@
-// components/application-form/AccountCreationStep.tsx
-
 import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { AccountCreationData } from "@/types/application";
-import { 
-  CheckCircle2, 
-  Loader2, 
-  Mail, 
-  ArrowRight, 
-  User, 
-  RefreshCcw,
-  Check
+import {
+    CheckCircle2,
+    Loader2,
+    Mail,
+    ArrowRight,
+    User,
+    RefreshCcw,
+    Check,
+    Eye,
+    EyeOff
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,7 @@ interface AccountCreationStepProps {
 
 export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeChange, onTokenChange, onNext, isSubmitting }: AccountCreationStepProps) {
     const { register, formState: { errors }, watch, getValues, trigger, setValue } = form;
-    
+
     // States
     const [stepState, setStepState] = useState<'email' | 'verifying' | 'details' | 'login'>('email');
     const [verificationCode, setVerificationCode] = useState("");
@@ -39,8 +39,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     const [emailCheckLoading, setEmailCheckLoading] = useState(false);
     const [resumeName, setResumeName] = useState("");
     const [turnstileToken, setTurnstileToken] = useState("");
-    
-    // Key to force reset of Turnstile widget if needed
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
     const [turnstileKey, setTurnstileKey] = useState(0);
 
     const email = watch("email");
@@ -52,22 +53,19 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     const hasLower = /[a-z]/.test(password || "");
     const hasNumber = /[0-9]/.test(password || "");
 
-    // Propagate token changes to parent
     useEffect(() => {
         onTokenChange(turnstileToken);
     }, [turnstileToken, onTokenChange]);
 
-    // Clear token when switching steps to ensure fresh validation for next protected action
     useEffect(() => {
         setTurnstileToken("");
-        setTurnstileKey(prev => prev + 1); // Reset widget
+        setTurnstileKey(prev => prev + 1);
     }, [stepState]);
 
     const handleCheckEmail = async () => {
         const isEmailFormatValid = await trigger("email");
         if (!isEmailFormatValid) return;
 
-        // In development, allow bypass
         const isDev = process.env.NODE_ENV === "development";
         if (!turnstileToken && !isDev) {
             toast.error("Lütfen doğrulamayı tamamlayın.");
@@ -92,7 +90,6 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                 onModeChange('login');
                 toast.info("Tekrar Hoşgeldiniz", { description: "Kaldığınız yerden devam etmek için giriş yapınız." });
             } else {
-                // New User -> Send Code
                 await sendVerificationCode();
             }
         } catch (e) {
@@ -113,17 +110,17 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             const res = await fetch("/api/auth/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     email: getValues("email"),
-                    token: effectiveToken // Pass token for verification
+                    token: effectiveToken
                 }),
             });
-            
+
             if (!res.ok) {
                 const err = await res.json();
                 throw new Error(err.error || "Failed");
             }
-            
+
             setStepState('verifying');
             onModeChange('register');
             toast.success("Doğrulama Kodu Gönderildi");
@@ -145,7 +142,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: getValues("email"), code: verificationCode }),
             });
-            
+
             if (!res.ok) throw new Error("Invalid code");
 
             onVerify(true);
@@ -169,13 +166,12 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         setTurnstileKey(prev => prev + 1);
     };
 
-    // Determine if button should be disabled
     const isDev = process.env.NODE_ENV === "development";
     const isEmailButtonDisabled = emailCheckLoading || !email || (!turnstileToken && !isDev);
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
+
             {/* 1. Email Input Section */}
             {stepState === 'email' && (
                 <div className="space-y-4">
@@ -194,19 +190,19 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                                     onKeyDown={(e) => e.key === 'Enter' && !isEmailButtonDisabled && handleCheckEmail()}
                                 />
                             </div>
-                            <Button 
-                                type="button" 
-                                onClick={handleCheckEmail} 
+                            <Button
+                                type="button"
+                                onClick={handleCheckEmail}
                                 disabled={isEmailButtonDisabled}
                                 className="h-11 px-6 shadow-md cursor-pointer"
                             >
                                 {emailCheckLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                             </Button>
                         </div>
-                        
+
                         {/* Turnstile Widget for Email Step */}
                         <div className="flex justify-center sm:justify-start">
-                            <Turnstile 
+                            <Turnstile
                                 key={`turnstile-email-${turnstileKey}`}
                                 siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                                 onVerify={setTurnstileToken}
@@ -250,22 +246,27 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             <p className="text-xs text-muted-foreground">Başvuruya devam etmek için şifreni gir.</p>
                         </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                         <Label>Şifre</Label>
-                        <Input 
-                            type="password" 
-                            placeholder="••••••••" 
-                            {...register("password")} 
-                            className="bg-background cursor-pointer"
-                        />
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                {...register("password")}
+                                className="bg-background cursor-pointer pr-10"
+                            />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center">
+                                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                            </button>
+                        </div>
                         <div className="flex justify-end">
                             <a href="/forgot-password" target="_blank" className="text-xs text-primary hover:underline">Şifremi Unuttum</a>
                         </div>
                     </div>
 
                     <div className="pt-2">
-                        <Turnstile 
+                        <Turnstile
                             key={`turnstile-login-${turnstileKey}`}
                             siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                             onVerify={setTurnstileToken}
@@ -285,7 +286,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                         <span className="font-semibold text-foreground">{email}</span> adresine gönderilen 6 haneli kodu giriniz.
                     </div>
                     <div className="flex justify-center gap-2">
-                        <Input 
+                        <Input
                             value={verificationCode}
                             onChange={(e) => {
                                 const value = e.target.value.replace(/[^0-9]/g, '');
@@ -320,8 +321,13 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                     <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-3">
                             <Label>Şifre Oluştur <span className="text-destructive">*</span></Label>
-                            <Input type="password" {...register("password")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer" />
-                            
+                            <div className="relative">
+                                <Input type={showPassword ? "text" : "password"} {...register("password")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer pr-10" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center">
+                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                </button>
+                            </div>
+
                             {/* Password Strength Indicators */}
                             <div className="grid grid-cols-2 gap-2 mt-2">
                                 <Requirement label="En az 8 karakter" met={hasMinLength} />
@@ -333,14 +339,15 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
 
                         <div className="space-y-2">
                             <Label>Şifre Tekrar <span className="text-destructive">*</span></Label>
-                            <Input type="password" {...register("confirmPassword")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer" />
+                            <div className="relative">
+                                <Input type={showConfirmPassword ? "text" : "password"} {...register("confirmPassword")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer pr-10" />
+                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center">
+                                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                </button>
+                            </div>
                             {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
                         </div>
                     </div>
-
-                    <Button onClick={onNext} disabled={isSubmitting} className="w-full cursor-pointer">
-                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Devam Et"}
-                    </Button>
                 </div>
             )}
         </div>

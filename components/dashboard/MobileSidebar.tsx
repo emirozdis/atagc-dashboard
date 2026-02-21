@@ -33,8 +33,8 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
         if (item.roles && role && !item.roles.includes(role)) return false;
         if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
 
-        // Payment Check (Hide if no application)
-        if (item.href === '/dashboard/payment' && !status) return false;
+        // Payment Check (Hide if not approved)
+        if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
 
         return true;
     });

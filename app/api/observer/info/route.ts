@@ -40,14 +40,15 @@ export const GET = apiHandler(async (request: Request) => {
         id, full_name, email, role, created_at,
         user_details (
             id, phone_number, school_name, birth_date, profile_picture_url,
-            is_profile_picture_hidden, allow_connections, notification_preferences, additional_info
+            is_profile_picture_hidden, allow_connections, notification_preferences, additional_info,
+            high_schools(school_name)
         )
     `)
     .eq("id", userId)
     .single();
 
-  
-    
+
+
   if (observerError) throw observerError;
   if (!observerData) return NextResponse.json({ error: "Observer data not found" }, { status: 404 });
 

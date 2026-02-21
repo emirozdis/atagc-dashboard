@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
-import { 
-    submissionAccountSchema, 
-    FullApplicationSubmission, 
+import {
+    submissionAccountSchema,
+    FullApplicationSubmission,
     ApplicationStatusEnum,
-    personalDetailsSchema 
+    personalDetailsSchema
 } from "@/types/application";
 import { PaymentStatusEnum } from "@/types/payment";
 import { Logger } from "@/lib/logger";
@@ -63,7 +63,8 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
                     city,
                     grade,
                     profile_picture_url,
-                    additional_info
+                    additional_info,
+                    high_schools(school_name)
                 ),
                 committee_members (
                     id,
@@ -114,7 +115,7 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
 }
 
 async function processApplicationSubmission(
-    body: FullApplicationSubmission, 
+    body: FullApplicationSubmission,
     ip: string,
     req: Request
 ) {
@@ -147,7 +148,7 @@ async function processApplicationSubmission(
             .select("id")
             .eq("user_id", userId)
             .maybeSingle();
-            
+
         if (existingApp) {
             throw new Error("Bu kullanıcı hesabıyla zaten bir başvuru yapılmış.");
         }
@@ -171,7 +172,7 @@ async function processApplicationSubmission(
 
         const randomHash = Math.random().toString(36).substring(2);
         const now = new Date().toISOString();
-        
+
         const { data: newUser, error: createUserError } = await supabase
             .from("users")
             .insert({
@@ -199,7 +200,7 @@ async function processApplicationSubmission(
 
     // Prepare Additional Info
     const additionalInfo: Record<string, any> = {};
-    
+
     // Logic: If "Other" school is selected, store string name in JSONB
     if (personalData.high_school_id === -1 && personalData.manual_school_name) {
         additionalInfo.manual_school_name = personalData.manual_school_name;
@@ -207,7 +208,7 @@ async function processApplicationSubmission(
 
     const cleanFormData = { ...body.formData };
     const steps = formTemplate.steps as Array<{ fields: Array<{ id: string; system_map?: string }> }>;
-    
+
     // Explicit Static Columns (Should not be moved to additional_info if found in dynamic form)
     // Note: school_name removed from static columns list as it is no longer a primary DB column
     const STATIC_COLUMNS = ['phone_number', 'birth_date', 'city', 'grade', 'high_school_id'];
@@ -279,8 +280,8 @@ async function processApplicationSubmission(
 
     await Logger.audit(
         { userId: userId, req: req },
-        { 
-            action: "submit_application", 
+        {
+            action: "submit_application",
             category: "business",
             resourceType: "application",
             resourceId: newApp.id,
@@ -291,8 +292,8 @@ async function processApplicationSubmission(
 }
 
 async function updateApplicationStatus(
-    input: z.infer<typeof updateApplicationSchema>, 
-    adminId: string, 
+    input: z.infer<typeof updateApplicationSchema>,
+    adminId: string,
     req: Request
 ) {
     const { id, status, review_notes } = input;
@@ -371,8 +372,8 @@ async function updateApplicationStatus(
 
     await Logger.audit(
         { userId: adminId, req: req },
-        { 
-            action: "update_application_status", 
+        {
+            action: "update_application_status",
             category: "business",
             resourceType: "application",
             resourceId: id,

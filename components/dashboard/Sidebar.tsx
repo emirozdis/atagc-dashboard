@@ -34,8 +34,8 @@ export function Sidebar({ className, onClose }: SidebarProps) {
     // 2. Approval Check
     if (!isStaff && status !== 'approved' && item.requiresApproved) return false;
 
-    // 3. Payment Check (Hide if no application)
-    if (item.href === '/dashboard/payment' && !status) return false;
+    // 3. Payment Check (Hide if not approved)
+    if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
 
     return true;
   });

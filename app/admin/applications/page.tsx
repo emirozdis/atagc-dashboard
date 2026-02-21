@@ -148,7 +148,7 @@ export default function ApplicationsPage() {
           <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground bg-secondary/10 p-3 rounded-lg border border-border/50">
             <div className="flex items-center gap-2 overflow-hidden">
               <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{details?.school_name || "Okul Yok"}</span>
+              <span className="truncate">{(details as any)?.high_schools?.school_name || (details as any)?.additional_info?.manual_school_name || "Okul Yok"}</span>
             </div>
             <div className="flex items-center gap-2 overflow-hidden">
               <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -315,8 +315,8 @@ export default function ApplicationsPage() {
                           {app.form?.title || formSlug}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate" title={details?.school_name}>
-                        {details?.school_name || "-"}
+                      <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate" title={(details as any)?.high_schools?.school_name || (details as any)?.additional_info?.manual_school_name}>
+                        {(details as any)?.high_schools?.school_name || (details as any)?.additional_info?.manual_school_name || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {new Date(app.submitted_at).toLocaleDateString("tr-TR")}

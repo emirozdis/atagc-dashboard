@@ -41,6 +41,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     queryKey: ['payment-status-dashboard'],
     queryFn: async () => {
       const res = await fetch("/api/payment/status");
+      if (res.status === 403 || res.status === 401) {
+        return { payment_status: "unpaid" };
+      }
       if (!res.ok) throw new Error("Failed");
       return res.json();
     }
