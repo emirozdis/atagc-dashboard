@@ -5,8 +5,10 @@ import { sendEmail } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
+import { generateEmailHtml } from "@/lib/email-templates";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
+const BASE_URL = process.env.NEXTAUTH_URL || "https://panel.atagc.com.tr";
 
 export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
@@ -42,28 +44,26 @@ export const POST = apiHandler(async (request: Request) => {
       token_hash: tokenHash,
       expires_at: expiresAt,
       used: false,
-      created_at: now.toISOString() // Explicit timestamp
+      created_at: now.toISOString()
     });
 
   if (error) throw error;
 
-  // 4. Send Email
-  const resetLink = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+  // 4. Send Email with Template
+  const resetLink = `${BASE_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+  
+  const emailHtml = generateEmailHtml(
+    "password_reset_request", 
+    user.full_name, 
+    BASE_URL, 
+    { link: resetLink }
+  );
   
   await sendEmail(
     email,
     "ATAGÇ - Şifre Sıfırlama Talebi",
-    `
-      <h3>Merhaba ${user.full_name},</h3>
-      <p>Şifrenizi sıfırlamak için bir talep aldık. Eğer bu işlemi siz yapmadıysanız, bu e-postayı görmezden gelebilirsiniz.</p>
-      <p>Şifrenizi sıfırlamak için aşağıdaki butona tıklayın:</p>
-      <a href="${resetLink}" style="background:#000; color:#fff; padding:10px 20px; text-decoration:none; border-radius:5px;">Şifremi Sıfırla</a>
-      <p><small>Bu link 30 dakika süreyle geçerlidir.</small></p>
-    `
+    emailHtml
   );
 
   return NextResponse.json({ success: true, message: "Reset email sent." });
 });
-
-// Change Log:
-// - Explicitly added `created_at` to the password reset token insertion to prevent NULL values if DB defaults are missing.

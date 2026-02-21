@@ -1,5 +1,3 @@
-// components/application-form/ApplicationForm.tsx
-
 "use client"
 
 import { useState, useEffect, useRef } from "react";
@@ -186,7 +184,19 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
 
     // --- STEP 3: Personal Details ---
     if (currentStep === 3) {
-        const isValid = await personalForm.trigger();
+        let isValid = await personalForm.trigger();
+        
+        const selectedForm = availableForms.find(f => f.id === selectedFormId);
+        const isDelegationLeader = selectedForm?.slug === "delegation";
+
+        if (isDelegationLeader) {
+            const delName = personalForm.getValues("delegation_name");
+            if (!delName || delName.trim().length < 3) {
+                personalForm.setError("delegation_name", { type: "manual", message: "Delegasyon adı en az 3 karakter olmalıdır." });
+                isValid = false;
+            }
+        }
+
         if (isValid) {
             setCurrentStep(4);
         } else {
@@ -267,6 +277,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
   if (isSubmitted) return <SuccessScreen onReset={() => window.location.reload()} />;
 
   const selectedForm = availableForms.find(f => f.id === selectedFormId);
+  const isDelegationLeaderForm = selectedForm?.slug === "delegation";
   
   const displaySteps = [
       { number: 1, title: "Rol" },
@@ -376,7 +387,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                             )}
                         </div>
                     )}
-                    <PersonalDetailsStep form={personalForm} />
+                    <PersonalDetailsStep form={personalForm} isDelegation={isDelegationLeaderForm} />
                 </div>
             )}
 
@@ -402,7 +413,6 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
             )}
         </div>
 
-        {/* Unified Navigation Controls */}
         <div className="flex justify-between pt-8 mt-8 border-t border-border">
             <Button 
                 variant="ghost" 

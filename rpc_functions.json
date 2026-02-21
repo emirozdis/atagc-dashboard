@@ -1,5 +1,11 @@
 [
   {
+    "function_name": "generate_invite_code",
+    "arguments": "length integer",
+    "return_type": "text",
+    "security_definer": false
+  },
+  {
     "function_name": "get_admin_dashboard_stats",
     "arguments": "",
     "return_type": "json",

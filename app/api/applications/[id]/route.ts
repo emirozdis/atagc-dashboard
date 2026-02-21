@@ -54,6 +54,21 @@ export const GET = apiHandler(async (
                         id,
                         name
                     )
+                ),
+                delegation_members (
+                    accepted,
+                    delegation:delegations (
+                        id,
+                        name,
+                        leader:users!delegations_created_by_fkey (
+                            full_name,
+                            application:applications ( id, status )
+                        )
+                    )
+                ),
+                owned_delegation:delegations (
+                    id,
+                    name
                 )
             )
         `)

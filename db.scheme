@@ -87,6 +87,40 @@ CREATE TABLE public.committees (
   CONSTRAINT committees_pkey PRIMARY KEY (id),
   CONSTRAINT committees_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.delegation_invites (
+  uses_left smallint DEFAULT '0'::smallint,
+  delegation smallint,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  invite_code text NOT NULL DEFAULT generate_invite_code(8),
+  CONSTRAINT delegation_invites_pkey PRIMARY KEY (invite_code),
+  CONSTRAINT delegation_invites_delegation_fkey FOREIGN KEY (delegation) REFERENCES public.delegations(id)
+);
+CREATE TABLE public.delegation_magiclinks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  delegation smallint NOT NULL,
+  sent_to text NOT NULL,
+  used boolean NOT NULL DEFAULT false,
+  CONSTRAINT delegation_magiclinks_pkey PRIMARY KEY (id),
+  CONSTRAINT delegation_magiclinks_delegation_fkey FOREIGN KEY (delegation) REFERENCES public.delegations(id)
+);
+CREATE TABLE public.delegation_members (
+  user_id uuid NOT NULL DEFAULT gen_random_uuid(),
+  joined_at timestamp with time zone NOT NULL DEFAULT now(),
+  delegation smallint,
+  accepted boolean,
+  CONSTRAINT delegation_members_pkey PRIMARY KEY (user_id),
+  CONSTRAINT delegation_members_delegation_fkey FOREIGN KEY (delegation) REFERENCES public.delegations(id),
+  CONSTRAINT delegation_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.delegations (
+  id smallint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_by uuid DEFAULT gen_random_uuid() UNIQUE,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text NOT NULL DEFAULT 'Adsız Delegasyon'::text,
+  CONSTRAINT delegations_pkey PRIMARY KEY (id),
+  CONSTRAINT delegations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
 CREATE TABLE public.document_versions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   committee_id uuid NOT NULL,
@@ -283,7 +317,6 @@ CREATE TABLE public.user_details (
   user_id uuid,
   birth_date date,
   phone_number character varying,
-  school_name text,
   additional_info jsonb NOT NULL DEFAULT '{}'::jsonb,
   profile_picture_url text,
   is_profile_picture_hidden boolean DEFAULT false,
@@ -291,7 +324,9 @@ CREATE TABLE public.user_details (
   notification_preferences jsonb DEFAULT '{"social": true, "system": true, "committee": true, "application": true}'::jsonb,
   city text,
   grade USER-DEFINED,
+  high_school_id bigint,
   CONSTRAINT user_details_pkey PRIMARY KEY (id),
+  CONSTRAINT user_details_high_school_id_fkey FOREIGN KEY (high_school_id) REFERENCES public.high_schools(id),
   CONSTRAINT user_details_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.user_warnings (
@@ -307,9 +342,9 @@ CREATE TABLE public.user_warnings (
 );
 CREATE TABLE public.users (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  full_name character varying NOT NULL,
-  email character varying NOT NULL UNIQUE,
-  password_hash character varying NOT NULL,
+  full_name text NOT NULL,
+  email text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
   role character varying NOT NULL DEFAULT 'applicant'::character varying,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone,

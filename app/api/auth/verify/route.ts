@@ -4,10 +4,13 @@ import { apiHandler } from "@/lib/api-handler";
 import { sendEmail } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { generateEmailHtml } from "@/lib/email-templates";
 
 // Separate limiters for Sending and Verifying
 const sendLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 const verifyLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
+
+const BASE_URL = process.env.NEXTAUTH_URL || "https://panel.atagc.com.tr";
 
 // Send Verification Code (Protected by Turnstile)
 export const POST = apiHandler(async (request: Request) => {
@@ -29,7 +32,6 @@ export const POST = apiHandler(async (request: Request) => {
   const expiresAt = new Date(now.getTime() + 1000 * 60 * 10).toISOString(); // 10 mins
 
   // Store in DB
-  // Explicitly setting created_at because DB default might be missing
   const { error } = await supabase
     .from("email_verifications")
     .insert({ 
@@ -41,16 +43,18 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
-  // Send Email
+  // Send Email with Template
+  const emailHtml = generateEmailHtml(
+    "email_verification", 
+    "Katılımcı Adayı", 
+    BASE_URL, 
+    { code }
+  );
+
   await sendEmail(
     email,
     "ATAGÇ - E-posta Doğrulama Kodu",
-    `
-      <h3>E-posta Doğrulama</h3>
-      <p>Başvuru işleminize devam etmek için doğrulama kodunuz:</p>
-      <h1 style="letter-spacing: 5px; background: #f0f0f0; padding: 10px; display: inline-block;">${code}</h1>
-      <p><small>Bu kod 10 dakika geçerlidir.</small></p>
-    `
+    emailHtml
   );
 
   return NextResponse.json({ success: true });
@@ -91,6 +95,3 @@ export const PUT = apiHandler(async (request: Request) => {
 
   return NextResponse.json({ success: true });
 });
-
-// Change Log:
-// - Explicitly added `created_at: now.toISOString()` to the insert payload in POST handler to fix NULL timestamp issue.

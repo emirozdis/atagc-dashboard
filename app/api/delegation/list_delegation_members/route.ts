@@ -11,28 +11,42 @@ export const GET = apiHandler(async () => {
     }
 
     const userId = (auth.session as any).user.id;
+    let delegationId = null;
+    let isLeader = false;
 
-    // Check if the user is a delegation leader
-    const { data: delegation, error: delegationError } = await supabase
+    // 1. Check if user is a leader
+    const { data: ownedDelegation } = await supabase
         .from("delegations")
         .select("id")
         .eq("created_by", userId)
-        .single();
+        .maybeSingle();
 
-    if (delegationError || !delegation) {
-        return NextResponse.json(
-            { error: "Forbidden", message: "You are not a delegation leader" },
-            { status: 403 }
-        );
+    if (ownedDelegation) {
+        delegationId = ownedDelegation.id;
+        isLeader = true;
+    } else {
+        // 2. Check if user is a member
+        const { data: membership } = await supabase
+            .from("delegation_members")
+            .select("delegation")
+            .eq("user_id", userId)
+            .maybeSingle();
+        
+        if (membership) {
+            delegationId = membership.delegation;
+        }
     }
 
-    // List all members of their delegation with user details
+    if (!delegationId) {
+        return NextResponse.json({ success: true, data: [], is_leader: false, has_delegation: false });
+    }
+
     const { data, error } = await supabase
         .from("delegation_members")
-        .select("user_id, joined_at, accepted, users:user_id(full_name, email)")
-        .eq("delegation", delegation.id);
+        .select("user_id, joined_at, accepted, users:user_id(full_name, email, application:applications(status))")
+        .eq("delegation", delegationId);
 
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data, is_leader: isLeader, has_delegation: true });
 });

@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 import { StepIndicator } from "./StepIndicator";
 import { AccountCreationStep } from "./AccountCreationStep";
@@ -293,30 +294,28 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                     variant="ghost"
                     onClick={handleBack}
                     disabled={currentStep === 1 || isSubmitting}
-                    className="cursor-pointer"
+                    className={cn("cursor-pointer", currentStep === 1 && "invisible")}
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" /> Geri
                 </Button>
 
-                {currentStep >= 2 && (
-                    <Button
-                        onClick={handleNext}
-                        disabled={isSubmitting}
-                        className="min-w-[140px] shadow-md cursor-pointer"
-                    >
-                        {isSubmitting ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <>
-                                {(totalDynamicSteps === 0 && currentStep === 2) ||
-                                 (currentStep >= 3 && currentStep - 2 === totalDynamicSteps)
-                                    ? "Kaydı Tamamla"
-                                    : "İleri"}
-                                <ArrowRight className="w-4 h-4 ml-2" />
-                            </>
-                        )}
-                    </Button>
-                )}
+                <Button
+                    onClick={handleNext}
+                    disabled={isSubmitting}
+                    className="min-w-[140px] shadow-md cursor-pointer"
+                >
+                    {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <>
+                            {(totalDynamicSteps === 0 && currentStep === 2) ||
+                             (currentStep >= 3 && currentStep - 2 === totalDynamicSteps)
+                                ? "Kaydı Tamamla"
+                                : "İleri"}
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                    )}
+                </Button>
             </div>
         </div>
     );

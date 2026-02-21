@@ -42,6 +42,7 @@ export const personalDetailsSchema = z.object({
   grade: z.enum(['prep', '9', '10', '11', '12', 'university']),
   high_school_id: z.number().min(-1, "Okul seçimi zorunludur"),
   manual_school_name: z.string().optional(),
+  delegation_name: z.string().optional(), // Added static delegation name
 }).refine((data) => {
   if (data.high_school_id === -1) {
     return !!data.manual_school_name && data.manual_school_name.length > 3;

@@ -23,14 +23,16 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   const status = session?.user?.applicationStatus;
 
   // Check if current user is Staff using the centralized array
-  // Use explicit check to ensure 'role' is defined before checking includes
   const isStaff = role ? STAFF_ROLES.includes(role) : false;
 
-  const { data: isDelegationLeader } = useQuery<boolean>({
-    queryKey: ['delegation-leader'],
+  const { data: hasDelegation } = useQuery<boolean>({
+    queryKey: ['delegation-check'],
     queryFn: async () => {
+      // Use the newly updated API which returns `has_delegation` flag
       const res = await fetch("/api/delegation/list_delegation_members");
-      return res.ok;
+      if (!res.ok) return false;
+      const json = await res.json();
+      return json.has_delegation === true;
     },
     staleTime: 1000 * 60 * 5,
     enabled: !!session,
@@ -47,8 +49,8 @@ export function Sidebar({ className, onClose }: SidebarProps) {
     // 3. Payment Check (Hide if not approved)
     if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
 
-    // 4. Delegation Leader Check
-    if (item.requiresDelegationLeader && !isDelegationLeader) return false;
+    // 4. Delegation Check
+    if (item.requiresDelegation && !hasDelegation) return false;
 
     return true;
   });

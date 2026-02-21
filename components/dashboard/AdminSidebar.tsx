@@ -16,7 +16,8 @@ import {
     CreditCard,
     FileEdit,
     MessageSquare,
-    UtensilsCrossed
+    UtensilsCrossed,
+    Briefcase
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -47,6 +48,12 @@ const adminItems = [
         href: "/admin/users",
         icon: Users,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
+    },
+    {
+        title: "Delegasyonlar",
+        href: "/admin/delegations",
+        icon: Briefcase,
+        roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
         title: "Komiteler",

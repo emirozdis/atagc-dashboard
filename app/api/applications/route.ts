@@ -129,10 +129,8 @@ async function processApplicationSubmission(
     const accountData = submissionAccountSchema.parse(body.account);
     const personalData = personalDetailsSchema.parse(body.personalDetails);
 
-    // Determine Final high_school_id
     let finalHighSchoolId: number | null = personalData.high_school_id === -1 ? null : personalData.high_school_id;
 
-    // Check if user already exists (Resume Flow)
     const { data: existingUser } = await supabase
         .from("users")
         .select("id, full_name")
@@ -153,7 +151,6 @@ async function processApplicationSubmission(
             throw new Error("Bu kullanıcı hesabıyla zaten bir başvuru yapılmış.");
         }
     } else {
-        // Registration Flow: adSoyad is mandatory here
         if (!accountData.adSoyad) {
             throw new Error("Yeni hesap oluşturmak için Ad Soyad alanı zorunludur.");
         }
@@ -168,7 +165,14 @@ async function processApplicationSubmission(
             .limit(1)
             .maybeSingle();
 
-        if (!verification) throw new Error("E-posta adresi doğrulanmamış veya doğrulama süresi dolmuş.");
+        const { data: magiclink } = await supabase
+            .from("delegation_magiclinks")
+            .select("id")
+            .eq("sent_to", accountData.email)
+            .limit(1)
+            .maybeSingle();
+
+        if (!verification && !magiclink) throw new Error("E-posta adresi doğrulanmamış veya doğrulama süresi dolmuş.");
 
         const randomHash = Math.random().toString(36).substring(2);
         const now = new Date().toISOString();
@@ -198,10 +202,8 @@ async function processApplicationSubmission(
 
     if (!formTemplate) throw new Error("Geçersiz başvuru formu şablonu.");
 
-    // Prepare Additional Info
     const additionalInfo: Record<string, any> = {};
 
-    // Logic: If "Other" school is selected, store string name in JSONB
     if (personalData.high_school_id === -1 && personalData.manual_school_name) {
         additionalInfo.manual_school_name = personalData.manual_school_name;
     }
@@ -209,8 +211,6 @@ async function processApplicationSubmission(
     const cleanFormData = { ...body.formData };
     const steps = formTemplate.steps as Array<{ fields: Array<{ id: string; system_map?: string }> }>;
 
-    // Explicit Static Columns (Should not be moved to additional_info if found in dynamic form)
-    // Note: school_name removed from static columns list as it is no longer a primary DB column
     const STATIC_COLUMNS = ['phone_number', 'birth_date', 'city', 'grade', 'high_school_id'];
 
     if (Array.isArray(steps)) {
@@ -226,7 +226,6 @@ async function processApplicationSubmission(
         });
     }
 
-    // Update User Details (school_name is intentionally omitted as requested)
     const userDetailsUpdate: Record<string, any> = {
         user_id: userId,
         phone_number: personalData.phone_number,
@@ -291,7 +290,12 @@ async function processApplicationSubmission(
     await sendSystemNotification(userId, "application_received");
 
     if (formTemplate.slug === "delegation") {
-        await supabase.from("delegations").insert({ created_by: userId });
+        const delegationName = personalData.delegation_name?.trim() || `${accountData.adSoyad || 'İsimsiz'} Delegasyonu`;
+        
+        await supabase.from("delegations").insert({ 
+            created_by: userId, 
+            name: String(delegationName) 
+        });
     }
 }
 
@@ -302,7 +306,6 @@ async function updateApplicationStatus(
 ) {
     const { id, status, review_notes } = input;
 
-    // 1. Fetch current state
     const { data: currentAppData, error: fetchError } = await supabase
         .from("applications")
         .select("status, review_notes, payment_status, user_id, form:application_forms(slug, fee)")
@@ -313,6 +316,24 @@ async function updateApplicationStatus(
 
     const currentApp = currentAppData as unknown as ApplicationData;
     const formObj = unwrapRelation(currentApp.form);
+
+    if (status === ApplicationStatusEnum.APPROVED) {
+        const { data: member } = await supabase
+            .from("delegation_members")
+            .select("delegation")
+            .eq("user_id", currentApp.user_id)
+            .maybeSingle();
+
+        if (member) {
+            const { data: del } = await supabase.from("delegations").select("created_by").eq("id", member.delegation).single();
+            if (del) {
+                const { data: leaderApp } = await supabase.from("applications").select("status").eq("user_id", del.created_by).maybeSingle();
+                if (leaderApp?.status !== 'approved') {
+                    throw new Error("Kullanıcının dahil olduğu delegasyonun lideri henüz onaylanmamış. Lider onaylanmadan üyeler onaylanamaz.");
+                }
+            }
+        }
+    }
 
     const updatePayload: Record<string, any> = {
         status,
@@ -334,14 +355,12 @@ async function updateApplicationStatus(
 
     if (error) throw error;
 
-    // Update Role Logic
     if (status === ApplicationStatusEnum.APPROVED) {
         const targetSlug = formObj?.slug;
         if (targetSlug) {
             await supabase.from("users").update({ role: targetSlug }).eq("id", currentApp.user_id);
         }
 
-        // Add user to catering_database when approved
         const { data: existingCatering } = await supabase
             .from("catering_logs")
             .select("user_id")
@@ -362,7 +381,6 @@ async function updateApplicationStatus(
         await supabase.from("users").update({ role: ROLES.APPLICANT }).eq("id", currentApp.user_id);
     }
 
-    // Construct precise objects for diffing
     const prevState = {
         status: currentApp.status,
         review_notes: currentApp.review_notes,

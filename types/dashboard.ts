@@ -44,8 +44,14 @@ export interface ProfileData {
                 expectations?: string;
                 self_introduction?: string;
                 kvkk_approved?: boolean;
-                manual_school_name?: string; // Added to fix TS error
+                manual_school_name?: string; 
             };
+        } | null;
+        delegation?: {
+            id: number;
+            name: string;
+            leader_name: string;
+            accepted: boolean | null;
         } | null;
     };
     application: {
@@ -78,7 +84,6 @@ export interface ProfileData {
     } | null;
 }
 
-// Alias for backward compatibility and semantic usage in Dashboard components
 export type DashboardData = ProfileData;
 
 export interface ParticipantDashboardProps {
@@ -88,7 +93,6 @@ export interface ParticipantDashboardProps {
     };
 }
 
-// System Settings Type
 export interface SystemSettings {
     term_name: string;
     contact_email: string;

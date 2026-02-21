@@ -3,8 +3,11 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
+import { sendEmail } from "@/lib/email";
+import { generateEmailHtml } from "@/lib/email-templates";
 
 const limiter = rateLimit({ interval: 60000 });
+const BASE_URL = process.env.NEXTAUTH_URL || "https://panel.atagc.com.tr";
 
 export const POST = apiHandler(async (req) => {
     const ip = req.headers.get("x-forwarded-for") ?? "anonymous";
@@ -60,6 +63,24 @@ export const POST = apiHandler(async (req) => {
     if (error) {
         throw new Error(error.message);
     }
+
+    const magicLinkUrl = `${BASE_URL}/?magiclink=${data.id}`;
+
+    const { data: leaderData } = await supabase.from("users").select("full_name").eq("id", userId).single();
+    
+    // Generate HTML Email
+    const emailHtml = generateEmailHtml(
+        "magic_link_invite",
+        leaderData?.full_name || 'Bir katılımcı',
+        BASE_URL,
+        { link: magicLinkUrl }
+    );
+
+    await sendEmail(
+        sentTo,
+        "ATAGÇ 2026 - Delegasyon Daveti",
+        emailHtml
+    );
 
     return NextResponse.json({ success: true, id: data.id });
 });

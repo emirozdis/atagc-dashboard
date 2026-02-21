@@ -49,7 +49,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     }
   });
 
-  // Observer-specific data fetching
   const { data: observerData, isLoading: observerLoading } = useQuery({
     queryKey: ['observer-info'],
     queryFn: async () => {
@@ -107,7 +106,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       },
       {
         id: 'committee',
-        label: "Komite",
+        label: "Atama",
         status: committee ? 'done' : 'waiting',
         text: committee?.name
       }
@@ -167,7 +166,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left/Main Column */}
         <div className={cn("flex flex-col gap-6", (showIdCard || isLoading) ? "lg:col-span-2" : "lg:col-span-3")}>
           <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
             <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
@@ -247,6 +245,34 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
             </CardContent>
           </Card>
 
+          {userProfile?.delegation && (
+            <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
+              <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
+                <CardTitle className="text-lg font-medium flex items-center gap-2">
+                  <Users className="w-4 h-4 text-primary" /> Delegasyon Durumu
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Delegasyon:</span>
+                    <span className="font-medium">{userProfile.delegation.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Katılım Durumu:</span>
+                    {userProfile.delegation.accepted === true ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Onaylandı</Badge>
+                    ) : userProfile.delegation.accepted === false ? (
+                      <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Reddedildi</Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Bekliyor</Badge>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="bg-card border-border/50 shadow-sm flex flex-col flex-1">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -287,7 +313,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
           </Card>
         </div>
 
-        {/* Right Column: Digital ID */}
         <div className="lg:col-span-1 h-full min-h-[400px]">
           {(isLoading || (showIdCard && userProfile)) && (
             <DigitalIdCard
@@ -300,7 +325,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         </div>
       </div>
 
-      {/* Observer Section - Independent from delegates */}
       {userProfile?.role === 'observer' && (
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
@@ -372,7 +396,6 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
         </div>
       )}
 
-      {/* Committee & Topic Section - Only for delegates/participants */}
       {userProfile?.role !== 'observer' && (isLoading || appStatus === ApplicationStatusEnum.APPROVED) && (
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">

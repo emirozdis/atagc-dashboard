@@ -11,15 +11,12 @@ import {
   Loader2,
   ArrowLeft,
   Briefcase,
-  User,
+  Phone,
   MapPin,
   Calendar,
-  Phone,
-  GraduationCap,
-  Camera,
-  Eye,
   FileText,
-  School
+  School,
+  Users
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +33,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import Link from "next/link";
-import { Committee } from "@/types/admin";
+import { Committee, Application } from "@/types/admin";
 import { GRADE_OPTIONS } from "@/lib/constants";
 
 export default function ApplicationDetailPage() {
@@ -47,7 +44,7 @@ export default function ApplicationDetailPage() {
   const [rejectionMode, setRejectionMode] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  const { data: application, isLoading: appLoading, error } = useQuery<any>({
+  const { data: application, isLoading: appLoading, error } = useQuery<Application>({
     queryKey: ['application', id],
     queryFn: async () => {
       const res = await fetch(`/api/applications/${id}`);
@@ -66,8 +63,11 @@ export default function ApplicationDetailPage() {
   });
 
   useEffect(() => {
-    if (application?.user?.committee_members && application.user.committee_members.length > 0) {
-      setSelectedCommittee(application.user.committee_members[0].committee.id);
+    const committeeMemberData = application?.user?.committee_members;
+    const committeeMembers = Array.isArray(committeeMemberData) ? committeeMemberData : (committeeMemberData ? [committeeMemberData] : []);
+    
+    if (committeeMembers && committeeMembers.length > 0) {
+      setSelectedCommittee(committeeMembers[0].committee.id);
     } else {
       setSelectedCommittee("none");
     }
@@ -80,7 +80,10 @@ export default function ApplicationDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: application?.id, status, review_notes: notes }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "İşlem başarısız");
+      }
     },
     onSuccess: () => {
       toast.success("İşlem Başarılı");
@@ -88,7 +91,7 @@ export default function ApplicationDetailPage() {
       setRejectionMode(false);
       setRejectionReason("");
     },
-    onError: () => toast.error("Hata oluştu")
+    onError: (err: Error) => toast.error(err.message)
   });
 
   const assignMutation = useMutation({
@@ -135,11 +138,7 @@ export default function ApplicationDetailPage() {
   const details = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
   const formData = application.form_data || {};
   const formDef = Array.isArray(application.form) ? application.form[0] : application.form;
-  const applicantType = formDef?.slug || 'delegate';
 
-  // --- School Name Logic ---
-  // 1. From joined table
-  // 2. From manual entry in additional_info
   const schoolName = details?.high_schools?.school_name || details?.additional_info?.manual_school_name || "Belirtilmemiş";
 
   const getFieldLabel = (key: string) => {
@@ -190,6 +189,26 @@ export default function ApplicationDetailPage() {
     );
   };
 
+  const delegationMember = Array.isArray(user.delegation_members) ? user.delegation_members[0] : user.delegation_members;
+  const delegationInfo = delegationMember?.delegation;
+  const actualDelegation = Array.isArray(delegationInfo) ? delegationInfo[0] : delegationInfo;
+  const actualLeader = Array.isArray(actualDelegation?.leader) ? actualDelegation.leader[0] : actualDelegation?.leader;
+  
+  const leaderApp = Array.isArray(actualLeader?.application) ? actualLeader.application[0] : actualLeader?.application;
+  const leaderStatus = leaderApp?.status;
+  const leaderAppId = leaderApp?.id;
+  const delegationName = actualDelegation?.name || "Bilinmeyen Delegasyon";
+
+  const ownedDel = Array.isArray(user.owned_delegation) ? user.owned_delegation[0] : user.owned_delegation;
+  const isLeader = !!ownedDel;
+
+  const isDelegationMember = !!delegationMember;
+  const isAcceptedToDelegation = delegationMember?.accepted === true;
+  const isLeaderApproved = leaderStatus === 'approved';
+  
+  // A member can be approved ONLY IF they are accepted to the delegation AND their leader is approved.
+  const canReviewApplication = !isDelegationMember || (isAcceptedToDelegation && isLeaderApproved);
+
   return (
     <div className="animate-fade-in pb-12 max-w-7xl mx-auto space-y-6">
       <Breadcrumbs items={[{ label: "Başvurular", href: "/admin/applications" }, { label: formDef?.title || "Başvuru" }]} />
@@ -213,11 +232,17 @@ export default function ApplicationDetailPage() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {getStatusBadge(application.status)}
 
-          {application.status === 'pending' && (
+          {application.status === 'pending' && canReviewApplication && (
             <>
               <Button variant="destructive" size="sm" onClick={() => setRejectionMode(true)}>Reddet</Button>
               <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => statusMutation.mutate({ status: 'approved' })}>Onayla</Button>
             </>
+          )}
+
+          {application.status === 'pending' && isDelegationMember && !canReviewApplication && (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 whitespace-nowrap">
+              {!isAcceptedToDelegation ? "Delegasyon Lideri Onayı Bekliyor" : "Liderin Başvuru Onayı Bekleniyor"}
+            </Badge>
           )}
         </div>
       </div>
@@ -245,7 +270,7 @@ export default function ApplicationDetailPage() {
           <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
             <div className="bg-gradient-to-b from-muted/50 to-card p-6 flex flex-col items-center text-center border-b border-border/50">
               <Avatar className="w-24 h-24 mb-4 border-4 border-background shadow-xl ring-1 ring-border/10">
-                <AvatarImage src={details?.profile_picture_url} className="object-cover" />
+                <AvatarImage src={details?.profile_picture_url || undefined} className="object-cover" />
                 <AvatarFallback className="text-xl bg-primary/10 text-primary font-bold">
                   {user.full_name.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
@@ -279,6 +304,31 @@ export default function ApplicationDetailPage() {
                 <Calendar className="w-4 h-4 shrink-0" />
                 <span className="text-foreground">
                   {details?.birth_date ? new Date(details.birth_date).toLocaleDateString('tr-TR') : "-"}
+                </span>
+              </div>
+              <Separator />
+              <div className="flex items-start gap-3 text-muted-foreground">
+                <Users className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="text-foreground">
+                  {isLeader ? (
+                    <div className="flex flex-col">
+                      <span className="font-medium text-primary">{ownedDel?.name}</span>
+                      <span className="text-[10px] font-medium mt-0.5">Delegasyon Lideri</span>
+                    </div>
+                  ) : delegationMember ? (
+                    <div className="flex flex-col">
+                      {leaderAppId ? (
+                         <Link href={`/admin/applications/${leaderAppId}`} className="font-medium text-primary hover:underline">
+                            Delegasyon: {delegationName}
+                         </Link>
+                      ) : (
+                         <span className="font-medium text-primary">Delegasyon: {delegationName}</span>
+                      )}
+                      <span className="text-[10px] text-muted-foreground mt-0.5">
+                        Lider Durumu: {leaderStatus === 'approved' ? 'Onaylı' : leaderStatus === 'rejected' ? 'Reddedildi' : 'Bekliyor'}
+                      </span>
+                    </div>
+                  ) : "Bireysel Katılımcı"}
                 </span>
               </div>
             </div>

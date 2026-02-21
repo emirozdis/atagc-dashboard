@@ -1,19 +1,15 @@
 import nodemailer from "nodemailer";
 
-// Configured for Brevo (Sendinblue) SMTP by default
-// Host: smtp-relay.brevo.com
-// Port: 587 (STARTTLS)
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
   port: Number(process.env.SMTP_PORT || 587),
-  secure: process.env.SMTP_SECURE === "true", // false for 587, true for 465
+  secure: process.env.SMTP_SECURE === "true",
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
 });
 
-// Verify connection configuration on startup (optional but helpful for debugging)
 if (process.env.NODE_ENV !== 'production') {
   transporter.verify(function (error, success) {
     if (error) {

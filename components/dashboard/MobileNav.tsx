@@ -15,14 +15,15 @@ export function MobileNav() {
 
   const role = session?.user?.role;
   const status = session?.user?.applicationStatus;
-  const type = session?.user?.applicantType || "delegate";
   const isStaff = role ? STAFF_ROLES.includes(role) : false;
 
-  const { data: isDelegationLeader } = useQuery<boolean>({
-    queryKey: ['delegation-leader'],
+  const { data: hasDelegation } = useQuery<boolean>({
+    queryKey: ['delegation-check'],
     queryFn: async () => {
       const res = await fetch("/api/delegation/list_delegation_members");
-      return res.ok;
+      if (!res.ok) return false;
+      const json = await res.json();
+      return json.has_delegation === true;
     },
     staleTime: 1000 * 60 * 5,
     enabled: !!session,
@@ -40,8 +41,8 @@ export function MobileNav() {
       // Payment Check (Hide if not approved)
       if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
 
-      // Delegation Leader Check
-      if (item.requiresDelegationLeader && !isDelegationLeader) return false;
+      // Delegation Check
+      if (item.requiresDelegation && !hasDelegation) return false;
 
       return true;
     });
@@ -92,6 +93,3 @@ export function MobileNav() {
     </div>
   );
 }
-
-// Change Log:
-// - Added logic to filter mobile navigation items based on `applicantType`.

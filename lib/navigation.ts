@@ -38,7 +38,7 @@ export interface NavigationItem {
     roles: string[];
     mobileCore: boolean;
     requiresApproved: boolean;
-    requiresDelegationLeader?: boolean;
+    requiresDelegation?: boolean;
     subItems?: NavigationSubItem[];
 }
 
@@ -100,7 +100,7 @@ export const participantItems: NavigationItem[] = [
         roles: ["applicant", "delegate"],
         mobileCore: false,
         requiresApproved: false,
-        requiresDelegationLeader: true,
+        requiresDelegation: true,
     },
     {
         title: "Komitem",
@@ -252,8 +252,3 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: false,
     },
 ];
-
-// Change Log:
-// - Removed "applicant" from `roles` for: Tara, Tanıştıklarım, Kaynaklar, Duyurular.
-// - This ensures users with 'applicant' role (unapproved applications) only see Dashboard, Payment, and Profile.
-// - Once approved, their role changes to 'delegate'/'press'/'observer', granting access to other pages.

@@ -7,8 +7,11 @@ export type NotificationType =
   | "warning_issued"
   | "account_suspended"
   | "password_changed"
-  | "payment_approved" // New
-  | "payment_rejected"; // New
+  | "payment_approved"
+  | "payment_rejected"
+  | "email_verification"
+  | "magic_link_invite"
+  | "password_reset_request";
 
 interface EmailContent {
   subject: string;
@@ -32,10 +35,6 @@ const COLORS = {
   success: "#059669",
 };
 
-// ... (Keep existing Helper Functions: getBaseStyles, getWrapperStyles, etc.) ...
-// For brevity, assuming helper functions exist as in previous file version.
-// Re-including critical helpers for context if needed, or keeping file structure consistent.
-
 const getBaseStyles = () => `font-family: 'Inter', sans-serif; line-height: 1.6; color: ${COLORS.textPrimary}; background-color: ${COLORS.background}; margin: 0; padding: 0;`;
 const getWrapperStyles = () => `width: 100%; background-color: ${COLORS.background}; padding: 40px 0;`;
 const getContainerStyles = () => `max-width: 600px; margin: 0 auto; background-color: ${COLORS.container}; border-radius: 12px; overflow: hidden; border: 1px solid ${COLORS.border};`;
@@ -49,8 +48,32 @@ const getFooterStyles = () => `background-color: #fafafa; padding: 32px 40px; te
 const getFooterTextStyles = () => `margin: 0; font-size: 12px; color: ${COLORS.textSecondary};`;
 const getLinkStyles = () => `color: ${COLORS.primary}; text-decoration: underline; font-weight: 500;`;
 
-const getContent = (type: NotificationType, userName: string): EmailContent => {
+const getContent = (type: NotificationType, userName: string, data?: any): EmailContent => {
   switch (type) {
+    case "email_verification":
+      return {
+        subject: "E-posta Doğrulama Kodu | ATAGÇ 2026",
+        heading: "Doğrulama Kodunuz",
+        message: `Sayın <strong>${userName || 'Katılımcı'}</strong>,<br/><br/>ATAGÇ 2026 başvuru sürecine devam etmek için gereken doğrulama kodunuz aşağıdadır. Bu kod 10 dakika süreyle geçerlidir.<br/><br/><div style="background-color: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 8px; padding: 16px; font-size: 28px; font-weight: 700; letter-spacing: 4px; text-align: center; color: #18181b; margin: 24px 0;">${data?.code}</div>`,
+      };
+    case "magic_link_invite":
+      return {
+        subject: "Delegasyon Daveti | ATAGÇ 2026",
+        heading: "Delegasyona Davet Edildiniz",
+        message: `Merhaba,<br/><br/><strong>${userName}</strong> sizi ATAGÇ 2026'da kendi delegasyonuna katılmaya davet ediyor. Aşağıdaki butona tıklayarak kayıt formuna ulaşabilir ve ekibe dahil olabilirsiniz.`,
+        buttonText: "Delegasyona Katıl",
+        buttonPath: data?.link,
+        accentColor: COLORS.primary
+      };
+    case "password_reset_request":
+      return {
+        subject: "Şifre Sıfırlama Talebi | ATAGÇ 2026",
+        heading: "Şifrenizi Sıfırlayın",
+        message: `Sayın <strong>${userName}</strong>,<br/><br/>Hesabınız için bir şifre sıfırlama talebi aldık. Eğer bu işlemi siz yapmadıysanız, hesabınız güvendedir ve bu e-postayı görmezden gelebilirsiniz.<br/><br/>Şifrenizi yenilemek için aşağıdaki butona tıklayınız. Link 30 dakika geçerlidir.`,
+        buttonText: "Şifremi Sıfırla",
+        buttonPath: data?.link,
+        accentColor: COLORS.primary
+      };
     case "payment_approved":
         return {
             subject: "Ödeme Onaylandı | ATAGÇ 2026",
@@ -148,13 +171,21 @@ const getContent = (type: NotificationType, userName: string): EmailContent => {
   }
 };
 
-export const generateEmailHtml = (type: NotificationType, userName: string, baseUrl: string) => {
-  const content = getContent(type, userName);
+export const generateEmailHtml = (type: NotificationType, userName: string, baseUrl: string, data?: any) => {
+  const content = getContent(type, userName, data);
   const headingColor = content.accentColor || COLORS.textPrimary;
   const buttonColor = content.accentColor || COLORS.primary;
   
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const targetUrl = `${cleanBaseUrl}${content.buttonPath || '/dashboard'}`;
+  let targetUrl = `${cleanBaseUrl}${content.buttonPath || '/dashboard'}`;
+
+  if (content.buttonPath) {
+      if (content.buttonPath.startsWith('http')) {
+          targetUrl = content.buttonPath;
+      } else {
+          targetUrl = `${cleanBaseUrl}${content.buttonPath.startsWith('/') ? '' : '/'}${content.buttonPath}`;
+      }
+  }
 
   return `
     <!DOCTYPE html>
@@ -177,14 +208,14 @@ export const generateEmailHtml = (type: NotificationType, userName: string, base
             ${content.buttonText ? `<div style="${getButtonContainerStyles()}"><a href="${targetUrl}" target="_blank" style="${getButtonStyles(buttonColor)}">${content.buttonText}</a></div>` : ''}
             <div style="margin-top: 40px; border-top: 1px solid #f4f4f5; padding-top: 20px;">
               <p style="font-size: 13px; color: ${COLORS.textSecondary}; margin: 0;">
-                Sorularınız için <a href="mailto:info@atagc.com.tr" style="${getLinkStyles()}">info@atagc.com.tr</a> adresi üzerinden bize ulaşabilirsiniz.
+                Sorularınız için <a href="mailto:info@atagc.com.tr" style="${getLinkStyles()}">info@atagc.com.tr</a> adresi üzerinden veya panelimizdeki destek sisteminden bize ulaşabilirsiniz.
               </p>
             </div>
           </div>
           <div style="${getFooterStyles()}">
             <p style="${getFooterTextStyles()}">© 2026 ATAGÇ. Tüm hakları saklıdır.</p>
             <p style="${getFooterTextStyles()} margin-top: 5px;">İTÜ GVO İzmir NESAN Yerleşkesi</p>
-            ${type !== 'password_changed' && type !== 'account_suspended' ? `<p style="${getFooterTextStyles()} margin-top: 15px; font-size: 11px; opacity: 0.6;">Bu e-posta, bildirim tercihleriniz doğrultusunda gönderilmiştir. Ayarlarınızı <a href="${cleanBaseUrl}/dashboard/profile" style="color: ${COLORS.textSecondary}; text-decoration: underline;">profil sayfasından</a> yönetebilirsiniz.</p>` : ''}
+            ${type !== 'password_changed' && type !== 'account_suspended' && type !== 'email_verification' && type !== 'password_reset_request' ? `<p style="${getFooterTextStyles()} margin-top: 15px; font-size: 11px; opacity: 0.6;">Bu e-posta, bildirim tercihleriniz doğrultusunda gönderilmiştir. Ayarlarınızı <a href="${cleanBaseUrl}/dashboard/profile" style="color: ${COLORS.textSecondary}; text-decoration: underline;">profil sayfasından</a> yönetebilirsiniz.</p>` : ''}
           </div>
         </div>
       </div>
@@ -192,6 +223,3 @@ export const generateEmailHtml = (type: NotificationType, userName: string, base
     </html>
   `;
 };
-
-// Change Log:
-// - Added Payment Approved/Rejected email templates.

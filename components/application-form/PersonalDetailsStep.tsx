@@ -10,16 +10,17 @@ import { CITY_OPTIONS, GRADE_OPTIONS } from "@/lib/constants";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Loader2, PlusCircle } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, PlusCircle, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
 
 interface PersonalDetailsStepProps {
   form: UseFormReturn<PersonalDetailsData>;
+  isDelegation?: boolean;
 }
 
-export function PersonalDetailsStep({ form }: PersonalDetailsStepProps) {
+export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepProps) {
   const { register, formState: { errors }, setValue, watch } = form;
   const [openSchool, setOpenSchool] = useState(false);
   const [schoolSearch, setSchoolSearch] = useState("");
@@ -47,6 +48,24 @@ export function PersonalDetailsStep({ form }: PersonalDetailsStepProps) {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
+        
+        {/* Delegation Name Field - Renders only for Delegation Leaders */}
+        {isDelegation && (
+          <div className="md:col-span-2 space-y-2 p-4 bg-primary/5 rounded-xl border border-primary/20 mb-2">
+            <Label className="flex items-center gap-2 text-primary font-semibold">
+              <Users className="w-4 h-4" />
+              Delegasyon Görüntülenme Adı <span className="text-destructive">*</span>
+            </Label>
+            <Input 
+              {...register("delegation_name")} 
+              placeholder="Örn: İTÜ GVO Delegasyonu" 
+              className="bg-background"
+            />
+            {errors.delegation_name && <p className="text-xs text-destructive">{errors.delegation_name.message}</p>}
+            <p className="text-[11px] text-muted-foreground mt-1">Bu isim, yöneticilerin ekranlarında ve delegasyon üyelerinizin panellerinde görünecektir.</p>
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label>Telefon Numarası <span className="text-destructive">*</span></Label>
           <Input {...register("phone_number")} placeholder="05XX XXX XX XX" type="tel" />
