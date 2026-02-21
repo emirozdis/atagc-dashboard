@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { StepIndicator } from "./StepIndicator";
 import { AccountCreationStep } from "./AccountCreationStep";
 import { PersonalDetailsStep } from "./PersonalDetailsStep";
+import { DynamicFormStep } from "./DynamicFormStep";
 import { SuccessScreen } from "./SuccessScreen";
 
 import {
@@ -18,6 +19,8 @@ import {
     AccountCreationData,
     personalDetailsSchema,
     PersonalDetailsData,
+    ApplicationFormTemplate,
+    DynamicFormData,
 } from "@/types/application";
 
 interface DelegationFormProps {
@@ -37,6 +40,8 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
     const [isEmailVerified, setIsEmailVerified] = useState(true);
     const [authMode, setAuthMode] = useState<"register" | "login">("register");
     const [turnstileToken, setTurnstileToken] = useState("");
+    const [delegateForm, setDelegateForm] = useState<ApplicationFormTemplate | null>(null);
+    const [formAnswers, setFormAnswers] = useState<DynamicFormData>({});
 
     const accountForm = useForm<AccountCreationData>({
         resolver: zodResolver(accountCreationSchema),
@@ -55,6 +60,17 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
     useEffect(() => {
         accountForm.setValue("email", magiclinkEmail);
     }, [magiclinkEmail, accountForm]);
+
+    // Fetch delegate form for dynamic steps
+    useEffect(() => {
+        fetch("/api/forms")
+            .then(res => res.json())
+            .then((data: ApplicationFormTemplate[]) => {
+                const form = data.find(f => f.slug === "delegate");
+                if (form) setDelegateForm(form);
+            })
+            .catch(console.error);
+    }, []);
 
     // Scroll to form top when step changes
     useEffect(() => {
@@ -132,14 +148,39 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
             return;
         }
 
-        // Step 2: Personal Details → Submit
+        // Step 2: Personal Details → Dynamic Steps
         if (currentStep === 2) {
             const isValid = await personalForm.trigger();
             if (!isValid) {
                 toast.error("Lütfen bilgilerinizi kontrol ediniz.");
                 return;
             }
-            await handleSubmit();
+            if (delegateForm && delegateForm.steps.length > 0) {
+                setCurrentStep(3);
+            } else {
+                await handleSubmit();
+            }
+            return;
+        }
+
+        // Step 3+: Dynamic Form Steps
+        if (delegateForm) {
+            const dynamicStepIndex = currentStep - 3;
+            const currentDynamicStep = delegateForm.steps[dynamicStepIndex];
+
+            if (currentDynamicStep) {
+                const missingFields = currentDynamicStep.fields.filter(f => f.required && !formAnswers[f.id]);
+                if (missingFields.length > 0) {
+                    toast.error("Lütfen zorunlu alanları doldurunuz.");
+                    return;
+                }
+
+                if (dynamicStepIndex < delegateForm.steps.length - 1) {
+                    setCurrentStep(prev => prev + 1);
+                } else {
+                    await handleSubmit();
+                }
+            }
         }
     };
 
@@ -152,6 +193,8 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                 body: JSON.stringify({
                     magiclink_id: magiclinkId,
                     personal_details: personalForm.getValues(),
+                    form_id: delegateForm?.id,
+                    form_data: formAnswers,
                 }),
             });
 
@@ -176,10 +219,16 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
 
     if (isSubmitted) return <SuccessScreen onReset={() => (window.location.href = "/")} />;
 
+    const totalDynamicSteps = delegateForm?.steps.length || 0;
+    const currentDynamicStep = currentStep >= 3 ? delegateForm?.steps[currentStep - 3] : null;
+
     const displaySteps = [
         { number: 1, title: "Hesap" },
         { number: 2, title: "Kimlik" },
+        ...(totalDynamicSteps > 0 ? [{ number: 3, title: "Form" }] : []),
     ];
+
+    const indicatorStep = currentStep >= 3 ? 3 : currentStep;
 
     return (
         <div className="w-full max-w-3xl mx-auto relative" ref={formRef}>
@@ -192,7 +241,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                 </p>
             </div>
 
-            <StepIndicator steps={displaySteps} currentStep={currentStep} />
+            <StepIndicator steps={displaySteps} currentStep={indicatorStep} />
 
             <div className="min-h-[400px]">
                 {currentStep === 1 && (
@@ -215,6 +264,27 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                         <PersonalDetailsStep form={personalForm} />
                     </div>
                 )}
+
+                {currentStep >= 3 && currentDynamicStep && (
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-display font-semibold">{currentDynamicStep.title}</h3>
+                                <p className="text-xs text-muted-foreground uppercase tracking-widest">Başvuru Detayları</p>
+                            </div>
+                            <div className="bg-secondary/30 px-3 py-1 rounded-full border border-border/50">
+                                <span className="text-xs font-mono font-medium">
+                                    Adım {currentStep - 2} / {totalDynamicSteps}
+                                </span>
+                            </div>
+                        </div>
+                        <DynamicFormStep
+                            step={currentDynamicStep}
+                            answers={formAnswers}
+                            onAnswerChange={(id, val) => setFormAnswers(prev => ({ ...prev, [id]: val }))}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Navigation Controls */}
@@ -228,7 +298,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                     <ArrowLeft className="w-4 h-4 mr-2" /> Geri
                 </Button>
 
-                {currentStep === 2 && (
+                {currentStep >= 2 && (
                     <Button
                         onClick={handleNext}
                         disabled={isSubmitting}
@@ -238,7 +308,10 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                             <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                             <>
-                                Kaydı Tamamla
+                                {(totalDynamicSteps === 0 && currentStep === 2) ||
+                                 (currentStep >= 3 && currentStep - 2 === totalDynamicSteps)
+                                    ? "Kaydı Tamamla"
+                                    : "İleri"}
                                 <ArrowRight className="w-4 h-4 ml-2" />
                             </>
                         )}

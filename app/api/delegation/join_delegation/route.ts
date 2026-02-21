@@ -19,17 +19,13 @@ export const POST = apiHandler(async (req) => {
     const userId = (auth.session as any).user.id;
 
     // Check if the user is already in a delegation
-    const { data: existingMember, error: memberError } = await supabase
+    const { data: existingMembers } = await supabase
         .from("delegation_members")
-        .select("id")
+        .select("user_id")
         .eq("user_id", userId)
-        .maybeSingle();
+        .limit(1);
 
-    if (memberError) {
-        throw new Error(memberError.message);
-    }
-
-    if (existingMember) {
+    if (existingMembers && existingMembers.length > 0) {
         return NextResponse.json(
             { error: "Bad Request", message: "You are already in a delegation" },
             { status: 400 }

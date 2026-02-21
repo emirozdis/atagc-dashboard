@@ -23,13 +23,24 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Copy, Plus, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Copy, Plus, Check, Users, Trash2, X } from "lucide-react";
 
 type InviteCode = {
   invite_code: string;
   delegation: string;
   uses_left: number | null;
   created_at: string;
+};
+
+type DelegationMember = {
+  user_id: string;
+  joined_at: string;
+  accepted: boolean | null;
+  users: {
+    full_name: string;
+    email: string;
+  };
 };
 
 export default function DelegationPage() {
@@ -47,6 +58,17 @@ export default function DelegationPage() {
       return res.json();
     },
   });
+
+  const { data: membersData, isLoading: membersLoading } = useQuery<{ success: boolean; data: DelegationMember[] }>({
+    queryKey: ["delegation-members"],
+    queryFn: async () => {
+      const res = await fetch("/api/delegation/list_delegation_members");
+      if (!res.ok) throw new Error("Üyeler yüklenemedi");
+      return res.json();
+    },
+  });
+
+  const members = membersData?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: async (usesLeftValue: number | undefined) => {
@@ -85,6 +107,24 @@ export default function DelegationPage() {
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
   };
+
+  const memberActionMutation = useMutation({
+    mutationFn: async ({ target_user_id, action }: { target_user_id: string; action: "accept" | "reject" | "remove" }) => {
+      const res = await fetch("/api/delegation/change_accepted_status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_user_id, action }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || err.error || "İşlem başarısız");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delegation-members"] });
+    },
+  });
 
   const magicLinkMutation = useMutation({
     mutationFn: async (email: string) => {
@@ -193,6 +233,93 @@ export default function DelegationPage() {
         )}
         {magicLinkMutation.isSuccess && (
           <p className="text-sm text-emerald-500">Magic link başarıyla oluşturuldu.</p>
+        )}
+      </div>
+
+      <div className="bg-card/80 backdrop-blur-md rounded-2xl border border-border/50 shadow-xl overflow-hidden">
+        <div className="p-6 border-b border-border/50 flex items-center gap-2">
+          <Users className="size-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold text-foreground">Delegasyon Üyeleri</h3>
+          <span className="text-sm text-muted-foreground">({members.length})</span>
+        </div>
+        {membersLoading ? (
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : members.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            Henüz delegasyona katılan üye yok.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Ad Soyad</TableHead>
+                <TableHead>E-posta</TableHead>
+                <TableHead>Katılma Tarihi</TableHead>
+                <TableHead>İşlemler</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.map((member) => (
+                <TableRow
+                  key={member.user_id}
+                  className={cn(
+                    member.accepted === true && "bg-emerald-500/10",
+                    member.accepted === false && "bg-destructive/10"
+                  )}
+                >
+                  <TableCell className="font-medium">{member.users.full_name}</TableCell>
+                  <TableCell>{member.users.email}</TableCell>
+                  <TableCell>
+                    {new Date(member.joined_at).toLocaleDateString("tr-TR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    {member.accepted === true ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground hover:text-destructive"
+                        disabled={memberActionMutation.isPending}
+                        onClick={() => memberActionMutation.mutate({ target_user_id: member.user_id, action: "remove" })}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-emerald-500"
+                          disabled={memberActionMutation.isPending}
+                          onClick={() => memberActionMutation.mutate({ target_user_id: member.user_id, action: "accept" })}
+                        >
+                          <Check className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          disabled={memberActionMutation.isPending}
+                          onClick={() => memberActionMutation.mutate({ target_user_id: member.user_id, action: "reject" })}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
 

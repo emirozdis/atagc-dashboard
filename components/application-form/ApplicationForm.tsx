@@ -5,8 +5,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, ExternalLink, Users, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -52,6 +53,11 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
   // Dynamic Answers Store
   const [formAnswers, setFormAnswers] = useState<DynamicFormData>({});
   
+  // Delegation Join (only for delegates)
+  const [inviteCode, setInviteCode] = useState("");
+  const [delegationJoined, setDelegationJoined] = useState(false);
+  const [isJoiningDelegation, setIsJoiningDelegation] = useState(false);
+
   // Auth Flow Control
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
@@ -92,6 +98,31 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
   const handleRoleSelect = (formId: string) => {
     setSelectedFormId(formId);
     setCurrentStep(2);
+  };
+
+  const handleJoinDelegation = async () => {
+    if (!inviteCode.trim()) {
+      toast.error("Lütfen davet kodunu giriniz.");
+      return;
+    }
+    setIsJoiningDelegation(true);
+    try {
+      const res = await fetch("/api/delegation/join_delegation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: inviteCode.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Delegasyona katılım başarısız");
+      }
+      setDelegationJoined(true);
+      toast.success("Delegasyona katılım isteği gönderildi! Delegasyon liderinin onayı bekleniyor.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setIsJoiningDelegation(false);
+    }
   };
 
   const handleNext = async () => {
@@ -210,7 +241,16 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
             throw new Error(err.error || "Gönderim başarısız");
         }
 
-        await update(); 
+        await update();
+
+        // Redirect delegation leaders to their delegation panel
+        const submittedForm = availableForms.find(f => f.id === selectedFormId);
+        if (submittedForm?.slug === "delegation") {
+            toast.success("Delegasyon başvurunuz alındı! Yönlendiriliyorsunuz...");
+            setTimeout(() => window.location.href = "/dashboard/delegation", 3500);
+            return;
+        }
+
         setIsSubmitted(true);
         toast.success("Başvuru Alındı");
     } catch (e: any) {
@@ -294,7 +334,48 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
             )}
 
             {currentStep === 3 && (
-                <div className="animate-in fade-in duration-500">
+                <div className="animate-in fade-in duration-500 space-y-6">
+                    {selectedForm?.slug === "delegate" && (
+                        <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Users className="w-4 h-4 text-primary" />
+                                <h4 className="font-semibold text-sm">Delegasyona Katıl</h4>
+                            </div>
+                            {delegationJoined ? (
+                                <div className="flex items-center gap-2 text-sm text-green-600">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>Katılım isteği gönderildi. Delegasyon liderinin onayı bekleniyor.</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-xs text-muted-foreground">
+                                        Bir delegasyona katılmak için delegasyon liderinizden aldığınız davet kodunu giriniz.
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="Davet kodu"
+                                            value={inviteCode}
+                                            onChange={(e) => setInviteCode(e.target.value)}
+                                            className="flex-1"
+                                        />
+                                        <Button
+                                            type="button"
+                                            onClick={handleJoinDelegation}
+                                            disabled={isJoiningDelegation || !inviteCode.trim()}
+                                            className="cursor-pointer"
+                                            size="sm"
+                                        >
+                                            {isJoiningDelegation ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                "Katıl"
+                                            )}
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
                     <PersonalDetailsStep form={personalForm} />
                 </div>
             )}

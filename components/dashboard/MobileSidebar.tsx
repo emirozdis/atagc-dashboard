@@ -8,6 +8,7 @@ import { signOut, useSession } from "next-auth/react";
 import { participantItems } from "@/lib/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MANAGEMENT_ROLES, COMMITTEE_LEADS, STAFF_ROLES } from "@/lib/roles";
+import { useQuery } from "@tanstack/react-query";
 
 interface MobileSidebarProps {
     onClose?: () => void;
@@ -22,6 +23,16 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
 
     const isStaff = role ? STAFF_ROLES.includes(role) : false;
 
+    const { data: isDelegationLeader } = useQuery<boolean>({
+        queryKey: ['delegation-leader'],
+        queryFn: async () => {
+            const res = await fetch("/api/delegation/list_delegation_members");
+            return res.ok;
+        },
+        staleTime: 1000 * 60 * 5,
+        enabled: !!session,
+    });
+
     const roleTag = (() => {
         if (role && MANAGEMENT_ROLES.includes(role)) return "Yönetim";
         if (role && COMMITTEE_LEADS.includes(role)) return "Akademi";
@@ -35,6 +46,9 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
 
         // Payment Check (Hide if not approved)
         if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
+
+        // Delegation Leader Check
+        if (item.requiresDelegationLeader && !isDelegationLeader) return false;
 
         return true;
     });

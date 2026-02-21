@@ -18,6 +18,16 @@ export function MobileNav() {
   const type = session?.user?.applicantType || "delegate";
   const isStaff = role ? STAFF_ROLES.includes(role) : false;
 
+  const { data: isDelegationLeader } = useQuery<boolean>({
+    queryKey: ['delegation-leader'],
+    queryFn: async () => {
+      const res = await fetch("/api/delegation/list_delegation_members");
+      return res.ok;
+    },
+    staleTime: 1000 * 60 * 5,
+    enabled: !!session,
+  });
+
   // Filter items
   const items = participantItems
     .filter(item => item.mobileCore)
@@ -29,6 +39,9 @@ export function MobileNav() {
 
       // Payment Check (Hide if not approved)
       if (item.href === '/dashboard/payment' && !isStaff && status !== 'approved') return false;
+
+      // Delegation Leader Check
+      if (item.requiresDelegationLeader && !isDelegationLeader) return false;
 
       return true;
     });

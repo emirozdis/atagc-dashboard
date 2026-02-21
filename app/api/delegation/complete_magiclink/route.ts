@@ -73,6 +73,7 @@ export const POST = apiHandler(async (req) => {
             .insert({
                 user_id: userId,
                 delegation: magiclink.delegation,
+                accepted: true,
             });
 
         if (memberError) {

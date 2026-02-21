@@ -20,7 +20,8 @@ import {
     MessageSquare,
     ClipboardList,
     ListTodo,
-    UtensilsCrossed
+    UtensilsCrossed,
+    Users
 } from "lucide-react";
 
 export interface NavigationSubItem {
@@ -37,6 +38,7 @@ export interface NavigationItem {
     roles: string[];
     mobileCore: boolean;
     requiresApproved: boolean;
+    requiresDelegationLeader?: boolean;
     subItems?: NavigationSubItem[];
 }
 
@@ -90,6 +92,15 @@ export const participantItems: NavigationItem[] = [
         roles: ["applicant", "delegate", "press", "observer"],
         mobileCore: false,
         requiresApproved: false,
+    },
+    {
+        title: "Delegasyon",
+        href: "/dashboard/delegation",
+        icon: Users,
+        roles: ["applicant", "delegate"],
+        mobileCore: false,
+        requiresApproved: false,
+        requiresDelegationLeader: true,
     },
     {
         title: "Komitem",

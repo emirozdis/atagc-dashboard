@@ -26,10 +26,10 @@ export const GET = apiHandler(async () => {
         );
     }
 
-    // List all members of their delegation
+    // List all members of their delegation with user details
     const { data, error } = await supabase
         .from("delegation_members")
-        .select("*")
+        .select("user_id, joined_at, accepted, users:user_id(full_name, email)")
         .eq("delegation", delegation.id);
 
     if (error) throw new Error(error.message);

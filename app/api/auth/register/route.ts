@@ -38,7 +38,17 @@ export const POST = apiHandler(async (request: Request) => {
     .limit(1)
     .maybeSingle();
 
-  if (!verification) {
+  const { data: magiclink } = await supabase
+    .from("delegation_magiclinks")
+    .select("id")
+    .eq("sent_to", email)
+    .eq("used", false)
+    .limit(1)
+    .maybeSingle();
+
+  const fromMagicLink = !!magiclink;
+
+  if (!verification && !fromMagicLink) {
     return NextResponse.json(
       { error: "E-posta adresi doğrulanmamış veya doğrulama zaman aşımına uğramış." },
       { status: 400 }
