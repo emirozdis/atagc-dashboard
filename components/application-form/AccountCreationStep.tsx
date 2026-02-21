@@ -27,13 +27,14 @@ interface AccountCreationStepProps {
     onTokenChange: (token: string) => void;
     onNext: () => Promise<void>;
     isSubmitting: boolean;
+    lockedEmail?: boolean;
 }
 
-export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeChange, onTokenChange, onNext, isSubmitting }: AccountCreationStepProps) {
+export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeChange, onTokenChange, onNext, isSubmitting, lockedEmail }: AccountCreationStepProps) {
     const { register, formState: { errors }, watch, getValues, trigger, setValue } = form;
 
     // States
-    const [stepState, setStepState] = useState<'email' | 'verifying' | 'details' | 'login'>('email');
+    const [stepState, setStepState] = useState<'email' | 'verifying' | 'details' | 'login'>(lockedEmail ? 'details' : 'email');
     const [verificationCode, setVerificationCode] = useState("");
     const [loading, setLoading] = useState(false);
     const [emailCheckLoading, setEmailCheckLoading] = useState(false);
@@ -186,7 +187,8 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                                     id="email"
                                     placeholder="ornek@email.com"
                                     {...register("email")}
-                                    className="pl-10 h-11 bg-background/50 border-border/50 cursor-pointer"
+                                    disabled={lockedEmail}
+                                    className={cn("pl-10 h-11 bg-background/50 border-border/50", lockedEmail ? "cursor-not-allowed opacity-70" : "cursor-pointer")}
                                     onKeyDown={(e) => e.key === 'Enter' && !isEmailButtonDisabled && handleCheckEmail()}
                                 />
                             </div>
