@@ -164,6 +164,16 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <div className="mt-6 text-center text-sm">
+            <span className="text-muted-foreground">Hesabınız yok mu? </span>
+            <Link 
+              href="/" 
+              className="text-primary hover:text-primary/80 transition-colors font-medium"
+            >
+              Başvuru Yap
+            </Link>
+          </div>
         </div>
       </div>
     </div>

@@ -23,6 +23,9 @@ export default function AdminCommitteesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "", topicTitle: "", topicDescription: "" });
 
+  // Delete Confirmation State
+  const [committeeToDelete, setCommitteeToDelete] = useState<string | null>(null);
+
   const { data: committees = [], isLoading } = useQuery<Committee[]>({
     queryKey: ['committees'],
     queryFn: async () => {
@@ -33,14 +36,22 @@ export default function AdminCommitteesPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: typeof formData) => {
       const method = editingId ? "PUT" : "POST";
+      
+      // Omit 'id' entirely if we are creating, to prevent Zod 'received null' errors
+      const payload = editingId ? { ...data, id: editingId } : data;
+
       const res = await fetch("/api/admin/committees", {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, id: editingId }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Operation failed");
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || "İşlem başarısız oldu.");
+      }
     },
     onSuccess: () => {
       toast.success(editingId ? "Komite Güncellendi" : "Komite Oluşturuldu");
@@ -48,7 +59,7 @@ export default function AdminCommitteesPage() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['committees'] });
     },
-    onError: () => toast.error("İşlem Başarısız")
+    onError: (error: Error) => toast.error(error.message)
   });
 
   const deleteMutation = useMutation({
@@ -58,9 +69,13 @@ export default function AdminCommitteesPage() {
     },
     onSuccess: () => {
       toast.success("Komite Silindi");
+      setCommitteeToDelete(null);
       queryClient.invalidateQueries({ queryKey: ['committees'] });
     },
-    onError: () => toast.error("Silinemedi")
+    onError: () => {
+      toast.error("Silinemedi");
+      setCommitteeToDelete(null);
+    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -100,7 +115,7 @@ export default function AdminCommitteesPage() {
             <DialogTrigger asChild>
               <Button className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> Yeni Komite</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg overflow-y-auto max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>{editingId ? "Komiteyi Düzenle" : "Yeni Komite Oluştur"}</DialogTitle>
                 <DialogDescription>Komite detaylarını ve çalışma konusunu giriniz.</DialogDescription>
@@ -123,11 +138,11 @@ export default function AdminCommitteesPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>Konu İçeriği</Label>
-                      <Textarea value={formData.topicDescription} onChange={e => setFormData({ ...formData, topicDescription: e.target.value })} />
+                      <Textarea value={formData.topicDescription} onChange={e => setFormData({ ...formData, topicDescription: e.target.value })} className="min-h-[100px]" />
                     </div>
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="gap-2 sm:gap-0 mt-4">
                   <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>İptal</Button>
                   <Button type="submit" disabled={mutation.isPending}>
                     {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Kaydet
@@ -140,7 +155,7 @@ export default function AdminCommitteesPage() {
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Komite ara..." className="pl-9 max-w-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          <Input placeholder="Komite ara..." className="pl-9 w-full sm:max-w-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
 
         {isLoading ? <CardSkeleton count={6} /> : (
@@ -148,25 +163,32 @@ export default function AdminCommitteesPage() {
             {filteredCommittees.map(committee => {
               const topicData = Array.isArray(committee.topic) ? committee.topic[0] : committee.topic;
               return (
-                <Card key={committee.id} className="bg-card border-border/50 hover:bg-secondary/20 transition-all group">
-                  <CardHeader>
-                    <CardTitle className="flex justify-between items-start gap-2">
-                      <span className="truncate">{committee.name}</span>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon-sm" onClick={() => startEdit(committee)}>
-                          <Pencil className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => confirm("Silmek istiyor musunuz?") && deleteMutation.mutate(committee.id)}>
-                          <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                        </Button>
-                      </div>
+                <Card key={committee.id} className="bg-card border-border/50 hover:bg-secondary/20 transition-all group overflow-hidden">
+                  {/* Added relative and pr-16 to leave exactly enough room for absolute buttons so text never overlaps */}
+                  <CardHeader className="relative pr-16">
+                    {/* Absolute positioning completely removes buttons from flex flow, solving all squish/overflow issues */}
+                    <div className="absolute top-4 right-4 flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => startEdit(committee)}>
+                        <Pencil className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                      </Button>
+                      <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setCommitteeToDelete(committee.id)}>
+                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </div>
+
+                    <CardTitle className="truncate" title={committee.name}>
+                      {committee.name}
                     </CardTitle>
-                    <CardDescription className="line-clamp-2 min-h-[40px]">{committee.description || "Açıklama yok."}</CardDescription>
+                    <CardDescription className="line-clamp-2 min-h-[40px] break-words">
+                      {committee.description || "Açıklama yok."}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="p-3 bg-background/50 rounded border border-border/50">
                       <div className="font-medium text-xs text-muted-foreground mb-1 uppercase tracking-wider">Çalışma Konusu</div>
-                      <div className="font-medium text-foreground">{topicData?.title || "Belirlenmedi"}</div>
+                      <div className="font-medium text-foreground truncate" title={topicData?.title || "Belirlenmedi"}>
+                        {topicData?.title || "Belirlenmedi"}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -175,6 +197,30 @@ export default function AdminCommitteesPage() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!committeeToDelete} onOpenChange={(open) => !open && setCommitteeToDelete(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Komiteyi Sil</DialogTitle>
+            <DialogDescription>
+              Bu komiteyi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button variant="ghost" onClick={() => setCommitteeToDelete(null)} disabled={deleteMutation.isPending}>
+              İptal
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => committeeToDelete && deleteMutation.mutate(committeeToDelete)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sil"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

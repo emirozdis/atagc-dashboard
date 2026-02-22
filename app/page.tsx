@@ -1,13 +1,13 @@
-// app/page.tsx
-
 import { ApplicationForm } from "@/components/application-form/ApplicationForm";
 import { DelegationForm } from "@/components/application-form/DelegationForm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { supabase } from "@/lib/SERVER_supabase";
-import { Calendar, MapPin, Instagram } from "lucide-react";
+import { Calendar, MapPin, Instagram, LogIn, LayoutDashboard } from "lucide-react";
 import { ApplicationFormTemplate } from "@/types/application";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 async function getApplicationForms(): Promise<ApplicationFormTemplate[]> {
   try {
@@ -68,6 +68,7 @@ export default async function Home({ searchParams }: HomeProps) {
   // Handle magiclink flow
   if (magiclinkParam) {
     const result = await validateMagiclink(magiclinkParam);
+    const session = await getServerSession(authOptions);
 
     if (!result.valid) {
       redirect("/");
@@ -77,8 +78,17 @@ export default async function Home({ searchParams }: HomeProps) {
       <main className="min-h-screen bg-background relative overflow-x-hidden">
         <div className="fixed inset-0 -z-10 bg-background"></div>
 
-        <header className="relative py-12 md:py-16 border-b border-border/30">
-          <div className="container mx-auto">
+        <header className="relative pt-6 pb-12 md:pb-16 border-b border-border/30">
+          <div className="container mx-auto px-4">
+            <nav className="flex justify-end mb-4 md:mb-8">
+               <Link href={session ? "/dashboard" : "/login"}>
+                <Button variant="secondary" className="gap-2 bg-secondary/50 backdrop-blur-sm border border-white/10 hover:bg-secondary/80 transition-all shadow-sm">
+                  {session ? <LayoutDashboard className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
+                  <span>{session ? "Panele Git" : "Giriş Yap"}</span>
+                </Button>
+              </Link>
+            </nav>
+
             <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
               <div className="relative mb-6">
                 <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full" />
@@ -99,7 +109,7 @@ export default async function Home({ searchParams }: HomeProps) {
               <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-sm md:text-base text-foreground/80 bg-secondary/30 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
                 <div className="flex items-center gap-2.5">
                   <Calendar className="w-5 h-5 text-primary" />
-                  <span>15 - 16 - 17 Mayıs 2026</span>
+                  <span>27 - 28 - 29 Mart 2026</span>
                 </div>
                 <div className="hidden sm:block w-px h-6 bg-border/20" />
                 <div className="flex items-center gap-2.5">
@@ -178,8 +188,17 @@ export default async function Home({ searchParams }: HomeProps) {
       <div className="fixed inset-0 -z-10 bg-background"></div>
 
       {/* Header */}
-      <header className="relative py-12 md:py-16 border-b border-border/30">
-        <div className="container mx-auto">
+      <header className="relative pt-6 pb-12 md:pb-16 border-b border-border/30">
+        <div className="container mx-auto px-4">
+          <nav className="flex justify-end mb-4 md:mb-8">
+            <Link href={session ? "/dashboard" : "/login"}>
+              <Button variant="secondary" className="gap-2 bg-secondary/50 backdrop-blur-sm border border-white/10 hover:bg-secondary/80 transition-all shadow-sm">
+                {session ? <LayoutDashboard className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
+                <span>{session ? "Panele Git" : "Giriş Yap"}</span>
+              </Button>
+            </Link>
+          </nav>
+
           <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
             <div className="relative mb-6">
               <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full" />
@@ -200,7 +219,7 @@ export default async function Home({ searchParams }: HomeProps) {
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-sm md:text-base text-foreground/80 bg-secondary/30 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
               <div className="flex items-center gap-2.5">
                 <Calendar className="w-5 h-5 text-primary" />
-                <span>15 - 16 - 17 Mayıs 2026</span>
+                <span>27 - 28 - 29 Mart 2026</span>
               </div>
               <div className="hidden sm:block w-px h-6 bg-border/20" />
               <div className="flex items-center gap-2.5">

@@ -267,7 +267,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                         </div>
                     </div>
 
-                    <div className="pt-2">
+                    <div className="pt-2 flex justify-center sm:justify-start">
                         <Turnstile
                             key={`turnstile-login-${turnstileKey}`}
                             siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
@@ -349,6 +349,15 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             </div>
                             {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
                         </div>
+                    </div>
+
+                    {/* Turnstile Widget for Final Registration Step */}
+                    <div className="pt-2 flex justify-center sm:justify-start">
+                        <Turnstile
+                            key={`turnstile-details-${turnstileKey}`}
+                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            onVerify={setTurnstileToken}
+                        />
                     </div>
                 </div>
             )}
