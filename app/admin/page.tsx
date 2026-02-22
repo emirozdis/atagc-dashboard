@@ -317,7 +317,7 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1 bg-card border-border/50 shadow-sm">
+        <Card className="lg:col-span-1 bg-card border">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               Sistem Günlüğü
@@ -332,20 +332,45 @@ export default function AdminDashboardPage() {
           <CardContent className="p-0">
             {isLoading ? (
               <div className="p-4 space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-10 rounded-md" />
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-x-3">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 flex-1" />
+                  </div>
                 ))}
               </div>
             ) : (
-              <ScrollArea className="h-[250px]">
-                {data?.recentLogs?.slice(0, 10).map((log) => (
-                  <div key={log.id} className="p-3 border-b border-border/30 text-xs">
-                    <p className="font-medium">{log.action}</p>
-                    <p className="text-muted-foreground">
-                      {log.user?.full_name || "Sistem"}
-                    </p>
-                  </div>
-                ))}
+              <ScrollArea className="h-[300px]">
+                <div className="font-mono text-xs p-4 space-y-2">
+                  {data?.recentLogs?.slice(0, 15).map((log) => {
+                    const time = new Date(log.created_at).toLocaleTimeString(
+                      "tr-TR",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      }
+                    );
+                    return (
+                      <div key={log.id} className="flex items-start gap-x-3">
+                        <span className="text-muted-foreground/80 pt-px">
+                          {time}
+                        </span>
+                        <p className="flex-1 break-words">
+                          <span className="text-primary font-medium">
+                            {log.user?.full_name || "Sistem"}
+                          </span>
+                          <span className="text-muted-foreground/60">
+                            :{" "}
+                          </span>
+                          <span className="text-foreground/90">
+                            {log.action}
+                          </span>
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
               </ScrollArea>
             )}
           </CardContent>

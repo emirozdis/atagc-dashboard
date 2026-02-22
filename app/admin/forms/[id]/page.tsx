@@ -216,7 +216,7 @@ export default function EditFormPage() {
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-4 items-end">
+                                        <div className="grid grid-cols-2 gap-4 items-end">
                                             <div className="space-y-2">
                                                 <Label>Tip</Label>
                                                 <Select value={field.type} onValueChange={val => updateField(activeStepIndex, fieldIdx, 'type', val)}>
@@ -239,23 +239,68 @@ export default function EditFormPage() {
                                                     <Switch checked={field.required} onCheckedChange={c => updateField(activeStepIndex, fieldIdx, 'required', c)} />
                                                 </div>
                                             </div>
-                                            {field.type === 'select' && (
-                                                <div className="space-y-2">
-                                                    <Label>Seçenekler (JSON)</Label>
-                                                    <Input
-                                                        value={JSON.stringify(field.options || [])}
-                                                        onChange={e => {
-                                                            try {
-                                                                const parsed = JSON.parse(e.target.value);
-                                                                updateField(activeStepIndex, fieldIdx, 'options', parsed);
-                                                            } catch { }
-                                                        }}
-                                                        placeholder='[{"label":"A","value":"a"}]'
-                                                        className="font-mono text-xs"
-                                                    />
-                                                </div>
-                                            )}
                                         </div>
+
+                                        {field.type === 'select' && (
+                                            <div className="space-y-3 pt-4 border-t border-border/50 mt-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Seçenekler</Label>
+                                                    <span className="text-[10px] text-muted-foreground">Label (Görünen) — Value (Değer)</span>
+                                                </div>
+                                                
+                                                <div className="space-y-2">
+                                                    {(field.options || []).map((option, optIdx) => (
+                                                        <div key={optIdx} className="flex gap-2 items-center">
+                                                            <Input 
+                                                                placeholder="Görünen İsim"
+                                                                value={option.label}
+                                                                onChange={e => {
+                                                                    const newOptions = [...(field.options || [])];
+                                                                    newOptions[optIdx] = { ...option, label: e.target.value };
+                                                                    updateField(activeStepIndex, fieldIdx, 'options', newOptions);
+                                                                }}
+                                                                className="h-9 text-sm"
+                                                            />
+                                                            <Input 
+                                                                placeholder="Değer"
+                                                                value={option.value}
+                                                                onChange={e => {
+                                                                    const newOptions = [...(field.options || [])];
+                                                                    newOptions[optIdx] = { ...option, value: e.target.value };
+                                                                    updateField(activeStepIndex, fieldIdx, 'options', newOptions);
+                                                                }}
+                                                                className="h-9 text-sm font-mono bg-muted/30"
+                                                            />
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0"
+                                                                onClick={() => {
+                                                                    const newOptions = [...(field.options || [])];
+                                                                    newOptions.splice(optIdx, 1);
+                                                                    updateField(activeStepIndex, fieldIdx, 'options', newOptions);
+                                                                }}
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                    
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full text-xs border-dashed h-9"
+                                                        onClick={() => {
+                                                            const newOptions = [...(field.options || [])];
+                                                            newOptions.push({ label: "", value: "" });
+                                                            updateField(activeStepIndex, fieldIdx, 'options', newOptions);
+                                                        }}
+                                                    >
+                                                        <Plus className="w-3 h-3 mr-2" /> Seçenek Ekle
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
 
