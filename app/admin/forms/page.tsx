@@ -54,9 +54,6 @@ export default function AdminFormsPage() {
                     <div className="p-3 rounded-lg bg-primary/10 text-primary mb-2">
                       <FileText className="w-6 h-6" />
                     </div>
-                    <Badge variant="secondary" className="font-mono">
-                      {form.fee} ₺
-                    </Badge>
                   </div>
                   <CardTitle className="text-xl">{form.title}</CardTitle>
                   <CardDescription className="line-clamp-2">

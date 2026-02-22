@@ -1,3 +1,5 @@
+// components/application-form/AccountCreationStep.tsx
+
 import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
@@ -151,6 +153,8 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             toast.success("E-posta Doğrulandı");
         } catch (e) {
             toast.error("Hatalı Kod", { description: "Lütfen kodu kontrol ediniz." });
+            setTurnstileToken("");
+            setTurnstileKey(prev => prev + 1);
         } finally {
             setLoading(false);
         }
@@ -258,7 +262,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                                 {...register("password")}
                                 className="bg-background cursor-pointer pr-10"
                             />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center">
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer">
                                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                             </button>
                         </div>
@@ -325,7 +329,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             <Label>Şifre Oluştur <span className="text-destructive">*</span></Label>
                             <div className="relative">
                                 <Input type={showPassword ? "text" : "password"} {...register("password")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer pr-10" />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center">
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer">
                                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                 </button>
                             </div>
@@ -343,7 +347,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             <Label>Şifre Tekrar <span className="text-destructive">*</span></Label>
                             <div className="relative">
                                 <Input type={showConfirmPassword ? "text" : "password"} {...register("confirmPassword")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer pr-10" />
-                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center">
+                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer">
                                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                 </button>
                             </div>

@@ -1,3 +1,5 @@
+// app/login/page.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -15,6 +17,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileKey, setTurnstileKey] = useState(0);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -50,6 +53,9 @@ export default function LoginPage() {
           description: errorMessage,
         });
         
+        // Reset Turnstile on error
+        setTurnstileToken("");
+        setTurnstileKey(prev => prev + 1);
         setLoading(false);
       } else {
         toast.success("Giriş Başarılı", {
@@ -70,6 +76,9 @@ export default function LoginPage() {
       toast.error("Hata", {
         description: "Bir sorun oluştu.",
       });
+      // Reset Turnstile on error
+      setTurnstileToken("");
+      setTurnstileKey(prev => prev + 1);
       setLoading(false);
     }
   };
@@ -144,6 +153,7 @@ export default function LoginPage() {
 
             <div className="py-2">
               <Turnstile 
+                key={`turnstile-login-${turnstileKey}`}
                 siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                 onVerify={(token) => setTurnstileToken(token)}
               />

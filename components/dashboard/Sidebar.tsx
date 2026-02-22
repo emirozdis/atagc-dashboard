@@ -123,7 +123,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
       <div className="p-4 border-t border-border space-y-2">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+          className="flex items-center gap-3 w-full cursor-pointer px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
         >
           <LogOut className="w-4 h-4" />
           Çıkış Yap

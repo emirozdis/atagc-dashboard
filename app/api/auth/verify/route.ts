@@ -1,3 +1,5 @@
+// app/api/auth/verify/route.ts
+
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import { apiHandler } from "@/lib/api-handler";
