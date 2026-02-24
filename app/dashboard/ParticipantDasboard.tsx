@@ -38,6 +38,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     }
   });
 
+  const { profile: userProfile, application, committee } = profile || {};
+  const appStatus = application?.status || "pending";
+
   const { data: paymentData, isLoading: paymentLoading } = useQuery({
     queryKey: ['payment-status-dashboard'],
     queryFn: async () => {
@@ -47,15 +50,15 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
       }
       if (!res.ok) throw new Error("Failed");
       return res.json();
-    }
+    },
+    enabled: appStatus === ApplicationStatusEnum.APPROVED // Only fetch payment if approved
   });
 
-  const isLoading = profileLoading || paymentLoading;
+  // Calculate loading status accurately based on enabled queries
+  const isLoading = profileLoading || (appStatus === ApplicationStatusEnum.APPROVED ? paymentLoading : false);
 
-  const { profile: userProfile, application, committee } = profile || {};
   const topic = committee?.topic;
   const paymentStatus = paymentData?.payment_status || PaymentStatusEnum.UNPAID;
-  const appStatus = application?.status || "pending";
 
   const isPaymentComplete = paymentStatus === PaymentStatusEnum.PAID || paymentStatus === PaymentStatusEnum.EXEMPT;
   const showIdCard = userProfile && (userProfile.role !== 'applicant' || (appStatus === ApplicationStatusEnum.APPROVED && isPaymentComplete));
@@ -229,19 +232,19 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
                         {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
                           <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
-                            <Link href="/payment">
+                            <Link href="/payment" prefetch={false}>
                               {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
                         )}
                         {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
                           <Button size="sm" variant="outline" asChild className="h-8 text-xs">
-                            <Link href="/payment">Detay</Link>
+                            <Link href="/payment" prefetch={false}>Detay</Link>
                           </Button>
                         )}
                         {step.id === 'committee' && step.status === 'done' && (
                           <Button size="sm" variant="outline" asChild className="h-8 text-xs">
-                            <Link href="/dashboard/committee">
+                            <Link href="/dashboard/committee" prefetch={false}>
                               Git <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
@@ -382,7 +385,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                     {committee.description || "Açıklama bulunmuyor."}
                   </div>
                   <Button variant="outline" size="sm" asChild className="w-full mt-auto">
-                    <Link href="/dashboard/committee" className="flex items-center gap-2">
+                    <Link href="/dashboard/committee" prefetch={false} className="flex items-center gap-2">
                       Komite Sayfasına Git <ChevronRight className="w-4 h-4" />
                     </Link>
                   </Button>

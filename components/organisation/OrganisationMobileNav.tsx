@@ -35,6 +35,7 @@ export function OrganisationMobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 "relative flex flex-col items-center justify-center w-full h-full gap-1 transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"

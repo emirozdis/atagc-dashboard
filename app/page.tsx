@@ -11,12 +11,17 @@ import { Button } from "@/components/ui/button";
 
 async function getApplicationForms(): Promise<ApplicationFormTemplate[]> {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/forms`, {
-      cache: 'force-cache',
-      next: { revalidate: 3600 }
-    });
-    if (!res.ok) return [];
-    return res.json();
+    const { data, error } = await supabase
+      .from("application_forms")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Failed to fetch forms:", error);
+      return [];
+    }
+
+    return data ?? [];
   } catch (error) {
     console.error("Failed to fetch forms:", error);
     return [];

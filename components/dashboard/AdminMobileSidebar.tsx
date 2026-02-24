@@ -138,7 +138,7 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
     return (
         <div className="flex flex-col h-full bg-background border-r border-border">
             <div className="p-6 border-b border-border">
-                <Link href="/admin" className="flex items-center gap-3" onClick={onClose}>
+                <Link href="/admin" prefetch={false} className="flex items-center gap-3" onClick={onClose}>
                     <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
                     <span className="font-display font-bold text-lg text-primary">
                         ATAGÇ
@@ -161,6 +161,7 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
                         <Link
                             key={item.href}
                             href={item.href}
+                            prefetch={false}
                             onClick={onClose}
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",

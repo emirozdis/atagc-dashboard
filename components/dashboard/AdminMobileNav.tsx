@@ -25,6 +25,7 @@ export function AdminMobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 "flex flex-col items-center justify-center w-full h-full gap-1 transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
@@ -39,7 +40,3 @@ export function AdminMobileNav() {
     </div>
   );
 }
-
-// Change Log:
-// - Created new mobile navigation component specifically for Admin routes.
-// - Includes links to Panel, Applications, Users, Roll Call, and Profile.

@@ -59,7 +59,7 @@ export default function OrganisationPage() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    enabled: hasPaymentFlow,
+    enabled: hasPaymentFlow && appStatus === ApplicationStatusEnum.APPROVED,
   });
 
   // Observer-specific allocation data
@@ -70,10 +70,10 @@ export default function OrganisationPage() {
       if (!res.ok) throw new Error("Failed to fetch observer data");
       return res.json();
     },
-    enabled: OBSERVER_TEAM.includes(effectiveRole),
+    enabled: OBSERVER_TEAM.includes(effectiveRole) && appStatus === ApplicationStatusEnum.APPROVED,
   });
 
-  const isLoading = profileLoading || (hasPaymentFlow && paymentLoading);
+  const isLoading = profileLoading || (hasPaymentFlow && appStatus === ApplicationStatusEnum.APPROVED ? paymentLoading : false);
 
   const showIdCard = userProfile && (userProfile.role !== 'applicant' || appStatus === 'approved');
 
@@ -281,20 +281,20 @@ export default function OrganisationPage() {
 
                         {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
                           <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
-                            <Link href="/payment">
+                            <Link href="/payment" prefetch={false}>
                               {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
                         )}
                         {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
                           <Button size="sm" variant="outline" asChild className="h-8 text-xs">
-                            <Link href="/payment">Detay</Link>
+                            <Link href="/payment" prefetch={false}>Detay</Link>
                           </Button>
                         )}
 
                         {step.id === 'allocation' && step.status === 'done' && (
                           <Button size="sm" variant="outline" asChild className="h-8 text-xs">
-                            <Link href="/organisation/observers/my-tasks">
+                            <Link href="/organisation/observers/my-tasks" prefetch={false}>
                               Görevlerim <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
@@ -459,7 +459,7 @@ export default function OrganisationPage() {
                   Fotoğraf ve medya içeriklerini görüntüleyin ve yönetin.
                 </p>
                 <Button variant="outline" size="sm" asChild className="w-full">
-                  <Link href="/organisation/press/gallery" className="flex items-center gap-2">
+                  <Link href="/organisation/press/gallery" prefetch={false} className="flex items-center gap-2">
                     Galeriye Git <ChevronRight className="w-4 h-4" />
                   </Link>
                 </Button>
@@ -494,7 +494,7 @@ export default function OrganisationPage() {
                   Katılımcı giriş kartlarını tarayın ve kontrol edin.
                 </p>
                 <Button variant="outline" size="sm" asChild className="w-full">
-                  <Link href="/organisation/security/scan" className="flex items-center gap-2">
+                  <Link href="/organisation/security/scan" prefetch={false} className="flex items-center gap-2">
                     Taramaya Başla <ChevronRight className="w-4 h-4" />
                   </Link>
                 </Button>

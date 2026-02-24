@@ -76,7 +76,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   return (
     <div className={cn("flex flex-col h-full bg-sidebar border-r border-border w-64", className)}>
       <div className="p-6 border-b border-border">
-        <Link href="/dashboard" className="flex items-center gap-3" onClick={onClose}>
+        <Link href="/dashboard" prefetch={false} className="flex items-center gap-3" onClick={onClose}>
           <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
           <span className="font-display font-bold text-lg text-primary">
             ATAGÇ
@@ -98,6 +98,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
             onClick={onClose}
             className={cn(
               "flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",

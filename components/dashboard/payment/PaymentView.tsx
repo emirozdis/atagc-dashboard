@@ -84,7 +84,7 @@ export function PaymentView() {
 
     const status = statusData?.payment_status || PaymentStatusEnum.UNPAID;
     const receipt = statusData?.last_receipt;
-    const amount = statusData?.amount_required || 0;
+    const amount = statusData?.amount_required;
 
     const isPaid = status === PaymentStatusEnum.PAID;
     const isProcessing = status === PaymentStatusEnum.PROCESSING;
@@ -190,15 +190,19 @@ export function PaymentView() {
                                     <div className="grid gap-10 md:grid-cols-3">
                                         <div className="space-y-1.5">
                                             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Alıcı</span>
-                                            <div className="font-bold text-lg">{settings?.bank_account_holder || "ATAGÇ Komitesi"}</div>
+                                            <div className="font-bold text-lg">{settings?.bank_account_holder || "Alıcı Bilgisi Yok"}</div>
                                         </div>
                                         <div className="space-y-1.5">
                                             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Banka</span>
-                                            <div className="font-bold text-lg">{settings?.bank_name || "Ziraat Bankası"}</div>
+                                            <div className="font-bold text-lg">{settings?.bank_name || "Banka Bilgisi Yok"}</div>
                                         </div>
                                         <div className="space-y-1.5">
                                             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Tutar</span>
-                                            <div className="font-bold text-xl text-primary">{amount.toLocaleString('tr-TR')} ₺</div>
+                                            <div className="font-bold text-xl text-primary">
+                                                {amount != null
+                                                    ? `${amount.toLocaleString('tr-TR')} ₺`
+                                                    : "Tutar Bilgisi Yok"}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="space-y-1.5">

@@ -135,7 +135,7 @@ export function AdminSidebar() {
     return (
         <div className="flex flex-col h-full bg-sidebar border-r border-border w-64">
             <div className="p-6 border-b border-border">
-                <Link href="/admin" className="flex items-center gap-3">
+                <Link href="/admin" prefetch={false} className="flex items-center gap-3">
                     <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
                     <span className="font-display font-bold text-lg text-primary">
                         ATAGÇ
@@ -157,6 +157,7 @@ export function AdminSidebar() {
                     <Link
                         key={item.href}
                         href={item.href}
+                        prefetch={false}
                         className={cn(
                             "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                             pathname === item.href

@@ -78,7 +78,6 @@ export default function AdminDashboardPage() {
     },
   });
 
-  // Safe access to the data array since API is now paginated
   const ticketsList = ticketsResponse?.data || [];
   
   const openTickets = ticketsList.filter(
@@ -143,12 +142,12 @@ export default function AdminDashboardPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link href="/admin/announcements/new">
+          <Link href="/admin/announcements/new" prefetch={false}>
             <Button variant="outline" className="gap-2">
               <Megaphone className="w-4 h-4" /> Duyuru Yap
             </Button>
           </Link>
-          <Link href="/admin/users">
+          <Link href="/admin/users" prefetch={false}>
             <Button className="gap-2">
               <Users className="w-4 h-4" /> Kullanıcı Yönetimi
             </Button>
@@ -209,8 +208,8 @@ export default function AdminDashboardPage() {
               </CardContent>
             </Card>
 
-            <Link href="/admin/tickets">
-              <Card className="bg-card border-border/50 shadow-sm hover:bg-muted/30 transition-colors">
+            <Link href="/admin/tickets" prefetch={false}>
+              <Card className="bg-card border-border/50 shadow-sm hover:bg-muted/30 transition-colors h-full">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Açık Talepler
@@ -235,7 +234,7 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               Son Başvurular
-              <Link href="/admin/applications">
+              <Link href="/admin/applications" prefetch={false}>
                 <Button variant="ghost" size="sm" className="h-7 text-xs">
                   Tümü
                 </Button>
@@ -253,7 +252,7 @@ export default function AdminDashboardPage() {
             ) : (
               <div className="divide-y divide-border/40">
                 {data?.recentActivity?.slice(0, 5).map((app) => (
-                  <Link href={`/admin/applications/${app.id}`} key={app.id}>
+                  <Link href={`/admin/applications/${app.id}`} key={app.id} prefetch={false}>
                     <div className="flex justify-between p-4 hover:bg-secondary/30 transition-colors">
                       <div>
                         <p className="text-sm font-medium">
@@ -276,7 +275,7 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               Son Destek Talepleri
-              <Link href="/admin/tickets">
+              <Link href="/admin/tickets" prefetch={false}>
                 <Button variant="ghost" size="sm" className="h-7 text-xs">
                   Tümü
                 </Button>
@@ -299,7 +298,7 @@ export default function AdminDashboardPage() {
                   </div>
                 ) : (
                   openTickets.slice(0, 5).map((ticket) => (
-                    <Link href={`/admin/tickets`} key={ticket.id}>
+                    <Link href={`/admin/tickets`} key={ticket.id} prefetch={false}>
                       <div className="flex justify-between p-4 hover:bg-secondary/30 transition-colors">
                         <div>
                           <p className="text-sm font-medium">{ticket.subject}</p>
@@ -321,7 +320,7 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               Sistem Günlüğü
-              <Link href="/admin/logs">
+              <Link href="/admin/logs" prefetch={false}>
                 <Button variant="ghost" size="sm" className="h-7 text-xs">
                   Tümü
                 </Button>
