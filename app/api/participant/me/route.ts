@@ -147,14 +147,28 @@ export const PUT = apiHandler(async (request: Request) => {
   delete detailsUpdate.full_name;
 
   if (Object.keys(detailsUpdate).length > 0) {
-    const { error } = await supabase
+    // Check if details exist before updating/inserting to avoid ON CONFLICT errors
+    const { data: existingDetails } = await supabase
       .from("user_details")
-      .upsert({
-        user_id: session.user.id,
-        ...detailsUpdate
-      }, { onConflict: 'user_id' });
+      .select("id")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
 
-    if (error) throw error;
+    if (existingDetails) {
+      const { error } = await supabase
+        .from("user_details")
+        .update(detailsUpdate)
+        .eq("user_id", session.user.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from("user_details")
+        .insert({
+          user_id: session.user.id,
+          ...detailsUpdate
+        });
+      if (error) throw error;
+    }
   }
 
   return NextResponse.json({ success: true, message: "Profil güncellendi" });

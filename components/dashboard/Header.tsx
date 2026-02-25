@@ -29,7 +29,7 @@ export function Header() {
   const isAdminRoute = pathname?.startsWith("/admin");
   const isOrganisationRoute = pathname?.startsWith("/organisation");
 
-  const { data: profile } = useQuery({
+  const { data: apiResponse } = useQuery({
     queryKey: ["profile"],
     queryFn: async () => {
       const res = await fetch("/api/participant/me");
@@ -40,7 +40,8 @@ export function Header() {
   });
 
   const initials = session?.user?.name?.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
-  const userDetails = profile?.userDetails || (Array.isArray(profile?.user?.user_details) ? profile?.user?.user_details[0] : profile?.user?.user_details);
+  
+  const userDetails = apiResponse?.profile?.details;
   const profileImage = userDetails?.profile_picture_url || undefined;
 
   const roleMeta = getRoleMeta(session?.user?.role);
