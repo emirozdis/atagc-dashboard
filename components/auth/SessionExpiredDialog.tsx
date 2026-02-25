@@ -20,11 +20,13 @@ export function SessionExpiredDialog() {
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        // Only trigger if we are on a protected route (Dashboard or Admin)
-        const isProtectedRoute = pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin");
+        const isProtectedRoute = 
+            pathname?.startsWith("/dashboard") || 
+            pathname?.startsWith("/admin") || 
+            pathname?.startsWith("/organisation") ||
+            pathname?.startsWith("/profile");
 
         // If status is unauthenticated but we are on a protected route, it implies session died mid-usage
-        // (Initial navigation is usually handled by Middleware, this handles polling/focus updates)
         if (status === "unauthenticated" && isProtectedRoute) {
             setIsOpen(true);
         } else {
@@ -51,7 +53,7 @@ export function SessionExpiredDialog() {
 
                     <AlertDialogDescription className="text-center space-y-4">
                         <p className="text-base leading-relaxed text-muted-foreground">
-                            Güvenlik nedeniyle oturumunuz sonlandırıldı. Bu durum aşağıdaki nedenlerden kaynaklanabilir:
+                            Güvenlik nedeniyle oturumunuz sonlandırıldı.
                         </p>
 
                         <div className="bg-muted/50 rounded-lg p-4 space-y-2.5 text-left">
@@ -65,12 +67,6 @@ export function SessionExpiredDialog() {
                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0" />
                                 <p className="text-sm text-foreground/80 leading-relaxed">
                                     Şifreniz değiştirildi
-                                </p>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0" />
-                                <p className="text-sm text-foreground/80 leading-relaxed">
-                                    Oturum süreniz doldu
                                 </p>
                             </div>
                             <div className="flex items-start gap-3">
@@ -101,5 +97,3 @@ export function SessionExpiredDialog() {
         </AlertDialog>
     );
 }
-// Change Log:
-// - New component to display a blocking dialog when the session becomes invalid on protected routes.

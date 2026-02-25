@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Calendar, CheckCircle2, Clock, Info, MapPin,
   XCircle, FileQuestion, Users,
-  ChevronRight, AlertTriangle, ShieldCheck
+  ChevronRight, AlertTriangle, ShieldCheck, UserPlus,
+  ArrowRight
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +39,16 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
     }
   });
 
+  // Fetch delegation summary for leaders
+  const { data: delegationInfo, isLoading: delegationLoading } = useQuery({
+    queryKey: ["delegation-dashboard-summary"],
+    queryFn: async () => {
+        const res = await fetch("/api/delegation/list_delegation_members");
+        if (!res.ok) return null;
+        return res.json();
+    }
+  });
+
   const { profile: userProfile, application, committee } = profile || {};
   const appStatus = application?.status || "pending";
 
@@ -55,7 +66,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   });
 
   // Calculate loading status accurately based on enabled queries
-  const isLoading = profileLoading || (appStatus === ApplicationStatusEnum.APPROVED ? paymentLoading : false);
+  const isLoading = profileLoading || (appStatus === ApplicationStatusEnum.APPROVED ? paymentLoading : false) || delegationLoading;
 
   const topic = committee?.topic;
   const paymentStatus = paymentData?.payment_status || PaymentStatusEnum.UNPAID;
@@ -63,24 +74,41 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   const isPaymentComplete = paymentStatus === PaymentStatusEnum.PAID || paymentStatus === PaymentStatusEnum.EXEMPT;
   const showIdCard = userProfile && (userProfile.role !== 'applicant' || (appStatus === ApplicationStatusEnum.APPROVED && isPaymentComplete));
 
+  const isDelegationLeader = delegationInfo?.is_leader;
+  const delegationMemberCount = delegationInfo?.data?.length || 0;
+
   if (!isLoading && !application && userProfile?.role === 'applicant') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in py-12">
         <div className="w-24 h-24 rounded-full bg-secondary/30 flex items-center justify-center shadow-inner ring-1 ring-white/10">
           <FileQuestion className="w-10 h-10 text-muted-foreground/70" />
         </div>
-        <div className="space-y-3 max-w-md mx-auto px-4">
-          <h2 className="text-3xl font-bold font-display text-foreground tracking-tight">Başvuru Bulunamadı</h2>
-          <p className="text-muted-foreground leading-relaxed">
-            Hesabınıza ait aktif bir başvuru kaydı görünmüyor.
-          </p>
+        <div className="space-y-4 max-w-md mx-auto px-4">
+          <div>
+            <h2 className="text-3xl font-bold font-display text-foreground tracking-tight">Başvuru Bulunamadı</h2>
+            <p className="text-muted-foreground leading-relaxed mt-2">
+              Hesabınıza ait aktif bir başvuru kaydı görünmüyor. Etkinliğe katılmak için lütfen başvuru yapınız.
+            </p>
+          </div>
+          <Button asChild size="lg" className="w-full sm:w-auto min-w-[200px] shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all">
+            <Link href="/">
+              Başvuru Yap <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   const appliedRoleSlug = application?.form?.slug;
-  const appliedRoleLabel = appliedRoleSlug ? ROLE_METADATA[appliedRoleSlug as UserRole]?.label : "Katılımcı";
+  // Fallback for delegation slug which might not be in ROLE_METADATA keys directly
+  let appliedRoleLabel = "Katılımcı";
+  
+  if (appliedRoleSlug) {
+      if (appliedRoleSlug === 'delegation') appliedRoleLabel = "Delegasyon";
+      else if (ROLE_METADATA[appliedRoleSlug as UserRole]) appliedRoleLabel = ROLE_METADATA[appliedRoleSlug as UserRole].label;
+      else appliedRoleLabel = "Başvuru";
+  }
 
   const getStatusSteps = () => {
     return [
@@ -177,7 +205,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className={cn("flex flex-col gap-6", (showIdCard || isLoading) ? "lg:col-span-2" : "lg:col-span-3")}>
-          <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
+          <Card className="border-border/50 shadow-sm bg-card overflow-hidden hover:border-primary/30 transition-all duration-300">
             <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
                 <Info className="w-4 h-4 text-primary" /> Kayıt Durumu
@@ -200,7 +228,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                   ))
                 ) : (
                   steps.map((step, idx) => (
-                    <div key={step.id} className="flex items-center justify-between p-4 md:p-6 transition-colors hover:bg-muted/5">
+                    <div key={step.id} className="flex items-center justify-between p-4 md:p-6 transition-colors hover:bg-muted/5 group">
                       <div className="flex items-center gap-4">
                         <div className="flex flex-col items-center gap-1">
                           {getStepIcon(step.status)}
@@ -209,7 +237,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                           )}
                         </div>
                         <div>
-                          <div className="font-medium text-sm md:text-base">{step.label}</div>
+                          <div className="font-medium text-sm md:text-base group-hover:text-primary transition-colors">{step.label}</div>
                           <div className="text-xs text-muted-foreground">
                             {step.text || (
                               step.status === 'done' ? "Tamamlandı" :
@@ -231,19 +259,19 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                         )}
 
                         {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
-                          <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
+                          <Button size="sm" asChild className={cn("h-8 text-xs shadow-sm", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
                             <Link href="/payment" prefetch={false}>
                               {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
                         )}
                         {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
-                          <Button size="sm" variant="outline" asChild className="h-8 text-xs">
+                          <Button size="sm" variant="outline" asChild className="h-8 text-xs hover:bg-muted/50">
                             <Link href="/payment" prefetch={false}>Detay</Link>
                           </Button>
                         )}
                         {step.id === 'committee' && step.status === 'done' && (
-                          <Button size="sm" variant="outline" asChild className="h-8 text-xs">
+                          <Button size="sm" variant="outline" asChild className="h-8 text-xs hover:bg-muted/50">
                             <Link href="/dashboard/committee" prefetch={false}>
                               Git <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
@@ -257,8 +285,49 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
             </CardContent>
           </Card>
 
-          {userProfile?.delegation && (
-            <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
+          {/* Delegation Leader Widget */}
+          {isDelegationLeader && (
+            <Card className="border-border/50 shadow-sm bg-card overflow-hidden hover:border-primary/30 transition-all duration-300">
+                <CardHeader className="bg-muted/10 border-b border-border/50 pb-4 flex flex-row items-center justify-between">
+                    <CardTitle className="text-lg font-medium flex items-center gap-2">
+                        <Users className="w-4 h-4 text-primary" /> Delegasyon Yönetimi
+                    </CardTitle>
+                    <Button size="sm" variant="ghost" asChild className="h-8 text-xs hover:bg-primary/5 text-muted-foreground hover:text-primary">
+                        <Link href="/dashboard/delegation">Tümünü Gör</Link>
+                    </Button>
+                </CardHeader>
+                <CardContent className="p-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+                        <div className="space-y-1">
+                            <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Toplam Üye</span>
+                            <div className="text-3xl font-bold font-display text-foreground">{delegationMemberCount}</div>
+                            <p className="text-xs text-muted-foreground">Delegasyonunuzdaki kayıtlı katılımcı sayısı.</p>
+                        </div>
+                        <div className="flex flex-col gap-3 justify-center">
+                            <Button asChild className="w-full bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 border shadow-none transition-all">
+                                <Link href="/dashboard/delegation?tab=invites">
+                                    <UserPlus className="w-4 h-4 mr-2" />
+                                    Üye Ekle / Davet Et
+                                </Link>
+                            </Button>
+                        </div>
+                    </div>
+                    {delegationMemberCount <= 1 && (
+                        <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-3">
+                            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="text-xs text-amber-900 dark:text-amber-200">
+                                <span className="font-semibold block mb-0.5">Henüz delegelerinizi eklemediniz</span>
+                                Delegasyonunuzu tamamlamak için delegelerinizi delegasyon sayfasından ekleyiniz.
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+          )}
+
+          {/* Delegation Membership Status (For Non-Leaders or Members) */}
+          {userProfile?.delegation && !isDelegationLeader && (
+            <Card className="border-border/50 shadow-sm bg-card overflow-hidden hover:border-primary/20 transition-all">
               <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
                 <CardTitle className="text-lg font-medium flex items-center gap-2">
                   <Users className="w-4 h-4 text-primary" /> Delegasyon Durumu
@@ -285,7 +354,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
             </Card>
           )}
 
-          <Card className="bg-card border-border/50 shadow-sm flex flex-col flex-1">
+          <Card className="bg-card border-border/50 shadow-sm flex flex-col flex-1 hover:border-primary/20 transition-all">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-primary" />
@@ -300,7 +369,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                  <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50 hover:bg-secondary/30 transition-colors">
                     <Calendar className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
                       <div className="text-xs font-medium text-foreground">Tarih</div>
@@ -310,7 +379,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                  <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50 hover:bg-secondary/30 transition-colors">
                     <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
                       <div className="text-xs font-medium text-foreground">Konum</div>
@@ -329,7 +398,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
             <div className="lg:col-span-1 h-full min-h-[400px]">
                 <DigitalIdCard
                 user={userForDigitalId}
-                className="h-full"
+                className="h-full hover:shadow-lg transition-shadow duration-300 border-border/50"
                 uniqueId="dashboard"
                 isLoading={isLoading}
                 />
@@ -384,7 +453,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                   <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed text-base">
                     {committee.description || "Açıklama bulunmuyor."}
                   </div>
-                  <Button variant="outline" size="sm" asChild className="w-full mt-auto">
+                  <Button variant="outline" size="sm" asChild className="w-full mt-auto hover:bg-primary/5 hover:text-primary transition-colors">
                     <Link href="/dashboard/committee" prefetch={false} className="flex items-center gap-2">
                       Komite Sayfasına Git <ChevronRight className="w-4 h-4" />
                     </Link>
@@ -395,7 +464,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
               <TopicCard topic={topic} />
             </div>
           ) : (
-            <Card className="bg-secondary/10 border-dashed border-border/60">
+            <Card className="bg-secondary/10 border-dashed border-border/60 hover:bg-secondary/20 transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mb-5 animate-pulse">
                   <Users className="w-7 h-7 text-muted-foreground" />

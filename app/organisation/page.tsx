@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import {
   Camera, ShieldAlert, Eye, User, MapPin, Calendar,
   CheckCircle2, Clock, Info, ChevronRight, Users,
-  XCircle, AlertTriangle, ShieldCheck
+  XCircle, AlertTriangle, ShieldCheck, FileQuestion
 } from "lucide-react";
 import { PaymentStatusEnum } from "@/types/payment";
 import { ApplicationStatusEnum } from "@/types/application";
@@ -74,6 +74,31 @@ export default function OrganisationPage() {
   });
 
   const isLoading = profileLoading || (hasPaymentFlow && appStatus === ApplicationStatusEnum.APPROVED ? paymentLoading : false);
+
+  // If role is applicant but they don't have an application yet
+  if (!isLoading && !application && userProfile?.role === 'applicant') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in py-12">
+        <div className="w-24 h-24 rounded-full bg-secondary/30 flex items-center justify-center shadow-inner ring-1 ring-white/10">
+          <FileQuestion className="w-10 h-10 text-muted-foreground/70" />
+        </div>
+        <div className="space-y-4 max-w-md mx-auto px-4">
+          <div>
+            <h2 className="text-3xl font-bold font-display text-foreground tracking-tight">Başvuru Bulunamadı</h2>
+            <p className="text-red-500 leading-relaxed mt-2">
+              Hesabınız başarıyla oluşturulmuş ancak hesabınıza ait aktif bir başvuru kaydı bulunmuyor.
+            </p>
+            <p className="text-muted-foreground leading-relaxed mt-2">
+              Etkinliğe katılmak için başvuru yapmanız gerekmektedir.
+            </p>
+          </div>
+          <Button asChild size="lg" className="w-full sm:w-auto min-w-[200px] shadow-lg hover:shadow-xl transition-all">
+            <Link href="/">Başvuru Yap</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const showIdCard = userProfile && (userProfile.role !== 'applicant' || appStatus === 'approved');
 
@@ -223,7 +248,7 @@ export default function OrganisationPage() {
         <div className={cn("flex flex-col gap-6", (showIdCard || isLoading) ? "lg:col-span-2" : "lg:col-span-3")}>
 
           {/* Status Steps Card */}
-          <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
+          <Card className="border-border/50 shadow-sm bg-card overflow-hidden hover:border-border/80 transition-colors">
             <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
                 <Info className="w-4 h-4 text-primary" /> Durum Bilgisi
@@ -246,7 +271,7 @@ export default function OrganisationPage() {
                   ))
                 ) : (
                   steps.map((step, idx) => (
-                    <div key={step.id} className="flex items-center justify-between p-4 md:p-6 transition-colors hover:bg-muted/5">
+                    <div key={step.id} className="flex items-center justify-between p-4 md:p-6 transition-colors hover:bg-muted/5 group">
                       <div className="flex items-center gap-4">
                         <div className="flex flex-col items-center gap-1">
                           {getStepIcon(step.status)}
@@ -258,7 +283,7 @@ export default function OrganisationPage() {
                           )}
                         </div>
                         <div>
-                          <div className="font-medium text-sm md:text-base">{step.label}</div>
+                          <div className="font-medium text-sm md:text-base group-hover:text-primary transition-colors">{step.label}</div>
                           <div className="text-xs text-muted-foreground">
                             {step.text || (
                               step.status === 'done' ? "Tamamlandı" :
@@ -280,20 +305,20 @@ export default function OrganisationPage() {
                         )}
 
                         {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
-                          <Button size="sm" asChild className={cn("h-8 text-xs", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
+                          <Button size="sm" asChild className={cn("h-8 text-xs shadow-sm", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
                             <Link href="/payment" prefetch={false}>
                               {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
                         )}
                         {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
-                          <Button size="sm" variant="outline" asChild className="h-8 text-xs">
+                          <Button size="sm" variant="outline" asChild className="h-8 text-xs hover:bg-muted/50">
                             <Link href="/payment" prefetch={false}>Detay</Link>
                           </Button>
                         )}
 
                         {step.id === 'allocation' && step.status === 'done' && (
-                          <Button size="sm" variant="outline" asChild className="h-8 text-xs">
+                          <Button size="sm" variant="outline" asChild className="h-8 text-xs hover:bg-muted/50">
                             <Link href="/organisation/observers/my-tasks" prefetch={false}>
                               Görevlerim <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
@@ -308,7 +333,7 @@ export default function OrganisationPage() {
           </Card>
 
           {/* Event Details Card */}
-          <Card className="bg-card border-border/50 shadow-sm flex flex-col flex-1">
+          <Card className="bg-card border-border/50 shadow-sm flex flex-col flex-1 hover:border-border/80 transition-colors">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-primary" />
@@ -323,7 +348,7 @@ export default function OrganisationPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                  <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50 hover:bg-secondary/30 transition-colors">
                     <Calendar className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
                       <div className="text-xs font-medium text-foreground">Tarih</div>
@@ -332,7 +357,7 @@ export default function OrganisationPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50">
+                  <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50 hover:bg-secondary/30 transition-colors">
                     <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
                       <div className="text-xs font-medium text-foreground">Konum</div>
@@ -352,7 +377,7 @@ export default function OrganisationPage() {
             <div className="lg:col-span-1 h-full min-h-[400px]">
                 <DigitalIdCard
                     user={userForDigitalId}
-                    className="h-full"
+                    className="h-full hover:shadow-lg transition-shadow duration-300"
                     uniqueId="organisation"
                     isLoading={isLoading}
                 />
@@ -379,7 +404,7 @@ export default function OrganisationPage() {
               </CardContent>
             </Card>
           ) : observerData?.allocatedCommittee ? (
-            <Card className="bg-card border-border/40">
+            <Card className="bg-card border-border/40 hover:border-cyan-500/30 transition-colors">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2.5 text-lg">
                   <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600">
@@ -400,7 +425,7 @@ export default function OrganisationPage() {
               </CardContent>
             </Card>
           ) : observerData?.allocatedArea ? (
-            <Card className="bg-card border-border/40">
+            <Card className="bg-card border-border/40 hover:border-cyan-500/30 transition-colors">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2.5 text-lg">
                   <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600">
@@ -419,7 +444,7 @@ export default function OrganisationPage() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="bg-secondary/10 border-dashed border-border/60">
+            <Card className="bg-secondary/10 border-dashed border-border/60 hover:bg-secondary/20 transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center mb-5 animate-pulse">
                   <Eye className="w-7 h-7 text-cyan-500" />

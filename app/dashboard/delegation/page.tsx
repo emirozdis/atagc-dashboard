@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -33,9 +34,9 @@ import {
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { 
-  Copy, Plus, Check, Users, Trash2, X, 
-  Send, Mail, Clock, RefreshCcw, ShieldCheck, Ticket
+import {
+  Copy, Plus, Check, Users, Trash2, X,
+  Send, Mail, Clock, RefreshCcw, ShieldCheck, Ticket, UserPlus, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,24 +65,44 @@ type DelegationMember = {
   };
 };
 
-type MembersResponse = { 
-  success: boolean; 
-  data: DelegationMember[]; 
-  is_leader: boolean; 
+type MembersResponse = {
+  success: boolean;
+  data: DelegationMember[];
+  is_leader: boolean;
   has_delegation: boolean;
 };
 
-export default function DelegationPage() {
+function DelegationContent() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("members");
-  
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+
+  const [activeTab, setActiveTab] = useState(tabParam || "members");
+
+  useEffect(() => {
+    if (tabParam && (tabParam === "members" || tabParam === "invites") && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+    if (tabParam !== "members" && tabParam !== "invites") {
+      router.replace(`/dashboard/delegation?tab=members`);
+    }
+  }, [tabParam, activeTab]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`/dashboard/delegation?${params.toString()}`);
+  };
+
   // Dialogs
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
-  
+
   // Forms
   const [usesLeft, setUsesLeft] = useState("");
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
-  
+
   // UI State
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
@@ -95,7 +116,7 @@ export default function DelegationPage() {
       return res.json();
     }
   });
-  
+
   const leaderAppStatus = profileData?.application?.status;
 
   const { data: membersData, isLoading: membersLoading } = useQuery<MembersResponse>({
@@ -135,7 +156,7 @@ export default function DelegationPage() {
     mutationFn: async (usesLeftValue: number | undefined) => {
       const body: Record<string, any> = {};
       if (usesLeftValue !== undefined) body.uses_left = usesLeftValue;
-      
+
       const res = await fetch("/api/delegation/new_invite_code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -225,9 +246,7 @@ export default function DelegationPage() {
   const magicLinks = magicLinksData?.data ?? [];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Panel", href: "/dashboard" }, { label: "Delegasyon" }]} />
-
+    <>
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/50 pb-6">
         <div>
@@ -242,11 +261,11 @@ export default function DelegationPage() {
               <>
                 <div className="h-4 w-px bg-border hidden sm:block" />
                 <div className="flex items-center gap-2 text-sm bg-secondary/30 px-2 py-1 rounded-md border border-border/50">
-                    <span className="text-muted-foreground">Kendi Başvurunuz:</span>
-                    {leaderAppStatus === 'approved' ? <span className="font-semibold text-emerald-600 flex items-center gap-1"><Check className="w-3 h-3"/> Onaylı</span> :
-                     leaderAppStatus === 'rejected' ? <span className="font-semibold text-red-600 flex items-center gap-1"><X className="w-3 h-3"/> Reddedildi</span> :
-                     leaderAppStatus === 'pending' ? <span className="font-semibold text-amber-600 flex items-center gap-1"><Clock className="w-3 h-3"/> Bekliyor</span> :
-                     <span>Başvuru Yok</span>}
+                  <span className="text-muted-foreground">Kendi Başvurunuz:</span>
+                  {leaderAppStatus === 'approved' ? <span className="font-semibold text-emerald-600 flex items-center gap-1"><Check className="w-3 h-3" /> Onaylı</span> :
+                    leaderAppStatus === 'rejected' ? <span className="font-semibold text-red-600 flex items-center gap-1"><X className="w-3 h-3" /> Reddedildi</span> :
+                      leaderAppStatus === 'pending' ? <span className="font-semibold text-amber-600 flex items-center gap-1"><Clock className="w-3 h-3" /> Bekliyor</span> :
+                        <span>Başvuru Yok</span>}
                 </div>
               </>
             )}
@@ -254,7 +273,7 @@ export default function DelegationPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className={cn("grid w-full", isLeader ? "grid-cols-2 md:w-[400px]" : "grid-cols-1 md:w-[200px]")}>
           <TabsTrigger value="members" className="gap-2">
             <Users className="w-4 h-4" /> Üyeler
@@ -276,6 +295,16 @@ export default function DelegationPage() {
                   <CardTitle className="text-lg">Delegasyon Üyeleri</CardTitle>
                   <CardDescription>Delegasyona katılan kişilerin listesi.</CardDescription>
                 </div>
+                {isLeader && (
+                  <Button
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => handleTabChange("invites")}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Delege ekle
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -290,7 +319,7 @@ export default function DelegationPage() {
                   </div>
                   <p>Henüz delegasyon üyesi bulunmuyor.</p>
                   {isLeader && (
-                    <Button variant="link" onClick={() => setActiveTab("invites")} className="mt-2">
+                    <Button variant="link" onClick={() => handleTabChange("invites")} className="mt-2">
                       Hemen birilerini davet et &rarr;
                     </Button>
                   )}
@@ -316,9 +345,9 @@ export default function DelegationPage() {
                           key={member.user_id}
                           className={cn(
                             "transition-colors",
-                            isAccepted ? "bg-emerald-500/5 hover:bg-emerald-500/10" : 
-                            isRejected ? "bg-red-500/5 hover:bg-red-500/10" : 
-                            "hover:bg-muted/30"
+                            isAccepted ? "bg-emerald-500/5 hover:bg-emerald-500/10" :
+                              isRejected ? "bg-red-500/5 hover:bg-red-500/10" :
+                                "hover:bg-muted/30"
                           )}
                         >
                           <TableCell className="font-medium pl-6">
@@ -393,9 +422,9 @@ export default function DelegationPage() {
         {/* INVITES TAB (Only for Leader) */}
         {isLeader && (
           <TabsContent value="invites" className="space-y-6 animate-in fade-in slide-in-from-right-2">
-            
+
             <div className="grid gap-6 md:grid-cols-2 items-start">
-              
+
               {/* LEFT COLUMN: MAGIC LINKS */}
               <div className="space-y-6">
                 {/* CREATE MAGIC LINK CARD */}
@@ -460,9 +489,9 @@ export default function DelegationPage() {
                                   ) : (
                                     <div className="flex items-center justify-end gap-2">
                                       <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50 px-2">Bekliyor</Badge>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
                                         className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                         onClick={() => revokeLinkMutation.mutate(link.id)}
                                         disabled={revokeLinkMutation.isPending}
@@ -583,6 +612,22 @@ export default function DelegationPage() {
           </TabsContent>
         )}
       </Tabs>
+    </>
+  );
+}
+
+export default function DelegationPage() {
+  return (
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
+      <Breadcrumbs items={[{ label: "Panel", href: "/dashboard" }, { label: "Delegasyon" }]} />
+      <Suspense fallback={
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted-foreground">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm">Delegasyon bilgileri yükleniyor...</p>
+        </div>
+      }>
+        <DelegationContent />
+      </Suspense>
     </div>
   );
 }

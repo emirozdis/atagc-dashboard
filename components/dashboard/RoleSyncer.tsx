@@ -1,29 +1,43 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 export function RoleSyncer() {
-  const { data: session, update } = useSession();
+  const { data: session, update, status } = useSession();
   const isUpdatingRef = useRef(false);
   const [hasUpdated, setHasUpdated] = useState(false);
 
-  const { data: checkResult } = useQuery({
+  // Check auth status regularly (20 seconds)
+  const { data: checkResult, error } = useQuery({
     queryKey: ["auth-check-role"],
     queryFn: async () => {
       const res = await fetch("/api/auth/check");
+      if (res.status === 401) {
+        throw new Error("Unauthorized");
+      }
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-
-    refetchInterval: 1000 * 60 * 2, 
+    // Only run check if we think we are authenticated
+    enabled: status === "authenticated",
+    refetchInterval: 1000 * 20, 
     staleTime: 0,
     retry: false,
     refetchOnWindowFocus: true, 
   });
 
+  // Handle immediate logout on 401
+  useEffect(() => {
+    if (error && (error.message === "Unauthorized" || (error as any).status === 401)) {
+        console.log("[RoleSyncer] Session invalid (401), invalidating session...");
+        signOut({ redirect: false });
+    }
+  }, [error]);
+
+  // Handle Role/Status Sync
   useEffect(() => {
     if (!session?.user || !checkResult || isUpdatingRef.current || hasUpdated) return;
 
@@ -37,7 +51,6 @@ export function RoleSyncer() {
     const statusMismatch = sessionAppStatus !== dbAppStatus;
 
     if (roleMismatch || statusMismatch) {
-      console.log(`[RoleSyncer] Syncing... Session: ${sessionRole}/${sessionAppStatus}, DB: ${dbRole}/${dbAppStatus}`);
       
       isUpdatingRef.current = true;
 
@@ -60,8 +73,3 @@ export function RoleSyncer() {
 
   return null;
 }
-
-// Change Log:
-// - Switched from fetching `/api/participant/me` to lightweight `/api/auth/check`.
-// - Increased poll interval from 15s to 2 minutes.
-// - Enabled `refetchOnWindowFocus` to catch updates when tab becomes active.
