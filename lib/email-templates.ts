@@ -80,7 +80,7 @@ const getContent = (type: NotificationType, userName: string, data?: any): Email
             heading: "Ödemeniz Başarıyla Alındı",
             message: `Sayın <strong>${userName}</strong>,<br/><br/>Göndermiş olduğunuz ödeme dekontu incelenmiş ve onaylanmıştır. Katılım süreciniz tamamlanmıştır. Etkinlikte görüşmek üzere!`,
             buttonText: "Panele Git",
-            buttonPath: "/dashboard",
+            buttonPath: "/payment",
             accentColor: COLORS.success
         };
     case "payment_rejected":
@@ -89,7 +89,7 @@ const getContent = (type: NotificationType, userName: string, data?: any): Email
             heading: "Ödemeniz Onaylanamadı",
             message: `Sayın <strong>${userName}</strong>,<br/><br/>Yüklediğiniz ödeme dekontu maalesef onaylanamamıştır. Eksik veya hatalı bilgi nedeniyle reddedilmiş olabilir. Lütfen panel üzerinden reddedilme sebebini inceleyip yeni bir dekont yükleyiniz.`,
             buttonText: "Tekrar Yükle",
-            buttonPath: "/dashboard",
+            buttonPath: "/payment",
             accentColor: COLORS.danger
         };
     case "application_received":
@@ -98,7 +98,7 @@ const getContent = (type: NotificationType, userName: string, data?: any): Email
         heading: "Başvurunuz Bize Ulaştı",
         message: `Sayın <strong>${userName}</strong>,<br/><br/>ATAGÇ 2026'ya gösterdiğiniz ilgi için teşekkür ederiz. Başvuru formunuz sistemimize başarıyla kaydedilmiştir.<br/><br/>Başvurunuz ekibimiz tarafından titizlikle incelenecek ve en kısa sürede sonuçlandırılacaktır. Süreci panel üzerinden takip edebilirsiniz.`,
         buttonText: "Başvurumu Görüntüle",
-        buttonPath: "/dashboard/my-application"
+        buttonPath: "/my-application"
       };
     case "application_status":
       return {
@@ -124,7 +124,7 @@ const getContent = (type: NotificationType, userName: string, data?: any): Email
         heading: "Biri Sizinle Tanışmak İstiyor",
         message: `Sayın <strong>${userName}</strong>,<br/><br/>Bir katılımcı size bağlantı isteği gönderdi. Bu isteği kabul ederek ağınızı genişletebilir ve etkinlik boyunca iletişimde kalabilirsiniz.`,
         buttonText: "İstekleri Yönet",
-        buttonPath: "/dashboard/connections"
+        buttonPath: "/connections"
       };
     case "connection_accepted":
       return {
@@ -132,7 +132,7 @@ const getContent = (type: NotificationType, userName: string, data?: any): Email
         heading: "Ağınız Genişliyor",
         message: `Sayın <strong>${userName}</strong>,<br/><br/>Gönderdiğiniz bağlantı isteği kabul edildi. Artık yeni bağlantınızla iletişim kurabilir ve profillerinizi görüntüleyebilirsiniz.`,
         buttonText: "Bağlantılarıma Git",
-        buttonPath: "/dashboard/connections"
+        buttonPath: "/connections"
       };
     case "warning_issued":
       return {
@@ -158,7 +158,7 @@ const getContent = (type: NotificationType, userName: string, data?: any): Email
         heading: "Şifreniz Değiştirildi",
         message: `Sayın <strong>${userName}</strong>,<br/><br/>Hesabınızın şifresi yakın zamanda başarıyla değiştirildi. Bu işlem sizin tarafınızdan yapılmadıysa, hesabınızın güvenliği için derhal bizimle iletişime geçmenizi öneririz.`,
         buttonText: "Hesabıma Git",
-        buttonPath: "/dashboard/profile"
+        buttonPath: "/profile"
       };
     default:
       return {

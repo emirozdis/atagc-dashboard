@@ -13,7 +13,7 @@ export function AdminMobileNav() {
     { href: "/admin/applications", icon: FileText, label: "Başvuru" },
     { href: "/admin/users", icon: Users, label: "Üyeler" },
     { href: "/admin/roll-call", icon: QrCode, label: "Yoklama" },
-    { href: "/admin/profile", icon: User, label: "Profil" },
+    { href: "/profile", icon: User, label: "Profil" },
   ];
 
   return (

@@ -110,7 +110,7 @@ const adminItems = [
     },
     {
         title: "Profilim",
-        href: "/admin/profile",
+        href: "/profile",
         icon: User,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },

@@ -8,6 +8,23 @@ export default withAuth(
     const isAuth = !!token;
     const isLoginPage = req.nextUrl.pathname.startsWith("/login");
 
+    // Redirect role-specific shared routes to their root equivalents (excluding /admin)
+    const sharedPaths = [
+        "/profile", "/payment", "/connections", "/announcements", 
+        "/catering", "/tickets", "/resources", "/my-application"
+    ];
+    const prefixes = ["/dashboard", "/organisation"];
+
+    for (const prefix of prefixes) {
+        for (const sharedPath of sharedPaths) {
+            const targetPath = `${prefix}${sharedPath}`;
+            if (req.nextUrl.pathname === targetPath || req.nextUrl.pathname.startsWith(`${targetPath}/`)) {
+                const newPathname = req.nextUrl.pathname.replace(prefix, "");
+                return NextResponse.redirect(new URL(newPathname + req.nextUrl.search, req.url));
+            }
+        }
+    }
+
     // Define base paths
     const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
     const isDashboardRoute = req.nextUrl.pathname.startsWith("/dashboard");
