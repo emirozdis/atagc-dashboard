@@ -21,7 +21,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const isOrg = ORGANISATION_ROLES.includes(effectiveRole as any);
 
     return (
-        <div className="flex h-screen overflow-hidden bg-background relative">
+        <div className="flex h-screen sm:overflow-hidden max-sm:overflow-y-hidden bg-background relative">
             {/* Background elements */}
             <div className="fixed inset-0 -z-10 bg-background">
                 <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
