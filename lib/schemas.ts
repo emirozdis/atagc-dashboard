@@ -55,7 +55,8 @@ export const updateProfileSchema = z.object({
   profile_picture_url: z.string().nullable().optional(),
   is_profile_picture_hidden: z.boolean().optional(),
   allow_connections: z.boolean().optional(),
-  notification_preferences: z.record(z.string(), z.boolean()).optional()
+  notification_preferences: z.record(z.string(), z.boolean()).optional(),
+  two_factor_enabled: z.boolean().optional(),
 });
 
 // Applications

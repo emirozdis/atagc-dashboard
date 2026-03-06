@@ -137,7 +137,7 @@ export const PUT = apiHandler(async (request: Request) => {
     if (userError) throw userError;
   }
 
-  const { city, grade, ...restDetails } = validData;
+  const { city, grade, two_factor_enabled, ...restDetails } = validData;
   const detailsUpdate: any = { ...restDetails };
 
   if (city) detailsUpdate.city = city;
@@ -146,13 +146,19 @@ export const PUT = apiHandler(async (request: Request) => {
   Object.keys(detailsUpdate).forEach(key => detailsUpdate[key] === undefined && delete detailsUpdate[key]);
   delete detailsUpdate.full_name;
 
-  if (Object.keys(detailsUpdate).length > 0) {
-    // Check if details exist before updating/inserting to avoid ON CONFLICT errors
+  if (Object.keys(detailsUpdate).length > 0 || two_factor_enabled !== undefined) {
     const { data: existingDetails } = await supabase
       .from("user_details")
-      .select("id")
+      .select("id, additional_info")
       .eq("user_id", session.user.id)
       .maybeSingle();
+
+    if (two_factor_enabled !== undefined) {
+      detailsUpdate.additional_info = {
+        ...(existingDetails?.additional_info || {}),
+        two_factor_enabled
+      };
+    }
 
     if (existingDetails) {
       const { error } = await supabase

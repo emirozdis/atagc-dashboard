@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { Logger } from "@/lib/logger";
+import { ROLES } from "@/lib/roles";
 
 export async function GET() {
     const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
@@ -88,6 +89,22 @@ export async function POST(request: Request) {
                 .from("system_settings")
                 .insert(updateData);
             if (error) throw error;
+        }
+
+        // Maintenance Mode specific actions
+        if (updateData.maintenance_mode === true && existing.maintenance_mode !== true) {
+            // Delete sessions of all non-admins
+            const { data: users } = await supabase.from("users").select("id, role");
+            const nonAdminIds = users?.filter(u => u.role !== ROLES.SUPERADMIN && u.role !== ROLES.ADMIN).map(u => u.id) || [];
+            
+            if (nonAdminIds.length > 0) {
+                const { error: delError } = await supabase
+                    .from("active_sessions")
+                    .delete()
+                    .in("user_id", nonAdminIds);
+                    
+                if (delError) console.error("Failed to clear sessions on maintenance mode", delError);
+            }
         }
 
         const nextState = { ...existing, ...updateData };

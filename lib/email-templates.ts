@@ -11,7 +11,8 @@ export type NotificationType =
   | "payment_rejected"
   | "email_verification"
   | "magic_link_invite"
-  | "password_reset_request";
+  | "password_reset_request"
+  | "two_factor_code";
 
 interface EmailContent {
   subject: string;
@@ -55,6 +56,12 @@ const getContent = (type: NotificationType, userName: string, data?: any): Email
         subject: "E-posta Doğrulama Kodu | ATAGÇ 2026",
         heading: "Doğrulama Kodunuz",
         message: `Sayın <strong>${userName || 'Katılımcı'}</strong>,<br/><br/>ATAGÇ 2026 başvuru sürecine devam etmek için gereken doğrulama kodunuz aşağıdadır. Bu kod 10 dakika süreyle geçerlidir.<br/><br/><div style="background-color: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 8px; padding: 16px; font-size: 28px; font-weight: 700; letter-spacing: 4px; text-align: center; color: #18181b; margin: 24px 0;">${data?.code}</div>`,
+      };
+    case "two_factor_code":
+      return {
+        subject: "Giriş Doğrulama Kodu | ATAGÇ 2026",
+        heading: "İki Aşamalı Doğrulama",
+        message: `Sayın <strong>${userName || 'Kullanıcı'}</strong>,<br/><br/>Hesabınıza giriş yapmak için tek kullanımlık doğrulama kodunuz aşağıdadır. Bu kod 5 dakika süreyle geçerlidir.<br/><br/><div style="background-color: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 8px; padding: 16px; font-size: 28px; font-weight: 700; letter-spacing: 4px; text-align: center; color: #18181b; margin: 24px 0;">${data?.code}</div>`,
       };
     case "magic_link_invite":
       return {
@@ -215,7 +222,7 @@ export const generateEmailHtml = (type: NotificationType, userName: string, base
           <div style="${getFooterStyles()}">
             <p style="${getFooterTextStyles()}">© 2026 ATAGÇ. Tüm hakları saklıdır.</p>
             <p style="${getFooterTextStyles()} margin-top: 5px;">İTÜ GVO İzmir NESAN Yerleşkesi</p>
-            ${type !== 'password_changed' && type !== 'account_suspended' && type !== 'email_verification' && type !== 'password_reset_request' ? `<p style="${getFooterTextStyles()} margin-top: 15px; font-size: 11px; opacity: 0.6;">Bu e-posta, bildirim tercihleriniz doğrultusunda gönderilmiştir. Ayarlarınızı <a href="${cleanBaseUrl}/dashboard/profile" style="color: ${COLORS.textSecondary}; text-decoration: underline;">profil sayfasından</a> yönetebilirsiniz.</p>` : ''}
+            ${type !== 'password_changed' && type !== 'account_suspended' && type !== 'email_verification' && type !== 'password_reset_request' && type !== 'two_factor_code' ? `<p style="${getFooterTextStyles()} margin-top: 15px; font-size: 11px; opacity: 0.6;">Bu e-posta, bildirim tercihleriniz doğrultusunda gönderilmiştir. Ayarlarınızı <a href="${cleanBaseUrl}/dashboard/profile" style="color: ${COLORS.textSecondary}; text-decoration: underline;">profil sayfasından</a> yönetebilirsiniz.</p>` : ''}
           </div>
         </div>
       </div>

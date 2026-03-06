@@ -5,8 +5,10 @@ import bcrypt from "bcryptjs";
 import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
-import { ROLES, UserRole } from "@/lib/roles";
+import { ROLES, UserRole, ADMIN_ROLES } from "@/lib/roles";
 import { ApplicationStatusEnum } from "@/types/application";
+import { sendEmail } from "@/lib/email";
+import { generateEmailHtml } from "@/lib/email-templates";
 
 const loginLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
@@ -28,6 +30,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         token: { label: "Turnstile Token", type: "text" },
+        otp: { label: "OTP", type: "text" },
       },
       async authorize(credentials, req) {
         // 0. Rate Limiting
@@ -47,7 +50,7 @@ export const authOptions: NextAuthOptions = {
         // 1. Fetch user
         const { data: user, error } = await supabase
           .from("users")
-          .select("*, user_details(profile_picture_url)")
+          .select("*, user_details(profile_picture_url, additional_info)")
           .eq("email", credentials.email)
           .single();
 
@@ -70,6 +73,7 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
+        // OTP kontrolünden bağımsız olarak HER adıma Turnstile şartı koşulur
         if (!isNewUser) {
           const token = credentials.token as string;
           if (!token || token === "SKIPPED_AUTO_LOGIN") {
@@ -94,6 +98,62 @@ export const authOptions: NextAuthOptions = {
         // 4. Verify password
         const isValid = await bcrypt.compare(credentials.password, user.password_hash);
         if (!isValid) return null;
+
+        // 4.5 Verify 2FA
+        const isAdmin = ADMIN_ROLES.includes(user.role as UserRole);
+        const userDetailsFor2FA = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
+        const isOptional2FA = userDetailsFor2FA?.additional_info?.two_factor_enabled === true;
+
+        const requires2FA = isAdmin || isOptional2FA;
+        const otp = credentials.otp as string | undefined;
+
+        if (requires2FA) {
+          const hasOtp = otp && otp !== "undefined" && otp.trim() !== "";
+          
+          if (!hasOtp) {
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 1000 * 60 * 5).toISOString(); // 5 mins
+
+            const { error: otpError } = await supabase.from("email_verifications").insert({
+              email: user.email,
+              code,
+              expires_at: expiresAt,
+              verified: false
+            });
+            
+            if (otpError) throw new Error("OTP_GEN_FAILED");
+
+            const emailHtml = generateEmailHtml(
+              "two_factor_code",
+              user.full_name,
+              process.env.NEXTAUTH_URL || "https://panel.atagc.com.tr",
+              { code }
+            );
+
+            await sendEmail(user.email, "ATAGÇ 2026 - Giriş Doğrulama Kodu", emailHtml);
+
+            // Special keyword we catch in login/page.tsx
+            throw new Error("2FA_REQUIRED");
+          } else {
+            // Verify OTP
+            const { data: verification } = await supabase
+              .from("email_verifications")
+              .select("id")
+              .eq("email", user.email)
+              .eq("code", otp)
+              .eq("verified", false)
+              .gt("expires_at", new Date().toISOString())
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (!verification) {
+              throw new Error("INVALID_OTP");
+            }
+
+            await supabase.from("email_verifications").update({ verified: true }).eq("id", verification.id);
+          }
+        }
 
         // 5. Fetch Application Status & Type
         let appStatus: ApplicationStatusEnum | undefined = undefined; // Default to undefined (no application)
@@ -251,6 +311,21 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+  },
+  events: {
+    async signOut({ token }) {
+      // Clean up the session from database when user signs out
+      if (token && typeof token.sessionId === 'string') {
+        const { error } = await supabase
+          .from("active_sessions")
+          .delete()
+          .eq("id", token.sessionId);
+        
+        if (error) {
+          console.error("Failed to delete active session on sign out:", error);
+        }
+      }
+    }
   },
   pages: {
     signIn: "/login",

@@ -24,7 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
 import { GRADE_OPTIONS } from "@/lib/constants";
-import { getRoleMeta } from "@/lib/roles";
+import { getRoleMeta, ADMIN_ROLES } from "@/lib/roles";
 import { KvkkDialog } from "@/components/application-form/KvkkDialog";
 
 interface DeviceSession {
@@ -172,6 +172,22 @@ export function ProfileView() {
     onError: () => toast.error("Hata oluştu")
   });
 
+  const toggle2faMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+        const res = await fetch("/api/participant/me", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ two_factor_enabled: enabled })
+        });
+        if (!res.ok) throw new Error("Update failed");
+    },
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        toast.success("2FA ayarı güncellendi");
+    },
+    onError: () => toast.error("Hata oluştu")
+  });
+
   const updatePrefsMutation = useMutation({
     mutationFn: async (newPrefs: NotificationPrefs) => {
       const res = await fetch("/api/participant/me", {
@@ -232,6 +248,9 @@ export function ProfileView() {
   const isHidden = details?.is_profile_picture_hidden || false;
   const allowConnections = details?.allow_connections !== false;
   const warnings = profile.user_warnings || [];
+
+  const isMandatory2FA = ADMIN_ROLES.includes(profile.role as any);
+  const is2faEnabled = isMandatory2FA || details?.additional_info?.two_factor_enabled === true;
 
   const showIdCard = profile.role !== 'applicant' || application?.status === 'approved';
 
@@ -406,6 +425,26 @@ export function ProfileView() {
                     onCheckedChange={(val) => togglePrivacyMutation.mutate(val)}
                     disabled={togglePrivacyMutation.isPending}
                   />
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/50">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-muted-foreground" />
+                      İki Aşamalı Doğrulama (2FA)
+                    </div>
+                    <p className="text-xs text-muted-foreground max-w-sm">
+                      Giriş yaparken e-posta adresinize doğrulama kodu gönderilir.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isMandatory2FA && <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">Zorunlu</span>}
+                    <Switch
+                      checked={is2faEnabled}
+                      onCheckedChange={(val) => toggle2faMutation.mutate(val)}
+                      disabled={isMandatory2FA || toggle2faMutation.isPending}
+                    />
+                  </div>
                 </div>
               </div>
 
