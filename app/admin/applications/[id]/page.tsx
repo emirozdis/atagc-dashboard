@@ -32,6 +32,16 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import Link from "next/link";
 import { Committee, Application } from "@/types/admin";
 import { GRADE_OPTIONS } from "@/lib/constants";
@@ -41,7 +51,11 @@ export default function ApplicationDetailPage() {
   const id = params.id as string;
   const queryClient = useQueryClient();
   const [selectedCommittee, setSelectedCommittee] = useState<string>("none");
-  const [rejectionMode, setRejectionMode] = useState<boolean>(false);
+  
+  // Modal States
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+  const [showAssignConfirm, setShowAssignConfirm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
   const { data: application, isLoading: appLoading, error } = useQuery<Application>({
@@ -88,7 +102,8 @@ export default function ApplicationDetailPage() {
     onSuccess: () => {
       toast.success("İşlem Başarılı");
       queryClient.invalidateQueries({ queryKey: ['application', id] });
-      setRejectionMode(false);
+      setShowRejectConfirm(false);
+      setShowApproveConfirm(false);
       setRejectionReason("");
     },
     onError: (err: Error) => toast.error(err.message)
@@ -109,9 +124,26 @@ export default function ApplicationDetailPage() {
     onSuccess: () => {
       toast.success("Komite ataması güncellendi");
       queryClient.invalidateQueries({ queryKey: ['application', id] });
+      setShowAssignConfirm(false);
     },
     onError: () => toast.error("Hata oluştu")
   });
+
+  const handleReject = () => {
+    if (!rejectionReason.trim()) {
+      toast.error("Lütfen reddetme sebebini giriniz.");
+      return;
+    }
+    statusMutation.mutate({ status: 'rejected', notes: rejectionReason });
+  };
+
+  const handleApprove = () => {
+    statusMutation.mutate({ status: 'approved' });
+  };
+
+  const handleAssign = () => {
+    assignMutation.mutate();
+  };
 
   if (appLoading) {
     return (
@@ -209,6 +241,8 @@ export default function ApplicationDetailPage() {
   // A member can be approved ONLY IF they are accepted to the delegation AND their leader is approved.
   const canReviewApplication = !isDelegationMember || (isAcceptedToDelegation && isLeaderApproved);
 
+  const selectedCommitteeName = committees.find(c => c.id === selectedCommittee)?.name || "Atama Yok (Kaldırılacak)";
+
   return (
     <div className="animate-fade-in pb-12 max-w-7xl mx-auto space-y-6">
       <Breadcrumbs items={[{ label: "Başvurular", href: "/admin/applications" }, { label: formDef?.title || "Başvuru" }]} />
@@ -234,8 +268,8 @@ export default function ApplicationDetailPage() {
 
           {application.status === 'pending' && canReviewApplication && (
             <>
-              <Button variant="destructive" size="sm" onClick={() => setRejectionMode(true)}>Reddet</Button>
-              <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => statusMutation.mutate({ status: 'approved' })}>Onayla</Button>
+              <Button variant="destructive" size="sm" onClick={() => setShowRejectConfirm(true)}>Reddet</Button>
+              <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => setShowApproveConfirm(true)}>Onayla</Button>
             </>
           )}
 
@@ -246,24 +280,6 @@ export default function ApplicationDetailPage() {
           )}
         </div>
       </div>
-
-      {rejectionMode && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-card border p-6 rounded-lg max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="font-bold text-lg">Reddetme Sebebi</h3>
-            <Textarea
-              value={rejectionReason}
-              onChange={e => setRejectionReason(e.target.value)}
-              placeholder="Lütfen reddetme sebebini giriniz..."
-              className="min-h-[100px]"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setRejectionMode(false)}>İptal</Button>
-              <Button variant="destructive" onClick={() => statusMutation.mutate({ status: 'rejected', notes: rejectionReason })}>Reddet ve Bitir</Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="w-full lg:w-[350px] space-y-6">
@@ -334,28 +350,33 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
 
+          {/* Enhanced Committee Assignment Card */}
           {application.status === 'approved' && ['delegate', 'chair', 'committee_chairman'].includes(user.role) && (
-            <div className="bg-primary/5 border border-primary/20 p-5 rounded-xl space-y-4 shadow-sm">
-              <h3 className="font-semibold flex items-center gap-2 text-primary text-sm uppercase tracking-wide">
-                <Briefcase className="w-4 h-4" /> Komite Ataması
-              </h3>
-              <div className="space-y-3">
-                <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
-                  <SelectTrigger className="bg-background border-primary/20">
-                    <SelectValue placeholder="Komite Seçiniz" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">-- Atama Yok --</SelectItem>
-                    {committees.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={() => assignMutation.mutate()}
-                  disabled={assignMutation.isPending}
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Atamayı Kaydet"}
-                </Button>
+            <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-muted/30 px-6 py-4 border-b border-border/50 flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-primary" />
+                <h3 className="font-bold text-foreground">Komite Ataması</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-muted-foreground">Kullanıcıyı uygun bir komiteye atayın veya mevcut atamasını güncelleyin.</p>
+                <div className="space-y-3">
+                  <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
+                    <SelectTrigger className="bg-background h-11">
+                      <SelectValue placeholder="Komite Seçiniz" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none"> <XCircle className="w-4 h-4" /> Atama Yok </SelectItem>
+                      {committees.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => setShowAssignConfirm(true)}
+                    disabled={assignMutation.isPending}
+                    className="w-full h-11"
+                  >
+                    {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Atamayı Kaydet"}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -373,6 +394,94 @@ export default function ApplicationDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Approve Confirmation Dialog */}
+      <AlertDialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Başvuruyu Onayla</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu başvuruyu onaylamak istediğinize emin misiniz? Onaylandığında kullanıcıya otomatik olarak bildirim e-postası gönderilecektir ve rolü <strong>{formDef?.title || "Katılımcı"}</strong> olarak güncellenecektir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={statusMutation.isPending}>İptal</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={(e) => {
+                    e.preventDefault();
+                    handleApprove();
+                }} 
+                className="bg-green-600 text-white hover:bg-green-700"
+                disabled={statusMutation.isPending}
+            >
+                {statusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Onayla
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reject Confirmation & Reason Dialog */}
+      <AlertDialog open={showRejectConfirm} onOpenChange={(val) => {
+          setShowRejectConfirm(val);
+          if (!val) setRejectionReason("");
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Başvuruyu Reddet</AlertDialogTitle>
+            <AlertDialogDescription>
+              Başvuruyu reddetmek üzeresiniz. Lütfen reddetme sebebini giriniz. Bu sebep kullanıcıya iletilecektir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="py-2">
+              <Textarea
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+                placeholder="Örn: Yaş sınırı uyumsuzluğu, eksik bilgi..."
+                className="min-h-[100px]"
+              />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={statusMutation.isPending}>İptal</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={(e) => {
+                    e.preventDefault();
+                    handleReject();
+                }} 
+                className="bg-destructive text-white hover:bg-destructive/90"
+                disabled={statusMutation.isPending || !rejectionReason.trim()}
+            >
+                {statusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Reddet ve Bitir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Assign Committee Confirmation Dialog */}
+      <AlertDialog open={showAssignConfirm} onOpenChange={setShowAssignConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Komite Atamasını Onayla</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{user.full_name}</strong> isimli kullanıcıyı <strong>{selectedCommitteeName}</strong> komitesine atamak üzeresiniz. Onaylıyor musunuz?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={assignMutation.isPending}>İptal</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={(e) => {
+                    e.preventDefault();
+                    handleAssign();
+                }} 
+                disabled={assignMutation.isPending}
+            >
+                {assignMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Atamayı Kaydet
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

@@ -130,12 +130,12 @@ export default function ApplicationsPage() {
       >
         <CardContent className="p-4 space-y-4">
           <div className="flex justify-between items-start gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar className="w-10 h-10 border border-border/50">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <Avatar className="w-10 h-10 border border-border/50 shrink-0">
                 <AvatarImage src={details?.profile_picture_url || undefined} className="object-cover" />
                 <AvatarFallback>{app.user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="font-semibold text-sm truncate pr-2">{app.user.full_name}</div>
                 <div className="text-xs text-muted-foreground truncate">{app.user.email}</div>
               </div>
@@ -185,7 +185,7 @@ export default function ApplicationsPage() {
       {/* Controls Toolbar */}
       <div className="flex flex-col xl:flex-row gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
         {/* Search */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="İsim, e-posta veya okul..."
@@ -274,13 +274,13 @@ export default function ApplicationsPage() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead>Başvuran</TableHead>
+                  <TableHead className="pl-6">Başvuran</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead>Okul</TableHead>
                   <TableHead>Tarih</TableHead>
                   <TableHead>Komite</TableHead>
                   <TableHead>Durum</TableHead>
-                  <TableHead className="text-right">İşlem</TableHead>
+                  <TableHead className="text-right pr-6">İşlem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -288,7 +288,6 @@ export default function ApplicationsPage() {
                   const details = Array.isArray(app.user.user_details) ? app.user.user_details[0] : app.user.user_details;
                   const assignedCommittee = app.user.committee_members?.[0]?.committee;
 
-                  // Fix: Check form slug
                   const formSlug = app.form?.slug || 'delegate';
                   const isAcademic = formSlug === 'delegate' || formSlug === 'committee_chairman' || formSlug === 'chair' || formSlug === 'deputy_chair';
 
@@ -298,15 +297,15 @@ export default function ApplicationsPage() {
                       className="cursor-pointer hover:bg-muted/30 transition-colors"
                       onClick={() => router.push(`/admin/applications/${app.id}`)}
                     >
-                      <TableCell>
+                      <TableCell className="pl-6">
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8 border border-border/50">
+                          <Avatar className="w-8 h-8 border border-border/50 shrink-0">
                             <AvatarImage src={details?.profile_picture_url || undefined} className="object-cover" />
                             <AvatarFallback>{app.user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="font-medium text-foreground">{app.user.full_name}</div>
-                            <div className="text-xs text-muted-foreground">{app.user.email}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-foreground truncate">{app.user.full_name}</div>
+                            <div className="text-xs text-muted-foreground truncate">{app.user.email}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -325,7 +324,7 @@ export default function ApplicationsPage() {
                         {isAcademic ? (
                           assignedCommittee ? (
                             <div className="flex items-center gap-1.5 text-sm">
-                              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                              <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                               <span className="font-medium truncate max-w-[150px]" title={assignedCommittee.name}>
                                 {assignedCommittee.name}
                               </span>
@@ -342,7 +341,7 @@ export default function ApplicationsPage() {
                         )}
                       </TableCell>
                       <TableCell>{getStatusBadge(app.status)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right pr-6">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -382,8 +381,3 @@ export default function ApplicationsPage() {
     </div>
   );
 }
-
-// Change Log:
-// - Updated logic to check `app.form.slug`.
-// - If slug is not 'delegate', the Committee column shows "-" instead of "Atama Bekleniyor".
-// - Added "Role" column to table.

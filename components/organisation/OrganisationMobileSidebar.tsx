@@ -20,7 +20,7 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
     const actualRole = session?.user?.role;
     const effectiveRole = session?.user ? getEffectiveRole(session.user) : null;
     const status = session?.user?.applicationStatus;
-    
+
     const isStaff = actualRole ? STAFF_ROLES.includes(actualRole) : false;
 
     const items = organisationItems.filter(item => {
@@ -51,7 +51,7 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
                 </Link>
             </div>
 
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 min-h-0 p-4">
                 <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Menü
                 </div>

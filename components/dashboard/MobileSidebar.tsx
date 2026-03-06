@@ -66,7 +66,7 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
                 </Link>
             </div>
 
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 min-h-0 p-4">
                 <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Menü
                 </div>

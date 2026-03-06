@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ROLES, ROLE_METADATA, UserRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface UserSelectionTableProps {
   selectedUsers?: string[];
@@ -144,7 +145,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
 
   const toggleAll = () => {
     const pageIds = users.map(u => u.id);
-    const allSelected = pageIds.every(id => selectedIds.includes(id));
+    const allSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id));
     if (allSelected) handleSelectionChange(selectedIds.filter(id => !pageIds.includes(id)));
     else handleSelectionChange(Array.from(new Set([...selectedIds, ...pageIds])));
   };
@@ -245,8 +246,8 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
               <SelectContent><SelectItem value="all">Tümü</SelectItem><SelectItem value="has_warnings">Uyarı Alanlar</SelectItem></SelectContent>
             </Select>
           </div>
-          {/* Sort/Clear */}
-          <div className="flex items-center gap-2 ml-auto">
+          {/* Sort/Clear - Changed w-full strategy to prevent wrapping overflow */}
+          <div className="flex items-center gap-2 ml-auto w-full sm:w-auto justify-end">
             <Popover>
               <PopoverTrigger asChild><Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 shrink-0"><ArrowUpDown className="w-4 h-4" /><span className="hidden sm:inline">Sırala</span></Button></PopoverTrigger>
               <PopoverContent className="w-48 p-2" align="end">
@@ -265,57 +266,130 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         </div>
       </div>
 
-      {/* Table Content */}
-      {isLoading ? <TableSkeleton cols={8} rows={limit} showTitle={false} /> : (
-        <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="w-[50px] text-center"><Checkbox checked={users.length > 0 && users.every(u => selectedIds.includes(u.id))} onCheckedChange={toggleAll} /></TableHead>
-                <TableHead className="w-[300px]">Kullanıcı</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Ödeme</TableHead>
-                <TableHead>Uyarı</TableHead>
-                <TableHead>Durum</TableHead>
-                <TableHead className="text-right">Kayıt Tarihi</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map(user => (
-                <TableRow key={user.id} className={`cursor-pointer transition-colors ${selectedIds.includes(user.id) ? "bg-muted/50" : "hover:bg-muted/30"}`} onClick={() => toggleUser(user.id)}>
-                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedIds.includes(user.id)} onCheckedChange={() => toggleUser(user.id)} /></TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8 border border-border/50">
+      {/* Content */}
+      {isLoading ? (
+        <TableSkeleton cols={8} rows={limit} showTitle={false} />
+      ) : users.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
+          <UserCog className="w-12 h-12 mx-auto mb-3 opacity-20" />
+          <p>Kriterlerinize uyan kullanıcı bulunamadı.</p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden md:block rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead className="w-[50px] text-center"><Checkbox checked={users.length > 0 && users.every(u => selectedIds.includes(u.id))} onCheckedChange={toggleAll} /></TableHead>
+                  <TableHead className="w-[300px]">Kullanıcı</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Ödeme</TableHead>
+                  <TableHead>Uyarı</TableHead>
+                  <TableHead>Durum</TableHead>
+                  <TableHead className="text-right">Kayıt Tarihi</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map(user => (
+                  <TableRow key={user.id} className={`cursor-pointer transition-colors ${selectedIds.includes(user.id) ? "bg-muted/50" : "hover:bg-muted/30"}`} onClick={() => toggleUser(user.id)}>
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedIds.includes(user.id)} onCheckedChange={() => toggleUser(user.id)} /></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8 border border-border/50">
+                          <AvatarImage src={getUserImage(user)} className="object-cover" />
+                          <AvatarFallback>{user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm text-foreground">{user.full_name}</span>
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getRoleBadge(user)}</TableCell>
+                    <TableCell>{getPaymentBadge(user)}</TableCell>
+                    <TableCell>{user.warnings_count && user.warnings_count > 0 ? <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20"><AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}</Badge> : <span className="text-xs text-muted-foreground opacity-50">-</span>}</TableCell>
+                    <TableCell>{user.is_suspended ? <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge> : <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600 hover:bg-green-500/20">Aktif</Badge>}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">{new Date(user.created_at).toLocaleDateString("tr-TR")}</TableCell>
+                    <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user.id}`); }}><UserCog className="w-4 h-4 text-muted-foreground hover:text-primary" /></Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden flex flex-col gap-4">
+            {users.length > 0 && (
+              <div className="flex items-center justify-between bg-card p-3 rounded-xl border border-border/50 shadow-sm">
+                <span className="text-sm font-medium text-muted-foreground">Tüm Kullanıcıları Seç</span>
+                <Checkbox checked={users.length > 0 && users.every(u => selectedIds.includes(u.id))} onCheckedChange={toggleAll} className="h-5 w-5" />
+              </div>
+            )}
+            
+            {users.map(user => (
+              <Card key={user.id} className={cn(
+                "overflow-hidden transition-all duration-200 border",
+                selectedIds.includes(user.id) ? "border-primary/50 bg-primary/5 shadow-md" : "border-border/50 bg-card shadow-sm"
+              )} onClick={() => toggleUser(user.id)}>
+                <CardContent className="p-4 space-y-4">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <Checkbox 
+                        checked={selectedIds.includes(user.id)} 
+                        onCheckedChange={() => toggleUser(user.id)} 
+                        className="mt-1 shrink-0" 
+                        onClick={(e) => e.stopPropagation()} 
+                      />
+                      <Avatar className="h-10 w-10 border border-border/50 shrink-0">
                         <AvatarImage src={getUserImage(user)} className="object-cover" />
                         <AvatarFallback>{user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm text-foreground">{user.full_name}</span>
-                        <span className="text-xs text-muted-foreground">{user.email}</span>
+                      <div className="flex flex-col min-w-0 pr-2">
+                        <span className="font-medium text-sm text-foreground truncate">{user.full_name}</span>
+                        <span className="text-xs text-muted-foreground truncate">{user.email}</span>
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell>{getRoleBadge(user)}</TableCell>
-                  <TableCell>{getPaymentBadge(user)}</TableCell>
-                  <TableCell>{user.warnings_count && user.warnings_count > 0 ? <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20"><AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}</Badge> : <span className="text-xs text-muted-foreground opacity-50">-</span>}</TableCell>
-                  <TableCell>{user.is_suspended ? <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge> : <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600 hover:bg-green-500/20">Aktif</Badge>}</TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">{new Date(user.created_at).toLocaleDateString("tr-TR")}</TableCell>
-                  <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user.id}`); }}><UserCog className="w-4 h-4 text-muted-foreground hover:text-primary" /></Button></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          
-          <div className="border-t border-border/50 px-4">
-            <PaginationControls
-              currentPage={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 hover:bg-secondary" onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user.id}`); }}>
+                      <UserCog className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                    </Button>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {getRoleBadge(user)}
+                    {getPaymentBadge(user)}
+                    {user.warnings_count && user.warnings_count > 0 ? (
+                      <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                        <AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}
+                      </Badge>
+                    ) : null}
+                    {user.is_suspended ? (
+                      <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600">Aktif</Badge>
+                    )}
+                  </div>
+                  
+                  <div className="text-xs text-muted-foreground text-right border-t border-border/50 pt-2">
+                    Kayıt: {new Date(user.created_at).toLocaleDateString("tr-TR")}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </div>
+
+          {/* Common Pagination */}
+          {totalPages > 1 && (
+            <div className="pt-4 md:px-4 md:border-t md:border-border/50 md:bg-card md:rounded-b-xl">
+              <PaginationControls
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {/* Floating Action Bar */}

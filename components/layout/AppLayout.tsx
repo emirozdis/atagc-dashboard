@@ -21,7 +21,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const isOrg = ORGANISATION_ROLES.includes(effectiveRole as any);
 
     return (
-        <div className="flex h-screen sm:overflow-hidden max-sm:overflow-y-hidden bg-background relative">
+        // Changed to h-[100dvh] and added strict global overflow-hidden and w-full to prevent horizontal scroll
+        <div className="flex h-[100dvh] w-full overflow-hidden bg-background relative">
             {/* Background elements */}
             <div className="fixed inset-0 -z-10 bg-background">
                 <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
@@ -33,10 +34,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 {isAdmin ? <AdminSidebar /> : isOrg ? <OrganisationSidebar /> : <Sidebar />}
             </div>
             
-            {/* Main Layout Area */}
-            <div className="flex-1 flex flex-col md:pl-64 h-full relative z-0">
+            {/* Main Layout Area - min-w-0 prevents flex child from expanding beyond viewport */}
+            <div className="flex-1 flex flex-col md:pl-64 h-full relative z-0 min-w-0">
                 <Header />
-                <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 pb-safe md:pb-8">
+                {/* overflow-x-hidden is the ultimate fix for tiny horizontal scrollbars */}
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pb-24 pb-safe md:pb-8">
                     {children}
                 </main>
                 {/* Mobile Navigation */}

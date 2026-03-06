@@ -48,7 +48,7 @@ export function Header() {
   const roleLabel = session?.user ? roleMeta.label : "Misafir";
 
   return (
-    <header className="h-16 max-sm:w-screen border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 transition-colors">
+    <header className="h-16 w-full border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 transition-colors">
       <div className="flex md:hidden mr-4">
         <Sheet open={openMobileMenu} onOpenChange={setOpenMobileMenu}>
           <SheetTrigger asChild>

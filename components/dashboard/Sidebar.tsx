@@ -89,7 +89,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
         </Link>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto">
         <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Katılımcı Menüsü
         </div>
