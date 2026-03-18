@@ -10,7 +10,6 @@ export interface PressPhoto {
     storage_path: string;
     file_type: string;
     uploaded_by: string;
-    caption: string | null;
     created_at: string;
     area?: PhotoArea | null;
     uploader?: { id: string; full_name: string } | null;

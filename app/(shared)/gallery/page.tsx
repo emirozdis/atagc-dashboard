@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Camera, X, ChevronLeft, ChevronRight, Upload, ImageOff, MapPin } from "lucide-react";
+import { Camera, X, ChevronLeft, ChevronRight, Upload, ImageOff, MapPin, Download } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +14,19 @@ import Link from "next/link";
 import type { PhotoArea, PressPhoto } from "@/types/gallery";
 
 const PRESS_ROLES = ["head_press", "press"];
+
+async function downloadPhoto(url: string, filename: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
+}
 
 export default function GalleryPage() {
   const { data: session } = useSession();
@@ -171,20 +184,26 @@ export default function GalleryPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photo.signed_url || ""}
-                  alt={photo.caption || "Etkinlik fotoğrafı"}
+                  alt="Etkinlik fotoğrafı"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (photo.signed_url) downloadPhoto(photo.signed_url, `photo-${photo.id}.${photo.file_type || "jpg"}`);
+                  }}
+                  className="absolute top-2 right-2 z-10 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
                 <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   {photo.area && (
                     <Badge variant="secondary" className="text-xs bg-black/50 text-white border-0 mb-1">
                       <MapPin className="w-3 h-3 mr-1" />
                       {photo.area.name}
                     </Badge>
-                  )}
-                  {photo.caption && (
-                    <p className="text-xs text-white line-clamp-2 mt-1">{photo.caption}</p>
                   )}
                 </div>
               </button>
@@ -253,7 +272,7 @@ export default function GalleryPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={currentPhoto.signed_url || ""}
-                alt={currentPhoto.caption || "Etkinlik fotoğrafı"}
+                alt="Etkinlik fotoğrafı"
                 className="max-w-full max-h-[80vh] object-contain"
               />
 
@@ -266,9 +285,14 @@ export default function GalleryPage() {
                       {currentPhoto.area.name}
                     </Badge>
                   )}
-                  {currentPhoto.caption && (
-                    <span className="text-white text-sm">{currentPhoto.caption}</span>
-                  )}
+                  <button
+                    onClick={() => {
+                      if (currentPhoto.signed_url) downloadPhoto(currentPhoto.signed_url, `photo-${currentPhoto.id}.${currentPhoto.file_type || "jpg"}`);
+                    }}
+                    className="mx-auto p-3 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                  >
+                    <Download className="w-7 h-7" />
+                  </button>
                   <span className="text-white/60 text-xs ml-auto">
                     {new Date(currentPhoto.created_at).toLocaleDateString("tr-TR", {
                       day: "numeric",

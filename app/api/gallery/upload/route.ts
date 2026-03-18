@@ -25,8 +25,6 @@ export const POST = apiHandler(async (request: Request) => {
   const formData = await request.formData();
   const file = formData.get("file") as File;
   const areaId = formData.get("area_id") as string;
-  const caption = (formData.get("caption") as string) || null;
-
   if (!file) throw new Error("Dosya yüklenmedi.");
   if (!areaId) throw new Error("Alan seçimi gerekli.");
   if (file.size > MAX_FILE_SIZE) throw new Error("Dosya boyutu çok büyük (Max 10MB).");
@@ -46,7 +44,7 @@ export const POST = apiHandler(async (request: Request) => {
   // Upload to storage
   const ext = file.type.split("/")[1] === "jpeg" ? "jpg" : file.type.split("/")[1];
   const fileName = `${Date.now()}.${ext}`;
-  const filePath = `photos/${session.user.id}/${fileName}`;
+  const filePath = `photos/${areaId}/${fileName}`;
 
   const arrayBuffer = await file.arrayBuffer();
   const { error: uploadError } = await supabase.storage
@@ -65,7 +63,6 @@ export const POST = apiHandler(async (request: Request) => {
       storage_path: filePath,
       file_type: ext,
       uploaded_by: session.user.id,
-      caption,
       created_at: new Date().toISOString(),
     })
     .select()
@@ -80,7 +77,7 @@ export const POST = apiHandler(async (request: Request) => {
       category: "system",
       resourceType: "press_photo",
       resourceId: data.id,
-      metadata: { area_id: areaId, caption },
+      metadata: { area_id: areaId },
     }
   );
 

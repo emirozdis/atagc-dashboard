@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -18,7 +17,6 @@ export default function PressUploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [areaId, setAreaId] = useState<string>("");
-  const [caption, setCaption] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,8 +72,6 @@ export default function PressUploadPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("area_id", areaId);
-      if (caption.trim()) formData.append("caption", caption.trim());
-
       const res = await fetch("/api/gallery/upload", {
         method: "POST",
         body: formData,
@@ -89,7 +85,6 @@ export default function PressUploadPage() {
       toast.success("Fotoğraf başarıyla yüklendi!");
       clearFile();
       setAreaId("");
-      setCaption("");
     } catch (err: any) {
       toast.error(err.message || "Bir hata oluştu.");
     } finally {
@@ -181,18 +176,6 @@ export default function PressUploadPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Caption */}
-            <div className="space-y-2">
-              <Label>Açıklama (opsiyonel)</Label>
-              <Textarea
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                placeholder="Fotoğraf hakkında kısa bir açıklama..."
-                rows={2}
-                maxLength={200}
-              />
             </div>
 
             <Button type="submit" disabled={uploading || !file || !areaId} className="w-full">
