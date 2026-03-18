@@ -27,6 +27,7 @@ import { useEffect, useState } from "react";
 interface SystemSettings {
     applications_open: boolean;
     maintenance_mode: boolean;
+    gallery_enabled: boolean;
     term_name: string;
     contact_email: string;
     location: string;
@@ -291,6 +292,30 @@ export default function SettingsPage() {
                                             id="apps-switch"
                                             checked={localSettings.applications_open}
                                             onCheckedChange={(checked) => updateSetting('applications_open', checked)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 gap-4 hover:bg-muted/5 transition-colors">
+                                    <div className="space-y-1.5 flex-1">
+                                        <div className="flex items-center gap-3">
+                                            <Label className="text-base font-semibold cursor-pointer" htmlFor="gallery-switch">Fotoğraf Galerisi</Label>
+                                            {localSettings.gallery_enabled ? (
+                                                <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">AÇIK</span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">KAPALI</span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+                                            Bu ayar kapatıldığında, fotoğraf galerisi tüm kullanıcılar için erişime kapalı olur.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-medium text-muted-foreground">{localSettings.gallery_enabled ? "Açık" : "Kapalı"}</span>
+                                        <Switch
+                                            id="gallery-switch"
+                                            checked={localSettings.gallery_enabled}
+                                            onCheckedChange={(checked) => updateSetting('gallery_enabled', checked)}
                                         />
                                     </div>
                                 </div>

@@ -134,6 +134,14 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
+        title: "Galeri",
+        href: "/gallery",
+        icon: Camera,
+        roles: DASHBOARD_ROLES,
+        mobileCore: false,
+        requiresApproved: true,
+    },
+    {
         title: "Destek",
         href: "/tickets",
         icon: MessageSquare,
@@ -197,9 +205,9 @@ export const organisationItems: NavigationItem[] = [
     // Press Specific
     {
         title: "Basın Galerisi",
-        href: "/organisation/press/gallery",
+        href: "/gallery",
         icon: Camera,
-        roles: PRESS_TEAM,
+        roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
         mobileCore: true,
         requiresApproved: true,
     },

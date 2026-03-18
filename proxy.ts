@@ -10,8 +10,8 @@ export default withAuth(
 
     // Redirect role-specific shared routes to their root equivalents (excluding /admin)
     const sharedPaths = [
-        "/profile", "/payment", "/connections", "/announcements", 
-        "/catering", "/tickets", "/resources", "/my-application"
+        "/profile", "/payment", "/connections", "/announcements",
+        "/catering", "/tickets", "/resources", "/my-application", "/gallery"
     ];
     const prefixes = ["/dashboard", "/organisation"];
 
@@ -32,8 +32,8 @@ export default withAuth(
 
     // Define Shared/Common routes that any authenticated user can access
     const isSharedRoute = [
-        "/profile", "/payment", "/connections", "/announcements", 
-        "/catering", "/tickets", "/resources", "/my-application"
+        "/profile", "/payment", "/connections", "/announcements",
+        "/catering", "/tickets", "/resources", "/my-application", "/gallery"
     ].some(path => req.nextUrl.pathname.startsWith(path));
 
     // 1. Handle Login Page
@@ -136,6 +136,7 @@ export const config = {
       "/catering", 
       "/tickets", 
       "/resources", 
-      "/my-application"
+      "/my-application",
+      "/gallery"
   ],
 };

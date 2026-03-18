@@ -16,6 +16,7 @@ export async function GET() {
     const defaults = {
         applications_open: true,
         maintenance_mode: false,
+        gallery_enabled: false,
         term_name: "ATAGÇ",
         contact_email: "info@atagc.com.tr",
         location: "İTÜ GVO İzmir NESAN Yerleşkesi",
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
         const updateData = {
             applications_open: body.applications_open,
             maintenance_mode: body.maintenance_mode,
+            gallery_enabled: body.gallery_enabled,
             term_name: body.term_name,
             contact_email: body.contact_email,
             location: body.location,
