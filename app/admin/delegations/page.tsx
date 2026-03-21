@@ -1,12 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { 
     Search, 
     Users, 
     Calendar,
-    Crown
+    Crown,
+    ChevronRight,
+    CheckCircle2,
+    XCircle,
+    Clock
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +27,7 @@ import { PaginationControls } from "@/components/ui/pagination-controls";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface Delegation {
     id: number;
@@ -32,11 +38,13 @@ interface Delegation {
         email: string;
     };
     member_count: number;
+    status: string;
 }
 
 export default function AdminDelegationsPage() {
+    const router = useRouter();
     const [page, setPage] = useState(1);
-    const [limit] = useState(10);
+    const [limit, setLimit] = useState(10);
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -66,19 +74,30 @@ export default function AdminDelegationsPage() {
     const totalPages = data?.meta?.totalPages || 1;
     const totalRecords = data?.meta?.total || 0;
 
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case "approved":
+                return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Onaylı</Badge>;
+            case "rejected":
+                return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 gap-1.5"><XCircle className="w-3.5 h-3.5" /> Reddedildi</Badge>;
+            default:
+                return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 gap-1.5"><Clock className="w-3.5 h-3.5" /> Bekliyor</Badge>;
+        }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
             <Breadcrumbs items={[{ label: "Delegasyonlar" }]} />
             
             <div className="flex flex-col gap-1">
                 <h2 className="text-3xl font-display font-bold text-foreground">Delegasyonlar</h2>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-lg">
                     Toplam <span className="font-medium text-foreground">{totalRecords}</span> delegasyon listeleniyor.
                 </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 bg-card p-4 rounded-xl border border-border/50 shadow-sm">
-                <div className="relative flex-1">
+            <div className="bg-card p-4 rounded-xl border border-border/50 shadow-sm">
+                <div className="relative max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Delegasyon adı veya lider ara..."
@@ -90,7 +109,7 @@ export default function AdminDelegationsPage() {
             </div>
 
             {isLoading ? (
-                <div className="pt-2"><TableSkeleton cols={4} rows={limit} showTitle={false} /></div>
+                <div className="pt-2"><TableSkeleton cols={6} rows={limit} showTitle={false} /></div>
             ) : delegations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
                     <Users className="w-12 h-12 mb-3 opacity-20" />
@@ -98,20 +117,24 @@ export default function AdminDelegationsPage() {
                 </div>
             ) : (
                 <>
-                    {/* Desktop Table View */}
                     <div className="hidden md:block rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
                         <Table>
                             <TableHeader className="bg-muted/30">
                                 <TableRow>
                                     <TableHead className="pl-6">Delegasyon Adı</TableHead>
-                                    <TableHead>Delegasyon Lideri</TableHead>
+                                    <TableHead>Lider</TableHead>
+                                    <TableHead className="text-center">Durum</TableHead>
                                     <TableHead className="text-center">Üye Sayısı</TableHead>
-                                    <TableHead className="text-right pr-6">Oluşturulma Tarihi</TableHead>
+                                    <TableHead className="text-right pr-6"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {delegations.map((del) => (
-                                    <TableRow key={del.id} className="hover:bg-muted/20 transition-colors">
+                                    <TableRow 
+                                        key={del.id} 
+                                        className="hover:bg-muted/20 transition-colors cursor-pointer group"
+                                        onClick={() => router.push(`/admin/delegations/${del.id}`)}
+                                    >
                                         <TableCell className="font-medium pl-6">
                                             <div className="flex items-center gap-2">
                                                 <Users className="w-4 h-4 text-primary" />
@@ -121,22 +144,21 @@ export default function AdminDelegationsPage() {
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 <Crown className="w-3.5 h-3.5 text-yellow-500" />
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-medium">{del.leader?.full_name || "Bilinmiyor"}</span>
-                                                    <span className="text-[10px] text-muted-foreground">{del.leader?.email}</span>
-                                                </div>
+                                                <span className="text-sm font-medium">{del.leader?.full_name || "Bilinmiyor"}</span>
                                             </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            {getStatusBadge(del.status)}
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <Badge variant="secondary" className="font-mono">
                                                 {del.member_count}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right text-muted-foreground text-xs pr-6">
-                                            <div className="flex items-center justify-end gap-1.5">
-                                                <Calendar className="w-3 h-3" />
-                                                {new Date(del.created_at).toLocaleDateString("tr-TR")}
-                                            </div>
+                                        <TableCell className="text-right pr-6">
+                                            <Button variant="ghost" size="icon" className="group-hover:text-primary transition-all">
+                                                <ChevronRight className="w-5 h-5" />
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -144,40 +166,37 @@ export default function AdminDelegationsPage() {
                         </Table>
                     </div>
 
-                    {/* Mobile Card View */}
                     <div className="md:hidden space-y-4">
                         {delegations.map(del => (
-                            <Card key={del.id} className="bg-card border-border/50 shadow-sm overflow-hidden">
+                            <Card key={del.id} className="bg-card border-border/50 shadow-sm overflow-hidden" onClick={() => router.push(`/admin/delegations/${del.id}`)}>
                                 <CardContent className="p-4 space-y-4">
                                     <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-2 font-medium text-foreground min-w-0 flex-1">
-                                            <Users className="w-4 h-4 text-primary shrink-0" />
-                                            <span className="truncate">{del.name}</span>
+                                        <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 font-medium text-foreground">
+                                                <Users className="w-4 h-4 text-primary shrink-0" />
+                                                <span className="truncate">{del.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-6">
+                                                <Crown className="w-3 h-3 text-yellow-500" />
+                                                {del.leader?.full_name}
+                                            </div>
                                         </div>
-                                        <Badge variant="secondary" className="font-mono shrink-0 ml-2">
-                                            {del.member_count} Üye
-                                        </Badge>
+                                        <div className="flex flex-col items-end gap-2">
+                                            {getStatusBadge(del.status)}
+                                            <Badge variant="secondary" className="font-mono text-[10px]">
+                                                {del.member_count} Üye
+                                            </Badge>
+                                        </div>
                                     </div>
-                                    <div className="bg-secondary/10 p-3 rounded-lg border border-border/50 space-y-1">
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                                            <Crown className="w-3.5 h-3.5 text-yellow-500" />
-                                            <span>Lider</span>
-                                        </div>
-                                        <div className="text-sm font-medium truncate">{del.leader?.full_name || "Bilinmiyor"}</div>
-                                        <div className="text-xs text-muted-foreground truncate">{del.leader?.email}</div>
-                                    </div>
-                                    <div className="flex items-center justify-end text-xs text-muted-foreground pt-1">
-                                        <div className="flex items-center gap-1.5">
-                                            <Calendar className="w-3 h-3" />
-                                            {new Date(del.created_at).toLocaleDateString("tr-TR")}
-                                        </div>
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/30">
+                                        <span className="font-mono">{new Date(del.created_at).toLocaleDateString("tr-TR")}</span>
+                                        <span className="text-primary font-bold flex items-center gap-1">İncele <ChevronRight className="w-4 h-4" /></span>
                                     </div>
                                 </CardContent>
                             </Card>
                         ))}
                     </div>
                     
-                    {/* Common Pagination */}
                     {totalPages > 1 && (
                         <div className="pt-2">
                             <PaginationControls 

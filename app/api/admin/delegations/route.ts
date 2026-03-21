@@ -27,7 +27,8 @@ export const GET = apiHandler(async (request: Request) => {
             created_at,
             leader:users!delegations_created_by_fkey (
                 full_name,
-                email
+                email,
+                application:applications(status)
             ),
             members:delegation_members (count)
         `, { count: 'exact' });
@@ -47,7 +48,8 @@ export const GET = apiHandler(async (request: Request) => {
         name: d.name,
         created_at: d.created_at,
         leader: d.leader,
-        member_count: d.members?.[0]?.count || 0
+        member_count: d.members?.[0]?.count || 0,
+        status: d.leader?.application?.[0]?.status || 'pending'
     }));
 
     return NextResponse.json({

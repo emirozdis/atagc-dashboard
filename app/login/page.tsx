@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, Mail, Key, ArrowLeft } from "lucide-react";
+import { Loader2, Lock, Mail, Key, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [turnstileKey, setTurnstileKey] = useState(0);
   const [step, setStep] = useState<"credentials" | "otp">("credentials");
   const [otp, setOtp] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -30,7 +31,6 @@ export default function LoginPage() {
     const isDev = process.env.NODE_ENV === "development";
     const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
 
-    // Her iki adımda da Turnstile token'ı zorunlu
     if (!effectiveToken) {
       toast.error("Lütfen doğrulamayı tamamlayın.");
       return;
@@ -48,7 +48,7 @@ export default function LoginPage() {
         redirect: false,
         email: formData.email,
         password: formData.password,
-        token: effectiveToken, // Artık bypass yok, daima token gidiyor
+        token: effectiveToken,
         otp: step === "otp" ? otp : "",
       });
 
@@ -57,7 +57,7 @@ export default function LoginPage() {
             setStep("otp");
             toast.success("Doğrulama Kodu Gönderildi", { description: "Lütfen e-posta adresinizi kontrol edin." });
             setTurnstileToken("");
-            setTurnstileKey(prev => prev + 1); // Yeni adım için Turnstile'ı sıfırla
+            setTurnstileKey(prev => prev + 1);
             setLoading(false);
             return;
         }
@@ -86,7 +86,7 @@ export default function LoginPage() {
         const sessionRes = await fetch("/api/auth/session");
         const session = await sessionRes.json();
 
-        if (session?.user?.role === "superadmin") {
+        if (session?.user?.role === "superadmin" || session?.user?.role === "admin") {
           router.push("/admin");
         } else {
           router.push("/dashboard");
@@ -162,15 +162,22 @@ export default function LoginPage() {
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="pl-9"
+                      className="pl-9 pr-10"
                       required
                       value={formData.password}
                       onChange={(e) =>
                         setFormData({ ...formData, password: e.target.value })
                       }
                     />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -217,7 +224,6 @@ export default function LoginPage() {
                       </div>
                   </div>
                   
-                  {/* OTP aşaması için yeni Turnstile bileşeni */}
                   <div className="py-2 flex justify-center sm:justify-start">
                     <Turnstile 
                       key={`turnstile-otp-${turnstileKey}`}
