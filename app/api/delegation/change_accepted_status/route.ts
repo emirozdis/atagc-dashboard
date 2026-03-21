@@ -12,7 +12,6 @@ export const POST = apiHandler(async (req) => {
 
     const userId = (auth.session as any).user.id;
 
-    // Check if the user is a delegation leader
     const { data: delegation, error: delegationError } = await supabase
         .from("delegations")
         .select("id")
@@ -42,7 +41,6 @@ export const POST = apiHandler(async (req) => {
         );
     }
 
-    // Check if target user is in the same delegation
     const { data: member } = await supabase
         .from("delegation_members")
         .select("user_id")
@@ -73,31 +71,6 @@ export const POST = apiHandler(async (req) => {
             .eq("delegation", delegation.id);
 
         if (error) throw new Error(error.message);
-
-        // Create application when accepting a member
-        if (action === "accept") {
-            const { data: delegateForm } = await supabase
-                .from("application_forms")
-                .select("id")
-                .eq("slug", "delegate")
-                .eq("is_active", true)
-                .single();
-
-            if (delegateForm) {
-                const { error: appError } = await supabase
-                    .from("applications")
-                    .insert({
-                        user_id: target_user_id,
-                        form_id: delegateForm.id,
-                        form_data: {},
-                        status: "pending",
-                        payment_status: "unpaid",
-                        submitted_at: new Date().toISOString(),
-                    });
-
-                if (appError) throw new Error(appError.message);
-            }
-        }
     }
 
     return NextResponse.json({ success: true });

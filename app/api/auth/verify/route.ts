@@ -80,11 +80,6 @@ export const PUT = apiHandler(async (request: Request) => {
     .limit(1)
     .single();
 
-  // Test Bypass (Optional - remove in production or use env var)
-  if (code === "000000" && email.includes("test")) {
-    return NextResponse.json({ success: true });
-  }
-
   if (error || !data) {
     return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
   }
