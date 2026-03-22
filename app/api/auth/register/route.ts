@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { Logger } from "@/lib/logger";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { ROLES } from "@/lib/roles";
+import { isDisposableDomain } from "@/lib/disposableEmailDomains";
 
 const registerLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
@@ -25,7 +26,16 @@ export const POST = apiHandler(async (request: Request) => {
     return NextResponse.json({ error: "Doğrulama başarısız." }, { status: 403 });
   }
 
-  // 2. Check if Email is Verified
+  // 2. Block disposable email domains
+  const emailDomain = email.split('@')[1]?.toLowerCase();
+  if (!emailDomain || isDisposableDomain(emailDomain)) {
+    return NextResponse.json(
+      { error: "Geçici veya tek kullanımlık e-posta adresleri kabul edilmiyor. Lütfen başka bir e-posta adresi kullanın." },
+      { status: 400 }
+    );
+  }
+
+  // 3. Check if Email is Verified
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
   const { data: verification } = await supabase
@@ -55,7 +65,7 @@ export const POST = apiHandler(async (request: Request) => {
     );
   }
 
-  // 3. Check if User Already Exists
+  // 4. Check if User Already Exists
   const { data: existingUser } = await supabase
     .from("users")
     .select("id")
@@ -69,11 +79,11 @@ export const POST = apiHandler(async (request: Request) => {
     );
   }
 
-  // 4. Hash Password
+  // 5. Hash Password
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
-  // 5. Create User
+  // 6. Create User
   const now = new Date().toISOString();
   const { data: newUser, error: createUserError } = await supabase
     .from("users")
@@ -90,16 +100,16 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (createUserError) throw createUserError;
 
-  // 6. Log Action
+  // 7. Log Action
   await Logger.audit(
-      { userId: newUser.id },
-      { 
-          action: "register", 
-          category: "auth", 
-          resourceType: "user",
-          resourceId: newUser.id,
-          metadata: { email: newUser.email } 
-      }
+    { userId: newUser.id },
+    {
+      action: "register",
+      category: "auth",
+      resourceType: "user",
+      resourceId: newUser.id,
+      metadata: { email: newUser.email }
+    }
   );
 
   return NextResponse.json({

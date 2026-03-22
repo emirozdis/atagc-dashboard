@@ -7,6 +7,7 @@ import { sendEmail } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { generateEmailHtml } from "@/lib/email-templates";
+import { isDisposableDomain } from "@/lib/disposableEmailDomains";
 
 // Separate limiters for Sending and Verifying
 const sendLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
@@ -28,6 +29,15 @@ export const POST = apiHandler(async (request: Request) => {
     return NextResponse.json({ error: "Doğrulama başarısız." }, { status: 403 });
   }
 
+  // Block disposable email domains
+  const emailDomain = email.split('@')[1]?.toLowerCase();
+  if (!emailDomain || isDisposableDomain(emailDomain)) {
+    return NextResponse.json(
+      { error: "Geçici veya tek kullanımlık e-posta adresleri kabul edilmiyor. Lütfen başka bir e-posta adresi kullanın." },
+      { status: 400 }
+    );
+  }
+
   // Generate 6 digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const now = new Date();
@@ -36,20 +46,20 @@ export const POST = apiHandler(async (request: Request) => {
   // Store in DB
   const { error } = await supabase
     .from("email_verifications")
-    .insert({ 
-      email, 
-      code, 
+    .insert({
+      email,
+      code,
       expires_at: expiresAt,
-      created_at: now.toISOString() 
+      created_at: now.toISOString()
     });
 
   if (error) throw error;
 
   // Send Email with Template
   const emailHtml = generateEmailHtml(
-    "email_verification", 
-    "Katılımcı Adayı", 
-    BASE_URL, 
+    "email_verification",
+    "Katılımcı Adayı",
+    BASE_URL,
     { code }
   );
 
