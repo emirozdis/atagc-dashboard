@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || "http://localhost:3000"),
   title: "ATAGÇ 2026 - Panel",
   description: "ATAGÇ 2026 - Etkinlik Paneli",
-  keywords: ["ATAGÇ", "2026", "İTÜ GVO", "İzmir", "Atatürk Gençliği Çalıştayı"],
+  keywords: ["ATAGÇ", "2026", "İzmir", "Atatürk Gençliği Çalıştayı"],
   authors: [{ name: "ATAGÇ" }],
   icons: {
     icon: "/logo.png",

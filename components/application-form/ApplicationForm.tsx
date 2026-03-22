@@ -21,7 +21,6 @@ import { SuccessScreen } from "./SuccessScreen";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
-
 // Types
 import { 
     accountCreationSchema, 
@@ -47,6 +46,9 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
   const [showForm, setShowForm] = useState(!hasExistingApplication);
   const formRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
+  
+  // Safe to leave ref for beforeunload
+  const isSafeToLeave = useRef(false);
   
   // Data States
   const [availableForms, setAvailableForms] = useState<ApplicationFormTemplate[]>(initialForms);
@@ -115,6 +117,23 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
       toast.error(e.message);
     },
   });
+
+  // Unsaved Changes Warning (Tab Close/Refresh)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Eğer 1. adımdan (Rol Seçimi) ilerlenmişse ve form güvenli çıkış modunda değilse uyarı ver
+      if (currentStep > 1 && !isSafeToLeave.current && showForm) {
+        e.preventDefault();
+        e.returnValue = ''; // Eski tarayıcılar ve Chrome için
+        return ''; // Safari ve Firefox için
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentStep, showForm]);
 
   // Fallback fetch if no initial forms
   useEffect(() => {
@@ -309,7 +328,6 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
             personalDetails: personalForm.getValues(),
             formId: selectedFormId,
             formData: formAnswers,
-            // kvkkApproved is intentionally removed as it is now part of personalDetails
         };
 
         const res = await fetch("/api/applications", {
@@ -323,6 +341,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
             throw new Error(err.error || "Gönderim başarısız");
         }
 
+        isSafeToLeave.current = true; // Yönlendirmeden önce güvenli çıkış bayrağını kaldır
         await update();
 
         // Redirect delegation leaders to their delegation panel

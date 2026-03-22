@@ -41,13 +41,13 @@ export function SuccessScreen({ onReset }: SuccessScreenProps) {
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
         <a
-          href="https://instagram.com/ituatagc"
+          href="https://instagram.com/atagc26"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-secondary-foreground text-sm"
         >
           <Instagram className="w-4 h-4" />
-          <span>@ituatagc</span>
+          <span>@atagc26</span>
         </a>
         <a
           href="mailto:info@atagc.com.tr"
