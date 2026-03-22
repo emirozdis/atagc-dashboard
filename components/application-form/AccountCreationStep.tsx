@@ -1,5 +1,3 @@
-// components/application-form/AccountCreationStep.tsx
-
 import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";

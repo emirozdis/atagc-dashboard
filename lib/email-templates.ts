@@ -194,6 +194,12 @@ export const generateEmailHtml = (type: NotificationType, userName: string, base
       }
   }
 
+  // ✅ ADDED: Sent date-time (Turkey locale)
+  const sentAt = new Date().toLocaleString("tr-TR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
   return `
     <!DOCTYPE html>
     <html lang="tr">
@@ -221,7 +227,12 @@ export const generateEmailHtml = (type: NotificationType, userName: string, base
           </div>
           <div style="${getFooterStyles()}">
             <p style="${getFooterTextStyles()}">© 2026 ATAGÇ. Tüm hakları saklıdır.</p>
-            <p style="${getFooterTextStyles()} margin-top: 5px;">İTÜ GVO İzmir NESAN Yerleşkesi</p>
+
+            <!-- ✅ ADDED: Sent at -->
+            <p style="${getFooterTextStyles()} margin-top: 10px; font-size: 11px; opacity: 0.7;">
+              Gönderilme zamanı: ${sentAt}
+            </p>
+
             ${type !== 'password_changed' && type !== 'account_suspended' && type !== 'email_verification' && type !== 'password_reset_request' && type !== 'two_factor_code' ? `<p style="${getFooterTextStyles()} margin-top: 15px; font-size: 11px; opacity: 0.6;">Bu e-posta, bildirim tercihleriniz doğrultusunda gönderilmiştir. Ayarlarınızı <a href="${cleanBaseUrl}/dashboard/profile" style="color: ${COLORS.textSecondary}; text-decoration: underline;">profil sayfasından</a> yönetebilirsiniz.</p>` : ''}
           </div>
         </div>

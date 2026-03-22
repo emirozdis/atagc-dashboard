@@ -114,12 +114,12 @@ export default async function Home({ searchParams }: HomeProps) {
               <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-sm md:text-base text-foreground/80 bg-secondary/30 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
                 <div className="flex items-center gap-2.5">
                   <Calendar className="w-5 h-5 text-primary" />
-                  <span>27 - 28 - 29 Mart 2026</span>
+                  <span>2026</span>
                 </div>
                 <div className="hidden sm:block w-px h-6 bg-border/20" />
                 <div className="flex items-center gap-2.5">
                   <MapPin className="w-5 h-5 text-primary" />
-                  <span>İTÜ GVO İzmir NESAN Yerleşkesi</span>
+                  <span>İzmir</span>
                 </div>
               </div>
             </div>
@@ -152,18 +152,18 @@ export default async function Home({ searchParams }: HomeProps) {
                   ATAGÇ 2026
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  İTÜ GVO İzmir Atatürk Gençliği Çalıştayı
+                  İzmir Atatürk Gençliği Çalıştayı
                 </p>
               </div>
 
               <a
-                href="https://instagram.com/ituatagc"
+                href="https://instagram.com/atagc26"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-secondary/50 hover:bg-primary/20 border border-white/5 hover:border-primary/30 transition-all group"
               >
                 <Instagram className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">@ituatagc</span>
+                <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">@atagc26</span>
               </a>
 
               <div className="w-full max-w-xs border-t border-border/10 pt-6 mt-2">
@@ -224,12 +224,12 @@ export default async function Home({ searchParams }: HomeProps) {
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-sm md:text-base text-foreground/80 bg-secondary/30 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
               <div className="flex items-center gap-2.5">
                 <Calendar className="w-5 h-5 text-primary" />
-                <span>27 - 28 - 29 Mart 2026</span>
+                <span>2026</span>
               </div>
               <div className="hidden sm:block w-px h-6 bg-border/20" />
               <div className="flex items-center gap-2.5">
                 <MapPin className="w-5 h-5 text-primary" />
-                <span>İTÜ GVO İzmir NESAN Yerleşkesi</span>
+                <span>İzmir</span>
               </div>
             </div>
           </div>
@@ -264,18 +264,18 @@ export default async function Home({ searchParams }: HomeProps) {
                 ATAGÇ 2026
               </h3>
               <p className="text-muted-foreground text-sm">
-                İTÜ GVO İzmir Atatürk Gençliği Çalıştayı
+                İzmir Atatürk Gençliği Çalıştayı
               </p>
             </div>
 
             <a
-              href="https://instagram.com/ituatagc"
+              href="https://instagram.com/atagc26"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-secondary/50 hover:bg-primary/20 border border-white/5 hover:border-primary/30 transition-all group"
             >
               <Instagram className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">@ituatagc</span>
+              <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">@atagc26</span>
             </a>
 
             <div className="w-full max-w-xs border-t border-border/10 pt-6 mt-2">

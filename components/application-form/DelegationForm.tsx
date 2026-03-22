@@ -37,6 +37,9 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
     const formRef = useRef<HTMLDivElement>(null);
     const isFirstRender = useRef(true);
 
+    // Safe to leave ref for beforeunload
+    const isSafeToLeave = useRef(false);
+
     const [accountData, setAccountData] = useState<AccountCreationData | null>(null);
     const [isEmailVerified, setIsEmailVerified] = useState(true);
     const [authMode, setAuthMode] = useState<"register" | "login">("register");
@@ -76,6 +79,23 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                 if (form) setDelegateForm(form);
             })
             .catch(console.error);
+    }, []);
+
+    // Unsaved Changes Warning (Tab Close/Refresh)
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            // Form dolduruluyorsa ve güvenli çıkış modunda değilse uyarı ver
+            if (!isSafeToLeave.current) {
+                e.preventDefault();
+                e.returnValue = ''; // Eski tarayıcılar ve Chrome için
+                return ''; // Safari ve Firefox için
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
     }, []);
 
     // Scroll to form top when step changes
@@ -244,6 +264,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                 throw new Error(err.message || "Gönderim başarısız");
             }
 
+            isSafeToLeave.current = true; // Yönlendirmeden önce güvenli çıkış bayrağını kaldır
             await update();
             setIsSubmitted(true);
             toast.success("Delegasyona başarıyla katıldınız!");
