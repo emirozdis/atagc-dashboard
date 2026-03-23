@@ -197,7 +197,7 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
             />
             <div className="space-y-1">
               <Label htmlFor="kvkk" className="text-sm font-medium cursor-pointer">
-                KVKK Aydınlatma Metni'ni okudum anladım ve onaylıyorum. <span className="text-destructive">*</span>
+                KVKK Aydınlatma Metni'ni okudum, anladım ve onaylıyorum. <span className="text-destructive">*</span>
               </Label>
               <p className="text-xs text-muted-foreground">
                 Kişisel verilerinizin işlenmesi hakkında detaylı bilgi için <button type="button" onClick={() => setShowKvkk(true)} className="text-primary hover:underline font-medium inline-flex items-center gap-1">KVKK Aydınlatma Metni <FileText className="w-3 h-3" /></button>'ni inceleyebilirsiniz.

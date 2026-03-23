@@ -55,6 +55,7 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
     document.body.appendChild(iframe);
 
     // PDF/Yazdırma için tamamen bağımsız, tertemiz bir HTML şablonu
+    // Metinler tamamen kullanıcı arayüzündeki (display) versiyon ile birebir eşitlenmiştir.
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="tr">
@@ -114,7 +115,7 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
         <h2>Kişisel Verilerin Korunması Kanunu (KVKK) Aydınlatma Metni</h2>
         
         <div class="highlight">
-          <p style="margin: 0;"><strong>ATAGÇ (Atatürk Gençliği Çalıştayı)</strong> olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) uyarınca, veri sorumlusu sıfatıyla, kişisel verilerinizi aşağıda açıklanan amaçlar kapsamında; hukuka ve dürüstlük kurallarına uygun bir şekilde işleyebilecek, kaydedebilecek, saklayabilecek, sınıflandırabilecek, güncelleyebilecek ve mevzuatın izin verdiği hallerde üçüncü kişilere açıklayabilecek/aktarabileceğiz.</p>
+          <p style="margin: 0;"><strong>BAL Öğrenci Derneği</strong> olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) uyarınca, veri sorumlusu sıfatıyla, kişisel verilerinizi aşağıda açıklanan amaçlar kapsamında; hukuka ve dürüstlük kurallarına uygun bir şekilde işleyebilecek, kaydedebilecek, saklayabilecek, sınıflandırabilecek, güncelleyebilecek ve mevzuatın izin verdiği hallerde üçüncü kişilere açıklayabilecek/aktarabileceğiz.</p>
         </div>
 
         <div class="section">
@@ -124,32 +125,32 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
 
         <div class="section">
           <h3>2. Kişisel Verilerin Aktarılması ve Yurt Dışına Çıkarılması</h3>
-          <p>Kişisel verileriniz; yukarıda belirtilen amaçların gerçekleştirilmesi doğrultusunda, kanunen yetkili kamu kurumlarına ve faaliyetlerimizi yürütmek üzere hizmet aldığımız program ortaklarına, tedarikçi firmalara KVKK’nın 8. ve 9. maddelerinde belirtilen kişisel veri işleme şartları çerçevesinde aktarılabilecektir. Ayrıca depolama amacıyla yurt dışı bulut sunucularına aktarılabilir.</p>
+          <p>Kişisel verileriniz; yukarıda belirtilen amaçların gerçekleştirilmesi doğrultusunda, kanunen yetkili kamu kurumlarına (örneğin; emniyet birimleri, ilgili bakanlıklar) ve faaliyetlerimizi yürütmek üzere hizmet aldığımız, iş birliği yaptığımız program ortaklarına, tedarikçi firmalara (konaklama, ulaşım vb. hizmet sağlayanlar) KVKK’nın 8. ve 9. maddelerinde belirtilen kişisel veri işleme şartları ve amaçları çerçevesinde aktarılabilecektir. Ayrıca, kişisel verileriniz depolama ve işlenme amacıyla yurt dışındaki sunuculara (bulut hizmetleri vb.) gönderilebilir ve bu sunucularda barındırılabilir.</p>
         </div>
 
         <div class="section">
           <h3>3. Kişisel Veri Toplamanın Yöntemi ve Hukuki Sebebi</h3>
-          <p>Kişisel verileriniz, internet sitemiz üzerinden doldurduğunuz başvuru formu aracılığıyla elektronik ortamda toplanmaktadır. Bu veriler, KVKK’nın 5. maddesinde belirtilen meşru menfaatler ve sözleşmenin kurulması hukuki sebeplerine dayanılarak işlenmektedir.</p>
+          <p>Kişisel verileriniz, internet sitemiz üzerinden doldurduğunuz başvuru formu aracılığıyla elektronik ortamda toplanmaktadır. Bu veriler, KVKK’nın 5. maddesinde belirtilen “ilgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun meşru menfaatleri için veri işlenmesinin zorunlu olması” ve “bir sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili olması” hukuki sebeplerine dayanılarak işlenmektedir.</p>
         </div>
 
         <div class="section">
           <h3>4. Veri Güvenliği ve Sorumluluk Sınırı</h3>
-          <p>ATAGÇ, kişisel verilerinizin güvenliğini sağlamak amacıyla gerekli tüm teknik ve idari tedbirleri almaktadır. Ancak olası siber saldırı veya yetkisiz erişim kaynaklı sızıntılardan ATAGÇ sorumlu tutulamaz.</p>
+          <p>BAL Öğrenci Derneği, kişisel verilerinizin güvenliğini sağlamak amacıyla gerekli tüm teknik ve idari tedbirleri almak için azami gayreti göstermektedir. Ancak, alınan tüm güvenlik önlemlerine rağmen yaşanabilecek olası bir siber saldırı veya yetkisiz erişim durumunda meydana gelebilecek veri sızıntılarından BAL Öğrenci Derneği sorumlu tutulamaz.</p>
         </div>
 
         <div class="section">
           <h3>5. Veri Sahibinin Hakları</h3>
-          <p>KVKK’nın 11. maddesi uyarınca veri sahipleri; kişisel verilerinin işlenip işlenmediğini öğrenme, bilgi talep etme, işlenme amacını öğrenme, aktarıldığı 3. kişileri bilme, düzeltilmesini, silinmesini veya yok edilmesini isteme haklarına sahiptir.</p>
+          <p>KVKK’nın 11. maddesi uyarınca veri sahipleri; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında verilerin aktarıldığı üçüncü kişileri bilme, verilerin eksik veya yanlış işlenmiş olması hâlinde düzeltilmesini isteme, kanun çerçevesinde silinmesini veya yok edilmesini isteme haklarına sahiptir.</p>
         </div>
 
         <div class="section">
           <h3>6. İletişim</h3>
-          <p>Taleplerinizi info@atagc.com.tr e-posta adresi üzerinden tarafımıza iletebilirsiniz.</p>
+          <p>KVKK kapsamındaki haklarınızla ilgili taleplerinizi <strong>info@atagc.com.tr</strong> e-posta adresi üzerinden tarafımıza iletebilirsiniz.</p>
         </div>
 
         <div class="footer">
-          Bu belge ATAGÇ (Atatürk Gençliği Çalıştayı) tarafından oluşturulmuştur.<br/>
-          Tarih: ${new Date().toLocaleDateString('tr-TR')}
+          Bu belge BAL Öğrenci Derneği tarafından oluşturulmuştur.<br/>
+          Tarih: ${new Date().toLocaleDateString("tr-TR")}
         </div>
       </body>
       </html>
@@ -166,7 +167,7 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
       iframe.onload = () => {
         iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
-        
+
         // İşlem bittikten sonra iframe'i DOM'dan temizle
         setTimeout(() => {
           document.body.removeChild(iframe);
@@ -187,7 +188,6 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm sm:p-6 animate-in fade-in duration-200"
     >
       <div className="bg-background w-full sm:max-w-3xl flex flex-col h-[100dvh] sm:h-auto sm:max-h-[85vh] sm:rounded-2xl border-t sm:border border-border shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300 overflow-hidden">
-
         {/* HEADER */}
         <header className="flex items-start justify-between px-6 py-5 border-b bg-muted/10 shrink-0">
           <div className="flex gap-4 items-center pr-4">
@@ -199,7 +199,8 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
                 Kişisel Verilerin Korunması Kanunu (KVKK) Aydınlatma Metni
               </h2>
               <p className="text-sm text-muted-foreground mt-1.5">
-                Lütfen kişisel verilerinizin işlenmesi ile ilgili bilgilendirme metnini dikkatlice okuyunuz.
+                Lütfen kişisel verilerinizin işlenmesi ile ilgili bilgilendirme
+                metnini dikkatlice okuyunuz.
               </p>
             </div>
           </div>
@@ -217,11 +218,16 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
         {/* SCROLLABLE BODY */}
         <main className="flex-1 overflow-y-auto overscroll-contain px-6 py-6 sm:px-8 custom-scrollbar bg-background">
           <div className="text-sm text-muted-foreground leading-relaxed space-y-8 max-w-none">
-
             {/* INTRO HIGHLIGHT */}
             <div className="p-4 sm:p-5 bg-primary/5 rounded-xl border border-primary/10 text-foreground/90">
               <p>
-                <strong>ATAGÇ (Atatürk Gençliği Çalıştayı)</strong> olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) uyarınca, veri sorumlusu sıfatıyla, kişisel verilerinizi aşağıda açıklanan amaçlar kapsamında; hukuka ve dürüstlük kurallarına uygun bir şekilde işleyebilecek, kaydedebilecek, saklayabilecek, sınıflandırabilecek, güncelleyebilecek ve mevzuatın izin verdiği hallerde üçüncü kişilere açıklayabilecek/aktarabileceğiz.
+                <strong>BAL Öğrenci Derneği</strong> olarak, 6698 sayılı Kişisel
+                Verilerin Korunması Kanunu (“KVKK”) uyarınca, veri sorumlusu
+                sıfatıyla, kişisel verilerinizi aşağıda açıklanan amaçlar
+                kapsamında; hukuka ve dürüstlük kurallarına uygun bir şekilde
+                işleyebilecek, kaydedebilecek, saklayabilecek, sınıflandırabilecek,
+                güncelleyebilecek ve mevzuatın izin verdiği hallerde üçüncü
+                kişilere açıklayabilecek/aktarabileceğiz.
               </p>
             </div>
 
@@ -234,10 +240,13 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
                 Kişisel Verilerin İşlenme Amacı
               </h3>
               <p className="pl-9">
-                Toplanan kişisel verileriniz (Ad-soyad, iletişim bilgileri, öğrenim durumu, doğum tarihi vb.);
-                çalıştay başvurunuzun değerlendirilmesi, katılımcı kayıtlarının oluşturulması, etkinlik organizasyonunun sağlanması,
-                gerekli bilgilendirmelerin yapılması, sertifikaların düzenlenmesi, konaklama ve ulaşım planlamalarının yapılması
-                ve yasal yükümlülüklerin yerine getirilmesi amaçlarıyla işlenmektedir.
+                Toplanan kişisel verileriniz (Ad-soyad, iletişim bilgileri, öğrenim
+                durumu, doğum tarihi vb.); çalıştay başvurunuzun
+                değerlendirilmesi, katılımcı kayıtlarının oluşturulması, etkinlik
+                organizasyonunun sağlanması, gerekli bilgilendirmelerin yapılması,
+                sertifikaların düzenlenmesi, konaklama ve ulaşım planlamalarının
+                yapılması ve yasal yükümlülüklerin yerine getirilmesi amaçlarıyla
+                işlenmektedir.
               </p>
             </section>
 
@@ -249,10 +258,16 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
                 Kişisel Verilerin Aktarılması ve Yurt Dışına Çıkarılması
               </h3>
               <p className="pl-9">
-                Kişisel verileriniz; yukarıda belirtilen amaçların gerçekleştirilmesi doğrultusunda, kanunen yetkili kamu kurumlarına
-                (örneğin; emniyet birimleri, ilgili bakanlıklar) ve faaliyetlerimizi yürütmek üzere hizmet aldığımız, iş birliği yaptığımız
-                program ortaklarına, tedarikçi firmalara (konaklama, ulaşım vb. hizmet sağlayanlar) KVKK’nın 8. ve 9. maddelerinde belirtilen
-                kişisel veri işleme şartları ve amaçları çerçevesinde aktarılabilecektir. Ayrıca, kişisel verileriniz depolama ve işlenme amacıyla yurt dışındaki sunuculara (bulut hizmetleri vb.) gönderilebilir ve bu sunucularda barındırılabilir.
+                Kişisel verileriniz; yukarıda belirtilen amaçların
+                gerçekleştirilmesi doğrultusunda, kanunen yetkili kamu
+                kurumlarına (örneğin; emniyet birimleri, ilgili bakanlıklar) ve
+                faaliyetlerimizi yürütmek üzere hizmet aldığımız, iş birliği
+                yaptığımız program ortaklarına, tedarikçi firmalara (konaklama,
+                ulaşım vb. hizmet sağlayanlar) KVKK’nın 8. ve 9. maddelerinde
+                belirtilen kişisel veri işleme şartları ve amaçları çerçevesinde
+                aktarılabilecektir. Ayrıca, kişisel verileriniz depolama ve
+                işlenme amacıyla yurt dışındaki sunuculara (bulut hizmetleri vb.)
+                gönderilebilir ve bu sunucularda barındırılabilir.
               </p>
             </section>
 
@@ -264,10 +279,13 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
                 Kişisel Veri Toplamanın Yöntemi ve Hukuki Sebebi
               </h3>
               <p className="pl-9">
-                Kişisel verileriniz, internet sitemiz üzerinden doldurduğunuz başvuru formu aracılığıyla elektronik ortamda toplanmaktadır.
-                Bu veriler, KVKK’nın 5. maddesinde belirtilen “ilgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla,
-                veri sorumlusunun meşru menfaatleri için veri işlenmesinin zorunlu olması” ve “bir sözleşmenin kurulması veya ifasıyla
-                doğrudan doğruya ilgili olması” hukuki sebeplerine dayanılarak işlenmektedir.
+                Kişisel verileriniz, internet sitemiz üzerinden doldurduğunuz
+                başvuru formu aracılığıyla elektronik ortamda toplanmaktadır. Bu
+                veriler, KVKK’nın 5. maddesinde belirtilen “ilgili kişinin temel
+                hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun
+                meşru menfaatleri için veri işlenmesinin zorunlu olması” ve “bir
+                sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili
+                olması” hukuki sebeplerine dayanılarak işlenmektedir.
               </p>
             </section>
 
@@ -279,7 +297,12 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
                 Veri Güvenliği ve Sorumluluk Sınırı
               </h3>
               <p className="pl-9">
-                ATAGÇ, kişisel verilerinizin güvenliğini sağlamak amacıyla gerekli tüm teknik ve idari tedbirleri almak için azami gayreti göstermektedir. Ancak, alınan tüm güvenlik önlemlerine rağmen yaşanabilecek olası bir siber saldırı veya yetkisiz erişim durumunda meydana gelebilecek veri sızıntılarından ATAGÇ sorumlu tutulamaz.
+                BAL Öğrenci Derneği, kişisel verilerinizin güvenliğini sağlamak
+                amacıyla gerekli tüm teknik ve idari tedbirleri almak için azami
+                gayreti göstermektedir. Ancak, alınan tüm güvenlik önlemlerine
+                rağmen yaşanabilecek olası bir siber saldırı veya yetkisiz erişim
+                durumunda meydana gelebilecek veri sızıntılarından BAL Öğrenci
+                Derneği sorumlu tutulamaz.
               </p>
             </section>
 
@@ -291,9 +314,13 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
                 Veri Sahibinin Hakları
               </h3>
               <p className="pl-9">
-                KVKK’nın 11. maddesi uyarınca veri sahipleri; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme,
-                işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında verilerin aktarıldığı üçüncü kişileri bilme,
-                verilerin eksik veya yanlış işlenmiş olması hâlinde düzeltilmesini isteme, kanun çerçevesinde silinmesini veya yok edilmesini isteme haklarına sahiptir.
+                KVKK’nın 11. maddesi uyarınca veri sahipleri; kişisel verilerinin
+                işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep
+                etme, işlenme amacını ve amacına uygun kullanılıp kullanılmadığını
+                öğrenme, yurt içinde veya yurt dışında verilerin aktarıldığı üçüncü
+                kişileri bilme, verilerin eksik veya yanlış işlenmiş olması
+                hâlinde düzeltilmesini isteme, kanun çerçevesinde silinmesini
+                veya yok edilmesini isteme haklarına sahiptir.
               </p>
             </section>
 
@@ -315,7 +342,6 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
                 e-posta adresi üzerinden tarafımıza iletebilirsiniz.
               </p>
             </section>
-
           </div>
         </main>
 
@@ -344,7 +370,6 @@ export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
             Okudum, Anladım
           </Button>
         </footer>
-
       </div>
     </div>
   );
