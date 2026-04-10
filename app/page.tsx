@@ -9,6 +9,18 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
+async function getApplicationStatus(): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from("system_settings")
+      .select("applications_open")
+      .single();
+    return data?.applications_open ?? false;
+  } catch {
+    return false;
+  }
+}
+
 async function getApplicationForms(): Promise<ApplicationFormTemplate[]> {
   try {
     const { data, error } = await supabase
@@ -69,6 +81,7 @@ interface HomeProps {
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   const magiclinkParam = typeof params.magiclink === "string" ? params.magiclink : undefined;
+  const isApplicationsOpen = await getApplicationStatus();
 
   // Handle magiclink flow
   if (magiclinkParam) {
@@ -130,10 +143,28 @@ export default async function Home({ searchParams }: HomeProps) {
           <div className="container mx-auto">
             <div className="max-w-3xl mx-auto">
               <div className="bg-card/80 backdrop-blur-md rounded-3xl p-6 md:p-12 border border-border/50 shadow-xl form-glow">
-                <DelegationForm
-                  magiclinkId={magiclinkParam}
-                  magiclinkEmail={result.email!}
-                />
+                {isApplicationsOpen ? (
+                  <DelegationForm
+                    magiclinkId={magiclinkParam}
+                    magiclinkEmail={result.email!}
+                  />
+                ) : (
+                  <div className="text-center space-y-6 py-8">
+                    <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Calendar className="w-10 h-10 text-primary" />
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-display font-bold">Başvurular Kapalı</h2>
+                    <p className="text-muted-foreground text-lg max-w-md mx-auto">
+                      Şu anda yeni başvuru alamıyoruz. Yeni güncellemeler ve duyurular için bizi Instagram'dan takip etmeye devam edin.
+                    </p>
+                    <Button asChild size="lg" className="mt-4 rounded-full px-8">
+                      <a href="https://instagram.com/atagc26" target="_blank" rel="noopener noreferrer">
+                        <Instagram className="w-5 h-5 mr-2" />
+                        Instagram'da Takip Et
+                      </a>
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -241,10 +272,28 @@ export default async function Home({ searchParams }: HomeProps) {
         <div className="container mx-auto">
           <div className="max-w-3xl mx-auto">
             <div className="bg-card/80 backdrop-blur-md rounded-3xl p-6 md:p-12 border border-border/50 shadow-xl form-glow">
-              <ApplicationForm
-                initialForms={initialForms}
-                hasExistingApplication={hasExistingApplication}
-              />
+              {isApplicationsOpen ? (
+                <ApplicationForm
+                  initialForms={initialForms}
+                  hasExistingApplication={hasExistingApplication}
+                />
+              ) : (
+                <div className="text-center space-y-6 py-8">
+                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Calendar className="w-10 h-10 text-primary" />
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-display font-bold">Başvurular Kapalı</h2>
+                  <p className="text-muted-foreground text-lg max-w-md mx-auto">
+                    Şu anda yeni başvuru alamıyoruz. Yeni güncellemeler ve duyurular için bizi Instagram'dan takip etmeye devam edin.
+                  </p>
+                  <Button asChild size="lg" className="mt-4 rounded-full px-8">
+                    <a href="https://instagram.com/atagc26" target="_blank" rel="noopener noreferrer">
+                      <Instagram className="w-5 h-5 mr-2" />
+                      Instagram'da Takip Et
+                    </a>
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>

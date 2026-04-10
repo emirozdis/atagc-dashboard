@@ -1,5 +1,3 @@
-// app/api/auth/verify/route.ts
-
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import { apiHandler } from "@/lib/api-handler";
@@ -17,6 +15,11 @@ const BASE_URL = process.env.NEXTAUTH_URL || "https://panel.atagc.com.tr";
 
 // Send Verification Code (Protected by Turnstile)
 export const POST = apiHandler(async (request: Request) => {
+  const { data: settings } = await supabase.from("system_settings").select("applications_open").single();
+  if (settings && settings.applications_open === false) {
+      return NextResponse.json({ error: "Başvurular şu anda kapalıdır." }, { status: 403 });
+  }
+
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await sendLimiter.check(3, ip); // 3 sends per min limit still applies as fallback
 
@@ -74,6 +77,11 @@ export const POST = apiHandler(async (request: Request) => {
 
 // Verify Code (Checking the digits entered by user)
 export const PUT = apiHandler(async (request: Request) => {
+  const { data: settings } = await supabase.from("system_settings").select("applications_open").single();
+  if (settings && settings.applications_open === false) {
+      return NextResponse.json({ error: "Başvurular şu anda kapalıdır." }, { status: 403 });
+  }
+
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await verifyLimiter.check(10, ip); // 10 tries per min
 

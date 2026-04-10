@@ -45,42 +45,28 @@
 
 :root {
   --radius: 0.625rem;
+  --announcement-height: 0px;
 
   /* Light Theme Colors */
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
-
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
-
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-
   --primary: oklch(0.7 0.18 75);
   --primary-foreground: oklch(0.985 0 0);
-
   --secondary: oklch(0.961 0.006 264.695);
   --secondary-foreground: oklch(0.205 0.042 264.695);
-
   --muted: oklch(0.961 0.006 264.695);
   --muted-foreground: oklch(0.556 0.042 264.695);
-
   --accent: oklch(0.961 0.006 264.695);
   --accent-foreground: oklch(0.205 0.042 264.695);
-
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-
   --border: oklch(0.898 0.01 264.695);
   --input: oklch(0.898 0.01 264.695);
   --ring: oklch(0.7 0.18 75);
-
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
   --sidebar-primary: oklch(0.7 0.18 75);
@@ -92,41 +78,25 @@
 }
 
 .dark {
-  /* Dark Theme Colors (lighter / more gray) */
   --background: oklch(0.16 0 0);
   --foreground: oklch(0.985 0 0);
-
   --card: oklch(0.22 0 0);
   --card-foreground: oklch(0.985 0 0);
-
   --popover: oklch(0.18 0 0);
   --popover-foreground: oklch(0.985 0 0);
-
   --primary: oklch(0.85 0.15 85);
   --primary-foreground: oklch(0.1 0 0);
-
   --secondary: oklch(0.2 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-
   --muted: oklch(0.2 0 0);
   --muted-foreground: oklch(0.7 0 0);
-
   --accent: oklch(0.2 0 0);
   --accent-foreground: oklch(0.985 0 0);
-
   --destructive: oklch(0.6 0.25 25);
   --destructive-foreground: oklch(0.985 0 0);
-
   --border: oklch(1 0 0 / 15%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.85 0.15 85);
-
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-
   --sidebar: oklch(0.16 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.85 0.15 85);
@@ -138,12 +108,47 @@
 }
 
 @layer base {
+  /* 
+     GLOBAL OFFSET STRATEGY
+     When announcement-visible class is active on HTML, shift all root-level fixed components.
+  */
+  html.announcement-visible {
+    --announcement-height: 40px;
+  }
+
+  html.announcement-visible body {
+    padding-top: var(--announcement-height);
+  }
+
+  /* 
+     Push sidebars down. Targeted specifically at fixed containers.
+     We exclude the announcement bar itself (z-1001).
+  */
+  html.announcement-visible .fixed.inset-y-0.left-0,
+  html.announcement-visible [data-sidebar="sidebar"],
+  html.announcement-visible .fixed.top-0:not(#global-announcement-bar) {
+    top: var(--announcement-height) !important;
+    height: calc(100vh - var(--announcement-height)) !important;
+  }
+
+  /* Adjust Sidebar internal wrapper height */
+  html.announcement-visible [data-sidebar-wrapper] {
+    height: calc(100vh - var(--announcement-height));
+  }
+
+  /* Correct top-fixed headers (Header.tsx) and div-based fixed bars */
+  html.announcement-visible header.fixed.top-0,
+  html.announcement-visible div.fixed.inset-x-0.top-0 {
+    top: var(--announcement-height) !important;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
 
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary-foreground overflow-x-hidden;
+    @apply transition-[padding] duration-300 ease-in-out;
   }
 }
 
@@ -151,51 +156,17 @@
   .container {
     @apply mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;
   }
-
-  .glass-card {
-    @apply bg-card/80 backdrop-blur-md border border-border/50 shadow-xl;
-  }
-
-  .form-glow {
-    box-shadow: 0 0 50px -10px rgba(var(--primary), 0.1);
-  }
-
   .gold-gradient {
     @apply bg-gradient-to-r from-[#D4AF37] via-[#F4E29E] to-[#D4AF37] bg-clip-text text-transparent;
   }
-
-  /* Overflow prevention utility */
-  .overflow-safe {
-    @apply overflow-x-hidden max-w-full;
-  }
 }
 
-@layer components {
-  .collaboration-cursor__caret {
-    @apply border-l-2 border-solid ml-[-1px] mr-[-1px] pointer-events-none relative break-normal inline;
-  }
-
-  .collaboration-cursor__label {
-    @apply rounded-[3px_3px_3px_0] text-white font-sans text-[11px] font-semibold left-[-1px] px-[0.4rem] py-[0.1rem] absolute top-[-1.4em] select-none whitespace-nowrap z-10 leading-normal;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-}
-
-/* Hide scrollbars visually while preserving scroll functionality everywhere */
-/* Works across WebKit, Firefox, and IE/Edge */
-:root,
-* {
+/* Hide scrollbars */
+:root, * {
   scrollbar-width: none;
-  /* Firefox */
   -ms-overflow-style: none;
-  /* IE 10+ */
 }
-
 *::-webkit-scrollbar {
   width: 0;
   height: 0;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: transparent;
 }

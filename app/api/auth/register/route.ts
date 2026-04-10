@@ -11,6 +11,11 @@ import { isDisposableDomain } from "@/lib/disposableEmailDomains";
 const registerLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
 export const POST = apiHandler(async (request: Request) => {
+  const { data: settings } = await supabase.from("system_settings").select("applications_open").single();
+  if (settings && settings.applications_open === false) {
+      return NextResponse.json({ error: "Başvurular şu anda kapalıdır." }, { status: 403 });
+  }
+
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await registerLimiter.check(5, ip); // 5 attempts per minute per IP
 

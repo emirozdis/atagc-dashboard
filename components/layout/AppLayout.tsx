@@ -21,7 +21,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const isOrg = ORGANISATION_ROLES.includes(effectiveRole as any);
 
     return (
-        // Changed to h-[100dvh] and added strict global overflow-hidden and w-full to prevent horizontal scroll
         <div className="flex h-[100dvh] w-full overflow-hidden bg-background relative">
             {/* Background elements */}
             <div className="fixed inset-0 -z-10 bg-background">
@@ -29,19 +28,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl pointer-events-none" />
             </div>
 
-            {/* Desktop Sidebar */}
-            <div className="hidden md:flex flex-col w-64 fixed inset-y-0 z-50">
+            {/* 
+                Desktop Sidebar 
+                The CSS in globals.css now targets this container via .fixed.inset-y-0.left-0
+            */}
+            <div className="hidden md:flex flex-col w-64 fixed inset-y-0 left-0 z-50">
                 {isAdmin ? <AdminSidebar /> : isOrg ? <OrganisationSidebar /> : <Sidebar />}
             </div>
             
-            {/* Main Layout Area - min-w-0 prevents flex child from expanding beyond viewport */}
+            {/* Main Layout Area */}
             <div className="flex-1 flex flex-col md:pl-64 h-full relative z-0 min-w-0">
                 <Header />
-                {/* overflow-x-hidden is the ultimate fix for tiny horizontal scrollbars */}
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pb-24 pb-safe md:pb-8">
                     {children}
                 </main>
-                {/* Mobile Navigation */}
+                {/* Mobile Navigation - Fixed at bottom, shouldn't be affected by top bar */}
                 {isAdmin ? <AdminMobileNav /> : isOrg ? <OrganisationMobileNav /> : <MobileNav />}
             </div>
             
@@ -49,3 +50,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
+
+/**
+ * CHANGELOG:
+ * - Added 'left-0' to the desktop sidebar fixed container to ensure it matches the CSS selector in globals.css for proper shifting.
+ */
