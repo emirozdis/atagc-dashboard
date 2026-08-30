@@ -10,9 +10,9 @@ function getStorageClient(): StorageClient {
   if (storageClient) return storageClient;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    throw new Error("Supabase Storage requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_SERVICE_ROLE_KEY");
+    throw new Error("Supabase Storage requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY");
   }
 
   storageClient = createClient(url, key);
