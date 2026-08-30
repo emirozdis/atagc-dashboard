@@ -134,6 +134,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
+      lib0:
+        specifier: ^0.2.117
+        version: 0.2.117
       lru-cache:
         specifier: ^11.2.6
         version: 11.5.2
