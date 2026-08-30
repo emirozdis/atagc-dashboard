@@ -11,10 +11,21 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Committee } from "@/types/admin";
 import { User } from "@/types/user";
+import { TURNSTILE_SITE_KEY, Turnstile } from "@/components/ui/turnstile";
 
 interface CreateAnnouncementDialogProps {
     onSuccess: () => void;
 }
+
+type AnnouncementTargetType = "all" | "committee" | "user";
+type AnnouncementPayload = {
+    title: string;
+    content: string;
+    turnstileToken: string;
+    targetType: AnnouncementTargetType;
+    committeeIds?: string[];
+    userIds?: string[];
+};
 
 export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialogProps) {
     const [open, setOpen] = useState(false);
@@ -23,6 +34,7 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
     // Form States
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
+    const [turnstileToken, setTurnstileToken] = useState("");
     const [targetType, setTargetType] = useState<"all" | "committee" | "user">("all");
     const [selectedCommittee, setSelectedCommittee] = useState<string>("");
     const [selectedUser, setSelectedUser] = useState<string>("");
@@ -34,23 +46,6 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
     const [searchingUsers, setSearchingUsers] = useState(false);
 
     const router = useRouter();
-
-    // Fetch Committees when dialog opens
-    useEffect(() => {
-        if (open) {
-            fetchCommittees();
-        }
-    }, [open]);
-
-    // Search Users Effect
-    useEffect(() => {
-        if (targetType === 'user') {
-            const timer = setTimeout(() => {
-                fetchUsers(userSearch);
-            }, 500);
-            return () => clearTimeout(timer);
-        }
-    }, [userSearch, targetType]);
 
     const fetchCommittees = async () => {
         try {
@@ -77,24 +72,41 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
         finally { setSearchingUsers(false); }
     };
 
+    useEffect(() => {
+        // Fetch committee options when the dialog opens.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (open) void fetchCommittees();
+    }, [open]);
+
+    useEffect(() => {
+        if (targetType !== "user") return;
+        const timer = setTimeout(() => void fetchUsers(userSearch), 500);
+        return () => clearTimeout(timer);
+    }, [userSearch, targetType]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title || !content) return;
         if (targetType === 'committee' && !selectedCommittee) {
-            toast.error("Lütfen bir komite seçiniz");
+            toast.error("Please select a committee.");
             return;
         }
         if (targetType === 'user' && !selectedUser) {
-            toast.error("Lütfen bir kullanıcı seçiniz");
+            toast.error("Please select a user.");
+            return;
+        }
+        if (!turnstileToken) {
+            toast.error("Please complete the security verification.");
             return;
         }
 
         setLoading(true);
         try {
             // Prepare payload to match API expectations (plural arrays)
-            const payload: any = { 
+            const payload: AnnouncementPayload = {
                 title, 
                 content,
+                turnstileToken,
                 targetType,
             };
 
@@ -112,7 +124,7 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
 
             if (!res.ok) throw new Error("Failed to create");
 
-            toast.success("Duyuru başarıyla oluşturuldu");
+            toast.success("Announcement created successfully");
             setOpen(false);
             resetForm();
 
@@ -120,7 +132,7 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
             router.refresh();
 
         } catch (error) {
-            toast.error("Duyuru oluşturulurken bir hata oluştu");
+            toast.error("An error occurred while creating the announcement.");
         } finally {
             setLoading(false);
         }
@@ -133,6 +145,7 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
         setSelectedCommittee("");
         setSelectedUser("");
         setUserSearch("");
+        setTurnstileToken("");
     };
 
     return (
@@ -140,22 +153,22 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
             <DialogTrigger asChild>
                 <Button>
                     <Plus className="w-4 h-4 mr-2" />
-                    Yeni Duyuru
+                    New announcement
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Yeni Duyuru Oluştur</DialogTitle>
+                <DialogTitle>Create announcement</DialogTitle>
                     <DialogDescription>
-                        Hedef kitleyi seçerek duyuru yayınlayın.
+                        Choose an audience and publish an announcement.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                     <div className="space-y-2">
-                        <label htmlFor="title" className="text-sm font-medium">Başlık</label>
+                        <label htmlFor="title" className="text-sm font-medium">Title</label>
                         <Input
                             id="title"
-                            placeholder="Duyuru başlığı..."
+                            placeholder="Announcement title..."
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             required
@@ -163,31 +176,31 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
                     </div>
 
                     <div className="space-y-2">
-                         <label className="text-sm font-medium">Hedef Kitle</label>
+                         <label className="text-sm font-medium">Audience</label>
                          <Select 
                             value={targetType} 
-                            onValueChange={(val: any) => setTargetType(val)}
+                            onValueChange={(val) => setTargetType(val as AnnouncementTargetType)}
                          >
                             <SelectTrigger>
-                                <SelectValue placeholder="Hedef Kitle Seçiniz" />
+                                <SelectValue placeholder="Select an audience" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Herkes (Genel)</SelectItem>
-                                <SelectItem value="committee">Komiteye Özel</SelectItem>
-                                <SelectItem value="user">Kişiye Özel</SelectItem>
+                                <SelectItem value="all">Everyone (general)</SelectItem>
+                                <SelectItem value="committee">Committee</SelectItem>
+                                <SelectItem value="user">Individual user</SelectItem>
                             </SelectContent>
                          </Select>
                     </div>
 
                     {targetType === 'committee' && (
                         <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                            <label className="text-sm font-medium">Komite Seçimi</label>
+                            <label className="text-sm font-medium">Select committee</label>
                             <Select 
                                 value={selectedCommittee} 
                                 onValueChange={setSelectedCommittee}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Komite Seçiniz" />
+                                    <SelectValue placeholder="Select a committee" />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-[200px]">
                                     {committees.map(c => (
@@ -200,11 +213,11 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
 
                     {targetType === 'user' && (
                         <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                            <label className="text-sm font-medium">Kullanıcı Ara</label>
+                            <label className="text-sm font-medium">Search users</label>
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="İsim veya e-posta ile ara..."
+                                    placeholder="Search by name or email..."
                                     className="pl-9"
                                     value={userSearch}
                                     onChange={e => setUserSearch(e.target.value)}
@@ -216,11 +229,11 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
                                 onValueChange={setSelectedUser}
                             >
                                 <SelectTrigger className="mt-2">
-                                    <SelectValue placeholder={searchingUsers ? "Aranıyor..." : "Kullanıcı Seçiniz"} />
+                                    <SelectValue placeholder={searchingUsers ? "Searching..." : "Select a user"} />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-[200px]">
                                     {users.length === 0 ? (
-                                        <div className="p-2 text-sm text-muted-foreground text-center">Kullanıcı bulunamadı</div>
+                                        <div className="p-2 text-sm text-muted-foreground text-center">No users found</div>
                                     ) : (
                                         users.map(u => (
                                             <SelectItem key={u.id} value={u.id}>
@@ -234,20 +247,21 @@ export function CreateAnnouncementDialog({ onSuccess }: CreateAnnouncementDialog
                     )}
 
                     <div className="space-y-2">
-                        <label htmlFor="content" className="text-sm font-medium">İçerik</label>
+                        <label htmlFor="content" className="text-sm font-medium">Content</label>
                         <Textarea
                             id="content"
-                            placeholder="Duyuru içeriği..."
+                            placeholder="Announcement content..."
                             className="min-h-[120px]"
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             required
                         />
                     </div>
+                    {TURNSTILE_SITE_KEY ? <div className="space-y-2"><label className="text-sm font-medium">Security check</label><Turnstile siteKey={TURNSTILE_SITE_KEY} onVerify={setTurnstileToken} onError={() => setTurnstileToken("")} onExpire={() => setTurnstileToken("")} /></div> : <p className="text-sm text-rose-300">Security verification is not configured.</p>}
                     <div className="flex justify-end pt-4">
-                        <Button type="submit" disabled={loading}>
+                        <Button type="submit" disabled={loading || !turnstileToken}>
                             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            Yayınla
+                            Publish
                         </Button>
                     </div>
                 </form>

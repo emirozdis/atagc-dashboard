@@ -23,7 +23,7 @@ export function ScannerOverlay() {
             {/* Helper Text - Positioned at top to avoid overlap with bottom button */}
             <div className="absolute top-6 md:top-10 flex w-full justify-center">
                 <p className="text-white/70 text-[10px] md:text-sm font-medium px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/10 shadow-xl">
-                    Kodu çerçeveye ortalayın
+                    Center the code in the frame
                 </p>
             </div>
 

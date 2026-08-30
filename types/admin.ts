@@ -29,12 +29,19 @@ type DelegationMemberData = {
     };
 };
 
+type AdminAdditionalInfo = {
+    manual_school_name?: string;
+    [key: string]: unknown;
+};
+
 export interface Application {
     id: string;
-    status: "pending" | "approved" | "rejected";
+    status: "pending" | "under_review" | "accepted" | "approved" | "rejected" | "withdrawn";
     submitted_at: string;
     review_notes?: string;
-    form_data?: Record<string, any>;
+    application_type?: string;
+    form_snapshot?: { title?: string; description?: string; fee?: number; questions?: { id: string; label: string }[] };
+    form_data?: Record<string, unknown>;
     form?: {
         id: string;
         title: string;
@@ -47,9 +54,10 @@ export interface Application {
                 label: string;
                 type: string;
                 required?: boolean;
-                options?: any[];
+                options?: unknown[];
             }[];
         }[];
+        questions?: { id: string; label: string }[];
     } | {
         id: string;
         title: string;
@@ -62,9 +70,10 @@ export interface Application {
                 label: string;
                 type: string;
                 required?: boolean;
-                options?: any[];
+                options?: unknown[];
             }[];
         }[];
+        questions?: { id: string; label: string }[];
     }[];
     user: {
         id: string;
@@ -78,7 +87,7 @@ export interface Application {
             city: string;
             grade: string;
             profile_picture_url?: string | null;
-            additional_info: any;
+            additional_info: AdminAdditionalInfo;
             high_schools?: { school_name: string };
         } | {
             phone_number: string;
@@ -87,7 +96,7 @@ export interface Application {
             city: string;
             grade: string;
             profile_picture_url?: string | null;
-            additional_info: any;
+            additional_info: AdminAdditionalInfo;
             high_schools?: { school_name: string };
         }[];
         committee_members?: {

@@ -50,7 +50,7 @@ type InviteCode = {
 type MagicLink = {
   id: string;
   sent_to: string;
-  used: boolean;
+  is_used: boolean;
   created_at: string;
 };
 
@@ -148,7 +148,7 @@ function DelegationContent() {
 
   const createCodeMutation = useMutation({
     mutationFn: async (usesLeftValue: number | undefined) => {
-      const body: Record<string, any> = {};
+      const body: Record<string, number> = {};
       if (usesLeftValue !== undefined) body.uses_left = usesLeftValue;
 
       const res = await fetch("/api/delegation/new_invite_code", {
@@ -163,9 +163,9 @@ function DelegationContent() {
       queryClient.invalidateQueries({ queryKey: ["delegation-invite-codes"] });
       setCodeDialogOpen(false);
       setUsesLeft("");
-      toast.success("Davet kodu oluşturuldu");
+      toast.success("Invitation code created");
     },
-    onError: () => toast.error("Kod oluşturulamadı")
+    onError: () => toast.error("Could not create the code")
   });
 
   const magicLinkMutation = useMutation({
@@ -181,9 +181,9 @@ function DelegationContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["delegation-magic-links"] });
       setMagicLinkEmail("");
-      toast.success("Davet e-postası gönderildi");
+      toast.success("Invitation email sent");
     },
-    onError: () => toast.error("Davet gönderilemedi")
+    onError: () => toast.error("Could not send the invitation")
   });
 
   const revokeLinkMutation = useMutation({
@@ -193,9 +193,9 @@ function DelegationContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["delegation-magic-links"] });
-      toast.success("Bağlantı iptal edildi");
+      toast.success("Invitation cancelled");
     },
-    onError: () => toast.error("Silme başarısız")
+    onError: () => toast.error("Could not remove the invitation")
   });
 
   const memberActionMutation = useMutation({
@@ -210,9 +210,9 @@ function DelegationContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["delegation-members"] });
-      toast.success("İşlem başarılı");
+      toast.success("Action completed");
     },
-    onError: () => toast.error("İşlem başarısız")
+    onError: () => toast.error("Action failed")
   });
 
   // --- Handlers ---
@@ -232,7 +232,7 @@ function DelegationContent() {
     navigator.clipboard.writeText(text);
     setCopiedCode(text);
     setTimeout(() => setCopiedCode(null), 2000);
-    toast.success("Kopyalandı");
+    toast.success("Copied");
   };
 
   const members = membersData?.data ?? [];
@@ -241,10 +241,10 @@ function DelegationContent() {
 
   // Helper to render application status badge
   const AppStatusBadge = ({ status }: { status: string | undefined }) => {
-    if (status === 'approved') return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1"><ShieldCheck className="w-3 h-3" /> Onaylı</Badge>;
-    if (status === 'rejected') return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">Reddedildi</Badge>;
-    if (status === 'pending') return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">Bekliyor</Badge>;
-    return <span className="text-muted-foreground text-xs italic">Başvuru Yapmadı</span>;
+    if (status === 'approved') return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1"><ShieldCheck className="w-3 h-3" /> Approved</Badge>;
+    if (status === 'rejected') return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">Rejected</Badge>;
+    if (status === 'pending') return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">Pending</Badge>;
+    return <span className="text-muted-foreground text-xs italic">No application</span>;
   };
 
   return (
@@ -253,21 +253,21 @@ function DelegationContent() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/50 pb-6">
         <div>
           <h2 className="text-2xl sm:text-3xl font-display font-bold text-foreground">
-            {isLeader ? "Delegasyon Yönetimi" : "Delegasyon Ekibi"}
+            {isLeader ? "Delegation management" : "Delegation team"}
           </h2>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2">
             <p className="text-sm text-muted-foreground">
-              {isLeader ? "Ekibinizi ve davetlerinizi yönetin." : "Ekip arkadaşlarınızın listesi."}
+              {isLeader ? "Manage your team and invitations." : "Your delegation team members."}
             </p>
             {isLeader && (
               <>
                 <div className="h-4 w-px bg-border hidden sm:block" />
                 <div className="flex items-center gap-2 text-sm bg-secondary/30 px-2 py-1 rounded-md border border-border/50">
-                  <span className="text-muted-foreground text-xs">Kendi Başvurunuz:</span>
-                  {leaderAppStatus === 'approved' ? <span className="font-semibold text-emerald-600 flex items-center gap-1 text-xs"><Check className="w-3 h-3" /> Onaylı</span> :
-                    leaderAppStatus === 'rejected' ? <span className="font-semibold text-red-600 flex items-center gap-1 text-xs"><X className="w-3 h-3" /> Reddedildi</span> :
-                      leaderAppStatus === 'pending' ? <span className="font-semibold text-amber-600 flex items-center gap-1 text-xs"><Clock className="w-3 h-3" /> Bekliyor</span> :
-                        <span className="text-xs">Başvuru Yok</span>}
+                  <span className="text-muted-foreground text-xs">Your application:</span>
+                  {leaderAppStatus === 'approved' ? <span className="font-semibold text-emerald-600 flex items-center gap-1 text-xs"><Check className="w-3 h-3" /> Approved</span> :
+                    leaderAppStatus === 'rejected' ? <span className="font-semibold text-red-600 flex items-center gap-1 text-xs"><X className="w-3 h-3" /> Rejected</span> :
+                      leaderAppStatus === 'pending' ? <span className="font-semibold text-amber-600 flex items-center gap-1 text-xs"><Clock className="w-3 h-3" /> Pending</span> :
+                        <span className="text-xs">No application</span>}
                 </div>
               </>
             )}
@@ -278,12 +278,12 @@ function DelegationContent() {
       <Tabs value={validTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className={cn("grid w-full", isLeader ? "grid-cols-2 sm:w-[400px]" : "grid-cols-1 sm:w-[200px]")}>
           <TabsTrigger value="members" className="gap-2">
-            <Users className="w-4 h-4" /> Üyeler
+            <Users className="w-4 h-4" /> Members
             <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px]">{members.length}</Badge>
           </TabsTrigger>
           {isLeader && (
             <TabsTrigger value="invites" className="gap-2">
-              <Ticket className="w-4 h-4" /> Davetler
+              <Ticket className="w-4 h-4" /> Invitations
             </TabsTrigger>
           )}
         </TabsList>
@@ -294,8 +294,8 @@ function DelegationContent() {
             <CardHeader className="border-b border-border/50 bg-muted/5 pb-4">
               <div className="flex justify-between items-center gap-3">
                 <div>
-                  <CardTitle className="text-base sm:text-lg">Delegasyon Üyeleri</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Delegasyona katılan kişilerin listesi.</CardDescription>
+                  <CardTitle className="text-base sm:text-lg">Delegation members</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">People who have joined the delegation.</CardDescription>
                 </div>
                 {isLeader && (
                   <Button
@@ -304,8 +304,8 @@ function DelegationContent() {
                     onClick={() => handleTabChange("invites")}
                   >
                     <UserPlus className="w-4 h-4" />
-                    <span className="hidden sm:inline">Delege ekle</span>
-                    <span className="sm:hidden">Ekle</span>
+                    <span className="hidden sm:inline">Add delegate</span>
+                    <span className="sm:hidden">Add</span>
                   </Button>
                 )}
               </div>
@@ -320,10 +320,10 @@ function DelegationContent() {
                   <div className="w-16 h-16 bg-muted/30 rounded-full flex items-center justify-center mb-4">
                     <Users className="w-8 h-8 opacity-40" />
                   </div>
-                  <p className="text-sm">Henüz delegasyon üyesi bulunmuyor.</p>
+                  <p className="text-sm">No delegation members yet.</p>
                   {isLeader && (
                     <Button variant="link" onClick={() => handleTabChange("invites")} className="mt-2 text-sm">
-                      Hemen birilerini davet et &rarr;
+                      Invite someone now &rarr;
                     </Button>
                   )}
                 </div>
@@ -351,7 +351,7 @@ function DelegationContent() {
                                 <span className="font-medium text-sm truncate">{member.users.full_name}</span>
                                 {isAccepted && (
                                   <span className="text-[10px] text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded shrink-0">
-                                    Kabul Edildi
+                                    Accepted
                                   </span>
                                 )}
                               </div>
@@ -372,10 +372,10 @@ function DelegationContent() {
                                         disabled={memberActionMutation.isPending}
                                         onClick={() => memberActionMutation.mutate({ target_user_id: member.user_id, action: "remove" })}
                                       >
-                                        <Trash2 className="w-3.5 h-3.5" /> Çıkar
+                                    <Trash2 className="w-3.5 h-3.5" /> Remove
                                       </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent><p>Üyeyi Çıkar</p></TooltipContent>
+                                    <TooltipContent><p>Remove member</p></TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
                               ) : (
@@ -387,7 +387,7 @@ function DelegationContent() {
                                     disabled={memberActionMutation.isPending}
                                     onClick={() => memberActionMutation.mutate({ target_user_id: member.user_id, action: "accept" })}
                                   >
-                                    <Check className="w-3 h-3 mr-1" /> Kabul Et
+                                        <Check className="w-3 h-3 mr-1" /> Accept
                                   </Button>
                                   <Button
                                     size="sm"
@@ -412,10 +412,10 @@ function DelegationContent() {
                     <Table>
                       <TableHeader className="bg-muted/30">
                         <TableRow>
-                          <TableHead className="pl-6">Ad Soyad</TableHead>
-                          <TableHead>E-posta</TableHead>
-                          <TableHead>Başvuru Durumu</TableHead>
-                          {isLeader && <TableHead className="text-right pr-6">İşlemler</TableHead>}
+                          <TableHead className="pl-6">Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Application status</TableHead>
+                          {isLeader && <TableHead className="text-right pr-6">Actions</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -436,7 +436,7 @@ function DelegationContent() {
                             >
                               <TableCell className="font-medium pl-6">
                                 {member.users.full_name}
-                                {isAccepted && <span className="ml-2 text-[10px] text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">Kabul Edildi</span>}
+                                {isAccepted && <span className="ml-2 text-[10px] text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">Accepted</span>}
                               </TableCell>
                               <TableCell className="text-muted-foreground text-sm">{member.users.email}</TableCell>
                               <TableCell>
@@ -458,7 +458,7 @@ function DelegationContent() {
                                             <Trash2 className="w-4 h-4" />
                                           </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent><p>Üyeyi Çıkar</p></TooltipContent>
+                                        <TooltipContent><p>Remove member</p></TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
                                   ) : (
@@ -470,7 +470,7 @@ function DelegationContent() {
                                         disabled={memberActionMutation.isPending}
                                         onClick={() => memberActionMutation.mutate({ target_user_id: member.user_id, action: "accept" })}
                                       >
-                                        <Check className="w-3 h-3 mr-1.5" /> Kabul Et
+                                        <Check className="w-3 h-3 mr-1.5" /> Accept
                                       </Button>
                                       <Button
                                         size="sm"
@@ -509,10 +509,10 @@ function DelegationContent() {
                 <Card className="border-primary/20 bg-primary/5 shadow-sm">
                   <CardHeader className="pb-3 sm:pb-6">
                     <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-primary">
-                      <Send className="w-4 h-4 sm:w-5 sm:h-5" /> Hızlı Davet
+                      <Send className="w-4 h-4 sm:w-5 sm:h-5" /> Quick invitation
                     </CardTitle>
                     <CardDescription className="text-xs sm:text-sm">
-                      E-posta adresine özel, tek kullanımlık kayıt bağlantısı gönderin.
+                      Send a one-time registration link to an email address.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -525,7 +525,7 @@ function DelegationContent() {
                         type="email"
                       />
                       <Button type="submit" disabled={magicLinkMutation.isPending || !magicLinkEmail} className="shrink-0">
-                        {magicLinkMutation.isPending ? <RefreshCcw className="w-4 h-4 animate-spin" /> : "Gönder"}
+                        {magicLinkMutation.isPending ? <RefreshCcw className="w-4 h-4 animate-spin" /> : "Send"}
                       </Button>
                     </form>
                   </CardContent>
@@ -536,7 +536,7 @@ function DelegationContent() {
                   <CardHeader className="pb-4 border-b border-border/50 bg-muted/5">
                     <CardTitle className="text-sm sm:text-base font-medium flex items-center gap-2">
                       <Mail className="w-4 h-4 text-muted-foreground" />
-                      Gönderilen Bağlantılar
+                      Sent invitations
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -546,7 +546,7 @@ function DelegationContent() {
                         <Skeleton className="h-12 w-full" />
                       </div>
                     ) : magicLinks.length === 0 ? (
-                      <div className="p-8 text-center text-sm text-muted-foreground">Gönderilmiş davet bulunmuyor.</div>
+                      <div className="p-8 text-center text-sm text-muted-foreground">No invitations have been sent.</div>
                     ) : (
                       <div className="max-h-[400px] overflow-y-auto">
                         {/* Mobile card layout */}
@@ -555,11 +555,11 @@ function DelegationContent() {
                             <div key={link.id} className="flex items-center justify-between gap-2 p-3">
                               <p className="text-sm font-medium truncate min-w-0 flex-1">{link.sent_to}</p>
                               <div className="shrink-0">
-                                {link.used ? (
-                                  <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground border-transparent px-2">Kullanıldı</Badge>
+                                {link.is_used ? (
+                                  <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground border-transparent px-2">Used</Badge>
                                 ) : (
                                   <div className="flex items-center gap-1.5">
-                                    <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50 px-2">Bekliyor</Badge>
+                                    <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50 px-2">Pending</Badge>
                                     <Button
                                       variant="ghost"
                                       size="icon"
@@ -581,8 +581,8 @@ function DelegationContent() {
                           <Table>
                             <TableHeader className="bg-muted/5 sticky top-0 z-10">
                               <TableRow className="border-b border-border/50 hover:bg-transparent">
-                                <TableHead className="h-10 text-xs uppercase tracking-wider font-semibold text-muted-foreground pl-4">E-posta</TableHead>
-                                <TableHead className="h-10 text-xs uppercase tracking-wider font-semibold text-muted-foreground text-right pr-4">Durum</TableHead>
+                                <TableHead className="h-10 text-xs uppercase tracking-wider font-semibold text-muted-foreground pl-4">Email</TableHead>
+                                <TableHead className="h-10 text-xs uppercase tracking-wider font-semibold text-muted-foreground text-right pr-4">Status</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -592,18 +592,18 @@ function DelegationContent() {
                                     {link.sent_to}
                                   </TableCell>
                                   <TableCell className="text-right py-3 pr-4">
-                                    {link.used ? (
-                                      <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground border-transparent px-2">Kullanıldı</Badge>
+                                    {link.is_used ? (
+                                      <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground border-transparent px-2">Used</Badge>
                                     ) : (
                                       <div className="flex items-center justify-end gap-2">
-                                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50 px-2">Bekliyor</Badge>
+                                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50 px-2">Pending</Badge>
                                         <Button
                                           variant="ghost"
                                           size="icon"
                                           className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                           onClick={() => revokeLinkMutation.mutate(link.id)}
                                           disabled={revokeLinkMutation.isPending}
-                                          title="İptal Et"
+                                          title="Cancel"
                                         >
                                           <X className="w-3.5 h-3.5" />
                                         </Button>
@@ -628,40 +628,40 @@ function DelegationContent() {
                     <div className="space-y-1 min-w-0">
                       <CardTitle className="text-base sm:text-lg flex items-center gap-2">
                         <Ticket className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-                        <span className="truncate">Davetiye Kodları</span>
+                        <span className="truncate">Invitation codes</span>
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Genel kullanım kodları.
+                      Reusable invitation codes.
                       </CardDescription>
                     </div>
                     <Dialog open={codeDialogOpen} onOpenChange={setCodeDialogOpen}>
                       <DialogTrigger asChild>
                         <Button size="sm" variant="outline" className="h-8 shrink-0">
                           <Plus className="w-3.5 h-3.5 sm:mr-1.5" />
-                          <span className="hidden sm:inline">Yeni Kod</span>
+                          <span className="hidden sm:inline">New code</span>
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="w-[calc(100%-2rem)] sm:w-auto max-w-md mx-auto">
                         <DialogHeader>
-                          <DialogTitle>Davetiye Kodu Oluştur</DialogTitle>
+                          <DialogTitle>Create invitation code</DialogTitle>
                           <DialogDescription>
-                            Bu kod ile birden fazla kişi kayıt olabilir. Kullanım limiti belirleyebilirsiniz.
+                            Multiple people can register with this code. You can set a usage limit.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="py-4 space-y-3">
-                          <label className="text-sm font-medium">Kullanım Limiti (Opsiyonel)</label>
+                          <label className="text-sm font-medium">Usage limit (optional)</label>
                           <Input
                             type="number"
                             min="1"
-                            placeholder="Sınırsız için boş bırakın"
+                            placeholder="Leave blank for unlimited"
                             value={usesLeft}
                             onChange={(e) => setUsesLeft(e.target.value)}
                           />
                         </div>
                         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-                          <Button variant="ghost" onClick={() => setCodeDialogOpen(false)} className="w-full sm:w-auto">İptal</Button>
+                          <Button variant="ghost" onClick={() => setCodeDialogOpen(false)} className="w-full sm:w-auto">Cancel</Button>
                           <Button onClick={handleCreateCode} disabled={createCodeMutation.isPending} className="w-full sm:w-auto">
-                            {createCodeMutation.isPending ? "Oluşturuluyor..." : "Oluştur"}
+                            {createCodeMutation.isPending ? "Creating..." : "Create"}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
@@ -676,7 +676,7 @@ function DelegationContent() {
                     ) : inviteCodes.length === 0 ? (
                       <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center">
                         <Ticket className="w-10 h-10 mb-2 opacity-20" />
-                        <p className="text-sm">Aktif davet kodu bulunmuyor.</p>
+                        <p className="text-sm">There is no active invitation code.</p>
                       </div>
                     ) : (
                       <>
@@ -759,11 +759,12 @@ function DelegationContent() {
 export default function DelegationPage() {
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12 px-4 sm:px-6">
-      <Breadcrumbs items={[{ label: "Panel", href: "/dashboard" }, { label: "Delegasyon" }]} />
+      <Breadcrumbs items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Delegation" }]} />
       <Suspense fallback={
-        <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm">Delegasyon bilgileri yükleniyor...</p>
+        <div className="space-y-5" aria-label="Loading delegation details">
+          <Skeleton className="h-10 w-72" />
+          <Skeleton className="h-12 w-full max-w-md" />
+          <Skeleton className="h-72 w-full rounded-2xl" />
         </div>
       }>
         <DelegationContent />

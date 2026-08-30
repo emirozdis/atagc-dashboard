@@ -10,27 +10,23 @@ import {
   onAuthenticatePayload,
   onStatelessPayload
 } from "@hocuspocus/server";
-import { createClient } from "@supabase/supabase-js";
 import { decode } from "next-auth/jwt";
 import { encodeStateAsUpdate, applyUpdate } from "yjs";
 import { IncomingMessage } from "http";
+import { supabase } from "../lib/SERVER_supabase";
 
 const CONFIG = {
-  port: parseInt(process.env.NEXT_PUBLIC_COLLAB_PORT || "1234", 10),
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  supabaseKey: process.env.SUPABASE_SECRET_SERVICE_ROLE_KEY!,
+  port: parseInt(process.env.COLLAB_PORT || process.env.NEXT_PUBLIC_COLLAB_PORT || "1234", 10),
   nextAuthSecret: process.env.NEXTAUTH_SECRET!,
   docPrefix: "committee-",
   snapshotInterval: 1000 * 60 * 10, // 10 Minutes
 };
 
-if (!CONFIG.supabaseUrl || !CONFIG.supabaseKey || !CONFIG.nextAuthSecret) {
+if (!process.env.DATABASE_URL || !CONFIG.nextAuthSecret) {
   console.error("❌ Critical Error: Missing Environment Variables");
   process.exit(1);
 }
 
-// Use Service Role to bypass RLS for auth checks
-const supabase = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
 interface ConnectionContext {
   user: {
@@ -42,12 +38,7 @@ interface ConnectionContext {
   readOnly: boolean;
   userId: string; // UUID
   role: string;
-}
-
-interface PermissionUpdateMessage {
-  type: 'PERMISSION_UPDATE';
-  userId: string;
-  canWrite: boolean;
+  committeeId: string;
 }
 
 // Memory store for debounce timers per document
@@ -143,7 +134,7 @@ const handleStoreDocument = async (data: onStoreDocumentPayload) => {
         await supabase.from("document_versions").insert({
             committee_id: committeeId,
             document_blob: pgBlob,
-            version_name: "Otomatik Kayıt",
+            version_name: "Automatic save",
             is_auto_save: true,
             created_at: new Date().toISOString()
         });
@@ -165,9 +156,19 @@ const handleStatelessMessage = async (data: onStatelessPayload) => {
 
     // Permission Update Handler
     if (msg.type === 'PERMISSION_UPDATE') {
-      if (context?.role === 'committee_chairman' || context?.role === 'superadmin') {
+      const canManagePermissions = context?.committeeId === getCommitteeId(data.documentName)
+        && ['committee_chairman', 'chair', 'admin', 'superadmin'].includes(context?.role || '');
+      if (canManagePermissions && typeof msg.userId === 'string' && typeof msg.canWrite === 'boolean') {
         const targetUserId = msg.userId;
         const newCanWrite = msg.canWrite;
+
+        const { data: targetAssignment } = await supabase
+          .from("conference_assignments")
+          .select("user_id")
+          .eq("user_id", targetUserId)
+          .eq("committee_id", context.committeeId)
+          .maybeSingle();
+        if (!targetAssignment) return;
 
         document.getConnections().forEach((conn) => {
           const connContext = conn.context as ConnectionContext;
@@ -187,6 +188,7 @@ const handleStatelessMessage = async (data: onStatelessPayload) => {
 
     // Force Refresh Handler (Used after Restore)
     if (msg.type === 'FORCE_REFRESH') {
+        if (!context || context.committeeId !== getCommitteeId(data.documentName) || !['committee_chairman', 'chair', 'admin', 'superadmin'].includes(context.role)) return;
         console.log(`[REFRESH] Force refresh signal received for ${data.documentName}`);
         // Broadcast to all clients to reload page
         document.getConnections().forEach((conn) => {
@@ -218,22 +220,12 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
 
   if (!committeeId) throw new Error("Invalid document name.");
 
-  // Fetch User Role & Committee Details
-  const { data: user, error } = await supabase
-    .from("users")
-    .select(`
-      role,
-      full_name,
-      email,
-      committee_members ( committee_id, can_write ),
-      committees!committees_admin_id_fkey ( id ) 
-    `)
-    .eq("id", userId)
-    .single();
-
+  const { data: user, error } = await supabase.from("users").select("role, account_role, full_name, email").eq("id", userId).single();
   if (error || !user) throw new Error("User not found.");
 
-  const role = user.role;
+  const role = user.account_role === 'super_admin' ? 'superadmin' : user.account_role === 'site_admin' ? 'admin' : user.role;
+  const { data: assignment } = await supabase.from("conference_assignments").select("role, committee_id").eq("user_id", userId).eq("committee_id", committeeId).maybeSingle();
+  const { data: legacyMembership } = await supabase.from("committee_members").select("committee_id, can_write").eq("user_id", userId).eq("committee_id", committeeId).maybeSingle();
 
   const baseContext = {
     user: {
@@ -242,36 +234,32 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
       role: role
     },
     userId: userId,
-    role: role
+    role: role,
+    committeeId
   };
 
   // 1. Superadmin: Read-Only
   if (role === 'superadmin') {
     return { ...baseContext, readOnly: true };
   }
+  if (role === 'admin') {
+    return { ...baseContext, readOnly: true };
+  }
 
   // 2. Committee Chairman: Write Access (If Owner)
   if (role === 'committee_chairman') {
-    const rawCommittees = user.committees as unknown;
-    const adminCommittees: { id: string }[] = Array.isArray(rawCommittees) ? rawCommittees : (rawCommittees ? [rawCommittees] : []);
-    const isChairmanOfThis = adminCommittees.some(c => c.id === committeeId);
-    
-    if (isChairmanOfThis) {
+    if (assignment?.role === 'committee_chairman' && assignment.committee_id === committeeId) {
       return { ...baseContext, readOnly: false };
     }
     throw new Error("Forbidden: You are not the chairman of this committee.");
   }
 
   // 3. Deputy Chair & Delegates
-  const memberCommittee = Array.isArray(user.committee_members)
-    ? user.committee_members[0]
-    : user.committee_members;
-
-  if (memberCommittee?.committee_id === committeeId) {
-    if (role === 'deputy_chair') {
+  if (assignment?.committee_id === committeeId || legacyMembership?.committee_id === committeeId) {
+    if (role === 'chair' || assignment?.role === 'chair') {
       return { ...baseContext, readOnly: false };
     }
-    const canWrite = memberCommittee.can_write === true;
+    const canWrite = legacyMembership?.can_write === true;
     return {
       ...baseContext,
       readOnly: !canWrite

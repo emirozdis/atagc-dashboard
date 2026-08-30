@@ -45,7 +45,7 @@ export function Header() {
   const profileImage = userDetails?.profile_picture_url || undefined;
 
   const roleMeta = getRoleMeta(session?.user?.role);
-  const roleLabel = session?.user ? roleMeta.label : "Misafir";
+  const roleLabel = session?.user ? roleMeta.label : "Guest";
 
   return (
     <header className="h-16 w-full border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 transition-colors">
@@ -54,14 +54,14 @@ export function Header() {
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Menu className="h-5 w-5" />
-              <span className="sr-only">Menüyü Aç</span>
+              <span className="sr-only">Open menu</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 border-none w-72">
             <SheetHeader className="sr-only">
-              <SheetTitle>Menü</SheetTitle>
+              <SheetTitle>Menu</SheetTitle>
               <SheetDescription>
-                Navigasyon menüsü
+                Navigation menu
               </SheetDescription>
             </SheetHeader>
             {isAdminRoute ? (
@@ -83,8 +83,8 @@ export function Header() {
             onClick={() => setOpenSearch(true)}
           >
             <Search className="mr-2 h-4 w-4" />
-            <span className="hidden lg:inline">Ara... (Sayfalar, Ayarlar)</span>
-            <span className="inline lg:hidden">Ara...</span>
+                  <span className="hidden lg:inline">Search... (pages, settings)</span>
+                  <span className="inline lg:hidden">Search...</span>
             <kbd className="pointer-events-none absolute right-2 top-2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
               <span className="text-xs">⌘</span>K
             </kbd>
@@ -111,7 +111,7 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-full pl-0 hover:bg-transparent p-0 flex items-center gap-3">
                 <div className="hidden md:block text-right">
-                  <p className="text-sm font-medium text-foreground leading-none">{session?.user?.name || "Kullanıcı"}</p>
+                  <p className="text-sm font-medium text-foreground leading-none">{session?.user?.name || "User"}</p>
                   <p className="text-xs text-muted-foreground mt-1">{roleLabel}</p>
                 </div>
                 <Avatar className="h-9 w-9 border border-border">
@@ -134,12 +134,12 @@ export function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link href="/profile" className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Profilim</span></Link>
+                  <Link href="/profile" className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Profile</span></Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20 cursor-pointer" onClick={() => signOut({ callbackUrl: "/login" })}>
-                <LogOut className="mr-2 h-4 w-4" /><span>Çıkış Yap</span>
+                <LogOut className="mr-2 h-4 w-4" /><span>Sign out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

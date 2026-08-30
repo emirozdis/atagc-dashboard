@@ -1,5 +1,5 @@
-import { AppLayout } from "@/components/layout/AppLayout";
+import RavenPortalShell from "@/components/raven/RavenPortalShell";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-    return <AppLayout>{children}</AppLayout>;
+    return <RavenPortalShell>{children}</RavenPortalShell>;
 }

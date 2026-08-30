@@ -3,6 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { canAccessCommittee } from "@/lib/committee-access";
 
 export const PUT = apiHandler(async (
   request: Request,
@@ -21,6 +22,12 @@ export const PUT = apiHandler(async (
 
   if (!status || (status !== 'open' && status !== 'closed')) {
       throw new Error("Invalid status");
+  }
+
+  const { data: vote } = await supabase.from("votes").select("committee_id").eq("id", id).maybeSingle();
+  if (!vote) return NextResponse.json({ error: "Vote not found" }, { status: 404 });
+  if (!(await canAccessCommittee(auth.session!.user.id, auth.session!.user.role, vote.committee_id, true))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { error } = await supabase

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Search, Loader2 } from "lucide-react";
@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from "@/components/ui/textarea";
 import { Committee } from "@/types/admin";
 import { CardSkeleton } from "@/components/ui/skeleton-loader";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AdminCommitteesPage() {
   const queryClient = useQueryClient();
@@ -25,6 +24,21 @@ export default function AdminCommitteesPage() {
 
   // Delete Confirmation State
   const [committeeToDelete, setCommitteeToDelete] = useState<string | null>(null);
+  const [deleteCooldown, setDeleteCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!committeeToDelete) return;
+    const timer = window.setInterval(() => {
+      setDeleteCooldown((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [committeeToDelete]);
 
   const { data: committees = [], isLoading } = useQuery<Committee[]>({
     queryKey: ['committees'],
@@ -50,11 +64,11 @@ export default function AdminCommitteesPage() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
-        throw new Error(errData?.error || "İşlem başarısız oldu.");
+        throw new Error(errData?.error || "Action failed.");
       }
     },
     onSuccess: () => {
-      toast.success(editingId ? "Komite Güncellendi" : "Komite Oluşturuldu");
+      toast.success(editingId ? "Committee updated" : "Committee created");
       setIsDialogOpen(false);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['committees'] });
@@ -68,12 +82,12 @@ export default function AdminCommitteesPage() {
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      toast.success("Komite Silindi");
+      toast.success("Committee deleted");
       setCommitteeToDelete(null);
       queryClient.invalidateQueries({ queryKey: ['committees'] });
     },
     onError: () => {
-      toast.error("Silinemedi");
+      toast.error("Could not delete");
       setCommitteeToDelete(null);
     }
   });
@@ -103,49 +117,48 @@ export default function AdminCommitteesPage() {
   const filteredCommittees = committees.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Komiteler" }]} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-display font-bold text-foreground">Komiteler</h2>
-            <p className="text-muted-foreground mt-1">Komiteleri ve çalışma konularını yönetin.</p>
+            <h2 className="text-3xl font-display font-bold text-foreground">Committees</h2>
+            <p className="text-muted-foreground mt-1">Manage committees and their topics.</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> Yeni Komite</Button>
+              <Button className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> New committee</Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg overflow-y-auto max-h-[90vh]">
               <DialogHeader>
-                <DialogTitle>{editingId ? "Komiteyi Düzenle" : "Yeni Komite Oluştur"}</DialogTitle>
-                <DialogDescription>Komite detaylarını ve çalışma konusunu giriniz.</DialogDescription>
+              <DialogTitle>{editingId ? "Edit committee" : "Create committee"}</DialogTitle>
+              <DialogDescription>Enter the committee details and topic.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Komite Adı</Label>
+                  <Label>Committee name</Label>
                   <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Açıklama</Label>
+                  <Label>Description</Label>
                   <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
                 </div>
                 <div className="border-t border-border pt-4 mt-4">
-                  <h4 className="font-medium mb-3 text-sm text-primary">Çalışma Konusu (Topic)</h4>
+                  <h4 className="font-medium mb-3 text-sm text-primary">Topic</h4>
                   <div className="space-y-3">
                     <div className="space-y-2">
-                      <Label>Konu Başlığı</Label>
+                      <Label>Topic title</Label>
                       <Input value={formData.topicTitle} onChange={e => setFormData({ ...formData, topicTitle: e.target.value })} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Konu İçeriği</Label>
+                      <Label>Topic details</Label>
                       <Textarea value={formData.topicDescription} onChange={e => setFormData({ ...formData, topicDescription: e.target.value })} className="min-h-[100px]" />
                     </div>
                   </div>
                 </div>
                 <DialogFooter className="gap-2 sm:gap-0 mt-4">
-                  <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>İptal</Button>
+                      <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                   <Button type="submit" disabled={mutation.isPending}>
-                    {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Kaydet
+                    {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save
                   </Button>
                 </DialogFooter>
               </form>
@@ -155,7 +168,7 @@ export default function AdminCommitteesPage() {
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Komite ara..." className="pl-9 w-full sm:max-w-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          <Input placeholder="Search committees..." className="pl-9 w-full sm:max-w-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
 
         {isLoading ? <CardSkeleton count={6} /> : (
@@ -171,7 +184,7 @@ export default function AdminCommitteesPage() {
                       <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => startEdit(committee)}>
                         <Pencil className="w-4 h-4 text-muted-foreground hover:text-primary" />
                       </Button>
-                      <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setCommitteeToDelete(committee.id)}>
+                      <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => { setDeleteCooldown(3); setCommitteeToDelete(committee.id); }}>
                         <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
                       </Button>
                     </div>
@@ -180,14 +193,14 @@ export default function AdminCommitteesPage() {
                       {committee.name}
                     </CardTitle>
                     <CardDescription className="line-clamp-2 min-h-[40px] break-words">
-                      {committee.description || "Açıklama yok."}
+                      {committee.description || "No description."}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="p-3 bg-background/50 rounded border border-border/50">
-                      <div className="font-medium text-xs text-muted-foreground mb-1 uppercase tracking-wider">Çalışma Konusu</div>
-                      <div className="font-medium text-foreground truncate" title={topicData?.title || "Belirlenmedi"}>
-                        {topicData?.title || "Belirlenmedi"}
+                      <div className="font-medium text-xs text-muted-foreground mb-1 uppercase tracking-wider">Topic</div>
+                      <div className="font-medium text-foreground truncate" title={topicData?.title || "Not set"}>
+                        {topicData?.title || "Not set"}
                       </div>
                     </div>
                   </CardContent>
@@ -202,21 +215,21 @@ export default function AdminCommitteesPage() {
       <Dialog open={!!committeeToDelete} onOpenChange={(open) => !open && setCommitteeToDelete(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Komiteyi Sil</DialogTitle>
+            <DialogTitle>MAKE SURE YOU UNDERSTAND</DialogTitle>
             <DialogDescription>
-              Bu komiteyi silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+              This permanently deletes the committee and its related records. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0 mt-4">
             <Button variant="ghost" onClick={() => setCommitteeToDelete(null)} disabled={deleteMutation.isPending}>
-              İptal
+              Cancel
             </Button>
             <Button 
               variant="destructive" 
               onClick={() => committeeToDelete && deleteMutation.mutate(committeeToDelete)}
-              disabled={deleteMutation.isPending}
+              disabled={deleteMutation.isPending || deleteCooldown > 0}
             >
-              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sil"}
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : deleteCooldown > 0 ? `Delete (${deleteCooldown})` : "I understand — delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

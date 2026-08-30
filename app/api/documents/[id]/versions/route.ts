@@ -4,6 +4,7 @@ import getAuthorization from "@/lib/getAuthorization";
 import { Logger } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { canAccessCommittee } from "@/lib/committee-access";
 
 export const GET = apiHandler(async (
     request: Request,
@@ -13,6 +14,9 @@ export const GET = apiHandler(async (
 
     const auth = await getAuthorization({ requireAuth: true });
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
+    if (!(await canAccessCommittee(auth.session.user.id, auth.session.user.role, id))) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { data, error } = await supabase
         .from("document_versions")
@@ -42,6 +46,9 @@ export const POST = apiHandler(async (
         allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR] 
     });
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
+    if (!(await canAccessCommittee(auth.session.user.id, auth.session.user.role, id, true))) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { name } = await request.json();
 
@@ -58,7 +65,7 @@ export const POST = apiHandler(async (
         .insert({
             committee_id: id,
             document_blob: currentDoc.document_blob,
-            version_name: name || "Manuel Kayıt",
+            version_name: name || "Manual save",
             is_auto_save: false,
             created_by: auth.session.user.id,
             created_at: new Date().toISOString()

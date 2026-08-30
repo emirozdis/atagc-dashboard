@@ -6,6 +6,7 @@ import { Logger } from "@/lib/logger";
 import crypto from "crypto";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { canAccessCommittee, getUserCommittee } from "@/lib/committee-access";
 
 export const POST = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ 
@@ -20,19 +21,14 @@ export const POST = apiHandler(async (request: Request) => {
   let committee_id = body.committee_id;
 
   if (!committee_id) {
-    const { data: adminCommittee } = await supabase.from("committees").select("id").eq("admin_id", session.user.id).maybeSingle();
-    if (adminCommittee) {
-      committee_id = adminCommittee.id;
-    } else {
-      const { data: memberCommittee } = await supabase.from("committee_members").select("committee_id").eq("user_id", session.user.id).maybeSingle();
-      if (memberCommittee) {
-        committee_id = memberCommittee.committee_id;
-      }
-    }
+    committee_id = await getUserCommittee(session.user.id, session.user.role);
   }
 
   if (!committee_id) {
     return NextResponse.json({ error: "Committee not found for this user" }, { status: 400 });
+  }
+  if (!(await canAccessCommittee(session.user.id, session.user.role, committee_id, true))) {
+    return NextResponse.json({ error: "Forbidden: you cannot create roll calls for this committee" }, { status: 403 });
   }
 
   const uniqueToken = uuidv4();

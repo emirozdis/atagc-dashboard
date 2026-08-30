@@ -23,7 +23,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (!user_id) {
     return NextResponse.json(
-      { error: "user_id alanı zorunludur." },
+      { error: "user_id is required." },
       { status: 400 }
     );
   }
@@ -37,14 +37,14 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (targetError || !targetUser) {
     return NextResponse.json(
-      { error: "Kullanıcı bulunamadı." },
+      { error: "User not found." },
       { status: 404 }
     );
   }
 
   if (targetUser.role !== ROLES.OBSERVER) {
     return NextResponse.json(
-      { error: "Yalnızca gözlemci rolündeki kullanıcılar atanabilir." },
+      { error: "Only observers can be assigned." },
       { status: 400 }
     );
   }
@@ -68,7 +68,7 @@ export const POST = apiHandler(async (request: Request) => {
 
     if (committeeError || !committeeData) {
       return NextResponse.json(
-        { error: "Belirtilen komite bulunamadı." },
+        { error: "The specified committee was not found." },
         { status: 404 }
       );
     }

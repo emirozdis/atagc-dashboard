@@ -60,8 +60,8 @@ export async function getSignedUrls(bucket: string, paths: string[], expiresIn =
 
   if (error) {
     console.error(`Error batch signing URLs for ${bucket}:`, error);
-    // In case of error, return original paths (they might be valid public or local paths)
-    return paths.map(p => ({ path: p, signedUrl: p }));
+    // Private files must never be exposed as raw storage paths when signing fails.
+    return paths.map(p => ({ path: p, signedUrl: null }));
   }
 
   return data;

@@ -11,6 +11,7 @@ declare module "next-auth" {
       sessionId: string;
       applicationStatus?: ApplicationStatus;
       applicantType?: UserRole;
+      committeeId?: string | null;
     } & DefaultSession["user"];
   }
 
@@ -20,6 +21,7 @@ declare module "next-auth" {
     sessionId?: string;
     applicationStatus?: ApplicationStatus;
     applicantType?: UserRole;
+    committeeId?: string | null;
   }
 }
 
@@ -30,6 +32,7 @@ declare module "next-auth/jwt" {
     sessionId: string;
     applicationStatus?: ApplicationStatus;
     applicantType?: UserRole;
+    committeeId?: string | null;
   }
 }
 

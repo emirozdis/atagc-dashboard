@@ -9,7 +9,6 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ApplicationFormTemplate } from "@/types/application";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -27,15 +26,14 @@ export default function AdminFormsPage() {
   });
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Form Yönetimi" }]} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
 
       <div>
         <h2 className="text-3xl font-display font-bold text-foreground">
-          Başvuru Formları
+          Application forms
         </h2>
         <p className="text-muted-foreground mt-1">
-          Sistemde aktif olan başvuru formlarını düzenleyin.
+          Manage the application forms shown to participants.
         </p>
       </div>
 
@@ -62,16 +60,11 @@ export default function AdminFormsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-xs text-muted-foreground mb-4">
-                    {form.steps.length} Adım •{" "}
-                    {form.steps.reduce(
-                      (acc, s) => acc + s.fields.length,
-                      0
-                    )}{" "}
-                    Soru
+                    {form.questions?.length || form.steps.reduce((acc, step) => acc + step.fields.length, 0)} questions
                   </div>
                   <Button asChild className="w-full" variant="outline">
                     <Link href={`/admin/forms/${form.id}`}>
-                      <Edit className="w-4 h-4 mr-2" /> Düzenle
+                      <Edit className="w-4 h-4 mr-2" /> Edit
                     </Link>
                   </Button>
                 </CardContent>

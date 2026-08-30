@@ -11,10 +11,11 @@ export interface UserDetail {
     is_profile_picture_hidden: boolean;
     city: string;
     grade: GradeEnum;
+    high_schools?: { school_name: string } | null;
     
     additional_info: {
         manual_school_name?: string;
-        [key: string]: any;
+        [key: string]: unknown;
     };
     allow_connections: boolean;
     notification_preferences: {
@@ -67,7 +68,7 @@ export interface User {
         payment_status?: PaymentStatus;
         submitted_at: string;
         review_notes?: string;
-        form_data?: Record<string, any>;
+        form_data?: Record<string, unknown>;
         form?: {
             slug: string;
             title: string;
@@ -92,7 +93,7 @@ export interface User {
         payment_status?: PaymentStatus;
         submitted_at: string;
         review_notes?: string;
-        form_data?: Record<string, any>;
+        form_data?: Record<string, unknown>;
         form?: {
             slug: string;
             title: string;

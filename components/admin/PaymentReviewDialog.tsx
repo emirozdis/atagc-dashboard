@@ -48,14 +48,14 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
             if (!res.ok) throw new Error("Failed");
         },
         onSuccess: () => {
-            toast.success("İşlem Başarılı");
+            toast.success("Action completed");
             queryClient.invalidateQueries({ queryKey: ['admin-payments'] });
             queryClient.invalidateQueries({ queryKey: ['admin-payments-stats'] });
             onOpenChange(false);
             setIsRejecting(false);
             setRejectReason("");
         },
-        onError: () => toast.error("Bir hata oluştu")
+        onError: () => toast.error("Something went wrong")
     });
 
     if (!paymentId) return null;
@@ -66,6 +66,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
         : null;
 
     const additional = userDetails?.additional_info || {};
+    const highSchool = userDetails?.high_schools as { school_name?: string } | undefined;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,7 +86,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                         ) : (
                             <div className="text-muted-foreground flex flex-col items-center gap-2">
                                 <FileText className="w-12 h-12 opacity-50" />
-                                <span>Dosya görüntülenemiyor</span>
+                                <span>File preview unavailable</span>
                             </div>
                         )}
 
@@ -93,7 +94,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                             <div className="absolute bottom-6 right-6 flex gap-2">
                                 <Button variant="secondary" size="sm" className="shadow-lg backdrop-blur-md bg-background/80" asChild>
                                     <a href={payment.file_url} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="w-3 h-3 mr-2" /> Yeni Sekmede Aç
+                                        <ExternalLink className="w-3 h-3 mr-2" /> Open in new tab
                                     </a>
                                 </Button>
                             </div>
@@ -105,7 +106,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                         <DialogHeader className="p-6 pb-4 border-b border-border/50 bg-muted/5">
                             <DialogTitle className="flex items-center gap-2">
                                 <FileText className="w-5 h-5 text-primary" />
-                                Ödeme İnceleme
+                                Payment review
                             </DialogTitle>
                         </DialogHeader>
 
@@ -122,7 +123,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                                         {/* User Profile Section */}
                                         <div className="space-y-4">
                                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                                <User className="w-3.5 h-3.5" /> Başvuru Sahibi
+                                                <User className="w-3.5 h-3.5" /> Applicant
                                             </h4>
 
                                             <div className="bg-secondary/10 border border-border/50 rounded-xl p-4 space-y-3">
@@ -136,21 +137,21 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                                                 <div className="grid gap-3 text-sm">
                                                     <div className="flex items-center gap-3">
                                                         <Phone className="w-4 h-4 text-primary/70 shrink-0" />
-                                                        <span className="text-foreground/90">{userDetails?.phone_number || "Telefon Yok"}</span>
+                                                        <span className="text-foreground/90">{userDetails?.phone_number || "No phone number"}</span>
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <GraduationCap className="w-4 h-4 text-primary/70 shrink-0" />
                                                         <div className="text-foreground/90">
-                                                            <span className="line-clamp-1" title={(userDetails as any)?.high_schools?.school_name || additional?.manual_school_name}>
-                                                                {(userDetails as any)?.high_schools?.school_name || additional?.manual_school_name || "Okul Yok"}
+                                                            <span className="line-clamp-1" title={highSchool?.school_name || additional?.manual_school_name}>
+                                                                {highSchool?.school_name || additional?.manual_school_name || "No school specified"}
                                                             </span>
-                                                            {additional.grade && <span className="text-muted-foreground text-xs block mt-0.5">{additional.grade}. Sınıf</span>}
+                                                            {additional.grade && <span className="text-muted-foreground text-xs block mt-0.5">Grade {additional.grade}</span>}
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <MapPin className="w-4 h-4 text-primary/70 shrink-0" />
                                                         <span className="text-foreground/90">
-                                                            {additional.city || "Şehir Belirtilmemiş"}
+                                                            {additional.city || "City not specified"}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -160,34 +161,34 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                                         {/* Transaction Details */}
                                         <div className="space-y-4">
                                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                                <Hash className="w-3.5 h-3.5" /> İşlem Detayları
+                                                <Hash className="w-3.5 h-3.5" /> Transaction details
                                             </h4>
 
                                             <div className="bg-card border border-border/50 rounded-xl p-4 space-y-4 shadow-sm">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-sm text-muted-foreground">Durum</span>
-                                                    {payment.status === 'approved' && <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Onaylı</Badge>}
-                                                    {payment.status === 'rejected' && <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Reddedildi</Badge>}
-                                                    {payment.status === 'pending' && <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Beklemede</Badge>}
+                                                    <span className="text-sm text-muted-foreground">Status</span>
+                                                    {payment.status === 'approved' && <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Approved</Badge>}
+                                                    {payment.status === 'rejected' && <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Rejected</Badge>}
+                                                    {payment.status === 'pending' && <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>}
                                                 </div>
 
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                                                        <Calendar className="w-3.5 h-3.5" /> Yükleme
+                                                        <Calendar className="w-3.5 h-3.5" /> Uploaded
                                                     </span>
-                                                    <span className="text-sm font-medium">{new Date(payment.created_at).toLocaleString("tr-TR")}</span>
+                                                    <span className="text-sm font-medium">{new Date(payment.created_at).toLocaleString("en-GB")}</span>
                                                 </div>
 
                                                 {payment.reviewer && (
                                                     <div className="flex justify-between items-start pt-2 border-t border-border/50">
                                                         <span className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-                                                            <UserCheck className="w-3.5 h-3.5" /> İnceleyen
+                                                            <UserCheck className="w-3.5 h-3.5" /> Reviewed by
                                                         </span>
                                                         <div className="text-right">
                                                             <div className="text-sm font-medium">{payment.reviewer.full_name}</div>
                                                             {payment.reviewed_at && (
                                                                 <div className="text-[10px] text-muted-foreground">
-                                                                    {new Date(payment.reviewed_at).toLocaleString("tr-TR")}
+                                                                    {new Date(payment.reviewed_at).toLocaleString("en-GB")}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -196,7 +197,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
 
                                                 {payment.admin_note && (
                                                     <div className="p-3 bg-red-500/5 border border-red-500/10 rounded-lg text-sm mt-2">
-                                                        <span className="font-semibold text-red-600 block mb-1 text-xs uppercase">Red Sebebi</span>
+                                                        <span className="font-semibold text-red-600 block mb-1 text-xs uppercase">Rejection reason</span>
                                                         <p className="text-foreground/80 leading-relaxed">{payment.admin_note}</p>
                                                     </div>
                                                 )}
@@ -212,15 +213,15 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                             <div className="p-4 border-t border-border/50 bg-muted/5 space-y-3">
                                 {isRejecting ? (
                                     <div className="space-y-3 animate-in slide-in-from-bottom-2 fade-in">
-                                        <Label className="text-red-600">Reddetme Sebebi</Label>
+                                        <Label className="text-red-600">Rejection reason</Label>
                                         <Textarea
                                             value={rejectReason}
                                             onChange={(e) => setRejectReason(e.target.value)}
-                                            placeholder="Örn: Dekont okunamıyor, tutar hatalı..."
+                                            placeholder="For example: receipt is unreadable or the amount is incorrect..."
                                             className="min-h-[80px] bg-background focus:border-red-500/50"
                                         />
                                         <div className="flex gap-2 justify-end">
-                                            <Button variant="ghost" size="sm" onClick={() => setIsRejecting(false)}>İptal</Button>
+                                            <Button variant="ghost" size="sm" onClick={() => setIsRejecting(false)}>Cancel</Button>
                                             <Button
                                                 variant="destructive"
                                                 size="sm"
@@ -228,7 +229,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                                                 onClick={() => reviewMutation.mutate({ action: 'reject', note: rejectReason })}
                                             >
                                                 {reviewMutation.isPending && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
-                                                Reddet ve Bildir
+                                                Reject and notify
                                             </Button>
                                         </div>
                                     </div>
@@ -239,7 +240,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                                             className="flex-1 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-700 hover:border-red-500/50"
                                             onClick={() => setIsRejecting(true)}
                                         >
-                                            <XCircle className="w-4 h-4 mr-2" /> Reddet
+                                            <XCircle className="w-4 h-4 mr-2" /> Reject
                                         </Button>
                                         <Button
                                             className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-md shadow-green-900/10"
@@ -247,7 +248,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                                             disabled={reviewMutation.isPending}
                                         >
                                             {reviewMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                                            Onayla
+                                            Approve
                                         </Button>
                                     </div>
                                 )}
@@ -262,4 +263,4 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
 
 // Change Log:
 // - Moved `grade` info next to the School name in the layout.
-// - Added `reviewed_at` date and `UserCheck` icon to the "İnceleyen" section in Transaction Details.
+// - Added the reviewed date and reviewer icon to Transaction Details.

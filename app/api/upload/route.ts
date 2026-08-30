@@ -4,6 +4,8 @@ import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
 import { deleteFile } from "@/lib/storage-utils";
 import { apiHandler } from "@/lib/api-handler";
+import { assertFileSignature } from "@/lib/upload-validation";
+import crypto from "node:crypto";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -23,19 +25,20 @@ export const POST = apiHandler(async (request: Request) => {
   const file = formData.get("file") as File;
 
   if (!file) {
-    return NextResponse.json({ error: "Dosya bulunamadı." }, { status: 400 });
+    return NextResponse.json({ error: "File not found." }, { status: 400 });
   }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: "Sadece resim dosyaları (JPG, PNG, WEBP) yüklenebilir." }, { status: 400 });
+    return NextResponse.json({ error: "Only image files (JPG, PNG, WEBP) can be uploaded." }, { status: 400 });
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json({ error: "Dosya boyutu 5MB'dan küçük olmalıdır." }, { status: 400 });
+    return NextResponse.json({ error: "The file must be smaller than 5 MB." }, { status: 400 });
   }
 
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${userId}-${Date.now()}.${fileExt}`;
+  await assertFileSignature(file);
+  const fileExt = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const fileName = `${userId}-${crypto.randomUUID()}.${fileExt}`;
   const filePath = `avatars/${fileName}`;
 
   const arrayBuffer = await file.arrayBuffer();
@@ -55,6 +58,16 @@ export const POST = apiHandler(async (request: Request) => {
     .select("profile_picture_url")
     .eq("user_id", userId)
     .maybeSingle();
+
+  const { error: profileError } = await supabase.from("user_details").upsert({
+    user_id: userId,
+    profile_picture_url: filePath,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
+  if (profileError) {
+    await supabase.storage.from("profile-pictures").remove([filePath]);
+    throw profileError;
+  }
 
   if (currentDetails?.profile_picture_url) {
     await deleteFile("profile-pictures", currentDetails.profile_picture_url);

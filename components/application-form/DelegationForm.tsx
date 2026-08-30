@@ -84,11 +84,11 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
     // Unsaved Changes Warning (Tab Close/Refresh)
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            // Form dolduruluyorsa ve güvenli çıkış modunda değilse uyarı ver
+            // Warn when leaving an unfinished form unless navigation is intentional.
             if (!isSafeToLeave.current) {
                 e.preventDefault();
-                e.returnValue = ''; // Eski tarayıcılar ve Chrome için
-                return ''; // Safari ve Firefox için
+                e.returnValue = ''; // Required by legacy browsers and Chrome
+                return ''; // Required by Safari and Firefox
             }
         };
 
@@ -155,7 +155,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
 
             // Enforce email match
             if (values.email.toLowerCase() !== magiclinkEmail.toLowerCase()) {
-                toast.error("Bu davet linki sadece " + magiclinkEmail + " adresi için geçerlidir.");
+                toast.error("This invitation link is only valid for " + magiclinkEmail + ".");
                 accountForm.setValue("email", magiclinkEmail);
                 return;
             }
@@ -164,7 +164,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
             const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
 
             if (!effectiveToken) {
-                toast.error("Doğrulama eksik.");
+                toast.error("Verification is incomplete.");
                 return;
             }
 
@@ -172,7 +172,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
             try {
                 if (authMode === "register") {
                     if (!isEmailVerified) {
-                        toast.error("E-posta doğrulanmadı.");
+                        toast.error("Email has not been verified.");
                         return;
                     }
                     const isValid = await accountForm.trigger();
@@ -191,7 +191,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
 
                     if (!res.ok && res.status !== 409) {
                         const err = await res.json();
-                        throw new Error(err.error || "Kayıt başarısız");
+                        throw new Error(err.error || "Registration failed");
                     }
                 }
 
@@ -202,24 +202,24 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                     token: authMode === "login" ? effectiveToken : "SKIPPED_AUTO_LOGIN",
                 });
 
-                if (loginRes?.error) throw new Error("Giriş başarısız");
+                if (loginRes?.error) throw new Error("Sign-in failed");
 
                 setAccountData(values);
                 setCurrentStep(2);
-                toast.success("Giriş Başarılı");
-            } catch (e: any) {
-                toast.error(e.message);
+                toast.success("Signed in successfully");
+            } catch (error: unknown) {
+                toast.error(error instanceof Error ? error.message : "Sign-in failed.");
             } finally {
                 setIsSubmitting(false);
             }
             return;
         }
 
-        // Step 2: Personal Details → Dynamic Steps
+        // Step 2: personal details, followed by dynamic questions.
         if (currentStep === 2) {
             const isValid = await personalForm.trigger();
             if (!isValid) {
-                toast.error("Lütfen bilgilerinizi kontrol ediniz.");
+                toast.error("Check your information.");
                 return;
             }
             if (delegateForm && delegateForm.steps.length > 0) {
@@ -233,7 +233,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
         // Step 3+: Dynamic Form Steps
         if (delegateForm && currentDynamicStep) {
             if (isNextDisabled) {
-                toast.error("Lütfen zorunlu alanları doldurunuz.");
+                toast.error("Complete all required fields.");
                 return;
             }
 
@@ -261,15 +261,15 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.message || "Gönderim başarısız");
+                throw new Error(err.message || "Submission failed");
             }
 
-            isSafeToLeave.current = true; // Yönlendirmeden önce güvenli çıkış bayrağını kaldır
+            isSafeToLeave.current = true; // Navigation is intentional.
             await update();
             setIsSubmitted(true);
-            toast.success("Delegasyona başarıyla katıldınız!");
-        } catch (e: any) {
-            toast.error(e.message);
+            toast.success("You joined the delegation successfully!");
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Submission failed.");
         } finally {
             setIsSubmitting(false);
         }
@@ -282,8 +282,8 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
     if (isSubmitted) return <SuccessScreen onReset={() => (window.location.href = "/")} />;
 
     const displaySteps = [
-        { number: 1, title: "Hesap" },
-        { number: 2, title: "Kimlik" },
+        { number: 1, title: "Account" },
+        { number: 2, title: "Personal details" },
         ...(totalDynamicSteps > 0 ? [{ number: 3, title: "Form" }] : []),
     ];
 
@@ -293,10 +293,10 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
         <div className="w-full max-w-3xl mx-auto relative" ref={formRef}>
             <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20 text-center">
                 <p className="text-sm text-muted-foreground">
-                    Delegasyon davet linki ile kayıt oluyorsunuz.
+                    You are registering through a delegation invitation link.
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                    Kayıt e-postası: <span className="font-semibold text-foreground">{magiclinkEmail}</span>
+                    Registration email: <span className="font-semibold text-foreground">{magiclinkEmail}</span>
                 </p>
             </div>
 
@@ -329,11 +329,11 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                         <div className="flex items-center justify-between border-b border-border/40 pb-4">
                             <div className="space-y-1">
                                 <h3 className="text-xl font-display font-semibold">{currentDynamicStep.title}</h3>
-                                <p className="text-xs text-muted-foreground uppercase tracking-widest">Başvuru Detayları</p>
+                                <p className="text-xs text-muted-foreground uppercase tracking-widest">Application details</p>
                             </div>
                             <div className="bg-secondary/30 px-3 py-1 rounded-full border border-border/50">
                                 <span className="text-xs font-mono font-medium">
-                                    Adım {currentStep - 2} / {totalDynamicSteps}
+                                    Step {currentStep - 2} / {totalDynamicSteps}
                                 </span>
                             </div>
                         </div>
@@ -354,7 +354,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                     disabled={currentStep === 1 || isSubmitting}
                     className={cn("cursor-pointer", currentStep === 1 && "invisible")}
                 >
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Geri
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
 
                 <Button
@@ -368,8 +368,8 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                         <>
                             {(totalDynamicSteps === 0 && currentStep === 2) ||
                              (currentStep >= 3 && currentStep - 2 === totalDynamicSteps)
-                                ? "Kaydı Tamamla"
-                                : "İleri"}
+                                ? "Complete registration"
+                                : "Next"}
                             <ArrowRight className="w-4 h-4 ml-2" />
                         </>
                     )}

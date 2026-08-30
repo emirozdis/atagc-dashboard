@@ -47,8 +47,8 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
       <div className="space-y-1 mb-6">
-        <h3 className="text-xl font-display font-semibold">Kişisel Bilgiler</h3>
-        <p className="text-sm text-muted-foreground">İletişim ve okul bilgilerinizi giriniz.</p>
+        <h3 className="text-xl font-display font-semibold">Personal information</h3>
+        <p className="text-sm text-muted-foreground">Enter your contact and school information.</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -58,34 +58,34 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
           <div className="md:col-span-2 space-y-2 p-4 bg-primary/5 rounded-xl border border-primary/20 mb-2">
             <Label className="flex items-center gap-2 text-primary font-semibold">
               <Users className="w-4 h-4" />
-              Delegasyon Görüntülenme Adı <span className="text-destructive">*</span>
+              Delegation display name <span className="text-destructive">*</span>
             </Label>
             <Input 
               {...register("delegation_name")} 
-              placeholder="Örn: İTÜ GVO Delegasyonu" 
+              placeholder="Example: RavenMUN Delegation"
               className="bg-background"
             />
             {errors.delegation_name && <p className="text-xs text-destructive">{errors.delegation_name.message}</p>}
-            <p className="text-[11px] text-muted-foreground mt-1">Bu isim, yöneticilerin ekranlarında ve delegasyon üyelerinizin panellerinde görünecektir.</p>
+            <p className="text-[11px] text-muted-foreground mt-1">This name will appear to administrators and your delegation members.</p>
           </div>
         )}
 
         <div className="space-y-2">
-          <Label>Telefon Numarası <span className="text-destructive">*</span></Label>
+          <Label>Phone number <span className="text-destructive">*</span></Label>
           <Input {...register("phone_number")} placeholder="05XX XXX XX XX" type="tel" />
           {errors.phone_number && <p className="text-xs text-destructive">{errors.phone_number.message}</p>}
         </div>
 
         <div className="space-y-2">
-          <Label>Doğum Tarihi <span className="text-destructive">*</span></Label>
+          <Label>Date of birth <span className="text-destructive">*</span></Label>
           <Input {...register("birth_date")} type="date" />
           {errors.birth_date && <p className="text-xs text-destructive">{errors.birth_date.message}</p>}
         </div>
 
         <div className="space-y-2">
-          <Label>Şehir <span className="text-destructive">*</span></Label>
+          <Label>City <span className="text-destructive">*</span></Label>
           <Select onValueChange={(val) => setValue("city", val)}>
-            <SelectTrigger><SelectValue placeholder="Şehir Seçiniz" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Select a city" /></SelectTrigger>
             <SelectContent>
               {CITY_OPTIONS.map((city) => <SelectItem key={city.value} value={city.value}>{city.label}</SelectItem>)}
             </SelectContent>
@@ -94,9 +94,9 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
         </div>
 
         <div className="space-y-2">
-          <Label>Sınıf Seviyesi <span className="text-destructive">*</span></Label>
-          <Select onValueChange={(val: any) => setValue("grade", val)}>
-            <SelectTrigger><SelectValue placeholder="Sınıf Seçiniz" /></SelectTrigger>
+          <Label>Grade <span className="text-destructive">*</span></Label>
+          <Select onValueChange={(val) => setValue("grade", val as PersonalDetailsData["grade"])}>
+            <SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger>
             <SelectContent>
               {GRADE_OPTIONS.map((grade) => <SelectItem key={grade.value} value={grade.value}>{grade.label}</SelectItem>)}
             </SelectContent>
@@ -106,12 +106,12 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
 
         <div className="md:col-span-2 space-y-4">
           <div className="space-y-2">
-            <Label>Okul <span className="text-destructive">*</span></Label>
+            <Label>School <span className="text-destructive">*</span></Label>
             <Popover open={openSchool} onOpenChange={setOpenSchool}>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
                   <span className="truncate">
-                    {selectedHighSchoolId === -1 ? "Diğer (Listede Yok)" : (selectedSchoolLabel || "Okul Arayınız...")}
+                    {selectedHighSchoolId === -1 ? "Other (not listed)" : (selectedSchoolLabel || "Search for your school...")}
                   </span>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -119,15 +119,15 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                 <Command shouldFilter={false}>
                   <CommandInput 
-                    placeholder="Okul adı yazınız (min 3 karakter)..." 
+                    placeholder="Enter a school name (at least 3 characters)..."
                     value={schoolSearch}
                     onValueChange={setSchoolSearch}
                   />
                   <CommandList>
-                    {schoolsLoading && <div className="p-4 text-center text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2"/> Aranıyor...</div>}
+                    {schoolsLoading && <div className="p-4 text-center text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2"/> Searching...</div>}
                     
                     {!schoolsLoading && schoolSearch.length >= 3 && (
-                      <CommandGroup heading="Arama Sonuçları">
+                      <CommandGroup heading="Search results">
                         {schools.map((school) => (
                           <CommandItem
                             key={school.id}
@@ -149,18 +149,18 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
                       </CommandGroup>
                     )}
 
-                    <CommandGroup heading="Alternatif">
+                    <CommandGroup heading="Alternative">
                       <CommandItem
                         onSelect={() => {
                           setValue("high_school_id", -1);
-                          setSelectedSchoolLabel("Diğer (Listede Yok)");
+                          setSelectedSchoolLabel("Other (not listed)");
                           setOpenSchool(false);
                         }}
                       >
                         <PlusCircle className="mr-2 h-4 w-4 text-primary" />
                         <div className="flex flex-col">
-                          <span className="font-medium">Okulum Listede Yok</span>
-                          <span className="text-xs text-muted-foreground">Okul ismini kendim yazmak istiyorum</span>
+                          <span className="font-medium">My school is not listed</span>
+                          <span className="text-xs text-muted-foreground">I want to enter the school name myself</span>
                         </div>
                       </CommandItem>
                     </CommandGroup>
@@ -172,13 +172,13 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
 
           {selectedHighSchoolId === -1 && (
             <div className="space-y-2 p-4 bg-secondary/10 rounded-lg border border-border animate-in slide-in-from-top-2">
-              <Label>Okulunuzun Tam Adı <span className="text-destructive">*</span></Label>
+              <Label>Full school name <span className="text-destructive">*</span></Label>
               <Input 
                 {...register("manual_school_name")} 
-                placeholder="Örn: Özel ATAGÇ Fen Lisesi"
+                placeholder="Example: RavenMUN Academy"
                 className="bg-background"
               />
-              <p className="text-[10px] text-muted-foreground">Lütfen okul ismini kısaltma yapmadan, resmi adıyla yazınız.</p>
+              <p className="text-[10px] text-muted-foreground">Enter the official school name without abbreviations.</p>
               {errors.manual_school_name && <p className="text-xs text-destructive">{errors.manual_school_name.message}</p>}
             </div>
           )}
@@ -197,10 +197,10 @@ export function PersonalDetailsStep({ form, isDelegation }: PersonalDetailsStepP
             />
             <div className="space-y-1">
               <Label htmlFor="kvkk" className="text-sm font-medium cursor-pointer">
-                KVKK Aydınlatma Metni'ni okudum, anladım ve onaylıyorum. <span className="text-destructive">*</span>
+                I have read, understood, and agree to the privacy notice. <span className="text-destructive">*</span>
               </Label>
               <p className="text-xs text-muted-foreground">
-                Kişisel verilerinizin işlenmesi hakkında detaylı bilgi için <button type="button" onClick={() => setShowKvkk(true)} className="text-primary hover:underline font-medium inline-flex items-center gap-1">KVKK Aydınlatma Metni <FileText className="w-3 h-3" /></button>'ni inceleyebilirsiniz.
+                Read the <button type="button" onClick={() => setShowKvkk(true)} className="text-primary hover:underline font-medium inline-flex items-center gap-1">privacy notice <FileText className="w-3 h-3" /></button> for details about how your personal data is processed.
               </p>
               {errors.kvkk_consent && <p className="text-xs text-destructive font-medium">{errors.kvkk_consent.message}</p>}
             </div>

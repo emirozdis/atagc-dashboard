@@ -24,9 +24,9 @@ export function RoleSelectionStep({ forms, selectedId, onSelect }: RoleSelection
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center space-y-2">
-                <h3 className="text-2xl font-display font-semibold">Hangi rol için başvuruyorsunuz?</h3>
+                <h3 className="text-2xl font-display font-semibold">Which role are you applying for?</h3>
                 <p className="text-muted-foreground text-sm">
-                    Lütfen katılım sağlamak istediğiniz pozisyonu seçiniz.
+                    Select the role you would like to apply for.
                 </p>
             </div>
 
@@ -76,7 +76,7 @@ export function RoleSelectionStep({ forms, selectedId, onSelect }: RoleSelection
 
                 {forms.length === 0 && (
                     <div className="w-full text-center py-10 border-2 border-dashed rounded-3xl border-border/50">
-                        <p className="text-muted-foreground">Şu an aktif bir başvuru formu bulunmamaktadır.</p>
+                        <p className="text-muted-foreground">There are no active application forms right now.</p>
                     </div>
                 )}
             </div>

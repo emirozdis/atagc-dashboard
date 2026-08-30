@@ -7,7 +7,7 @@ import { PaymentUploadForm } from "@/components/dashboard/payment/PaymentUploadF
 import { Card, CardContent } from "@/components/ui/card";
 import {
     CheckCircle2, Clock, ExternalLink, FileText, Wallet,
-    Copy, AlertTriangle, Ban, CreditCard, ShieldCheck, Check
+    Copy, AlertTriangle, CreditCard, ShieldCheck, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,11 +39,11 @@ export function PaymentView() {
 
     if (isLoading) {
         return (
-            <div className="space-y-8">
+            <div className="mx-auto max-w-6xl space-y-8 p-5 sm:p-8">
                 <div className="space-y-4">
                     <div>
-                        <h2 className="text-3xl font-display font-bold">Ödeme ve Kayıt</h2>
-                        <p className="text-muted-foreground mt-1">Etkinlik katılım ücretini tamamlayın.</p>
+                        <h2 className="text-3xl font-display font-bold">Payment and registration</h2>
+                        <p className="text-muted-foreground mt-1">Complete your conference participation payment.</p>
                     </div>
 
                     <PaymentStepIndicator currentStep={1} isExempt={false} />
@@ -99,15 +99,15 @@ export function PaymentView() {
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
-        toast.success("Kopyalandı");
+        toast.success("Copied");
     };
 
     return (
-        <div className="space-y-8">
+        <div className="mx-auto max-w-6xl space-y-8 p-5 sm:p-8">
             <div className="space-y-4">
                 <div>
-                    <h2 className="text-3xl font-display font-bold">Ödeme ve Kayıt</h2>
-                    <p className="text-muted-foreground mt-1">Etkinlik katılım ücretini tamamlayın.</p>
+                    <h2 className="text-3xl font-display font-bold">Payment and registration</h2>
+                    <p className="text-muted-foreground mt-1">Complete your conference participation payment.</p>
                 </div>
 
                 {!isExempt && (
@@ -152,24 +152,24 @@ export function PaymentView() {
                                             isProcessing ? "text-amber-700 dark:text-amber-400" :
                                                 "text-foreground"
                             )}>
-                                {isExempt ? "Ödemeden Muaf" :
-                                    isPaid ? "Ödeme Onaylandı" :
-                                        isRejected ? "Ödeme Reddedildi" :
-                                            isProcessing ? "İnceleniyor" :
-                                                "Ödeme Bekleniyor"}
+                                {isExempt ? "Payment exempt" :
+                                    isPaid ? "Payment approved" :
+                                        isRejected ? "Payment rejected" :
+                                            isProcessing ? "Under review" :
+                                                "Payment pending"}
                             </h3>
                             <p className="text-base text-muted-foreground/90 leading-relaxed">
-                                {isExempt ? "Rolünüz veya başvurunuz gereği katılım ücretinden muaf tutuldunuz. Herhangi bir işlem yapmanıza gerek yoktur." :
-                                    isPaid ? "Ödemeniz başarıyla alınmış ve kaydınız kesinleşmiştir." :
-                                        isRejected ? "Yüklediğiniz dekont onaylanamadı. Lütfen yeni bir dekont yükleyiniz." :
-                                            isProcessing ? "Dekontunuz finans ekibimiz tarafından incelenmektedir." :
-                                                "Lütfen katılım ücretini aşağıda belirtilen hesaba yatırınız."}
+                                {isExempt ? "Your role or application qualifies you for a payment exemption. No action is required." :
+                                    isPaid ? "Your payment has been received and your registration is confirmed." :
+                                        isRejected ? "Your receipt could not be approved. Please upload a new receipt." :
+                                            isProcessing ? "Your receipt is being reviewed by the finance team." :
+                                                "Transfer the participation fee to the account below."}
                             </p>
                         </div>
                     </div>
                     {isRejected && receipt?.admin_note && (
                         <div className="mt-6 bg-background/80 border border-red-500/20 p-4 rounded-lg text-sm text-foreground">
-                            <div className="flex items-center gap-2 mb-2 text-red-600 font-semibold"><AlertTriangle className="w-4 h-4" /> Red Sebebi</div>
+                            <div className="flex items-center gap-2 mb-2 text-red-600 font-semibold"><AlertTriangle className="w-4 h-4" /> Rejection reason</div>
                             {receipt.admin_note}
                         </div>
                     )}
@@ -183,25 +183,25 @@ export function PaymentView() {
                             <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-lg">
                                 <div className="bg-zinc-900 text-white p-4 flex justify-between items-center">
                                     <div className="flex items-center gap-2 font-mono text-sm tracking-widest uppercase">
-                                        <CreditCard className="w-4 h-4 text-primary" /> Banka Transferi
+                                        <CreditCard className="w-4 h-4 text-primary" /> Bank transfer
                                     </div>
                                 </div>
                                 <div className="p-6 md:p-8 space-y-6">
                                     <div className="grid gap-10 md:grid-cols-3">
                                         <div className="space-y-1.5">
-                                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Alıcı</span>
-                                            <div className="font-bold text-lg">{settings?.bank_account_holder || "Alıcı Bilgisi Yok"}</div>
+                                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Account holder</span>
+                                            <div className="font-bold text-lg">{settings?.bank_account_holder || "Not provided"}</div>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Banka</span>
-                                            <div className="font-bold text-lg">{settings?.bank_name || "Banka Bilgisi Yok"}</div>
+                                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Bank</span>
+                                            <div className="font-bold text-lg">{settings?.bank_name || "Not provided"}</div>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Tutar</span>
+                                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Amount</span>
                                             <div className="font-bold text-xl text-primary">
                                                 {amount != null
-                                                    ? `${amount.toLocaleString('tr-TR')} ₺`
-                                                    : "Tutar Bilgisi Yok"}
+                                                    ? `${amount.toLocaleString('en-GB')} ₺`
+                                                    : "Not provided"}
                                             </div>
                                         </div>
                                     </div>
@@ -214,7 +214,7 @@ export function PaymentView() {
                                             )}
                                             onClick={() => copyToClipboard(settings?.bank_iban || "")}
                                         >
-                                            <span className="break-all">{settings?.bank_iban || "IBAN Bilgisi Yok"}</span>
+                                            <span className="break-all">{settings?.bank_iban || "Not provided"}</span>
                                             <Button size="icon" variant="ghost"><Copy className="w-4 h-4" /></Button>
                                         </div>
                                     </div>
@@ -227,7 +227,7 @@ export function PaymentView() {
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 text-lg font-semibold">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">2</div>
-                                Dekont Yükle
+                                Upload receipt
                             </div>
                             <PaymentUploadForm />
                         </div>
@@ -237,21 +237,21 @@ export function PaymentView() {
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 text-lg font-semibold">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold"><FileText className="w-4 h-4" /></div>
-                                {isPaid ? "Arşivlenmiş Dekont" : "Yüklenen Dosya"}
+                                {isPaid ? "Archived receipt" : "Uploaded file"}
                             </div>
                             <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
                                 <div className="bg-muted/30 px-4 py-3 border-b border-border/50 flex justify-between items-center">
-                                    <span className="text-xs font-mono text-muted-foreground uppercase">{new Date(receipt.created_at).toLocaleString("tr-TR")}</span>
+                                    <span className="text-xs font-mono text-muted-foreground uppercase">{new Date(receipt.created_at).toLocaleString("en-GB")}</span>
                                 </div>
                                 <div className="p-0 bg-zinc-950/5 min-h-75 flex items-center justify-center relative group">
                                     {receipt.file_type === 'application/pdf' ? (
                                         <iframe src={`${receipt.file_url}#toolbar=0`} className="w-full h-125 bg-white" />
                                     ) : (
-                                        <img src={receipt.file_url} className="max-h-125 w-auto object-contain" alt="Dekont" />
+                                        <img src={receipt.file_url} className="max-h-125 w-auto object-contain" alt="Payment receipt" />
                                     )}
                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
                                         <Button variant="secondary" asChild>
-                                            <a href={receipt.file_url} target="_blank"><ExternalLink className="w-4 h-4 mr-2" /> Tam Boyut</a>
+                                            <a href={receipt.file_url} target="_blank"><ExternalLink className="w-4 h-4 mr-2" /> Open full size</a>
                                         </Button>
                                     </div>
                                 </div>
@@ -266,9 +266,9 @@ export function PaymentView() {
 
 function PaymentStepIndicator({ currentStep, isExempt, hasError = false }: { currentStep: number, isExempt: boolean, hasError?: boolean }) {
     const steps = [
-        { number: 1, title: "Banka" },
-        { number: 2, title: "Dekont" },
-        { number: 3, title: "Onay" }
+        { number: 1, title: "Bank" },
+        { number: 2, title: "Receipt" },
+        { number: 3, title: "Approval" }
     ];
 
     if (isExempt) return null;

@@ -59,12 +59,12 @@ export default function TasksPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Görev oluşturulamadı.");
+        throw new Error(err.error || "Could not create task.");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Görev başarıyla oluşturuldu.");
+      toast.success("Task created successfully.");
       setTitle("");
       setDescription("");
       setCommittee("");
@@ -80,7 +80,7 @@ export default function TasksPage() {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error("Görev başlığı zorunludur.");
+      toast.error("Task title is required.");
       return;
     }
 
@@ -109,15 +109,15 @@ export default function TasksPage() {
 
   return (
     <div className="animate-fade-in max-w-7xl mx-auto pb-12 space-y-8">
-      <Breadcrumbs items={[{ label: "Organizasyon", href: "/organisation" }, { label: "Görev Oluştur" }]} />
+      <Breadcrumbs items={[{ label: "Organisation", href: "/organisation" }, { label: "Create task" }]} />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
-            Görev Oluştur
+            Create task
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Gözlemcilere görev atayın ve takip edin.
+            Assign and track tasks for observers.
           </p>
         </div>
       </div>
@@ -128,26 +128,26 @@ export default function TasksPage() {
           <Card className="border-border/50 shadow-sm bg-card">
             <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
-                <Plus className="w-4 h-4 text-primary" /> Yeni Görev
+                <Plus className="w-4 h-4 text-primary" /> New task
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Görev Başlığı</Label>
+                  <Label htmlFor="title">Task title</Label>
                   <Input
                     id="title"
-                    placeholder="Görev başlığını girin..."
+                  placeholder="Enter a task title..."
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Açıklama</Label>
+                  <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    placeholder="Görev detaylarını yazın..."
+                  placeholder="Describe the task..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
@@ -156,14 +156,14 @@ export default function TasksPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="committee">Komite</Label>
+                    <Label htmlFor="committee">Committee</Label>
                     <Select value={committee} onValueChange={(val) => { setCommittee(val); setAssignee(""); }}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Komite seçin (opsiyonel)..." />
+                        <SelectValue placeholder="Select a committee (optional)..." />
                       </SelectTrigger>
                       <SelectContent>
                         {committeesLoading ? (
-                          <SelectItem value="loading" disabled>Yükleniyor...</SelectItem>
+                          <SelectItem value="loading" disabled>Loading...</SelectItem>
                         ) : committees && committees.length > 0 ? (
                           committees.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
@@ -171,24 +171,24 @@ export default function TasksPage() {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="none" disabled>Komite bulunamadı</SelectItem>
+                          <SelectItem value="none" disabled>No committees found</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Boş bırakılırsa alan gözlemcileri listelenir.
+                      Leave blank to list field observers.
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="assignee">Gözlemci</Label>
+                    <Label htmlFor="assignee">Observer</Label>
                     <Select value={assignee} onValueChange={setAssignee}>
                       <SelectTrigger>
                         <SelectValue placeholder="Otomatik ata..." />
                       </SelectTrigger>
                       <SelectContent>
                         {observersLoading ? (
-                          <SelectItem value="loading" disabled>Yükleniyor...</SelectItem>
+                          <SelectItem value="loading" disabled>Loading...</SelectItem>
                         ) : observers && observers.length > 0 ? (
                           observers.map((o) => (
                             <SelectItem key={o.id} value={o.id}>
@@ -196,12 +196,12 @@ export default function TasksPage() {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="none" disabled>Gözlemci bulunamadı</SelectItem>
+                          <SelectItem value="none" disabled>No observers found</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Boş bırakılırsa en az görevi olan gözlemciye atanır.
+                      Leave blank to assign it to the observer with the fewest tasks.
                     </p>
                   </div>
                 </div>
@@ -212,7 +212,7 @@ export default function TasksPage() {
                   ) : (
                     <ClipboardList className="w-4 h-4 mr-2" />
                   )}
-                  {createTask.isPending ? "Atanıyor..." : assignee ? "Görev Oluştur" : "Otomatik Ata"}
+                  {createTask.isPending ? "Assigning..." : assignee ? "Create task" : "Assign automatically"}
                 </Button>
               </form>
             </CardContent>
@@ -224,28 +224,28 @@ export default function TasksPage() {
           <Card className="border-border/50 shadow-sm bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                Görev Özeti
+                Task summary
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 border border-border/50">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm">Bekleyen</span>
+                  <span className="text-sm">Pending</span>
                 </div>
                 <Badge variant="secondary">0</Badge>
               </div>
               <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 border border-border/50">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm">Devam Eden</span>
+                  <span className="text-sm">In progress</span>
                 </div>
                 <Badge variant="secondary">0</Badge>
               </div>
               <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 border border-border/50">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  <span className="text-sm">Tamamlanan</span>
+                  <span className="text-sm">Completed</span>
                 </div>
                 <Badge variant="secondary">0</Badge>
               </div>
@@ -260,9 +260,9 @@ export default function TasksPage() {
           <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mb-5">
             <ClipboardList className="w-7 h-7 text-muted-foreground" />
           </div>
-          <h4 className="font-semibold text-xl text-foreground mb-2">Henüz Görev Yok</h4>
+          <h4 className="font-semibold text-xl text-foreground mb-2">No tasks yet</h4>
           <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-            Yukarıdaki formu kullanarak gözlemcilere görev atayabilirsiniz.
+            Use the form above to assign tasks to observers.
           </p>
         </CardContent>
       </Card>

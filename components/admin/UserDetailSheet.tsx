@@ -53,17 +53,17 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
   const additional = details?.additional_info || {};
 
   // Resolve School Name logic
-  const schoolName = (details as any)?.high_schools?.school_name || 
+  const schoolName = (details?.high_schools as { school_name?: string } | undefined)?.school_name ||
                      additional?.manual_school_name || 
-                     "Belirtilmemiş";
+                     "Not specified";
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'applicant': return 'Katılımcı';
-      case 'committee_chairman': return 'Komite Başkanı';
-      case 'chair': return 'Başkan Yardımcısı';
-      case 'admin': return 'Yönetici';
-      case 'superadmin': return 'Süper Yönetici';
+      case 'applicant': return 'Applicant';
+      case 'committee_chairman': return 'Committee chair';
+      case 'chair': return 'Deputy chair';
+      case 'admin': return 'Site admin';
+      case 'superadmin': return 'Super admin';
       default: return role;
     }
   };
@@ -71,13 +71,13 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "approved":
-        return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Onaylı</Badge>;
+        return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>;
       case "rejected":
-        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="w-3 h-3 mr-1" /> Reddedildi</Badge>;
+        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="w-3 h-3 mr-1" /> Rejected</Badge>;
       case "pending":
-        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="w-3 h-3 mr-1" /> Bekliyor</Badge>;
+        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>;
       default:
-        return <Badge variant="outline">Başvuru Yok</Badge>;
+        return <Badge variant="outline">No application</Badge>;
     }
   };
 
@@ -101,7 +101,7 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
                   </SheetDescription>
                   <div className="flex gap-2 mt-2">
                     <Badge variant="secondary" className="capitalize">{getRoleLabel(user.role)}</Badge>
-                    {user.is_suspended && <Badge variant="destructive">Askıya Alındı</Badge>}
+                    {user.is_suspended && <Badge variant="destructive">Suspended</Badge>}
                   </div>
                 </div>
               </div>
@@ -113,20 +113,20 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
           <div className="py-6 space-y-8">
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <Shield className="w-3.5 h-3.5" /> Sistem Durumu
+                <Shield className="w-3.5 h-3.5" /> System status
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="bg-secondary/10 p-3 rounded-lg border border-border/50">
-                  <span className="text-muted-foreground block text-xs mb-1">Başvuru Durumu</span>
+                  <span className="text-muted-foreground block text-xs mb-1">Application status</span>
                   {getStatusBadge(application?.status || "none")}
                 </div>
                 <div className="bg-secondary/10 p-3 rounded-lg border border-border/50">
                   <span className="text-muted-foreground block text-xs mb-1">
-                    {user.role === 'committee_chairman' ? "Yönettiği Komite" : "Komite"}
+                    {user.role === 'committee_chairman' ? "Managed committee" : "Committee"}
                   </span>
                   <div className="font-medium flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-primary" />
-                    {activeCommittee?.name || "Atanmamış"}
+                    {activeCommittee?.name || "Not assigned"}
                   </div>
                 </div>
               </div>
@@ -136,29 +136,29 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
 
             <div className="space-y-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <UserIcon className="w-3.5 h-3.5" /> Kişisel Bilgiler
+                <UserIcon className="w-3.5 h-3.5" /> Personal information
               </h4>
               <div className="grid gap-4 text-sm">
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-muted-foreground flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> Telefon</span>
+                  <span className="text-muted-foreground flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> Phone</span>
                   <span className="font-medium">{details?.phone_number || "-"}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-muted-foreground flex items-center gap-2"><School className="w-3.5 h-3.5" /> Okul</span>
+                  <span className="text-muted-foreground flex items-center gap-2"><School className="w-3.5 h-3.5" /> School</span>
                   <span className="font-medium truncate max-w-[200px]" title={schoolName}>{schoolName}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                    <span className="text-muted-foreground flex items-center gap-2"><GraduationCap className="w-3.5 h-3.5" /> Sınıf</span>
+                    <span className="text-muted-foreground flex items-center gap-2"><GraduationCap className="w-3.5 h-3.5" /> Grade</span>
                     <span className="font-medium">{gradeLabel || "-"}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-muted-foreground flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> Şehir</span>
+                  <span className="text-muted-foreground flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> City</span>
                   <span className="font-medium">{details?.city || "-"}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-muted-foreground flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> Doğum Tarihi</span>
+                  <span className="text-muted-foreground flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> Birth date</span>
                   <span className="font-medium">
-                    {details?.birth_date ? new Date(details.birth_date).toLocaleDateString('tr-TR') : "-"}
+                    {details?.birth_date ? new Date(details.birth_date).toLocaleDateString('en-GB') : "-"}
                   </span>
                 </div>
               </div>
@@ -169,7 +169,7 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
             {application?.form_data && (
               <div className="space-y-4">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5" /> Form Cevapları
+                  <FileText className="w-3.5 h-3.5" /> Form responses
                 </h4>
                 <div className="space-y-4">
                     {Object.entries(application.form_data).map(([key, val]) => {

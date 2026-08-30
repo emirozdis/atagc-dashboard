@@ -25,7 +25,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (!assigned_task?.trim()) {
     return NextResponse.json(
-      { error: "assigned_task alanı zorunludur." },
+      { error: "assigned_task is required." },
       { status: 400 }
     );
   }
@@ -47,7 +47,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (!observers || observers.length === 0) {
     return NextResponse.json(
-      { error: "Uygun gözlemci bulunamadı." },
+      { error: "No eligible observer was found." },
       { status: 404 }
     );
   }

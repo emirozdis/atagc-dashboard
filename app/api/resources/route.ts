@@ -7,6 +7,9 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getSignedUrls } from "@/lib/storage-utils";
 import { resourceUploadSchema } from "@/lib/schemas";
 import { ROLES, MANAGEMENT_ROLES } from "@/lib/roles";
+import { canAccessCommittee } from "@/lib/committee-access";
+import { assertFileSignature } from "@/lib/upload-validation";
+import crypto from "node:crypto";
 
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
@@ -62,8 +65,11 @@ export const GET = apiHandler(async (request: Request) => {
   if (error) throw error;
 
   const pathsToSign: string[] = [];
-  data.forEach((r: any) => {
-      const path = r.storage_path || (r.file_url && !r.file_url.startsWith("http") ? r.file_url : null);
+  const resourceRows = (data || []) as unknown as Array<Record<string, unknown>>;
+  resourceRows.forEach((r) => {
+      const storagePath = typeof r.storage_path === "string" ? r.storage_path : null;
+      const fileUrl = typeof r.file_url === "string" ? r.file_url : null;
+      const path = storagePath || (fileUrl && !fileUrl.startsWith("http") ? fileUrl : null);
       if (path) pathsToSign.push(path);
   });
 
@@ -71,9 +77,9 @@ export const GET = apiHandler(async (request: Request) => {
       const signedData = await getSignedUrls("resources", pathsToSign);
       const urlMap = new Map(signedData?.map(s => [s.path, s.signedUrl]));
       
-      data.forEach((r: any) => {
-          const key = r.storage_path || r.file_url;
-          if (urlMap.has(key)) r.file_url = urlMap.get(key);
+      resourceRows.forEach((r) => {
+          const key = typeof r.storage_path === "string" ? r.storage_path : typeof r.file_url === "string" ? r.file_url : null;
+          if (key && urlMap.has(key)) r.file_url = urlMap.get(key);
       });
   }
 
@@ -94,9 +100,9 @@ export const POST = apiHandler(async (request: Request) => {
   const formData = await request.formData();
   const file = formData.get("file") as File;
   
-  const rawBody: any = {};
+  const rawBody: Record<string, string | null> = {};
   formData.forEach((value, key) => {
-    if (key !== 'file') rawBody[key] = value;
+    if (key !== 'file' && typeof value === "string") rawBody[key] = value;
   });
 
   if (rawBody.committee_id === 'null' || rawBody.committee_id === '') {
@@ -105,9 +111,10 @@ export const POST = apiHandler(async (request: Request) => {
   
   const validData = resourceUploadSchema.parse(rawBody);
 
-  if (!file) throw new Error("Dosya yüklenmedi.");
-  if (file.size > MAX_FILE_SIZE) throw new Error("Dosya boyutu çok büyük (Max 10MB).");
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) throw new Error("Geçersiz dosya formatı.");
+  if (!file) throw new Error("No file was uploaded.");
+  if (file.size > MAX_FILE_SIZE) throw new Error("The file is too large (max 10 MB).");
+  if (!ALLOWED_MIME_TYPES.includes(file.type)) throw new Error("Unsupported file type.");
+  await assertFileSignature(file);
 
   if (session.user.role === ROLES.CHAIRMAN) {
     const { data: managed } = await supabase
@@ -116,16 +123,15 @@ export const POST = apiHandler(async (request: Request) => {
       .eq('admin_id', session.user.id)
       .single();
 
-    if (!managed) throw new Error("Yönettiğiniz bir komite bulunamadı.");
-    if (validData.committee_id !== managed.id) throw new Error("Sadece kendi komitenize dosya yükleyebilirsiniz.");
+    if (!managed) throw new Error("You do not manage a committee.");
+    if (validData.committee_id !== managed.id) throw new Error("You can upload files only to your own committee.");
     
     validData.is_public = false; 
   }
 
   // Upload
-  const fileExt = file.name.split('.').pop();
-  const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const fileName = `${Date.now()}-${sanitizedName}`;
+  const fileExt = file.type === "application/pdf" ? "pdf" : file.type === "application/msword" ? "doc" : file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ? "docx" : file.type === "image/png" ? "png" : "jpg";
+  const fileName = `${crypto.randomUUID()}.${fileExt}`;
   const filePath = `uploads/${fileName}`;
   
   const arrayBuffer = await file.arrayBuffer();
@@ -133,7 +139,7 @@ export const POST = apiHandler(async (request: Request) => {
     .from('resources')
     .upload(filePath, Buffer.from(arrayBuffer), { contentType: file.type });
 
-  if (uploadError) throw new Error("Dosya sunucuya kaydedilemedi.");
+  if (uploadError) throw new Error("The file could not be saved on the server.");
 
   // Insert DB
   const { data, error } = await supabase
@@ -153,7 +159,10 @@ export const POST = apiHandler(async (request: Request) => {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    await supabase.storage.from("resources").remove([filePath]);
+    throw error;
+  }
 
   await Logger.audit(
       { userId: session.user.id, req: request },
@@ -167,4 +176,22 @@ export const POST = apiHandler(async (request: Request) => {
   );
 
   return NextResponse.json({ success: true, data });
+});
+
+export const DELETE = apiHandler(async (request: Request) => {
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN] });
+  if (!auth.ok || !auth.session) throw new Error("Forbidden");
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) throw new Error("Resource ID is required.");
+
+  const { data: resource } = await supabase.from("resources").select("id, committee_id, storage_path, file_url").eq("id", id).maybeSingle();
+  if (!resource) return NextResponse.json({ error: "Resource not found" }, { status: 404 });
+  if (resource.committee_id && !(await canAccessCommittee(auth.session.user.id, auth.session.user.role, resource.committee_id, true))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const path = resource.storage_path || (resource.file_url?.startsWith("http") ? null : resource.file_url);
+  if (path) await supabase.storage.from("resources").remove([path]);
+  const { error } = await supabase.from("resources").delete().eq("id", id);
+  if (error) throw error;
+  await supabase.from("audit_logs").insert({ user_id: auth.session.user.id, action: "delete_resource", resource_type: "resource", resource_id: id });
+  return NextResponse.json({ success: true });
 });

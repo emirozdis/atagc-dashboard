@@ -16,14 +16,8 @@ import {
 
 function AnnouncementBar() {
   const announcement = process.env.NEXT_PUBLIC_ANNOUNCEMENT_TEXT;
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(Boolean(announcement));
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (announcement) {
-      setIsVisible(true);
-    }
-  }, [announcement]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -60,13 +54,13 @@ function AnnouncementBar() {
           <Megaphone className="w-4 h-4 shrink-0 animate-pulse" />
           <span className="truncate pr-2">{announcement}</span>
           <span className="hidden sm:inline-flex text-[10px] bg-black/10 px-1.5 py-0.5 rounded border border-black/5 items-center gap-1 group-hover:bg-black/20 transition-colors">
-            Detay <Info className="w-3 h-3" />
+            Details <Info className="w-3 h-3" />
           </span>
         </div>
         <button
           onClick={handleDismiss}
           className="p-1 rounded-full hover:bg-black/10 shrink-0 transition-colors cursor-pointer"
-          aria-label="Duyuruyu kapat"
+          aria-label="Close announcement"
         >
           <X className="w-4 h-4" />
         </button>
@@ -77,10 +71,10 @@ function AnnouncementBar() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-display">
               <Megaphone className="w-5 h-5 text-primary" />
-              Sistem Duyurusu
+              System announcement
             </DialogTitle>
             <DialogDescription className="pt-2">
-              Organizasyon ekibi tarafından yayınlanan genel bilgilendirme.
+              General information from the conference team.
             </DialogDescription>
           </DialogHeader>
           <div className="py-6">
@@ -93,7 +87,7 @@ function AnnouncementBar() {
               onClick={() => setIsModalOpen(false)}
               className="bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium hover:bg-primary/90 transition-colors"
             >
-              Anladım
+              Got it
             </button>
           </div>
         </DialogContent>

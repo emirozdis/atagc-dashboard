@@ -1,24 +1,18 @@
 "use client";
 
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { UserSelectionTable } from "@/components/admin/UserSelectionTable";
 
 export default function UsersPage() {
-  const breadcrumbItems = [
-    { label: "Kullanıcılar" }
-  ];
-
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={breadcrumbItems} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-display font-bold text-foreground flex items-center gap-2">
-            Kullanıcı Yönetimi
+            People and roles
           </h2>
           <p className="text-muted-foreground mt-1">
-            Toplu işlemler ve detaylı kullanıcı yönetimi.
+            Manage participant accounts, role assignments, and access.
           </p>
         </div>
       </div>

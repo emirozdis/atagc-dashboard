@@ -1,5 +1,5 @@
-import { AppLayout } from "@/components/layout/AppLayout";
+import RavenAdminShell from "@/components/raven/RavenAdminShell";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    return <AppLayout>{children}</AppLayout>;
+  return <RavenAdminShell>{children}</RavenAdminShell>;
 }

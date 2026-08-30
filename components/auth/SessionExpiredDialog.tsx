@@ -28,6 +28,8 @@ export function SessionExpiredDialog() {
 
         // If status is unauthenticated but we are on a protected route, it implies session died mid-usage
         if (status === "unauthenticated" && isProtectedRoute) {
+            // Synchronize the dialog with the external authentication state.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsOpen(true);
         } else {
             setIsOpen(false);
@@ -48,38 +50,38 @@ export function SessionExpiredDialog() {
                     </div>
 
                     <AlertDialogTitle className="text-center text-2xl font-semibold tracking-tight">
-                        Oturum Sonlandı
+                        Session expired
                     </AlertDialogTitle>
 
                     <AlertDialogDescription className="text-center space-y-4">
                         <p className="text-base leading-relaxed text-muted-foreground">
-                            Güvenlik nedeniyle oturumunuz sonlandırıldı.
+                            Your session ended for security reasons.
                         </p>
 
                         <div className="bg-muted/50 rounded-lg p-4 space-y-2.5 text-left">
                             <div className="flex items-start gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0" />
                                 <p className="text-sm text-foreground/80 leading-relaxed">
-                                    Başka bir cihazdan çıkış yapıldı
+                                    You signed out from another device
                                 </p>
                             </div>
                             <div className="flex items-start gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0" />
                                 <p className="text-sm text-foreground/80 leading-relaxed">
-                                    Şifreniz değiştirildi
+                                    Your password was changed
                                 </p>
                             </div>
                             <div className="flex items-start gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0" />
                                 <p className="text-sm text-foreground/80 leading-relaxed">
-                                    Hesabınız askıya alındı
+                                    Your account was suspended
                                 </p>
                             </div>
                         </div>
 
                         <div className="pt-2 border-t border-border/50">
                             <p className="text-sm font-medium text-foreground">
-                                Devam etmek için lütfen tekrar giriş yapınız
+                                Sign in again to continue.
                             </p>
                         </div>
                     </AlertDialogDescription>
@@ -90,7 +92,7 @@ export function SessionExpiredDialog() {
                         onClick={handleLogin}
                         className="w-full sm:w-auto font-medium"
                     >
-                        Giriş Yap
+                        Sign in
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

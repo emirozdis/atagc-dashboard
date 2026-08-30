@@ -1,129 +1,37 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/SERVER_supabase";
-import getAuthorization from "@/lib/getAuthorization";
-import { Logger } from "@/lib/logger";
-import { sendSystemNotification } from "@/lib/notification-service";
+import { z } from "zod";
 import { apiHandler } from "@/lib/api-handler";
-import { ROLES } from "@/lib/roles";
-import { committeeAssignmentSchema } from "@/lib/schemas";
+import getAuthorization from "@/lib/getAuthorization";
+import { supabase } from "@/lib/SERVER_supabase";
+import { CONFERENCE_ASSIGNMENT_ROLES, ROLES } from "@/lib/roles";
 
-async function validateAssignment(userId: string, committeeId: string | null) {
-    const { data: targetUser, error } = await supabase
-        .from("users")
-        .select(`
-            role,
-            application:applications(form:application_forms(slug))
-        `)
-        .eq("id", userId)
-        .single();
-
-    if (error || !targetUser) throw new Error("Kullanıcı bulunamadı.");
-
-    if (targetUser.role === ROLES.SUPERADMIN) {
-        throw new Error("Süper yöneticiler komiteye atanamaz.");
-    }
-
-    if (!committeeId) return targetUser;
-
-    const allowedRoles = [ROLES.DELEGATE, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR];
-    const isAllowedRole = allowedRoles.includes(targetUser.role);
-
-    const app = Array.isArray(targetUser.application) ? targetUser.application[0] : targetUser.application;
-    const formObj = Array.isArray(app?.form) ? app.form[0] : app?.form;
-    const isDelegateApplicant = targetUser.role === ROLES.APPLICANT && formObj?.slug === ROLES.DELEGATE;
-
-    if (!isAllowedRole && !isDelegateApplicant) {
-        throw new Error("Sadece DELEGE rolündeki katılımcılar (veya başkanlar) komiteye atanabilir.");
-    }
-
-    return targetUser;
-}
+const inputSchema = z.object({ userId: z.uuid(), committeeId: z.uuid().nullable(), role: z.string().optional() });
+const committeeRoles = [ROLES.DELEGATE, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR] as const;
 
 export const POST = apiHandler(async (request: Request) => {
-    const auth = await getAuthorization({ 
-        requireAuth: true, 
-        allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] 
-    });
-    
-    if (!auth.ok || !auth.session) throw new Error(auth.message || "Unauthorized");
-    const session = auth.session;
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] });
+  if (!auth.ok || !auth.session) throw new Error("Unauthorized");
+  const input = inputSchema.parse(await request.json());
 
-    const body = await request.json();
-    const { userId, committeeId } = committeeAssignmentSchema.parse(body);
+  const [{ data: target }, { data: currentAssignment }, { data: delegateApplication }] = await Promise.all([
+    supabase.from("users").select("id, role, account_role").eq("id", input.userId).maybeSingle(),
+    supabase.from("conference_assignments").select("role, committee_id").eq("user_id", input.userId).maybeSingle(),
+    supabase.from("applications").select("application_type, status").eq("user_id", input.userId).eq("application_type", "delegate").maybeSingle(),
+  ]);
+  if (!target) throw new Error("User not found.");
+  if (target.account_role && target.account_role !== "member") throw new Error("Site administrators cannot be assigned to committees.");
 
-    await validateAssignment(userId, committeeId);
+  const desiredRole = input.role || currentAssignment?.role || (target.role === ROLES.DELEGATE || target.role === ROLES.CHAIRMAN || target.role === ROLES.DEPUTY_CHAIR ? target.role : delegateApplication?.application_type === "delegate" ? ROLES.DELEGATE : null);
+  if (!desiredRole || !committeeRoles.includes(desiredRole as typeof committeeRoles[number])) throw new Error("A delegate or chairboard role is required for committee assignment.");
+  if (!CONFERENCE_ASSIGNMENT_ROLES.includes(desiredRole as typeof CONFERENCE_ASSIGNMENT_ROLES[number])) throw new Error("Invalid conference assignment role.");
 
-    const { data: existing } = await supabase
-        .from("committee_members")
-        .select("id, committee_id")
-        .eq("user_id", userId)
-        .maybeSingle();
+  const { error } = await supabase.rpc("assign_ravenmun_conference_role", {
+    p_user_ids: [input.userId],
+    p_role: desiredRole,
+    p_committee_id: input.committeeId,
+    p_actor_id: auth.session.user.id,
+  });
+  if (error) throw error;
 
-    if (committeeId) {
-        // ASSIGN / UPDATE
-        if (existing) {
-            if (existing.committee_id !== committeeId) {
-                const { error } = await supabase
-                    .from("committee_members")
-                    .update({ committee_id: committeeId })
-                    .eq("id", existing.id);
-                if (error) throw error;
-
-                await Logger.audit(
-                    { userId: session.user.id, req: request },
-                    { 
-                        action: "update_committee_assignment", 
-                        category: "access",
-                        resourceType: "committee_member",
-                        resourceId: existing.id,
-                        prevState: { committee_id: existing.committee_id },
-                        nextState: { committee_id: committeeId },
-                        metadata: { target_user_id: userId }
-                    }
-                );
-
-                await sendSystemNotification(userId, "committee_assignment");
-            }
-        } else {
-            // Insert
-            const { data: newMember, error } = await supabase
-                .from("committee_members")
-                .insert({ user_id: userId, committee_id: committeeId })
-                .select("id")
-                .single();
-            if (error) throw error;
-
-            await Logger.audit(
-                { userId: session.user.id, req: request },
-                { 
-                    action: "create_committee_assignment", 
-                    category: "access",
-                    resourceType: "committee_member",
-                    resourceId: newMember.id,
-                    metadata: { target_user_id: userId, committee_id: committeeId }
-                }
-            );
-
-            await sendSystemNotification(userId, "committee_assignment");
-        }
-    } else {
-        // REMOVE
-        if (existing) {
-            const { error } = await supabase.from("committee_members").delete().eq("user_id", userId);
-            if (error) throw error;
-
-            await Logger.audit(
-                { userId: session.user.id, req: request },
-                { 
-                    action: "delete_committee_assignment", 
-                    category: "access",
-                    resourceType: "committee_member",
-                    resourceId: existing.id,
-                    metadata: { target_user_id: userId, previous_committee_id: existing.committee_id }
-                }
-            );
-        }
-    }
-
-    return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, assignment: { userId: input.userId, committeeId: input.committeeId, role: desiredRole } });
 });

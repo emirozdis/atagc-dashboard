@@ -9,6 +9,7 @@ import { X, Maximize2, ShieldCheck, Calendar, Hash, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { getRoleMeta } from "@/lib/roles";
+import type { LucideIcon } from "lucide-react";
 
 interface DigitalIdCardProps {
   user?: {
@@ -28,32 +29,53 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
   const [mounted, setMounted] = useState(false);
 
   const roleMeta = getRoleMeta(user?.role);
-  const roleName = roleMeta.label.toUpperCase();
+  const roleName = ({
+    applicant: "Applicant",
+    delegate: "Delegate",
+    committee_chairman: "Chairboard",
+    chair: "Chairboard",
+    press: "Press",
+    head_press: "Head of press",
+    observer: "Observer",
+    head_observer: "Head observer",
+    security: "Security",
+    head_security: "Head of security",
+  }[user?.role || "applicant"] || user?.role || "Applicant").toUpperCase();
   
   const shortId = user?.id.split('-')[0].toUpperCase() || "";
-  const joinDate = user?.created_at ? new Date(user.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const joinDate = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
-  const qrPayload = user ? JSON.stringify({ t: "u", id: user.id }) : "";
+  const [qrPayload, setQrPayload] = useState("");
+  const userId = user?.id;
 
   useEffect(() => {
-    setMounted(true);
+    if (!userId) return;
+    fetch("/api/security/token").then((response) => response.json()).then((result) => { if (result.payload) setQrPayload(result.payload); }).catch(() => undefined);
+  }, [userId]);
+  const qrValue = qrPayload || "ravenmun-loading";
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setMounted(true));
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
-    return () => { document.body.style.overflow = 'unset'; };
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = 'unset';
+    };
   }, [isOpen]);
 
   useEffect(() => {
-    if (defaultOpen) {
-      setIsOpen(true);
-    }
+    const frame = window.requestAnimationFrame(() => setIsOpen(defaultOpen));
+    return () => window.cancelAnimationFrame(frame);
   }, [defaultOpen]);
 
   return (
     <>
       <motion.div
+        id={`digital-id-${uniqueId}`}
         className={cn(
           "relative overflow-hidden rounded-xl bg-card border border-border shadow-sm hover:shadow-md cursor-pointer group transition-shadow",
           className
@@ -68,7 +90,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <User className="w-4 h-4" />
-              <span className="text-[10px] font-bold tracking-widest uppercase">Dijital Kimlik</span>
+              <span className="text-[10px] font-bold tracking-widest uppercase">Digital ID</span>
             </div>
             {!isLoading && (
               <div>
@@ -89,7 +111,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
             ) : (
               <>
                 <div className="bg-white p-2 rounded-lg">
-                  <QRCodeSVG value={qrPayload} size={90} level="M" />
+                  <QRCodeSVG value={qrValue} size={90} level="M" />
                 </div>
 
                 <div className="text-center space-y-1.5">
@@ -115,7 +137,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                 <span>{shortId}</span>
                 <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500">
                   <div className="w-1.5 h-1.5 rounded-full bg-current" />
-                  AKTİF
+                  ACTIVE
                 </div>
               </>
             )}
@@ -164,7 +186,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                     className="space-y-3 pt-2"
                   >
                     <div className="flex flex-col items-center gap-2">
-                      <span className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">Katılımcı Kartı</span>
+                      <span className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">Participant card</span>
                       {isLoading ? <Skeleton className="h-8 w-48" /> : <h2 className="text-2xl font-bold text-foreground tracking-tight">{user?.full_name}</h2>}
                     </div>
                     {isLoading ? (
@@ -182,7 +204,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                     transition={{ delay: 0.1, duration: 0.2 }}
                     className="bg-white p-4 rounded-xl shadow-sm ring-1 ring-black/5"
                   >
-                    <QRCodeSVG value={qrPayload} size={200} level="H" className="w-full h-auto max-w-[200px]" />
+                    <QRCodeSVG value={qrValue} size={200} level="H" className="w-full h-auto max-w-[200px]" />
                   </motion.div>
 
                   <motion.div
@@ -191,20 +213,20 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                     transition={{ delay: 0.15, duration: 0.2 }}
                     className="w-full space-y-3"
                   >
-                    <DetailRow icon={Hash} label="Kimlik No" value={shortId} isLoading={isLoading} mono />
+                    <DetailRow icon={Hash} label="ID number" value={shortId} isLoading={isLoading} mono />
                     <div className="h-px bg-border w-full" />
-                    <DetailRow icon={Calendar} label="Kayıt Tarihi" value={joinDate} isLoading={isLoading} />
+                    <DetailRow icon={Calendar} label="Registration date" value={joinDate} isLoading={isLoading} />
                     <div className="h-px bg-border w-full" />
                     <div className="flex items-center justify-between text-sm py-1">
                       <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
                         <ShieldCheck className="w-4 h-4" />
-                        <span>Durum</span>
+                        <span>Status</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500 text-sm font-medium">
                         {isLoading ? <Skeleton className="h-4 w-24" /> : (
                           <>
                             <ShieldCheck className="w-4 h-4" />
-                            Doğrulanmış Hesap
+                            Verified account
                           </>
                         )}
                       </div>
@@ -217,7 +239,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
                     transition={{ delay: 0.2, duration: 0.2 }}
                     className="text-[10px] text-muted-foreground max-w-xs leading-relaxed pt-2 pb-4"
                   >
-                    Bu QR kod etkinlik alanına giriş, yoklama ve diğer katılımcılarla bağlantı kurmak için kullanılır.
+                    Use this QR code for venue entry, roll call, and connecting with other participants.
                   </motion.div>
 
                 </div>
@@ -231,7 +253,7 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
   );
 }
 
-function DetailRow({ icon: Icon, label, value, mono = false, isLoading }: { icon: any, label: string, value: string, mono?: boolean, isLoading?: boolean }) {
+function DetailRow({ icon: Icon, label, value, mono = false, isLoading }: { icon: LucideIcon, label: string, value: string, mono?: boolean, isLoading?: boolean }) {
   return (
     <div className="flex items-center justify-between text-sm py-1">
       <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">

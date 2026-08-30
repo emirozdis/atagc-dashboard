@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, MessageSquare, ArrowRight, ShieldQuestion } from "lucide-react";
@@ -59,7 +58,7 @@ export default function SharedTicketsPage() {
     const handleTrackSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!trackId || !trackToken) {
-            toast.error("Lütfen Ticket ID ve Access Token giriniz.");
+            toast.error("Enter a ticket ID and access token.");
             return;
         }
 
@@ -72,10 +71,10 @@ export default function SharedTicketsPage() {
                 setView('detail');
                 setTrackDialogOpen(false);
             } else {
-                toast.error("Bildirim bulunamadı veya bilgiler hatalı.");
+                toast.error("Ticket not found or the details are incorrect.");
             }
-        } catch (error) {
-            toast.error("Bir hata oluştu.");
+        } catch {
+            toast.error("Something went wrong.");
         }
     };
 
@@ -86,39 +85,37 @@ export default function SharedTicketsPage() {
     };
 
     return (
-        <div className={cn("max-w-7xl mx-auto", view !== 'detail' && "pb-12")}>
+        <div className={cn("mx-auto max-w-7xl p-5 sm:p-8", view !== 'detail' && "pb-12")}>
             {/* Header Section */}
             <div className={cn(
                 "pb-6 mb-2",
                 (view === 'detail' || view === 'create') && "hidden"
             )}>
-                <Breadcrumbs items={[{ label: "Destek & Bildirim" }]} />
-
                 {view === 'list' && (
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
                         <div>
-                            <h2 className="text-3xl font-display font-bold text-foreground tracking-tight">Destek Merkezi</h2>
+                            <h2 className="text-3xl font-display font-bold text-foreground tracking-tight">Support center</h2>
                             <p className="text-muted-foreground mt-1">
-                                Geri bildirimlerinizi yönetin veya anonim bir bildirimi sorgulayın.
+                                Manage your support requests or track an anonymous ticket.
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                             <Dialog open={trackDialogOpen} onOpenChange={setTrackDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button variant="outline" className="shrink-0 flex-1 sm:flex-none sm:min-w-[140px] h-10 border-border bg-card hover:bg-muted/50 transition-colors">
-                                        <ShieldQuestion className="w-4 h-4 mr-2" /> Anonim Takip
+                                        <ShieldQuestion className="w-4 h-4 mr-2" /> Track a ticket
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-md bg-card border-border shadow-xl">
                                     <DialogHeader>
-                                        <DialogTitle className="text-xl">Anonim Bildirim Takibi</DialogTitle>
+                                        <DialogTitle className="text-xl">Track a ticket</DialogTitle>
                                         <DialogDescription>
-                                            Size verilen takip numarasını ve erişim anahtarını girerek bildiriminizi sorgulayın.
+                                            Enter the ticket ID and access token you received to view your request.
                                         </DialogDescription>
                                     </DialogHeader>
                                     <form onSubmit={handleTrackSubmit} className="space-y-4 pt-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-foreground">Takip Numarası (Ticket ID)</label>
+                                            <label className="text-sm font-medium text-foreground">Ticket ID</label>
                                             <Input
                                                 placeholder="xxxxxxxx-xxxx-..."
                                                 className="font-mono text-sm bg-background"
@@ -127,23 +124,23 @@ export default function SharedTicketsPage() {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-foreground">Erişim Anahtarı (Access Token)</label>
+                                            <label className="text-sm font-medium text-foreground">Access token</label>
                                             <Input
                                                 type="password"
-                                                placeholder="Gizli Anahtar Kodunuz"
+                                                placeholder="Your access token"
                                                 className="font-mono text-sm bg-background"
                                                 value={trackToken}
                                                 onChange={e => setTrackToken(e.target.value)}
                                             />
                                         </div>
                                         <Button type="submit" className="w-full mt-2 h-11">
-                                            Sorgula <ArrowRight className="w-4 h-4 ml-2" />
+                                            Track ticket <ArrowRight className="w-4 h-4 ml-2" />
                                         </Button>
                                     </form>
                                 </DialogContent>
                             </Dialog>
                             <Button onClick={() => setView('create')} className="shrink-0 flex-1 sm:flex-none sm:min-w-[140px] shadow-md h-10">
-                                <Plus className="w-4 h-4 mr-2" /> Yeni Bildirim
+                                <Plus className="w-4 h-4 mr-2" /> New ticket
                             </Button>
                         </div>
                     </div>
@@ -161,12 +158,12 @@ export default function SharedTicketsPage() {
                                     <div className="w-20 h-20 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-border/40">
                                         <MessageSquare className="w-10 h-10 opacity-40 text-primary" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2 text-foreground">Henüz Kayıt Yok</h3>
+                                    <h3 className="text-xl font-semibold mb-2 text-foreground">No tickets yet</h3>
                                     <p className="text-sm max-w-xs mx-auto leading-relaxed">
-                                        Hesabınızla oluşturduğunuz bildirimler burada listelenir.
+                                        Support requests you create will appear here.
                                     </p>
                                     <Button variant="outline" onClick={() => setView('create')} className="mt-8 border-primary/20 hover:bg-primary/5">
-                                        İlk Bildirimi Oluştur
+                                        Create your first ticket
                                     </Button>
                                 </div>
                             ) : (
@@ -175,10 +172,10 @@ export default function SharedTicketsPage() {
                                         <Table>
                                             <TableHeader className="bg-muted/40">
                                                 <TableRow className="hover:bg-transparent border-b-border/60">
-                                                    <TableHead className="font-semibold text-foreground py-4">Konu</TableHead>
-                                                    <TableHead className="font-semibold text-foreground">Kategori</TableHead>
-                                                    <TableHead className="font-semibold text-foreground">Durum</TableHead>
-                                                    <TableHead className="text-right font-semibold text-foreground">Tarih</TableHead>
+                                                    <TableHead className="font-semibold text-foreground py-4">Subject</TableHead>
+                                                    <TableHead className="font-semibold text-foreground">Category</TableHead>
+                                                    <TableHead className="font-semibold text-foreground">Status</TableHead>
+                                                    <TableHead className="text-right font-semibold text-foreground">Date</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -203,7 +200,7 @@ export default function SharedTicketsPage() {
                                                                 </Badge>
                                                             </TableCell>
                                                             <TableCell className="text-muted-foreground text-[11px] text-right font-mono">
-                                                                {new Date(t.created_at).toLocaleDateString('tr-TR')}
+                                                                {new Date(t.created_at).toLocaleDateString('en-GB')}
                                                             </TableCell>
                                                         </TableRow>
                                                     )
@@ -231,7 +228,7 @@ export default function SharedTicketsPage() {
                 <div className="space-y-6 max-w-3xl mx-auto">
                     <div className="flex flex-col space-y-4 mb-8">
                         <Button variant="ghost" onClick={() => setView('list')} className="w-fit pl-0 hover:bg-transparent hover:text-primary transition-colors">
-                            ← Listeye Geri Dön
+                            ← Back to tickets
                         </Button>
                     </div>
                     <TicketForm isLoggedIn={true} onSubmitSuccess={handleCreateSuccess} />

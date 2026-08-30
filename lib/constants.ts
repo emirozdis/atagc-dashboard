@@ -26,10 +26,10 @@ export const CITY_OPTIONS = SORTED_CITIES.map(city => ({
 }));
 
 export const GRADE_OPTIONS = [
-  { label: "Hazırlık", value: "prep" },
-  { label: "9. Sınıf", value: "9" },
-  { label: "10. Sınıf", value: "10" },
-  { label: "11. Sınıf", value: "11" },
-  { label: "12. Sınıf", value: "12" },
-  { label: "Üniversite", value: "university" },
+  { label: "Preparatory", value: "prep" },
+  { label: "9th grade", value: "9" },
+  { label: "10th grade", value: "10" },
+  { label: "11th grade", value: "11" },
+  { label: "12th grade", value: "12" },
+  { label: "University", value: "university" },
 ];

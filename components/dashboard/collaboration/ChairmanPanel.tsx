@@ -34,13 +34,13 @@ export function ChairmanPanel({ isOpen, members, onTogglePermission }: ChairmanP
     switch (role) {
       case "superadmin":
       case "admin":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"><ShieldAlert className="w-3 h-3" /> Yönetici</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"><ShieldAlert className="w-3 h-3" /> Administrator</span>;
       case "committee_chairman":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20"><ShieldCheck className="w-3 h-3" /> Başkan</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20"><ShieldCheck className="w-3 h-3" /> Chair</span>;
       case "deputy_chair":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-500 border border-indigo-500/20"><Shield className="w-3 h-3" /> Başkan Yrd.</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-500 border border-indigo-500/20"><Shield className="w-3 h-3" /> Deputy chair</span>;
       default:
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20"><Shield className="w-3 h-3" /> Katılımcı</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20"><Shield className="w-3 h-3" /> Participant</span>;
     }
   };
 
@@ -51,16 +51,16 @@ export function ChairmanPanel({ isOpen, members, onTogglePermission }: ChairmanP
       <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5 rounded-t-xl">
         <h3 className="font-semibold flex items-center gap-2">
           <Shield className="w-4 h-4 text-primary" />
-          Üye İzinleri
+          Member permissions
         </h3>
-        <span className="text-xs text-muted-foreground">{members?.length || 0} Üye</span>
+        <span className="text-xs text-muted-foreground">{members?.length || 0} members</span>
       </div>
 
       <div className="p-3 border-b border-white/5">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Üye ara..."
+            placeholder="Search members..."
             className="pl-9 h-9 bg-background/50 border-white/10"
             value={searchMember}
             onChange={(e) => setSearchMember(e.target.value)}
@@ -71,7 +71,7 @@ export function ChairmanPanel({ isOpen, members, onTogglePermission }: ChairmanP
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {filteredMembers.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            {members?.length === 0 ? "Henüz üye bulunmuyor." : "Aranan kriterde üye yok."}
+            {members?.length === 0 ? "No members yet." : "No members match your search."}
           </div>
         ) : filteredMembers.map(member => (
           <div key={member.id} className="group flex items-center justify-between p-3 rounded-lg bg-card/50 hover:bg-card border border-white/5 hover:border-white/10 transition-all">
@@ -101,7 +101,7 @@ export function ChairmanPanel({ isOpen, members, onTogglePermission }: ChairmanP
       </div>
 
       <div className="p-3 border-t border-white/5 bg-white/5 rounded-b-xl text-[10px] text-center text-muted-foreground">
-        Değişiklikler anında uygulanır.
+        Changes apply immediately.
       </div>
     </div>
   );

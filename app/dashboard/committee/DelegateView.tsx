@@ -15,12 +15,29 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { DashboardData } from "@/types/dashboard";
+import type { Session } from "next-auth";
 
-export function DelegateView({ session }: { session: any }) {
+interface CommitteeMemberSummary {
+  id: string;
+  userId: string;
+  full_name: string;
+  role: string;
+  image?: string;
+  user?: { role: string };
+}
+
+interface MembersResponse {
+  members: CommitteeMemberSummary[];
+  admin?: CommitteeMemberSummary | null;
+}
+
+export function DelegateView({ session }: { session: Session | null }) {
   const [isVotingOpen, setIsVotingOpen] = useState(false);
 
   useEffect(() => {
-    if (window.location.hash.slice(1) === "voting") setIsVotingOpen(true);
+    if (window.location.hash.slice(1) !== "voting") return;
+    const frame = window.requestAnimationFrame(() => setIsVotingOpen(true));
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const { data: meData, isLoading: meLoading } = useQuery<DashboardData>({
@@ -32,7 +49,7 @@ export function DelegateView({ session }: { session: any }) {
     }
   });
 
-  const { data: membersData, isLoading: membersLoading } = useQuery({
+  const { data: membersData, isLoading: membersLoading } = useQuery<MembersResponse>({
     queryKey: ["committee-members-list"],
     queryFn: async () => {
       const res = await fetch("/api/committee/members");
@@ -49,7 +66,7 @@ export function DelegateView({ session }: { session: any }) {
   const topic = committee.topic;
 
   let members = membersData?.members || [];
-  if (membersData?.admin && !members.find((m: any) => m.userId === membersData.admin.userId)) {
+  if (membersData?.admin && !members.find((m) => m.userId === membersData.admin?.userId)) {
     members = [membersData.admin, ...members];
   }
 
@@ -65,7 +82,7 @@ export function DelegateView({ session }: { session: any }) {
         <div className="lg:col-span-8 space-y-8 order-1">
           <TopicCard topic={topic} />
           <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-1">Hızlı İşlemler</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-1">Quick actions</h3>
             <QuickActions onOpenVoting={() => setIsVotingOpen(true)} />
           </div>
         </div>
@@ -106,7 +123,7 @@ function LoadingSkeleton() {
         <div className="lg:col-span-8 space-y-8 order-1">
           <TopicCard isLoading={true} />
           <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-1">Hızlı İşlemler</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-1">Quick actions</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex flex-col items-center gap-3 p-4 rounded-xl border border-border/50 bg-card">
@@ -140,12 +157,12 @@ function EmptyState() {
         <Users className="w-10 h-10 text-muted-foreground" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold font-display">Henüz Atanmadınız</h2>
+        <h2 className="text-2xl font-bold font-display">No committee assigned yet</h2>
         <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-          Başvurunuz onaylanmış olsa da henüz bir komiteye yerleştirilmediniz.
+          Your application was approved, but you have not been placed in a committee yet.
         </p>
       </div>
-      <Button asChild variant="outline"><Link href="/dashboard">Panele Dön</Link></Button>
+      <Button asChild variant="outline"><Link href="/dashboard">Back to dashboard</Link></Button>
     </div>
   );
 }

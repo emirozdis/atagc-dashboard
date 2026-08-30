@@ -4,12 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 
 interface DynamicFormStepProps {
     step: FormStep;
-    answers: Record<string, any>;
-    onAnswerChange: (id: string, value: any) => void;
+    answers: Record<string, unknown>;
+    onAnswerChange: (id: string, value: unknown) => void;
 }
 
 export function DynamicFormStep({ step, answers, onAnswerChange }: DynamicFormStepProps) {
@@ -37,23 +36,24 @@ export function DynamicFormStep({ step, answers, onAnswerChange }: DynamicFormSt
     );
 }
 
-function renderField(field: FormField, value: any, onChange: (val: any) => void) {
+function renderField(field: FormField, value: unknown, onChange: (val: unknown) => void) {
+    const stringValue = typeof value === "string" || typeof value === "number" ? String(value) : "";
     switch (field.type) {
         case "textarea":
             return (
                 <Textarea
                     id={field.id}
                     placeholder={field.placeholder}
-                    value={value || ""}
+                    value={stringValue}
                     onChange={(e) => onChange(e.target.value)}
                     className="min-h-[100px]"
                 />
             );
         case "select":
             return (
-                <Select value={value || ""} onValueChange={onChange}>
+                <Select value={stringValue} onValueChange={onChange}>
                     <SelectTrigger>
-                        <SelectValue placeholder="Seçiniz..." />
+                        <SelectValue placeholder="Select an option..." />
                     </SelectTrigger>
                     <SelectContent>
                         {field.options?.map((opt) => (
@@ -83,7 +83,7 @@ function renderField(field: FormField, value: any, onChange: (val: any) => void)
                     id={field.id}
                     type={field.type}
                     placeholder={field.placeholder}
-                    value={value || ""}
+                    value={stringValue}
                     onChange={(e) => onChange(e.target.value)}
                 />
             );

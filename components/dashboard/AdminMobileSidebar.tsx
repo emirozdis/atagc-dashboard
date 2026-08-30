@@ -31,13 +31,13 @@ interface AdminMobileSidebarProps {
 
 const adminItems = [
     {
-        title: "Panel",
+        title: "Dashboard",
         href: "/admin",
         icon: LayoutDashboard,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
-        title: "Başvurular",
+        title: "Applications",
         href: "/admin/applications",
         icon: FileText,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
@@ -49,73 +49,73 @@ const adminItems = [
         roles: [ROLES.SUPERADMIN]
     },
     {
-        title: "Kullanıcılar",
+        title: "People and roles",
         href: "/admin/users",
         icon: Users,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
-        title: "Delegasyonlar",
+        title: "Delegations",
         href: "/admin/delegations",
         icon: Briefcase,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
-        title: "Komiteler",
+        title: "Committees",
         href: "/admin/committees",
         icon: CalendarDays,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
-        title: "Yoklama",
+        title: "Roll call",
         href: "/admin/roll-call",
         icon: QrCode,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
-        title: "Destek Talepleri",
+        title: "Support tickets",
         href: "/admin/tickets",
         icon: MessageSquare,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
-        title: "Kaynaklar",
+        title: "Resources",
         href: "/admin/resources",
         icon: FolderOpen,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
-        title: "Ödemeler",
+        title: "Payments",
         href: "/admin/payments",
         icon: CreditCard,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
-        title: "Yemek Yönetimi",
+        title: "Catering",
         href: "/admin/catering",
         icon: UtensilsCrossed,
         roles: ["superadmin", "admin"]
     },
     {
-        title: "Duyurular",
+        title: "Announcements",
         href: "/admin/announcements",
         icon: Megaphone,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
-        title: "Sistem Kayıtları",
+        title: "System logs",
         href: "/admin/logs",
         icon: ScrollText,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN]
     },
     {
-        title: "Profilim",
+        title: "Profile",
         href: "/profile",
         icon: User,
         roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR]
     },
     {
-        title: "Ayarlar",
+        title: "Settings",
         href: "/admin/settings",
         icon: Settings,
         roles: [ROLES.SUPERADMIN]
@@ -127,11 +127,11 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
     const { data: session } = useSession();
     const role = session?.user?.role;
 
-    const filteredItems = adminItems.filter(item => !item.roles || item.roles.includes(role as any));
+    const filteredItems = adminItems.filter(item => !item.roles || item.roles.includes(role ?? ""));
 
     const roleTag = (() => {
-        if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return "Yönetim";
-        if (role === ROLES.CHAIRMAN || role === ROLES.DEPUTY_CHAIR) return "Akademi";
+        if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) return "Administration";
+        if (role === ROLES.CHAIRMAN || role === ROLES.DEPUTY_CHAIR) return "Academic";
         return null;
     })();
 
@@ -139,9 +139,9 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
         <div className="flex flex-col h-full bg-background border-r border-border">
             <div className="p-6 border-b border-border">
                 <Link href="/admin" prefetch={false} className="flex items-center gap-3" onClick={onClose}>
-                    <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
+                    <img src="/ravenmun-logo.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
                     <span className="font-display font-bold text-lg text-primary">
-                        ATAGÇ
+                        RavenMUN
                         {roleTag && (
                             <span className="text-xs ml-2 bg-primary/20 px-1.5 py-0.5 rounded text-primary-foreground">
                                 {roleTag}
@@ -153,7 +153,7 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
 
             <ScrollArea className="flex-1 min-h-0 p-4">
                 <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Yönetim Menüsü
+                    Administration menu
                 </div>
 
                 <nav className="space-y-1">
@@ -183,7 +183,7 @@ export function AdminMobileSidebar({ onClose }: AdminMobileSidebarProps) {
                     className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
                 >
                     <LogOut className="w-4 h-4" />
-                    Çıkış Yap
+                    Sign out
                 </button>
             </div>
         </div>

@@ -18,9 +18,9 @@ interface Task {
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-  assigned: { label: "Devam Ediyor", variant: "outline", color: "text-cyan-500" },
-  cancelled: { label: "İptal Edildi", variant: "outline", color: "text-red-500" },
-  completed: { label: "Tamamlandı", variant: "outline", color: "text-emerald-500" },
+  assigned: { label: "In progress", variant: "outline", color: "text-cyan-500" },
+  cancelled: { label: "Cancelled", variant: "outline", color: "text-red-500" },
+  completed: { label: "Completed", variant: "outline", color: "text-emerald-500" },
 };
 
 export default function MyTasksPage() {
@@ -29,7 +29,7 @@ export default function MyTasksPage() {
 
   const handleTaskAction = async (taskId: string, action: "complete" | "cancel") => {
     if (action === "cancel") {
-      const reason = prompt("İptal nedenini yazınız:");
+      const reason = prompt("Enter a cancellation reason:");
       if (reason === null) return; // user pressed cancel on prompt
       // TODO: send reason to the API later
     }
@@ -43,7 +43,7 @@ export default function MyTasksPage() {
       if (!res.ok) throw new Error("Failed");
       queryClient.invalidateQueries({ queryKey: ["observer-info"] });
     } catch {
-      alert("İşlem başarısız oldu.");
+      alert("Action failed.");
     }
   };
 
@@ -63,15 +63,15 @@ export default function MyTasksPage() {
 
   return (
     <div className="animate-fade-in max-w-7xl mx-auto pb-12 space-y-8">
-      <Breadcrumbs items={[{ label: "Organizasyon", href: "/organisation" }, { label: "Görevlerim" }]} />
+      <Breadcrumbs items={[{ label: "Organisation", href: "/organisation" }, { label: "My tasks" }]} />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
-            Görevlerim
+            My tasks
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Size atanan görevleri buradan takip edebilirsiniz.
+            Track your assigned tasks here.
           </p>
         </div>
       </div>
@@ -96,7 +96,7 @@ export default function MyTasksPage() {
             </div>
             <div>
               <div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-7 w-8" /> : cancelledCount}</div>
-              <div className="text-xs text-muted-foreground">İptal Edilen</div>
+              <div className="text-xs text-muted-foreground">Cancelled</div>
             </div>
           </CardContent>
         </Card>
@@ -107,7 +107,7 @@ export default function MyTasksPage() {
             </div>
             <div>
               <div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-7 w-8" /> : completedCount}</div>
-              <div className="text-xs text-muted-foreground">Tamamlanan</div>
+              <div className="text-xs text-muted-foreground">Completed</div>
             </div>
           </CardContent>
         </Card>
@@ -132,9 +132,9 @@ export default function MyTasksPage() {
             <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mb-5">
               <ListTodo className="w-7 h-7 text-muted-foreground" />
             </div>
-            <h4 className="font-semibold text-xl text-foreground mb-2">Henüz Görev Atanmadı</h4>
+            <h4 className="font-semibold text-xl text-foreground mb-2">No tasks assigned yet</h4>
             <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Baş gözlemci tarafından size görev atandığında burada görüntülenecektir.
+              Tasks assigned by the head observer will appear here.
             </p>
           </CardContent>
         </Card>
@@ -152,7 +152,7 @@ export default function MyTasksPage() {
                         <p className="text-sm text-muted-foreground line-clamp-2">{task.task_description}</p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        {new Date(task.created_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
+                        {new Date(task.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
                       </p>
                     </div>
                     <div className="flex flex-col items-center gap-2 shrink-0">
@@ -164,14 +164,14 @@ export default function MyTasksPage() {
                           <button
                             onClick={() => handleTaskAction(task.id, "complete")}
                             className="p-1 rounded-md hover:bg-emerald-500/10 text-emerald-500 transition-colors"
-                            title="Tamamla"
+                            title="Complete"
                           >
                             <Check className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleTaskAction(task.id, "cancel")}
                             className="p-1 rounded-md hover:bg-red-500/10 text-red-500 transition-colors"
-                            title="İptal Et"
+                            title="Cancel task"
                           >
                             <X className="w-4 h-4" />
                           </button>

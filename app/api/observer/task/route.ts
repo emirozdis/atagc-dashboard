@@ -26,14 +26,14 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (!target_task_id) {
     return NextResponse.json(
-      { error: "target_task_id alanı zorunludur." },
+      { error: "target_task_id is required." },
       { status: 400 }
     );
   }
 
   if (!action || !["complete", "cancel"].includes(action)) {
     return NextResponse.json(
-      { error: "action alanı 'complete' veya 'cancel' olmalıdır." },
+      { error: "action must be 'complete' or 'cancel'." },
       { status: 400 }
     );
   }
@@ -47,7 +47,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (taskError || !task) {
     return NextResponse.json(
-      { error: "Görev bulunamadı." },
+      { error: "Task not found." },
       { status: 404 }
     );
   }
@@ -55,7 +55,7 @@ export const POST = apiHandler(async (request: Request) => {
   // If user is an observer, they can only modify tasks assigned to them
   if (userRole === ROLES.OBSERVER && task.assigned_to !== userId) {
     return NextResponse.json(
-      { error: "Bu görevi değiştirme yetkiniz yok." },
+      { error: "You do not have permission to change this task." },
       { status: 403 }
     );
   }

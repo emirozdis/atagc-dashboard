@@ -1,16 +1,7 @@
 import { getServerSession, Session } from "next-auth";
 import { authOptions } from "./auth";
 import { supabase } from "./SERVER_supabase";
-import { LRUCache } from "lru-cache";
 import "server-only";
-
-// In-memory cache to store valid session IDs for a short time.
-// This prevents hitting the database on every single API request
-// while still ensuring revoked sessions are caught within 60 seconds.
-const sessionValidationCache = new LRUCache<string, boolean>({
-  max: 200, // Store up to 2000 active session IDs
-  ttl: 1000 * 60, // Cache validity: 60 seconds
-});
 
 type AuthOptions = {
   /** If true, require a logged in user (default true) */
@@ -21,9 +12,9 @@ type AuthOptions = {
   requireApproved?: boolean;
   /** Optional async custom check that receives the session and can perform resource checks */
   customCheck?: (
-    session: any,
+    session: Session | null,
     supabaseClient: typeof supabase
-  ) => Promise<{ ok: boolean; payload?: any; message?: string; status?: number }>;
+  ) => Promise<{ ok: boolean; payload?: unknown; message?: string; status?: number }>;
 };
 
 /**
@@ -33,34 +24,33 @@ type AuthOptions = {
 export async function getAuthorization(opts: AuthOptions = {}) {
   const { requireAuth = true, allowedRoles, requireApproved = false, customCheck } = opts;
 
-  const session: Session | null = await getServerSession(authOptions as any);
+  const session: Session | null = await getServerSession(authOptions);
 
   if (requireAuth) {
     if (!session?.user) {
       return { ok: false, status: 401, message: "Unauthorized" };
     }
 
-    // --- OPTIMIZED SECURITY CHECK ---
+    // Session revocation must take effect immediately. Do not trust a
+    // process-local cache for authorization decisions.
     const sessionId = session.user.sessionId;
     
     if (sessionId) {
-      // 1. Check local cache first
-      if (!sessionValidationCache.has(sessionId)) {
-        // 2. If not in cache, check Database
-        const { data: activeSession } = await supabase
+      const [{ data: activeSession, error: sessionError }, { data: account, error: accountError }] = await Promise.all([
+        supabase
           .from("active_sessions")
           .select("id")
           .eq("id", sessionId)
-          .single();
-        
-        if (!activeSession) {
-           return { ok: false, status: 401, message: "Session revoked or expired" };
-        }
+          .is("revoked_at", null)
+          .gt("expires_at", new Date().toISOString())
+          .maybeSingle(),
+        supabase.from("users").select("id, is_suspended").eq("id", session.user.id).maybeSingle(),
+      ]);
 
-        // 3. Store in cache if valid
-        sessionValidationCache.set(sessionId, true);
+      if (sessionError || accountError || !activeSession || !account) {
+        return { ok: false, status: 401, message: "Session revoked or expired" };
       }
-      // If validationCache.has(sessionId), we assume it's valid for the TTL duration
+      if (account.is_suspended) return { ok: false, status: 403, message: "Account suspended" };
     } else {
        return { ok: false, status: 401, message: "Invalid session token structure" };
     }

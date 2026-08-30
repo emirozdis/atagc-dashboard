@@ -25,7 +25,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -77,22 +76,21 @@ export default function AdminDelegationsPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "approved":
-                return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Onaylı</Badge>;
+                return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Approved</Badge>;
             case "rejected":
-                return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 gap-1.5"><XCircle className="w-3.5 h-3.5" /> Reddedildi</Badge>;
+                return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 gap-1.5"><XCircle className="w-3.5 h-3.5" /> Rejected</Badge>;
             default:
-                return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 gap-1.5"><Clock className="w-3.5 h-3.5" /> Bekliyor</Badge>;
+                return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 gap-1.5"><Clock className="w-3.5 h-3.5" /> Pending</Badge>;
         }
     };
 
     return (
-        <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-            <Breadcrumbs items={[{ label: "Delegasyonlar" }]} />
+        <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
             
             <div className="flex flex-col gap-1">
-                <h2 className="text-3xl font-display font-bold text-foreground">Delegasyonlar</h2>
+                <h2 className="text-3xl font-display font-bold text-foreground">Delegations</h2>
                 <p className="text-muted-foreground text-lg">
-                    Toplam <span className="font-medium text-foreground">{totalRecords}</span> delegasyon listeleniyor.
+                    Showing <span className="font-medium text-foreground">{totalRecords}</span> delegations.
                 </p>
             </div>
 
@@ -100,7 +98,7 @@ export default function AdminDelegationsPage() {
                 <div className="relative max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                        placeholder="Delegasyon adı veya lider ara..."
+                        placeholder="Search delegation name or leader..."
                         className="pl-9 bg-background border-border/50 h-10"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -113,7 +111,7 @@ export default function AdminDelegationsPage() {
             ) : delegations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
                     <Users className="w-12 h-12 mb-3 opacity-20" />
-                    <p>Kriterlere uygun delegasyon bulunamadı.</p>
+                    <p>No delegations matched your filters.</p>
                 </div>
             ) : (
                 <>
@@ -121,10 +119,10 @@ export default function AdminDelegationsPage() {
                         <Table>
                             <TableHeader className="bg-muted/30">
                                 <TableRow>
-                                    <TableHead className="pl-6">Delegasyon Adı</TableHead>
+                                    <TableHead className="pl-6">Delegation name</TableHead>
                                     <TableHead>Lider</TableHead>
-                                    <TableHead className="text-center">Durum</TableHead>
-                                    <TableHead className="text-center">Üye Sayısı</TableHead>
+                                    <TableHead className="text-center">Status</TableHead>
+                                    <TableHead className="text-center">Members</TableHead>
                                     <TableHead className="text-right pr-6"></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -144,7 +142,7 @@ export default function AdminDelegationsPage() {
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 <Crown className="w-3.5 h-3.5 text-yellow-500" />
-                                                <span className="text-sm font-medium">{del.leader?.full_name || "Bilinmiyor"}</span>
+                                                <span className="text-sm font-medium">{del.leader?.full_name || "Unknown"}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">
@@ -184,13 +182,13 @@ export default function AdminDelegationsPage() {
                                         <div className="flex flex-col items-end gap-2">
                                             {getStatusBadge(del.status)}
                                             <Badge variant="secondary" className="font-mono text-[10px]">
-                                                {del.member_count} Üye
+                                                {del.member_count} members
                                             </Badge>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/30">
-                                        <span className="font-mono">{new Date(del.created_at).toLocaleDateString("tr-TR")}</span>
-                                        <span className="text-primary font-bold flex items-center gap-1">İncele <ChevronRight className="w-4 h-4" /></span>
+                                        <span className="font-mono">{new Date(del.created_at).toLocaleDateString("en-GB")}</span>
+                                        <span className="text-primary font-bold flex items-center gap-1">View <ChevronRight className="w-4 h-4" /></span>
                                     </div>
                                 </CardContent>
                             </Card>

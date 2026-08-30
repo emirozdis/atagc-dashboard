@@ -35,7 +35,7 @@ export const GET = apiHandler(async (
         }
 
         if (!targetCommitteeId || targetCommitteeId !== adminCommitteeId) {
-             return NextResponse.json({ error: "Bu kullanıcı sizin komitenizde değil." }, { status: 403 });
+             return NextResponse.json({ error: "This user is not in your committee." }, { status: 403 });
         }
     }
 
@@ -49,6 +49,20 @@ export const GET = apiHandler(async (
 
     if (!user) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // The legacy profile RPC returns the conference role but not the account
+    // role. Resolve that separately so site administrators are not displayed
+    // as ordinary applicants in the detail view.
+    const { data: account } = await supabase
+        .from("users")
+        .select("account_role")
+        .eq("id", id)
+        .maybeSingle();
+    if (account) {
+        user.account_role = account.account_role;
+        if (account.account_role === "super_admin") user.role = ROLES.SUPERADMIN;
+        if (account.account_role === "site_admin") user.role = ROLES.ADMIN;
     }
 
     if (user.user_details && user.user_details.profile_picture_url) {

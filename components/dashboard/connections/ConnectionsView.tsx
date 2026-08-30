@@ -6,8 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
     Users, UserPlus, Check, X, Trash2, Search, Mail,
-    Shield, User as UserIcon, Loader2, ArrowRight,
-    Clock,
+    Loader2, Clock,
     Send
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConnectionState } from "@/types/connection";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     AlertDialog,
@@ -33,19 +32,15 @@ import {
 export function ConnectionsView() {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
-    const [activeTab, setActiveTab] = useState("list");
+    const [activeTab, setActiveTab] = useState(() => {
+        if (typeof window === "undefined") return "list";
+        const hash = window.location.hash.slice(1);
+        return hash === "pending" || hash === "sent" || hash === "list" ? hash : "list";
+    });
 
     // Dialog State
     const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-
-    // Handle hash-based navigation
-    useEffect(() => {
-        const hash = window.location.hash.slice(1); // Remove #
-        if (hash === "pending" || hash === "sent" || hash === "list") {
-            setActiveTab(hash);
-        }
-    }, []);
 
     const { data, isLoading } = useQuery<ConnectionState>({
         queryKey: ['connections'],
@@ -67,10 +62,10 @@ export function ConnectionsView() {
             if (!res.ok) throw new Error("Failed");
         },
         onSuccess: () => {
-            toast.success("İşlem başarılı");
+            toast.success("Request updated");
             queryClient.invalidateQueries({ queryKey: ['connections'] });
         },
-        onError: () => toast.error("Hata oluştu")
+        onError: () => toast.error("Unable to update request")
     });
 
     const deleteMutation = useMutation({
@@ -79,11 +74,11 @@ export function ConnectionsView() {
             if (!res.ok) throw new Error("Failed");
         },
         onSuccess: () => {
-            toast.success("Bağlantı kaldırıldı");
+            toast.success("Connection removed");
             queryClient.invalidateQueries({ queryKey: ['connections'] });
             setItemToDelete(null);
         },
-        onError: () => toast.error("Silinemedi")
+        onError: () => toast.error("Unable to remove connection")
     });
 
     const handleDeleteConfirm = async () => {
@@ -98,7 +93,7 @@ export function ConnectionsView() {
 
     const filteredConnections = (data?.connected || []).filter(c =>
         c.friend.full_name.toLowerCase().includes(search.toLowerCase()) ||
-        ((c.friend as any).user_details?.high_schools?.school_name || (c.friend as any).user_details?.additional_info?.manual_school_name || "").toLowerCase().includes(search.toLowerCase())
+        (c.friend.user_details?.high_schools?.school_name || c.friend.user_details?.additional_info?.manual_school_name || "").toLowerCase().includes(search.toLowerCase())
     );
 
     const pendingReceivedCount = data?.pending.length || 0;
@@ -106,12 +101,12 @@ export function ConnectionsView() {
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
+            <div className="mx-auto max-w-6xl space-y-6 p-5 sm:p-8">
                 <div className="flex flex-col gap-4">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tanıştıklarım</h2>
+                        <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Connections</h2>
                         <p className="text-muted-foreground mt-1 text-sm md:text-base">
-                            Etkinlik süresince tanıştığınız kişilerin listesi.
+                            People you have connected with during the conference.
                         </p>
                     </div>
 
@@ -149,12 +144,12 @@ export function ConnectionsView() {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="mx-auto max-w-6xl space-y-6 p-5 animate-fade-in sm:p-8">
             <div className="flex flex-col gap-4">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tanıştıklarım</h2>
+                    <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Connections</h2>
                     <p className="text-muted-foreground mt-1 text-sm md:text-base">
-                        Etkinlik süresince tanıştığınız kişilerin listesi.
+                        People you have connected with during the conference.
                     </p>
                 </div>
 
@@ -163,12 +158,12 @@ export function ConnectionsView() {
                         <TabsList className="grid grid-cols-3 w-full md:w-auto h-auto p-1">
                             <TabsTrigger value="list" className="gap-2 py-2">
                                 <Users className="w-4 h-4" />
-                                <span className="hidden sm:inline">Bağlantılar</span>
+                                <span className="hidden sm:inline">Connections</span>
                                 <span className="ml-1 text-xs bg-muted-foreground/10 px-1.5 rounded-full">{data?.connected.length || 0}</span>
                             </TabsTrigger>
                             <TabsTrigger value="pending" className="gap-2 py-2 relative">
                                 <UserPlus className="w-4 h-4" />
-                                <span className="hidden sm:inline">Gelen</span>
+                                <span className="hidden sm:inline">Received</span>
                                 {pendingReceivedCount > 0 && (
                                     <Badge variant="destructive" className="ml-1 px-1.5 h-5 text-[10px] pointer-events-none">
                                         {pendingReceivedCount}
@@ -177,7 +172,7 @@ export function ConnectionsView() {
                             </TabsTrigger>
                             <TabsTrigger value="sent" className="gap-2 py-2">
                                 <Send className="w-4 h-4" />
-                                <span className="hidden sm:inline">Giden</span>
+                                <span className="hidden sm:inline">Sent</span>
                                 <span className="ml-1 text-xs bg-muted-foreground/10 px-1.5 rounded-full">{pendingSentCount}</span>
                             </TabsTrigger>
                         </TabsList>
@@ -185,7 +180,7 @@ export function ConnectionsView() {
                         <div className="relative w-full md:w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                                placeholder="İsim veya okul ara..."
+                                placeholder="Search by name or school..."
                                 className="pl-9 h-10 bg-card border-border/50"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
@@ -200,9 +195,9 @@ export function ConnectionsView() {
                                 <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
                                     <Users className="w-8 h-8 text-muted-foreground/40" />
                                 </div>
-                                <h3 className="text-lg font-medium">Listeniz Boş</h3>
+                                <h3 className="text-lg font-medium">No connections yet</h3>
                                 <p className="text-muted-foreground text-sm max-w-sm mt-2">
-                                    Henüz kimseyle bağlantı kurmadınız. Başkalarının QR kodunu tarayarak veya kendi kodunuzu okutarak ekleyebilirsiniz.
+                                    Connect with other participants to see them here.
                                 </p>
                             </div>
                         ) : (
@@ -219,11 +214,11 @@ export function ConnectionsView() {
                                                 <div className="flex justify-between items-start">
                                                     <h4 className="font-semibold text-sm truncate pr-2">{conn.friend.full_name}</h4>
                                                     <Badge variant="secondary" className="text-[9px] h-5 px-1.5 capitalize shrink-0">
-                                                        {conn.friend.role === 'applicant' ? 'Delege' : conn.friend.role.replace('_', ' ')}
+                                                        {conn.friend.role === 'applicant' ? 'Delegate' : conn.friend.role.replace('_', ' ')}
                                                     </Badge>
                                                 </div>
 
-                                                <p className="text-xs text-muted-foreground truncate">{(conn.friend as any).user_details?.high_schools?.school_name || (conn.friend as any).user_details?.additional_info?.manual_school_name || "Okul Belirtilmemiş"}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{conn.friend.user_details?.high_schools?.school_name || conn.friend.user_details?.additional_info?.manual_school_name || "School not specified"}</p>
 
                                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
                                                     <Mail className="w-3 h-3 opacity-70" />
@@ -251,7 +246,7 @@ export function ConnectionsView() {
                         {(!data?.pending || data.pending.length === 0) ? (
                             <div className="flex flex-col items-center justify-center py-16 border border-border/50 rounded-xl bg-card/30 text-center">
                                 <UserPlus className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                                <p className="text-muted-foreground">Bekleyen gelen istek bulunmuyor.</p>
+                                <p className="text-muted-foreground">You have no pending requests.</p>
                             </div>
                         ) : (
                             <div className="grid gap-4 sm:grid-cols-2">
@@ -265,7 +260,7 @@ export function ConnectionsView() {
 
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-semibold text-sm truncate">{req.requester.full_name}</h4>
-                                                <p className="text-xs text-muted-foreground">Bağlantı kurmak istiyor.</p>
+                                                <p className="text-xs text-muted-foreground">Wants to connect with you.</p>
                                             </div>
 
                                             <div className="flex gap-2 shrink-0">
@@ -299,7 +294,7 @@ export function ConnectionsView() {
                         {(!data?.sent || data.sent.length === 0) ? (
                             <div className="flex flex-col items-center justify-center py-16 border border-border/50 rounded-xl bg-card/30 text-center">
                                 <Send className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                                <p className="text-muted-foreground">Bekleyen giden istek bulunmuyor.</p>
+                                <p className="text-muted-foreground">You have no pending sent requests.</p>
                             </div>
                         ) : (
                             <div className="grid gap-4 sm:grid-cols-2">
@@ -315,7 +310,7 @@ export function ConnectionsView() {
                                                 <h4 className="font-semibold text-sm truncate">{req.recipient.full_name}</h4>
                                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                                     <Clock className="w-3 h-3" />
-                                                    <span>Onay Bekleniyor</span>
+                                                    <span>Awaiting response</span>
                                                 </div>
                                             </div>
 
@@ -326,7 +321,7 @@ export function ConnectionsView() {
                                                 onClick={() => deleteMutation.mutate(req.id)}
                                                 disabled={deleteMutation.isPending}
                                             >
-                                                <span className="text-xs">İptal Et</span>
+                                                <span className="text-xs">Cancel</span>
                                             </Button>
                                         </CardContent>
                                     </Card>
@@ -341,19 +336,19 @@ export function ConnectionsView() {
             <AlertDialog open={!!itemToDelete} onOpenChange={(val) => !val && setItemToDelete(null)}>
                 <AlertDialogContent className="max-w-[90vw] sm:max-w-md rounded-xl">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Bağlantıyı Kaldır</AlertDialogTitle>
+                        <AlertDialogTitle>Remove connection</AlertDialogTitle>
                         <AlertDialogDescription>
-                            <strong>{itemToDelete?.name}</strong> adlı kişiyi listenizden çıkarmak istediğinize emin misiniz? Bu işlem karşı tarafın listesinden de sizi kaldıracaktır.
+                            Are you sure you want to remove <strong>{itemToDelete?.name}</strong>? This removes the connection for both participants.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Vazgeç</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={(e) => { e.preventDefault(); handleDeleteConfirm(); }}
                             disabled={isDeleting}
                             className="bg-destructive text-white hover:bg-destructive/90"
                         >
-                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Kaldır"}
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Remove"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -60,7 +60,7 @@ export const GET = apiHandler(async (request: Request) => {
         .select("*", { count: "exact", head: true })
         .eq("committee_id", committeeId);
 
-    const formattedRollCalls = rollCalls.map((rc: any) => ({
+    const formattedRollCalls = rollCalls.map((rc) => ({
         id: rc.id,
         session_name: rc.session_name,
         created_at: rc.created_at,

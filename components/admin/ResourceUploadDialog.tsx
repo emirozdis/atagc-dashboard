@@ -84,7 +84,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !formData.title) {
-      toast.error("Lütfen dosya ve başlık giriniz.");
+      toast.error("Please provide a file and title.");
       return;
     }
 
@@ -112,17 +112,17 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
       const result = await res.json();
 
       if (!res.ok) {
-        throw new Error(result.error || result.message || "Yükleme sırasında hata oluştu");
+        throw new Error(result.error || result.message || "An error occurred while uploading.");
       }
 
-      toast.success("Dosya başarıyla yüklendi");
+      toast.success("File uploaded successfully");
       setOpen(false);
       resetForm();
       onSuccess();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      toast.error("Yükleme başarısız", { description: error.message });
+      toast.error("Upload failed", { description: error instanceof Error ? error.message : "Please try again." });
     } finally {
       setLoading(false);
     }
@@ -132,20 +132,20 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
     <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) resetForm(); }}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="w-4 h-4 mr-2" /> Dosya Yükle
+          <Plus className="w-4 h-4 mr-2" /> Upload file
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Yeni Kaynak Ekle</DialogTitle>
+          <DialogTitle>Add resource</DialogTitle>
           <DialogDescription>
-            Sisteme yeni bir dosya yükleyin ve detaylarını belirleyin.
+            Upload a file and provide its details.
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleUpload} className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Dosya Seç</Label>
+            <Label>Select file</Label>
             <div className="border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-accent/50 transition-colors relative">
               <input 
                 type="file" 
@@ -154,39 +154,39 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               />
               <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
-              <span className="text-sm font-medium">{file ? file.name : "Dosya sürükleyin veya tıklayın"}</span>
+              <span className="text-sm font-medium">{file ? file.name : "Drag a file here or click to browse"}</span>
               <span className="text-xs text-muted-foreground">PDF, DOCX, JPG (Max 10MB)</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Başlık</Label>
+            <Label>Title</Label>
             <Input 
               value={formData.title}
               onChange={(e) => setFormData({...formData, title: e.target.value})}
-              placeholder="Dosya adı..."
+              placeholder="File title..."
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Açıklama</Label>
+            <Label>Description</Label>
             <Textarea 
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
-              placeholder="İçerik hakkında kısa bilgi..."
+              placeholder="Brief information about the content..."
             />
           </div>
 
           {isAdmin && (
             <div className="space-y-2">
-              <Label>Komite (Opsiyonel)</Label>
+              <Label>Committee (optional)</Label>
               <Select 
                 value={formData.committee_id}
                 onValueChange={(val) => setFormData({...formData, committee_id: val})}
               >
-                <SelectTrigger><SelectValue placeholder="Komite seçin veya genel bırakın" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select a committee or leave general" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="null">-- Genel Kaynak --</SelectItem>
+                  <SelectItem value="null">-- General resource --</SelectItem>
                   {committees.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
@@ -197,7 +197,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
 
           {isChairman && chairmanCommittee && (
             <div className="space-y-2">
-                <Label>Komite</Label>
+                <Label>Committee</Label>
                 <div className="flex items-center gap-2 text-sm font-medium p-3 bg-secondary/20 rounded-md border border-border/50">
                     <Building2 className="w-4 h-4 text-primary" />
                     <span>{chairmanCommittee.name}</span>
@@ -207,7 +207,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Kategori</Label>
+              <Label>Category</Label>
               <Select 
                 value={formData.category} 
                 onValueChange={(val) => setFormData({...formData, category: val})}
@@ -215,8 +215,8 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="general">Genel</SelectItem>
-                  <SelectItem value="guide">Çalışma Kılavuzu</SelectItem>
-                  <SelectItem value="rules">Prosedür Kuralları</SelectItem>
+                  <SelectItem value="guide">Study guide</SelectItem>
+                  <SelectItem value="rules">Procedure rules</SelectItem>
                   <SelectItem value="schedule">Program</SelectItem>
                 </SelectContent>
               </Select>
@@ -225,7 +225,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
             {isAdmin && (
               <div className="space-y-2 flex flex-col justify-end pb-2">
                 <div className="flex items-center justify-between border p-2 rounded-md">
-                  <Label className="cursor-pointer" htmlFor="public-switch">Herkese Açık</Label>
+                  <Label className="cursor-pointer" htmlFor="public-switch">Public</Label>
                   <Switch 
                     id="public-switch"
                     checked={formData.is_public}
@@ -237,7 +237,7 @@ export function ResourceUploadDialog({ onSuccess }: ResourceUploadDialogProps) {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Yükle ve Kaydet"}
+            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Upload and save"}
           </Button>
         </form>
       </DialogContent>

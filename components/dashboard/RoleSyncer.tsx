@@ -31,7 +31,7 @@ export function RoleSyncer() {
 
   // Handle immediate logout on 401
   useEffect(() => {
-    if (error && (error.message === "Unauthorized" || (error as any).status === 401)) {
+    if (error?.message === "Unauthorized") {
         console.log("[RoleSyncer] Session invalid (401), invalidating session...");
         signOut({ redirect: false });
     }
@@ -57,7 +57,7 @@ export function RoleSyncer() {
       update()
         .then((newSession) => {
           if (newSession?.user?.role === dbRole) {
-             toast.success("Hesap yetkileri güncellendi.");
+             toast.success("Account permissions updated.");
              setHasUpdated(true);
              setTimeout(() => window.location.reload(), 1000);
           } else {

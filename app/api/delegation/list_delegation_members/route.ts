@@ -10,7 +10,8 @@ export const GET = apiHandler(async () => {
         throw new Error(auth.message ?? "Unauthorized");
     }
 
-    const userId = (auth.session as any).user.id;
+    if (!auth.session) throw new Error("Unauthorized");
+    const userId = auth.session.user.id;
     let delegationId = null;
     let isLeader = false;
 

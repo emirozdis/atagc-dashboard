@@ -37,11 +37,11 @@ export function PaymentStatusCard() {
             }
         },
         onSuccess: () => {
-            toast.success("Dekont yüklendi");
+            toast.success("Receipt uploaded");
             queryClient.invalidateQueries({ queryKey: ['payment-status'] });
             setFile(null);
         },
-        onError: (e: any) => toast.error(e.message)
+        onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "An unexpected error occurred")
     });
 
     if (isLoading) {
@@ -50,7 +50,7 @@ export function PaymentStatusCard() {
                 <CardHeader className="bg-muted/5 border-b border-border/50 pb-4">
                     <CardTitle className="flex items-center gap-2 text-lg">
                         <FileText className="w-5 h-5 text-primary" />
-                        Ödeme Durumu
+                        Payment status
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
@@ -78,8 +78,8 @@ export function PaymentStatusCard() {
                         <CheckCircle2 className="w-8 h-8" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-emerald-700 dark:text-emerald-400">Ödeme Onaylandı</h3>
-                        <p className="text-emerald-600/80 text-sm mt-1">Kaydınız tamamlanmıştır. Teşekkür ederiz.</p>
+                        <h3 className="text-xl font-bold text-emerald-700 dark:text-emerald-400">Payment approved</h3>
+                        <p className="text-emerald-600/80 text-sm mt-1">Your registration is complete. Thank you.</p>
                     </div>
                 </CardContent>
             </Card>
@@ -94,9 +94,9 @@ export function PaymentStatusCard() {
                         <Clock className="w-8 h-8" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-amber-700 dark:text-amber-400">İnceleniyor</h3>
-                        <p className="text-amber-600/80 text-sm mt-1">Ödemeniz yönetici onayı beklemektedir.</p>
-                        <p className="text-xs text-muted-foreground mt-2">Yükleme: {new Date(lastReceipt?.created_at).toLocaleDateString("tr-TR")}</p>
+                        <h3 className="text-xl font-bold text-amber-700 dark:text-amber-400">Under review</h3>
+                        <p className="text-amber-600/80 text-sm mt-1">Your payment is awaiting administrator review.</p>
+                        <p className="text-xs text-muted-foreground mt-2">Uploaded: {new Date(lastReceipt?.created_at).toLocaleDateString("en-GB")}</p>
                     </div>
                 </CardContent>
             </Card>
@@ -108,9 +108,9 @@ export function PaymentStatusCard() {
             <CardHeader className="bg-muted/5 border-b border-border/50 pb-4">
                 <CardTitle className="flex items-center gap-2 text-lg">
                     <FileText className="w-5 h-5 text-primary" />
-                    Ödeme Durumu
+                    Payment status
                 </CardTitle>
-                <CardDescription>Lütfen katılım ücretini yatırıp dekontu yükleyiniz.</CardDescription>
+                <CardDescription>Pay the participation fee and upload your receipt.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
 
@@ -118,7 +118,7 @@ export function PaymentStatusCard() {
                     <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-lg flex items-start gap-3 text-sm text-red-600">
                         <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                         <div>
-                            <span className="font-bold block mb-1">Ödeme Reddedildi</span>
+                            <span className="font-bold block mb-1">Payment rejected</span>
                             {lastReceipt.admin_note}
                         </div>
                     </div>
@@ -136,7 +136,7 @@ export function PaymentStatusCard() {
                         <UploadCloud className="w-6 h-6" />
                     </div>
                     <div className="space-y-1">
-                        <p className="text-sm font-medium">{file ? file.name : "Dekont Yükle"}</p>
+                        <p className="text-sm font-medium">{file ? file.name : "Upload receipt"}</p>
                         <p className="text-xs text-muted-foreground">PDF, JPG veya PNG (Max 5MB)</p>
                     </div>
                 </div>
@@ -147,7 +147,7 @@ export function PaymentStatusCard() {
                         onClick={() => uploadMutation.mutate(file)}
                         disabled={uploadMutation.isPending}
                     >
-                        {uploadMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Gönder"}
+                        {uploadMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Submit"}
                     </Button>
                 )}
             </CardContent>

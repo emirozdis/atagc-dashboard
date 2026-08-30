@@ -7,6 +7,14 @@ import { apiHandler } from "@/lib/api-handler";
 import { ROLES, COMMITTEE_LEADS } from "@/lib/roles";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+type DashboardMember = {
+  user_id: string;
+  userId?: string;
+  is_profile_picture_hidden?: boolean;
+  profile_picture_url?: string | null;
+  image?: string | null;
+  [key: string]: unknown;
+};
 
 export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
@@ -53,14 +61,14 @@ export const GET = apiHandler(async (request: Request) => {
 
   if (error) {
       console.error("RPC Error:", error);
-      throw new Error("Komite verileri alınamadı.");
+      throw new Error("Could not load committee data.");
   }
 
-  const members = dashboardData.members || [];
+  const members = (dashboardData.members || []) as DashboardMember[];
   const pathsToSign: string[] = [];
   const memberMap = new Map();
 
-  members.forEach((m: any) => {
+  members.forEach((m) => {
       m.userId = m.user_id;
       
       const isSelf = m.userId === session.user.id;
@@ -82,7 +90,7 @@ export const GET = apiHandler(async (request: Request) => {
       const signedData = await getSignedUrls("profile-pictures", pathsToSign);
       const urlMap = new Map(signedData?.map(i => [i.path, i.signedUrl]));
 
-      members.forEach((m: any) => {
+      members.forEach((m) => {
           if (m.profile_picture_url && urlMap.has(m.profile_picture_url)) {
               m.image = urlMap.get(m.profile_picture_url);
               m.profile_picture_url = m.image;

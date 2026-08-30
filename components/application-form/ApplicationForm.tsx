@@ -105,27 +105,27 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message || "Delegasyona katılım başarısız");
+        throw new Error(err.message || "Could not join the delegation");
       }
     },
     onSuccess: () => {
-      toast.success("Delegasyona katılım isteği gönderildi! Liderin onayı bekleniyor.");
+      toast.success("Your request to join the delegation was sent. Waiting for the leader's approval.");
       queryClient.invalidateQueries({ queryKey: ['my-profile-for-app-form'] });
       setInviteCode("");
     },
-    onError: (e: any) => {
-      toast.error(e.message);
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unable to join the delegation.");
     },
   });
 
   // Unsaved Changes Warning (Tab Close/Refresh)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Eğer 1. adımdan (Rol Seçimi) ilerlenmişse ve form güvenli çıkış modunda değilse uyarı ver
+      // Warn when leaving after the form has started, unless navigation is intentional.
       if (currentStep > 1 && !isSafeToLeave.current && showForm) {
         e.preventDefault();
-        e.returnValue = ''; // Eski tarayıcılar ve Chrome için
-        return ''; // Safari ve Firefox için
+        e.returnValue = ''; // Required by legacy browsers and Chrome
+        return ''; // Required by Safari and Firefox
       }
     };
 
@@ -163,7 +163,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
 
   const handleJoinDelegation = () => {
     if (!inviteCode.trim()) {
-      toast.error("Lütfen davet kodunu giriniz.");
+      toast.error("Enter an invitation code.");
       return;
     }
     joinDelegationMutation.mutate(inviteCode.trim());
@@ -226,7 +226,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
         const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
 
         if (!effectiveToken) {
-            toast.error("Doğrulama eksik.");
+      toast.error("Verification is incomplete.");
             return;
         }
 
@@ -234,7 +234,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
         try {
             if (authMode === 'register') {
                 if (!isEmailVerified) {
-                    toast.error("E-posta doğrulanmadı.");
+                    toast.error("Email has not been verified.");
                     return;
                 }
                 const isValid = await accountForm.trigger();
@@ -253,7 +253,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
 
                 if (!res.ok && res.status !== 409) {
                     const err = await res.json();
-                    throw new Error(err.error || "Kayıt başarısız");
+                    throw new Error(err.error || "Registration failed");
                 }
             }
 
@@ -264,13 +264,13 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                 token: authMode === 'login' ? effectiveToken : "SKIPPED_AUTO_LOGIN"
             });
 
-            if (loginRes?.error) throw new Error("Giriş başarısız");
+            if (loginRes?.error) throw new Error("Sign-in failed");
 
             setAccountData(values);
             setCurrentStep(3);
-            toast.success("Giriş Başarılı");
-        } catch (e: any) {
-            toast.error(e.message);
+            toast.success("Signed in successfully");
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Sign-in failed.");
         } finally {
             setIsSubmitting(false);
         }
@@ -284,7 +284,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
         if (isDelegationLeaderForm) {
             const delName = personalForm.getValues("delegation_name");
             if (!delName || delName.trim().length < 3) {
-                personalForm.setError("delegation_name", { type: "manual", message: "Delegasyon adı en az 3 karakter olmalıdır." });
+                personalForm.setError("delegation_name", { type: "manual", message: "Delegation name must be at least 3 characters." });
                 isValid = false;
             }
         }
@@ -292,7 +292,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
         if (isValid) {
             setCurrentStep(4);
         } else {
-            toast.error("Lütfen bilgilerinizi kontrol ediniz.");
+            toast.error("Check your information.");
         }
         return;
     }
@@ -300,12 +300,12 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     // --- STEP 4+: Dynamic Form Steps ---
     if (currentDynamicStep) {
         if (isNextDisabled) {
-            toast.error("Lütfen zorunlu alanları doldurunuz.");
+            toast.error("Complete all required fields.");
             return;
         }
 
         if (!selectedForm) {
-            toast.error("Form verisi yüklenemedi.");
+            toast.error("Could not load the form data.");
             return;
         }
 
@@ -338,24 +338,24 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
 
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.error || "Gönderim başarısız");
+          throw new Error(err.error || "Submission failed");
         }
 
-        isSafeToLeave.current = true; // Yönlendirmeden önce güvenli çıkış bayrağını kaldır
+        isSafeToLeave.current = true; // Navigation is intentional.
         await update();
 
         // Redirect delegation leaders to their delegation panel
         const submittedForm = availableForms.find(f => f.id === selectedFormId);
         if (submittedForm?.slug === "delegation") {
-            toast.success("Delegasyon başvurunuz alındı! Yönlendiriliyorsunuz...");
+            toast.success("Your delegation application was received. Redirecting...");
             setTimeout(() => window.location.href = "/dashboard/delegation", 3500);
             return;
         }
 
         setIsSubmitted(true);
-        toast.success("Başvuru Alındı");
-    } catch (e: any) {
-        toast.error(e.message);
+        toast.success("Application received");
+    } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Submission failed.");
     } finally {
         setIsSubmitting(false);
     }
@@ -368,9 +368,9 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
   if (isSubmitted) return <SuccessScreen onReset={() => window.location.reload()} />;
 
   const displaySteps = [
-      { number: 1, title: "Rol" },
-      { number: 2, title: "Hesap" },
-      { number: 3, title: "Kimlik" },
+      { number: 1, title: "Role" },
+      { number: 2, title: "Account" },
+      { number: 3, title: "Personal details" },
       { number: 4, title: "Form" }
   ];
 
@@ -381,22 +381,22 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
         <div className="space-y-2 mb-8">
-          <h2 className="text-3xl font-display font-bold">Hoşgeldiniz!</h2>
-          <p className="text-muted-foreground">Yapmak istediğiniz işlemi seçiniz.</p>
+          <h2 className="text-3xl font-display font-bold">Welcome!</h2>
+          <p className="text-muted-foreground">Choose what you would like to do.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
           <Link href="/dashboard" className="flex-1">
             <Button className="w-full h-12 cursor-pointer" variant="outline">
               <ExternalLink className="w-4 h-4 mr-2" />
-              Mevcut Başvurularım
+              My applications
             </Button>
           </Link>
           <Button 
             onClick={() => setShowForm(true)}
             className="flex-1 h-12 cursor-pointer"
           >
-            Yeni Bir Başvuru Yap
+            Start a new application
           </Button>
         </div>
       </div>
@@ -436,7 +436,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                         <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
                             <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-primary" />
-                                <h4 className="font-semibold text-sm">Delegasyona Katıl</h4>
+                                <h4 className="font-semibold text-sm">Join a delegation</h4>
                             </div>
                             {isLoadingProfile ? (
                                 <div className="space-y-2">
@@ -446,27 +446,27 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                             ) : existingDelegation ? (
                                 <div className="space-y-2">
                                     <p className="text-xs text-muted-foreground">
-                                        Mevcut bir delegasyon kaydınız bulunuyor.
+                                        You already have a delegation membership.
                                     </p>
                                     <div className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-border/50">
                                         <span className="font-semibold text-sm">{existingDelegation.name}</span>
                                         {existingDelegation.accepted === true ? (
-                                            <Badge className="bg-green-500/10 text-green-600">Onaylandı</Badge>
+                                            <Badge className="bg-green-500/10 text-green-600">Approved</Badge>
                                         ) : existingDelegation.accepted === false ? (
-                                            <Badge variant="destructive">Reddedildi</Badge>
+                                            <Badge variant="destructive">Rejected</Badge>
                                         ) : (
-                                            <Badge variant="outline">Onay Bekleniyor</Badge>
+                                            <Badge variant="outline">Awaiting approval</Badge>
                                         )}
                                     </div>
                                 </div>
                             ) : (
                                 <>
                                     <p className="text-xs text-muted-foreground">
-                                        Bir delegasyona katılmak için delegasyon liderinizden aldığınız davet kodunu giriniz.
+                                        Enter the invitation code from your delegation leader to join a delegation.
                                     </p>
                                     <div className="flex gap-2">
                                         <Input
-                                            placeholder="Davet kodu"
+                                            placeholder="Invitation code"
                                             value={inviteCode}
                                             onChange={(e) => setInviteCode(e.target.value)}
                                             className="flex-1"
@@ -481,7 +481,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                                             {joinDelegationMutation.isPending ? (
                                                 <Loader2 className="w-4 h-4 animate-spin" />
                                             ) : (
-                                                "Katıl"
+                                                "Join"
                                             )}
                                         </Button>
                                     </div>
@@ -498,11 +498,11 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                     <div className="flex items-center justify-between border-b border-border/40 pb-4">
                         <div className="space-y-1">
                             <h3 className="text-xl font-display font-semibold">{currentDynamicStep.title}</h3>
-                            <p className="text-xs text-muted-foreground uppercase tracking-widest">Başvuru Detayları</p>
+                            <p className="text-xs text-muted-foreground uppercase tracking-widest">Application details</p>
                         </div>
                         <div className="bg-secondary/30 px-3 py-1 rounded-full border border-border/50">
                             <span className="text-xs font-mono font-medium">
-                                Adım {currentStep - 3} / {totalDynamicSteps}
+                                Step {currentStep - 3} / {totalDynamicSteps}
                             </span>
                         </div>
                     </div>
@@ -522,7 +522,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                 disabled={currentStep === 1 || isSubmitting}
                 className="cursor-pointer"
             >
-                <ArrowLeft className="w-4 h-4 mr-2" /> Geri
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
             
             {currentStep !== 1 && (
@@ -536,8 +536,8 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                     ) : (
                         <>
                             {currentStep >= 4 && (currentStep - 3) === totalDynamicSteps 
-                                ? "Başvuruyu Tamamla" 
-                                : "İleri"}
+                                ? "Complete application"
+                                : "Next"}
                             <ArrowRight className="w-4 h-4 ml-2" />
                         </>
                     )}

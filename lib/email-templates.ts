@@ -1,4 +1,4 @@
-export type NotificationType = 
+export type NotificationType =
   | "application_received"
   | "application_status"
   | "committee_assignment"
@@ -23,221 +23,199 @@ interface EmailContent {
   accentColor?: string;
 }
 
-// --- Theme Constants ---
+interface EmailData {
+  code?: string;
+  link?: string;
+}
+
 const COLORS = {
-  background: "#f8f9fa",
-  container: "#ffffff",
-  textPrimary: "#1f2937",
-  textSecondary: "#6b7280",
-  border: "#e5e7eb",
-  primary: "#000000",
-  accent: "#d4af37",
-  danger: "#dc2626",
-  success: "#059669",
+  background: "#0c0a12",
+  container: "#171321",
+  textPrimary: "#f4f1ff",
+  textSecondary: "#c4bfd4",
+  border: "#3a3152",
+  primary: "#9b7bda",
+  accent: "#d6c7f5",
+  danger: "#f18baf",
+  success: "#8ed9c0",
 };
 
-const getBaseStyles = () => `font-family: 'Inter', sans-serif; line-height: 1.6; color: ${COLORS.textPrimary}; background-color: ${COLORS.background}; margin: 0; padding: 0;`;
-const getWrapperStyles = () => `width: 100%; background-color: ${COLORS.background}; padding: 40px 0;`;
-const getContainerStyles = () => `max-width: 600px; margin: 0 auto; background-color: ${COLORS.container}; border-radius: 12px; overflow: hidden; border: 1px solid ${COLORS.border};`;
-const getHeaderStyles = () => `background-color: ${COLORS.primary}; padding: 40px; text-align: center;`;
-const getContentStyles = () => `padding: 40px 40px; text-align: left;`;
-const getHeadingStyles = (color: string = COLORS.textPrimary) => `margin: 0 0 20px; font-size: 22px; font-weight: 700; color: ${color};`;
-const getParagraphStyles = () => `margin-bottom: 24px; font-size: 15px; color: ${COLORS.textSecondary};`;
-const getButtonContainerStyles = () => `text-align: center; margin: 32px 0 16px;`;
-const getButtonStyles = (color: string = COLORS.primary) => `display: inline-block; background-color: ${color}; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;`;
-const getFooterStyles = () => `background-color: #fafafa; padding: 32px 40px; text-align: center; border-top: 1px solid ${COLORS.border};`;
-const getFooterTextStyles = () => `margin: 0; font-size: 12px; color: ${COLORS.textSecondary};`;
-const getLinkStyles = () => `color: ${COLORS.primary}; text-decoration: underline; font-weight: 500;`;
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>'\"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '\"': "&quot;",
+  })[character] || character);
 
-const getContent = (type: NotificationType, userName: string, data?: any): EmailContent => {
+const getContent = (type: NotificationType, userName: string, data: EmailData = {}): EmailContent => {
+  const name = escapeHtml(userName || "Participant");
+  const code = escapeHtml(data.code || "");
+
   switch (type) {
     case "email_verification":
-      return {
-        subject: "E-posta Doğrulama Kodu | ATAGÇ 2026",
-        heading: "Doğrulama Kodunuz",
-        message: `Sayın <strong>${userName || 'Katılımcı'}</strong>,<br/><br/>ATAGÇ 2026 başvuru sürecine devam etmek için gereken doğrulama kodunuz aşağıdadır. Bu kod 10 dakika süreyle geçerlidir.<br/><br/><div style="background-color: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 8px; padding: 16px; font-size: 28px; font-weight: 700; letter-spacing: 4px; text-align: center; color: #18181b; margin: 24px 0;">${data?.code}</div>`,
-      };
     case "two_factor_code":
       return {
-        subject: "Giriş Doğrulama Kodu | ATAGÇ 2026",
-        heading: "İki Aşamalı Doğrulama",
-        message: `Sayın <strong>${userName || 'Kullanıcı'}</strong>,<br/><br/>Hesabınıza giriş yapmak için tek kullanımlık doğrulama kodunuz aşağıdadır. Bu kod 5 dakika süreyle geçerlidir.<br/><br/><div style="background-color: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 8px; padding: 16px; font-size: 28px; font-weight: 700; letter-spacing: 4px; text-align: center; color: #18181b; margin: 24px 0;">${data?.code}</div>`,
+        subject: `Sign-in verification code | RavenMUN 2026`,
+        heading: "Your verification code",
+        message: `Hello <strong>${name}</strong>,<br/><br/>Use the one-time code below to continue signing in. It expires shortly and can only be used once.<br/><br/><div style=\"background:#211b30;border:1px solid ${COLORS.border};border-radius:10px;padding:16px;font-size:28px;font-weight:700;letter-spacing:5px;text-align:center;color:${COLORS.accent};margin:24px 0;\">${code}</div>`,
+        accentColor: COLORS.primary,
       };
     case "magic_link_invite":
       return {
-        subject: "Delegasyon Daveti | ATAGÇ 2026",
-        heading: "Delegasyona Davet Edildiniz",
-        message: `Merhaba,<br/><br/><strong>${userName}</strong> sizi ATAGÇ 2026'da kendi delegasyonuna katılmaya davet ediyor. Aşağıdaki butona tıklayarak kayıt formuna ulaşabilir ve ekibe dahil olabilirsiniz.`,
-        buttonText: "Delegasyona Katıl",
-        buttonPath: data?.link,
-        accentColor: COLORS.primary
+        subject: "Delegation invitation | RavenMUN 2026",
+        heading: "You have been invited to a delegation",
+        message: `Hello,<br/><br/><strong>${name}</strong> invited you to join their RavenMUN delegation. Use the button below to review the invitation and join the team.`,
+        buttonText: "Review invitation",
+        buttonPath: data.link,
+        accentColor: COLORS.primary,
       };
     case "password_reset_request":
       return {
-        subject: "Şifre Sıfırlama Talebi | ATAGÇ 2026",
-        heading: "Şifrenizi Sıfırlayın",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>Hesabınız için bir şifre sıfırlama talebi aldık. Eğer bu işlemi siz yapmadıysanız, hesabınız güvendedir ve bu e-postayı görmezden gelebilirsiniz.<br/><br/>Şifrenizi yenilemek için aşağıdaki butona tıklayınız. Link 30 dakika geçerlidir.`,
-        buttonText: "Şifremi Sıfırla",
-        buttonPath: data?.link,
-        accentColor: COLORS.primary
+        subject: "Passwordless sign-in reminder | RavenMUN 2026",
+        heading: "RavenMUN uses passwordless sign-in",
+        message: `Hello <strong>${name}</strong>,<br/><br/>There is no password to reset. Return to the sign-in page and request a new verification code for your email address.`,
+        buttonText: "Open sign-in",
+        buttonPath: "/login",
+        accentColor: COLORS.primary,
       };
     case "payment_approved":
-        return {
-            subject: "Ödeme Onaylandı | ATAGÇ 2026",
-            heading: "Ödemeniz Başarıyla Alındı",
-            message: `Sayın <strong>${userName}</strong>,<br/><br/>Göndermiş olduğunuz ödeme dekontu incelenmiş ve onaylanmıştır. Katılım süreciniz tamamlanmıştır. Etkinlikte görüşmek üzere!`,
-            buttonText: "Panele Git",
-            buttonPath: "/payment",
-            accentColor: COLORS.success
-        };
+      return {
+        subject: "Payment approved | RavenMUN 2026",
+        heading: "Your payment was approved",
+        message: `Hello <strong>${name}</strong>,<br/><br/>Your payment receipt has been reviewed and approved. Your participation payment step is complete.`,
+        buttonText: "Open participant portal",
+        buttonPath: "/portal",
+        accentColor: COLORS.success,
+      };
     case "payment_rejected":
-        return {
-            subject: "Ödeme Reddedildi | ATAGÇ 2026",
-            heading: "Ödemeniz Onaylanamadı",
-            message: `Sayın <strong>${userName}</strong>,<br/><br/>Yüklediğiniz ödeme dekontu maalesef onaylanamamıştır. Eksik veya hatalı bilgi nedeniyle reddedilmiş olabilir. Lütfen panel üzerinden reddedilme sebebini inceleyip yeni bir dekont yükleyiniz.`,
-            buttonText: "Tekrar Yükle",
-            buttonPath: "/payment",
-            accentColor: COLORS.danger
-        };
+      return {
+        subject: "Payment needs attention | RavenMUN 2026",
+        heading: "Please review your payment",
+        message: `Hello <strong>${name}</strong>,<br/><br/>Your payment receipt could not be approved. Sign in to review the reason and upload a corrected receipt if needed.`,
+        buttonText: "Review payment",
+        buttonPath: "/payment",
+        accentColor: COLORS.danger,
+      };
     case "application_received":
       return {
-        subject: "Başvurunuz Alındı | ATAGÇ 2026",
-        heading: "Başvurunuz Bize Ulaştı",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>ATAGÇ 2026'ya gösterdiğiniz ilgi için teşekkür ederiz. Başvuru formunuz sistemimize başarıyla kaydedilmiştir.<br/><br/>Başvurunuz ekibimiz tarafından titizlikle incelenecek ve en kısa sürede sonuçlandırılacaktır. Süreci panel üzerinden takip edebilirsiniz.`,
-        buttonText: "Başvurumu Görüntüle",
-        buttonPath: "/my-application"
+        subject: "Application received | RavenMUN 2026",
+        heading: "Your application has been received",
+        message: `Hello <strong>${name}</strong>,<br/><br/>Thank you for applying to RavenMUN 2026. Your application is now in the review queue, and you can follow its progress from the participant portal.`,
+        buttonText: "Open my applications",
+        buttonPath: "/portal/applications",
       };
     case "application_status":
       return {
-        subject: "Başvuru Sonucu Açıklandı | ATAGÇ 2026",
-        heading: "Başvuru Durumunuz Güncellendi",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>Başvurunuzun değerlendirme süreci tamamlanmıştır. Sonucu ve detayları görüntülemek için lütfen panele giriş yapınız.`,
-        buttonText: "Sonucu Öğren",
-        buttonPath: "/dashboard",
-        accentColor: COLORS.primary
+        subject: "Application update | RavenMUN 2026",
+        heading: "Your application status changed",
+        message: `Hello <strong>${name}</strong>,<br/><br/>There is an update to your RavenMUN application. Sign in to view the latest status and any next steps.`,
+        buttonText: "View application",
+        buttonPath: "/portal/applications",
+        accentColor: COLORS.primary,
       };
     case "committee_assignment":
       return {
-        subject: "Komite Atamanız Gerçekleşti | ATAGÇ 2026",
-        heading: "Komite Yerleştirmeniz Yapıldı",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>ATAGÇ 2026 kapsamında görev alacağınız komite belirlenmiştir. Komite detaylarınıza, çalışma arkadaşlarınıza ve gündem maddelerine (Topic) panel üzerinden erişebilirsiniz.`,
-        buttonText: "Komiteye Git",
+        subject: "Committee assignment | RavenMUN 2026",
+        heading: "Your committee placement is ready",
+        message: `Hello <strong>${name}</strong>,<br/><br/>Your RavenMUN committee assignment is available in the participant portal. Sign in to see your committee, role, and committee materials.`,
+        buttonText: "Open committee",
         buttonPath: "/dashboard/committee",
-        accentColor: COLORS.success
+        accentColor: COLORS.success,
       };
     case "connection_request":
       return {
-        subject: "Yeni Bağlantı İsteği | ATAGÇ",
-        heading: "Biri Sizinle Tanışmak İstiyor",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>Bir katılımcı size bağlantı isteği gönderdi. Bu isteği kabul ederek ağınızı genişletebilir ve etkinlik boyunca iletişimde kalabilirsiniz.`,
-        buttonText: "İstekleri Yönet",
-        buttonPath: "/connections"
+        subject: "New connection request | RavenMUN",
+        heading: "Someone wants to connect",
+        message: `Hello <strong>${name}</strong>,<br/><br/>A participant sent you a connection request. Sign in to review it.`,
+        buttonText: "Review requests",
+        buttonPath: "/connections",
       };
     case "connection_accepted":
       return {
-        subject: "Bağlantı İsteğiniz Kabul Edildi | ATAGÇ",
-        heading: "Ağınız Genişliyor",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>Gönderdiğiniz bağlantı isteği kabul edildi. Artık yeni bağlantınızla iletişim kurabilir ve profillerinizi görüntüleyebilirsiniz.`,
-        buttonText: "Bağlantılarıma Git",
-        buttonPath: "/connections"
+        subject: "Connection request accepted | RavenMUN",
+        heading: "Your network is growing",
+        message: `Hello <strong>${name}</strong>,<br/><br/>Your connection request was accepted. You can now view the connection from your participant portal.`,
+        buttonText: "View connections",
+        buttonPath: "/connections",
       };
     case "warning_issued":
       return {
-        subject: "⚠️ Disiplin Bildirimi | ATAGÇ",
-        heading: "Hesabınıza Uyarı Tanımlandı",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>Yöneticiler tarafından hesabınıza bir disiplin uyarısı tanımlanmıştır. Etkinlik kurallarına riayet etmeniz, organizasyonun düzeni açısından büyük önem taşımaktadır.<br/><br/>Lütfen uyarı detaylarını panel üzerinden inceleyiniz.`,
-        buttonText: "Panele Git",
-        buttonPath: "/dashboard",
-        accentColor: COLORS.danger
+        subject: "Conduct notice | RavenMUN",
+        heading: "A conduct notice was added",
+        message: `Hello <strong>${name}</strong>,<br/><br/>The conference team added a conduct notice to your account. Sign in to review the details.`,
+        buttonText: "Open participant portal",
+        buttonPath: "/portal",
+        accentColor: COLORS.danger,
       };
     case "account_suspended":
       return {
-        subject: "⛔ Hesabınız Askıya Alındı | ATAGÇ",
-        heading: "Erişiminiz Kısıtlandı",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>Hesabınızın sisteme erişimi, yöneticiler tarafından geçici veya kalıcı olarak durdurulmuştur.<br/><br/>Bu işlemin bir hata olduğunu düşünüyorsanız lütfen yönetim ekibiyle iletişime geçiniz.`,
-        buttonText: "Giriş Ekranı",
+        subject: "Account access update | RavenMUN",
+        heading: "Your account access was restricted",
+        message: `Hello <strong>${name}</strong>,<br/><br/>Your conference account access was restricted by the conference team. Contact the organizers if you believe this was a mistake.`,
+        buttonText: "Open sign-in",
         buttonPath: "/login",
-        accentColor: COLORS.danger
+        accentColor: COLORS.danger,
       };
     case "password_changed":
       return {
-        subject: "Güvenlik Uyarısı: Şifre Değişikliği",
-        heading: "Şifreniz Değiştirildi",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>Hesabınızın şifresi yakın zamanda başarıyla değiştirildi. Bu işlem sizin tarafınızdan yapılmadıysa, hesabınızın güvenliği için derhal bizimle iletişime geçmenizi öneririz.`,
-        buttonText: "Hesabıma Git",
-        buttonPath: "/profile"
+        subject: "Security notice | RavenMUN",
+        heading: "Passwordless account security notice",
+        message: `Hello <strong>${name}</strong>,<br/><br/>A security setting for your account changed. RavenMUN accounts do not use passwords; review your active devices if you do not recognize this activity.`,
+        buttonText: "Review devices",
+        buttonPath: "/portal/sessions",
       };
     default:
       return {
-        subject: "Yeni Bildirim | ATAGÇ",
-        heading: "Yeni Bildiriminiz Var",
-        message: `Sayın <strong>${userName}</strong>,<br/><br/>Panelinizde yeni bir bildirim var.`,
-        buttonText: "Panele Git",
-        buttonPath: "/dashboard"
+        subject: "New notification | RavenMUN",
+        heading: "You have a new notification",
+        message: `Hello <strong>${name}</strong>,<br/><br/>There is a new notification in your RavenMUN participant portal.`,
+        buttonText: "Open participant portal",
+        buttonPath: "/portal",
       };
   }
 };
 
-export const generateEmailHtml = (type: NotificationType, userName: string, baseUrl: string, data?: any) => {
+export const generateEmailHtml = (
+  type: NotificationType,
+  userName: string,
+  baseUrl: string,
+  data?: EmailData,
+) => {
   const content = getContent(type, userName, data);
+  const cleanBaseUrl = baseUrl.replace(/\/$/, "");
+  const targetUrl = content.buttonPath?.startsWith("http")
+    ? content.buttonPath
+    : `${cleanBaseUrl}${content.buttonPath || "/portal"}`;
   const headingColor = content.accentColor || COLORS.textPrimary;
   const buttonColor = content.accentColor || COLORS.primary;
-  
-  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  let targetUrl = `${cleanBaseUrl}${content.buttonPath || '/dashboard'}`;
-
-  if (content.buttonPath) {
-      if (content.buttonPath.startsWith('http')) {
-          targetUrl = content.buttonPath;
-      } else {
-          targetUrl = `${cleanBaseUrl}${content.buttonPath.startsWith('/') ? '' : '/'}${content.buttonPath}`;
-      }
-  }
-
-  // ✅ ADDED: Sent date-time (Turkey locale)
-  const sentAt = new Date().toLocaleString("tr-TR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const sentAt = new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
   return `
     <!DOCTYPE html>
-    <html lang="tr">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${content.subject}</title>
-    </head>
-    <body style="${getBaseStyles()}">
-      <div style="${getWrapperStyles()}">
-        <div style="${getContainerStyles()}">
-          <div style="${getHeaderStyles()}">
-             <img src="https://atagc.com.tr/logo.png" alt="ATAGÇ Logo" width="80" height="auto" style="display: block; margin: 0 auto; width: 80px;" />
-             <div style="font-size: 14px; color: #ffffff; margin-top: 15px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; opacity: 0.9;">Atatürk Gençliği Çalıştayı</div>
-          </div>
-          <div style="${getContentStyles()}">
-            <h2 style="${getHeadingStyles(headingColor)}">${content.heading}</h2>
-            <div style="${getParagraphStyles()}">${content.message}</div>
-            ${content.buttonText ? `<div style="${getButtonContainerStyles()}"><a href="${targetUrl}" target="_blank" style="${getButtonStyles(buttonColor)}">${content.buttonText}</a></div>` : ''}
-            <div style="margin-top: 40px; border-top: 1px solid #f4f4f5; padding-top: 20px;">
-              <p style="font-size: 13px; color: ${COLORS.textSecondary}; margin: 0;">
-                Sorularınız için <a href="mailto:info@atagc.com.tr" style="${getLinkStyles()}">info@atagc.com.tr</a> adresi üzerinden veya panelimizdeki destek sisteminden bize ulaşabilirsiniz.
-              </p>
+    <html lang="en">
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${content.subject}</title></head>
+      <body style="font-family:Arial,sans-serif;line-height:1.6;color:${COLORS.textPrimary};background:${COLORS.background};margin:0;padding:0;">
+        <div style="width:100%;padding:40px 0;background:${COLORS.background};">
+          <div style="max-width:600px;margin:0 auto;background:${COLORS.container};border:1px solid ${COLORS.border};border-radius:14px;overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#171321,#2b2140);padding:34px;text-align:center;">
+              <div style="font-size:25px;font-weight:800;letter-spacing:3px;color:${COLORS.accent};">RAVENMUN</div>
+              <div style="font-size:12px;color:${COLORS.textSecondary};margin-top:8px;letter-spacing:2px;text-transform:uppercase;">Conference participant services</div>
+            </div>
+            <div style="padding:40px;">
+              <h2 style="margin:0 0 20px;font-size:22px;color:${headingColor};">${content.heading}</h2>
+              <div style="margin-bottom:24px;font-size:15px;color:${COLORS.textSecondary};">${content.message}</div>
+              ${content.buttonText ? `<div style="text-align:center;margin:32px 0 16px;"><a href="${targetUrl}" target="_blank" style="display:inline-block;background:${buttonColor};color:#100b18;text-decoration:none;padding:14px 28px;border-radius:9px;font-weight:700;font-size:14px;">${content.buttonText}</a></div>` : ""}
+              <div style="margin-top:40px;border-top:1px solid ${COLORS.border};padding-top:20px;font-size:13px;color:${COLORS.textSecondary};">Questions? Contact the RavenMUN organizing team or use the support area in your portal.</div>
+            </div>
+            <div style="background:#120f1a;padding:26px 40px;text-align:center;border-top:1px solid ${COLORS.border};">
+              <p style="margin:0;font-size:12px;color:${COLORS.textSecondary};">© 2026 RavenMUN. All rights reserved.</p>
+              <p style="margin:10px 0 0;font-size:11px;color:${COLORS.textSecondary};opacity:.7;">Sent: ${sentAt}</p>
             </div>
           </div>
-          <div style="${getFooterStyles()}">
-            <p style="${getFooterTextStyles()}">© 2026 ATAGÇ. Tüm hakları saklıdır.</p>
-
-            <!-- ✅ ADDED: Sent at -->
-            <p style="${getFooterTextStyles()} margin-top: 10px; font-size: 11px; opacity: 0.7;">
-              Gönderilme zamanı: ${sentAt}
-            </p>
-
-            ${type !== 'password_changed' && type !== 'account_suspended' && type !== 'email_verification' && type !== 'password_reset_request' && type !== 'two_factor_code' ? `<p style="${getFooterTextStyles()} margin-top: 15px; font-size: 11px; opacity: 0.6;">Bu e-posta, bildirim tercihleriniz doğrultusunda gönderilmiştir. Ayarlarınızı <a href="${cleanBaseUrl}/dashboard/profile" style="color: ${COLORS.textSecondary}; text-decoration: underline;">profil sayfasından</a> yönetebilirsiniz.</p>` : ''}
-          </div>
         </div>
-      </div>
-    </body>
+      </body>
     </html>
   `;
 };

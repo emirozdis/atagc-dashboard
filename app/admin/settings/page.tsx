@@ -21,8 +21,7 @@ import {
     CreditCard
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface SystemSettings {
     applications_open: boolean;
@@ -40,7 +39,7 @@ interface SystemSettings {
 
 export default function SettingsPage() {
     const queryClient = useQueryClient();
-    const [localSettings, setLocalSettings] = useState<SystemSettings | null>(null);
+    const [editedSettings, setEditedSettings] = useState<SystemSettings | null>(null);
 
     // Query
     const { data: settings, isLoading } = useQuery<SystemSettings>({
@@ -57,12 +56,8 @@ export default function SettingsPage() {
         }
     });
 
-    // Sync local state
-    useEffect(() => {
-        if (settings) {
-            setLocalSettings(settings);
-        }
-    }, [settings]);
+    // Use the query result until the first edit, then keep edits local.
+    const localSettings = editedSettings ?? settings ?? null;
 
     // Mutation
     const saveMutation = useMutation({
@@ -75,10 +70,10 @@ export default function SettingsPage() {
             if (!res.ok) throw new Error("Failed");
         },
         onSuccess: () => {
-            toast.success("Ayarlar başarıyla kaydedildi");
+            toast.success("Settings saved successfully");
             queryClient.invalidateQueries({ queryKey: ['settings-admin'] });
         },
-        onError: () => toast.error("Değişiklikler kaydedilemedi.")
+        onError: () => toast.error("Changes could not be saved.")
     });
 
     const handleSave = () => {
@@ -87,15 +82,15 @@ export default function SettingsPage() {
         }
     };
 
-    const updateSetting = (key: keyof SystemSettings, value: any) => {
+    const updateSetting = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
         if (localSettings) {
-            setLocalSettings({ ...localSettings, [key]: value });
+            setEditedSettings({ ...localSettings, [key]: value });
         }
     };
 
     if (isLoading || !localSettings) {
         return (
-            <div className="space-y-8 max-w-7xl mx-auto pb-12">
+            <div className="mx-auto max-w-7xl space-y-8 p-5 pb-12 animate-fade-in sm:p-8">
                 <div className="flex justify-between items-center">
                     <Skeleton className="h-10 w-[200px]" />
                     <Skeleton className="h-10 w-[150px]" />
@@ -109,20 +104,19 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="space-y-8 animate-fade-in pb-12 max-w-7xl mx-auto">
-            <Breadcrumbs items={[{ label: "Ayarlar" }]} />
+        <div className="mx-auto max-w-7xl space-y-8 p-5 pb-12 animate-fade-in sm:p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
-                        Sistem Ayarları
+                        Conference settings
                     </h2>
                     <p className="text-muted-foreground mt-1 text-lg">
-                        Platform genel yapılandırması ve erişim kontrolleri.
+                    Configure platform settings and access controls.
                     </p>
                 </div>
                 <Button onClick={handleSave} disabled={saveMutation.isPending} size="lg" >
                     {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                    Değişiklikleri Kaydet
+                    Save changes
                 </Button>
             </div>
 
@@ -131,38 +125,38 @@ export default function SettingsPage() {
                 {/* General Info */}
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
-                        <Globe className="w-4 h-4" /> Genel Bilgiler
+                        <Globe className="w-4 h-4" /> General information
                     </div>
                     <Card className="bg-card border-border/50 shadow-sm overflow-hidden">
                         <CardHeader className="bg-muted/5 pb-4 border-b border-border/50">
-                            <CardTitle className="text-xl">Kurumsal Kimlik</CardTitle>
-                            <CardDescription>Etkinlik adı, iletişim bilgileri ve temel tanımlar.</CardDescription>
+                            <CardTitle className="text-xl">Conference identity</CardTitle>
+                            <CardDescription>Conference name, contact details, and basic information.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
                                 <div className="space-y-3">
                                     <Label className="flex items-center gap-2 text-base font-medium">
                                         <Building className="w-4 h-4 text-muted-foreground" />
-                                        Dönem / Etkinlik Adı
+                                        Event name
                                     </Label>
                                     <Input
                                         value={localSettings.term_name}
                                         onChange={(e) => updateSetting('term_name', e.target.value)}
-                                        placeholder="Örn: ATAGÇ 2026"
+                                        placeholder="Example: RavenMUN 2026"
                                         className="bg-background/50 h-11 text-lg"
                                     />
-                                    <p className="text-[13px] text-muted-foreground">Panel başlıklarında görünür.</p>
+                                    <p className="text-[13px] text-muted-foreground">Shown in dashboard headings.</p>
                                 </div>
 
                                 <div className="space-y-3">
                                     <Label className="flex items-center gap-2 text-base font-medium">
                                         <Mail className="w-4 h-4 text-muted-foreground" />
-                                        İletişim E-postası
+                                        Contact email
                                     </Label>
                                     <Input
                                         value={localSettings.contact_email}
                                         onChange={(e) => updateSetting('contact_email', e.target.value)}
-                                        placeholder="info@atagc.com.tr"
+                                        placeholder="info@ravenmun.org"
                                         type="email"
                                         className="bg-background/50 h-11"
                                     />
@@ -175,19 +169,19 @@ export default function SettingsPage() {
                 {/* Event Details */}
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
-                        <Calendar className="w-4 h-4" /> Etkinlik Detayları
+                        <Calendar className="w-4 h-4" /> Event details
                     </div>
                     <Card className="bg-card border-border/50 shadow-sm overflow-hidden">
                         <CardContent className="p-6 space-y-6">
                             <div className="space-y-3">
                                 <Label className="flex items-center gap-2 text-base font-medium">
                                     <MapPin className="w-4 h-4 text-muted-foreground" />
-                                    Konum / Yerleşke
+                                    Venue / campus
                                 </Label>
                                 <Input
                                     value={localSettings.location}
                                     onChange={(e) => updateSetting('location', e.target.value)}
-                                    placeholder="Örn: İTÜ GVO İzmir NESAN Yerleşkesi"
+                                        placeholder="For example: Conference venue"
                                     className="bg-background/50 h-11"
                                 />
                             </div>
@@ -196,7 +190,7 @@ export default function SettingsPage() {
                                 <div className="space-y-3">
                                     <Label className="flex items-center gap-2 text-base font-medium">
                                         <Clock className="w-4 h-4 text-muted-foreground" />
-                                        Başlangıç Tarihi
+                                        Start date
                                     </Label>
                                     <Input
                                         type="date"
@@ -208,7 +202,7 @@ export default function SettingsPage() {
                                 <div className="space-y-3">
                                     <Label className="flex items-center gap-2 text-base font-medium">
                                         <Clock className="w-4 h-4 text-muted-foreground" />
-                                        Bitiş Tarihi
+                                        End date
                                     </Label>
                                     <Input
                                         type="date"
@@ -225,29 +219,29 @@ export default function SettingsPage() {
                 {/* Payment Info */}
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
-                        <CreditCard className="w-4 h-4" /> Banka Bilgileri
+                        <CreditCard className="w-4 h-4" /> Bank details
                     </div>
                     <Card className="bg-card border-border/50 shadow-sm overflow-hidden">
                         <CardHeader className="bg-muted/5 pb-4 border-b border-border/50">
-                            <CardTitle className="text-xl">Banka Hesap Tanımları</CardTitle>
-                            <CardDescription>Katılımcıların ödeme sayfasında göreceği bilgiler.</CardDescription>
+                            <CardTitle className="text-xl">Bank account details</CardTitle>
+                            <CardDescription>Information participants see on the payment page.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div className="space-y-3">
-                                    <Label>Banka Adı</Label>
+                                    <Label>Bank name</Label>
                                     <Input
                                         value={localSettings.bank_name}
                                         onChange={(e) => updateSetting('bank_name', e.target.value)}
-                                        placeholder="Örn: Ziraat Bankası"
+                                        placeholder="For example: Bank name"
                                     />
                                 </div>
                                 <div className="space-y-3">
-                                    <Label>Alıcı Adı (Hesap Sahibi)</Label>
+                                    <Label>Recipient name (account holder)</Label>
                                     <Input
                                         value={localSettings.bank_account_holder}
                                         onChange={(e) => updateSetting('bank_account_holder', e.target.value)}
-                                        placeholder="Örn: ATAGÇ Komitesi"
+                                        placeholder="Example: RavenMUN Organizing Committee"
                                     />
                                 </div>
                                 <div className="space-y-3 md:col-span-2">
@@ -267,7 +261,7 @@ export default function SettingsPage() {
                 {/* Access Control */}
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 text-primary font-semibold tracking-wide uppercase text-xs">
-                        <ShieldAlert className="w-4 h-4" /> Güvenlik ve Erişim
+                        <ShieldAlert className="w-4 h-4" /> Security and access
                     </div>
                     <Card className="bg-card border-border/50 shadow-sm overflow-hidden">
                         <CardContent className="p-0">
@@ -275,19 +269,19 @@ export default function SettingsPage() {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 gap-4 hover:bg-muted/5 transition-colors">
                                     <div className="space-y-1.5 flex-1">
                                         <div className="flex items-center gap-3">
-                                            <Label className="text-base font-semibold cursor-pointer" htmlFor="apps-switch">Başvuru Alımı</Label>
+                                            <Label className="text-base font-semibold cursor-pointer" htmlFor="apps-switch">Applications open</Label>
                                             {localSettings.applications_open ? (
-                                                <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">AÇIK</span>
+                                                <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">OPEN</span>
                                             ) : (
-                                                <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">KAPALI</span>
+                                                <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">CLOSED</span>
                                             )}
                                         </div>
                                         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-                                            Bu ayar kapatıldığında, yeni kullanıcılar sisteme kayıt olamaz ve başvuru formu gönderemez.
+                                            When disabled, new users cannot register or submit applications.
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-medium text-muted-foreground">{localSettings.applications_open ? "Açık" : "Kapalı"}</span>
+                                        <span className="text-xs font-medium text-muted-foreground">{localSettings.applications_open ? "Open" : "Closed"}</span>
                                         <Switch
                                             id="apps-switch"
                                             checked={localSettings.applications_open}
@@ -299,19 +293,19 @@ export default function SettingsPage() {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 gap-4 hover:bg-muted/5 transition-colors">
                                     <div className="space-y-1.5 flex-1">
                                         <div className="flex items-center gap-3">
-                                            <Label className="text-base font-semibold cursor-pointer" htmlFor="gallery-switch">Fotoğraf Galerisi</Label>
+                                            <Label className="text-base font-semibold cursor-pointer" htmlFor="gallery-switch">Photo gallery</Label>
                                             {localSettings.gallery_enabled ? (
-                                                <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">AÇIK</span>
+                                                <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">OPEN</span>
                                             ) : (
-                                                <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">KAPALI</span>
+                                                <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">CLOSED</span>
                                             )}
                                         </div>
                                         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-                                            Bu ayar kapatıldığında, fotoğraf galerisi tüm kullanıcılar için erişime kapalı olur.
+                                            When disabled, the photo gallery is unavailable to all users.
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-medium text-muted-foreground">{localSettings.gallery_enabled ? "Açık" : "Kapalı"}</span>
+                                        <span className="text-xs font-medium text-muted-foreground">{localSettings.gallery_enabled ? "Open" : "Closed"}</span>
                                         <Switch
                                             id="gallery-switch"
                                             checked={localSettings.gallery_enabled}
@@ -324,15 +318,15 @@ export default function SettingsPage() {
                                     <div className="space-y-1.5 flex-1">
                                         <div className="flex items-center gap-3">
                                             <AlertTriangle className="w-5 h-5 text-red-500" />
-                                            <Label className="text-base font-semibold text-red-600 cursor-pointer" htmlFor="maintenance-switch">Bakım Modu</Label>
-                                            {localSettings.maintenance_mode && <span className="animate-pulse text-[10px] font-bold text-red-600 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/30">AKTİF</span>}
+                                            <Label className="text-base font-semibold text-red-600 cursor-pointer" htmlFor="maintenance-switch">Maintenance mode</Label>
+                                            {localSettings.maintenance_mode && <span className="animate-pulse text-[10px] font-bold text-red-600 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/30">ACTIVE</span>}
                                         </div>
                                         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-                                            Bakım modu aktif edildiğinde, Yöneticiler hariç kimse sisteme giriş yapamaz.
+                                            When enabled, only administrators can sign in.
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-medium text-muted-foreground">{localSettings.maintenance_mode ? "Aktif" : "Pasif"}</span>
+                                        <span className="text-xs font-medium text-muted-foreground">{localSettings.maintenance_mode ? "Active" : "Inactive"}</span>
                                         <Switch
                                             id="maintenance-switch"
                                             className="data-[state=checked]:bg-red-500"

@@ -10,6 +10,7 @@ import {
   Lock,
   Megaphone
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 // 1. Role Constants
 export const ROLES = {
@@ -38,6 +39,40 @@ export const ROLES = {
 
 // 2. Type Definition
 export type UserRole = typeof ROLES[keyof typeof ROLES];
+
+/** Public application types. These are intentionally separate from account and conference roles. */
+export const APPLICATION_TYPES = {
+  DELEGATE: "delegate",
+  CHAIRBOARD: "chairboard",
+  DELEGATION: "delegation",
+  PRESS: "press",
+  OBSERVER: "observer",
+} as const;
+
+export type ApplicationType = typeof APPLICATION_TYPES[keyof typeof APPLICATION_TYPES];
+
+export const PUBLIC_APPLICATION_TYPES: ApplicationType[] = [
+  APPLICATION_TYPES.DELEGATE,
+  APPLICATION_TYPES.CHAIRBOARD,
+  APPLICATION_TYPES.DELEGATION,
+  APPLICATION_TYPES.PRESS,
+  APPLICATION_TYPES.OBSERVER,
+];
+
+/** Platform privileges are separate from a user's conference assignment. */
+export const SITE_ADMIN_ROLES: UserRole[] = [ROLES.ADMIN, ROLES.SUPERADMIN];
+
+export const CONFERENCE_ASSIGNMENT_ROLES: UserRole[] = [
+  ROLES.DELEGATE,
+  ROLES.CHAIRMAN,
+  ROLES.DEPUTY_CHAIR,
+  ROLES.PRESS,
+  ROLES.HEAD_PRESS,
+  ROLES.OBSERVER,
+  ROLES.HEAD_OBSERVER,
+  ROLES.SECURITY,
+  ROLES.HEAD_SECURITY,
+];
 
 // 3. Role Groups (For Middleware & Access Control)
 
@@ -95,60 +130,60 @@ export const ROLE_METADATA: Record<UserRole, {
   label: string;
   rank: number; // Higher number = Higher authority
   description: string;
-  icon: any;
+  icon: LucideIcon;
   colorClass: string; // Tailwind text color class
   bgClass: string;    // Tailwind bg color class
   borderClass: string; // Tailwind border color class
 }> = {
   [ROLES.SUPERADMIN]: {
-    label: "Süper Yönetici",
+    label: "Super Admin",
     rank: 100,
-    description: "Tam yetki. Tüm sistemi yönetebilir.",
+    description: "Full access to the conference platform.",
     icon: ShieldAlert,
     colorClass: "text-red-600",
     bgClass: "bg-red-500/10",
     borderClass: "border-red-500/20"
   },
   [ROLES.ADMIN]: {
-    label: "Yönetici",
+    label: "Site Admin",
     rank: 50,
-    description: "Sistem yönetimi ve kullanıcı işlemleri.",
+    description: "Manages the platform and participant accounts.",
     icon: ShieldAlert,
     colorClass: "text-orange-600",
     bgClass: "bg-orange-500/10",
     borderClass: "border-orange-500/20"
   },
   [ROLES.CHAIRMAN]: {
-    label: "Komite Başkanı",
+    label: "Committee Chair",
     rank: 40,
-    description: "Atandığı komiteyi yönetir.",
+    description: "Leads the assigned committee.",
     icon: ShieldCheck,
     colorClass: "text-purple-600",
     bgClass: "bg-purple-500/10",
     borderClass: "border-purple-500/20"
   },
   [ROLES.DEPUTY_CHAIR]: {
-    label: "Başkan Yardımcısı",
+    label: "Deputy Chair",
     rank: 30,
-    description: "Komite yönetimine yardımcı olur.",
+    description: "Supports the committee leadership team.",
     icon: Shield,
     colorClass: "text-indigo-600",
     bgClass: "bg-indigo-500/10",
     borderClass: "border-indigo-500/20"
   },
   [ROLES.DELEGATE]: {
-    label: "Delege",
+    label: "Delegate",
     rank: 10,
-    description: "Komite üyesi. Oylama ve söz hakkı vardır.",
+    description: "A committee member with speaking and voting rights.",
     icon: User,
     colorClass: "text-blue-600",
     bgClass: "bg-blue-500/10",
     borderClass: "border-blue-500/20"
   },
   [ROLES.APPLICANT]: {
-    label: "Başvuru Sahibi",
+    label: "Applicant",
     rank: 1,
-    description: "Henüz onaylanmamış başvuru sahibi.",
+    description: "An applicant whose placement has not been approved.",
     icon: Users,
     colorClass: "text-gray-500",
     bgClass: "bg-gray-500/10",
@@ -156,54 +191,54 @@ export const ROLE_METADATA: Record<UserRole, {
   },
   // Organisation Roles
   [ROLES.HEAD_OBSERVER]: {
-    label: "Baş Gözlemci",
+    label: "Head Observer",
     rank: 45,
-    description: "Gözlemci ekibini yönetir.",
+    description: "Leads the observer team.",
     icon: Crown,
     colorClass: "text-teal-600",
     bgClass: "bg-teal-500/10",
     borderClass: "border-teal-500/20"
   },
   [ROLES.OBSERVER]: {
-    label: "Gözlemci",
+    label: "Observer",
     rank: 10,
-    description: "Akademik takım gözlemcisi.",
+    description: "A member of the academic observer team.",
     icon: Eye,
     colorClass: "text-cyan-600",
     bgClass: "bg-cyan-500/10",
     borderClass: "border-cyan-500/20"
   },
   [ROLES.HEAD_PRESS]: {
-    label: "Basın Başkanı",
+    label: "Head of Press",
     rank: 45,
-    description: "Basın ekibini yönetir.",
+    description: "Leads the press team.",
     icon: Megaphone,
     colorClass: "text-pink-700",
     bgClass: "bg-pink-500/10",
     borderClass: "border-pink-500/20"
   },
   [ROLES.PRESS]: {
-    label: "Basın",
+    label: "Press",
     rank: 10,
-    description: "Basın ekibi üyesi.",
+    description: "A member of the press team.",
     icon: Camera,
     colorClass: "text-pink-600",
     bgClass: "bg-pink-500/10",
     borderClass: "border-pink-500/20"
   },
   [ROLES.HEAD_SECURITY]: {
-    label: "Güvenlik Şefi",
+    label: "Head of Security",
     rank: 45,
-    description: "Güvenlik ekibini yönetir.",
+    description: "Leads the security team.",
     icon: ShieldAlert,
     colorClass: "text-zinc-800 dark:text-zinc-200",
     bgClass: "bg-zinc-500/10",
     borderClass: "border-zinc-500/20"
   },
   [ROLES.SECURITY]: {
-    label: "Güvenlik",
+    label: "Security",
     rank: 10,
-    description: "Güvenlik ekibi üyesi.",
+    description: "A member of the security team.",
     icon: Lock,
     colorClass: "text-zinc-600 dark:text-zinc-400",
     bgClass: "bg-zinc-500/10",
@@ -216,16 +251,14 @@ export const ROLE_METADATA: Record<UserRole, {
  * If they are 'applicant', it evaluates their submitted form to show their targeted role.
  */
 export function getEffectiveRole(user: { role?: string | UserRole, applicantType?: string | UserRole }): UserRole {
-  if (!user.role) return ROLES.APPLICANT;
-  if (user.role === ROLES.APPLICANT && user.applicantType) {
-    return user.applicantType as UserRole;
-  }
-  return user.role as UserRole;
+  // An application target is not a permission. Conference access starts only
+  // after an administrator creates a conference assignment in `role`.
+  return (user.role as UserRole) || ROLES.APPLICANT;
 }
 
 /**
  * Returns metadata and visual properties strictly based on actual DB role.
- * Unapproved users will correctly show as "Başvuru Sahibi".
+ * Unapproved users will correctly show as "Applicant".
  */
 export function getRoleMeta(role?: string) {
   return ROLE_METADATA[(role as UserRole)] || ROLE_METADATA[ROLES.APPLICANT];

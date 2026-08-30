@@ -21,10 +21,16 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MultiSelectPopover, MultiSelectOption } from "@/components/ui/multi-select-popover";
+
+type LogValue = { from: unknown; to: unknown };
+interface LogDetails {
+    changes?: Record<string, LogValue>;
+    snapshot?: unknown;
+    [key: string]: unknown;
+}
 
 interface LogEntry {
     id: string;
@@ -32,7 +38,7 @@ interface LogEntry {
     severity: string;
     category: string;
     resource_type: string;
-    details: any;
+    details: LogDetails;
     ip_address: string;
     created_at: string;
     user: {
@@ -43,25 +49,25 @@ interface LogEntry {
 }
 
 const severityOptions: MultiSelectOption[] = [
-    { value: "audit", label: "Denetim" },
-    { value: "info", label: "Bilgi" },
-    { value: "warning", label: "Uyarı" },
-    { value: "error", label: "Hata" },
-    { value: "critical", label: "Kritik" },
+    { value: "audit", label: "Audit" },
+    { value: "info", label: "Info" },
+    { value: "warning", label: "Warning" },
+    { value: "error", label: "Error" },
+    { value: "critical", label: "Critical" },
 ];
 
 const categoryOptions: MultiSelectOption[] = [
-    { value: "auth", label: "Kimlik" },
-    { value: "access", label: "Erişim" },
-    { value: "business", label: "İşlem" },
-    { value: "system", label: "Sistem" },
-    { value: "database", label: "Veritabanı" },
+    { value: "auth", label: "Authentication" },
+    { value: "access", label: "Access" },
+    { value: "business", label: "Business" },
+    { value: "system", label: "System" },
+    { value: "database", label: "Database" },
 ];
 
-const DiffViewer = ({ changes }: { changes: Record<string, { from: any, to: any }> }) => {
+const DiffViewer = ({ changes }: { changes: Record<string, LogValue> }) => {
     if (!changes || Object.keys(changes).length === 0) return null;
 
-    const formatValue = (val: any) => {
+    const formatValue = (val: unknown) => {
         if (val === null) return <span className="text-muted-foreground italic">null</span>;
         if (val === undefined) return <span className="text-muted-foreground italic">undefined</span>;
         if (typeof val === 'object') return JSON.stringify(val);
@@ -70,7 +76,7 @@ const DiffViewer = ({ changes }: { changes: Record<string, { from: any, to: any 
 
     return (
         <div className="space-y-3 w-full">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Değişiklikler</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Changes</h4>
 
             {/* Desktop View: Table */}
             <div className="hidden md:block bg-muted/30 rounded-lg border border-border/50 overflow-hidden">
@@ -78,9 +84,9 @@ const DiffViewer = ({ changes }: { changes: Record<string, { from: any, to: any 
                     <thead>
                         <tr className="bg-muted/50 text-xs text-muted-foreground border-b border-border/50">
                             <th className="px-4 py-3 text-left font-medium w-1/4">Alan</th>
-                            <th className="px-4 py-3 text-left font-medium w-[35%]">Eski Değer</th>
+                            <th className="px-4 py-3 text-left font-medium w-[35%]">Previous value</th>
                             <th className="px-2 py-3 text-center w-[5%]"></th>
-                            <th className="px-4 py-3 text-left font-medium w-[35%]">Yeni Değer</th>
+                            <th className="px-4 py-3 text-left font-medium w-[35%]">New value</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border/30">
@@ -117,13 +123,13 @@ const DiffViewer = ({ changes }: { changes: Record<string, { from: any, to: any 
                         </div>
                         <div className="grid gap-3">
                             <div className="space-y-1.5">
-                                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Eski Değer</span>
+                                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Previous value</span>
                                 <div className="bg-red-500/10 text-red-600 dark:bg-red-950/30 dark:text-red-400 p-2.5 rounded-md text-xs font-mono break-all whitespace-pre-wrap border border-red-500/20">
                                     {formatValue(diff.from)}
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Yeni Değer</span>
+                                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">New value</span>
                                 <div className="bg-green-500/10 text-green-600 dark:bg-green-950/30 dark:text-green-400 p-2.5 rounded-md text-xs font-mono break-all whitespace-pre-wrap border border-green-500/20">
                                     {formatValue(diff.to)}
                                 </div>
@@ -200,11 +206,11 @@ export default function AdminLogsPage() {
 
     const getSeverityBadge = (severity: string) => {
         switch (severity) {
-            case 'error': return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Hata</Badge>;
-            case 'warning': return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Uyarı</Badge>;
-            case 'audit': return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Denetim</Badge>;
-            case 'critical': return <Badge className="bg-red-600 text-white border-red-600">Kritik</Badge>;
-            default: return <Badge variant="outline" className="text-muted-foreground">Bilgi</Badge>;
+            case 'error': return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Error</Badge>;
+            case 'warning': return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Warning</Badge>;
+            case 'audit': return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Audit</Badge>;
+            case 'critical': return <Badge className="bg-red-600 text-white border-red-600">Critical</Badge>;
+            default: return <Badge variant="outline" className="text-muted-foreground">Info</Badge>;
         }
     };
 
@@ -222,14 +228,13 @@ export default function AdminLogsPage() {
     const hasActiveFilters = search !== "" || severityFilter.length > 0 || categoryFilter.length > 0 || actionFilter !== "" || startDate !== "" || endDate !== "" || sortOrder !== "desc";
 
     return (
-        <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-            <Breadcrumbs items={[{ label: "Sistem Logları" }]} />
+        <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
 
             <div className="flex flex-col gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     <Input
-                        placeholder="Kullanıcı, e-posta veya IP adresi..."
+                        placeholder="User, email, or IP address..."
                         className="pl-9 bg-background border-border/50 h-10"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
@@ -239,7 +244,7 @@ export default function AdminLogsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                     <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                         <Input
-                            placeholder="İşlem tipi..."
+                            placeholder="Action type..."
                             className="w-[calc(50%-0.25rem)] min-[480px]:w-[140px] h-10 bg-background border-border/50"
                             value={actionFilter}
                             onChange={e => setActionFilter(e.target.value)}
@@ -249,7 +254,7 @@ export default function AdminLogsPage() {
                             options={severityOptions}
                             selected={severityFilter}
                             onChange={setSeverityFilter}
-                            placeholder="Önem"
+                            placeholder="Severity"
                             triggerIcon={<AlertTriangle className="w-4 h-4 shrink-0" />}
                             className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]"
                         />
@@ -258,7 +263,7 @@ export default function AdminLogsPage() {
                             options={categoryOptions}
                             selected={categoryFilter}
                             onChange={setCategoryFilter}
-                            placeholder="Kategori"
+                            placeholder="Category"
                             triggerIcon={<Database className="w-4 h-4 shrink-0" />}
                             className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]"
                         />
@@ -267,21 +272,21 @@ export default function AdminLogsPage() {
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 w-[calc(50%-0.25rem)] min-[480px]:w-auto justify-start text-muted-foreground hover:text-foreground">
                                     <CalendarDays className="w-4 h-4 shrink-0" />
-                                    <span className="truncate">{startDate || endDate ? "Tarih Seçildi" : "Tarih"}</span>
+                                    <span className="truncate">{startDate || endDate ? "Date selected" : "Date"}</span>
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-80 p-4" align="start">
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-muted-foreground">Başlangıç</label>
+                                        <label className="text-xs font-medium text-muted-foreground">Start</label>
                                         <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-muted-foreground">Bitiş</label>
+                                        <label className="text-xs font-medium text-muted-foreground">End</label>
                                         <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-9" />
                                     </div>
                                     <div className="flex justify-end pt-2">
-                                        <Button variant="secondary" size="sm" onClick={() => { setStartDate(""); setEndDate(""); }}>Temizle</Button>
+                                        <Button variant="secondary" size="sm" onClick={() => { setStartDate(""); setEndDate(""); }}>Clear</Button>
                                     </div>
                                 </div>
                             </PopoverContent>
@@ -295,13 +300,13 @@ export default function AdminLogsPage() {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent align="end">
-                                <SelectItem value="desc">En Yeni</SelectItem>
-                                <SelectItem value="asc">En Eski</SelectItem>
+                                <SelectItem value="desc">Newest</SelectItem>
+                                <SelectItem value="asc">Oldest</SelectItem>
                             </SelectContent>
                         </Select>
 
                         {hasActiveFilters && (
-                            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" onClick={resetFilters} title="Filtreleri Temizle">
+                            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" onClick={resetFilters} title="Clear filters">
                                 <X className="w-4 h-4" />
                             </Button>
                         )}
@@ -315,11 +320,11 @@ export default function AdminLogsPage() {
                         <Table>
                             <TableHeader className="bg-muted/30">
                                 <TableRow>
-                                    <TableHead>Tarih</TableHead>
-                                    <TableHead>Kullanıcı</TableHead>
-                                    <TableHead>İşlem</TableHead>
-                                    <TableHead>Kategori</TableHead>
-                                    <TableHead>Seviye</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Action</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Severity</TableHead>
                                     <TableHead className="w-[50px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -327,7 +332,7 @@ export default function AdminLogsPage() {
                                 {logs.map((log) => (
                                     <TableRow key={log.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedLog(log)}>
                                         <TableCell className="text-xs text-muted-foreground font-mono">
-                                            {new Date(log.created_at).toLocaleString("tr-TR")}
+                                            {new Date(log.created_at).toLocaleString("en-GB")}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
@@ -335,7 +340,7 @@ export default function AdminLogsPage() {
                                                     <AvatarFallback className="text-[10px]">{log.user?.full_name?.substring(0, 2) || "?"}</AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-medium">{log.user?.full_name || "Sistem"}</span>
+                                                    <span className="text-sm font-medium">{log.user?.full_name || "System"}</span>
                                                     {log.user?.email && <span className="text-[10px] text-muted-foreground hidden sm:inline">{log.user.email}</span>}
                                                 </div>
                                             </div>
@@ -359,7 +364,7 @@ export default function AdminLogsPage() {
                 <DialogContent className="w-full max-w-[95vw] md:max-w-3xl max-h-[85vh] flex flex-col p-0 bg-background overflow-hidden">
                     <DialogHeader className="p-6 pb-2 border-b shrink-0 bg-muted/5">
                         <DialogTitle className="flex items-center gap-2 text-lg">
-                            Log Detayı
+                            Log details
                             {selectedLog && getSeverityBadge(selectedLog.severity)}
                         </DialogTitle>
                     </DialogHeader>
@@ -369,19 +374,19 @@ export default function AdminLogsPage() {
                                 <>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-secondary/10 p-4 rounded-lg border border-border/50">
                                         <div>
-                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">İşlem ID</span>
+                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">Action ID</span>
                                             <span className="font-mono text-xs break-all text-foreground select-all">{selectedLog.id}</span>
                                         </div>
                                         <div>
-                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">IP Adresi</span>
+                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">IP address</span>
                                             <span className="font-mono text-xs break-all text-foreground">{selectedLog.ip_address || "-"}</span>
                                         </div>
                                         <div>
-                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">Kullanıcı</span>
-                                            <span className="font-medium text-foreground">{selectedLog.user?.full_name || "Sistem"}</span>
+                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">User</span>
+                                            <span className="font-medium text-foreground">{selectedLog.user?.full_name || "System"}</span>
                                         </div>
                                         <div>
-                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">Rol</span>
+                                            <span className="text-muted-foreground block text-xs uppercase tracking-wider font-semibold mb-1">Role</span>
                                             <Badge variant="outline" className="text-[10px]">{selectedLog.user?.role || "-"}</Badge>
                                         </div>
                                     </div>
@@ -392,7 +397,7 @@ export default function AdminLogsPage() {
                                         </div>
                                     ) : (
                                         <div className="space-y-2 w-full">
-                                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Ham Veri</h4>
+                                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Raw data</h4>
                                             <div className="w-full rounded-lg border border-border/50 bg-muted/30 p-3 md:p-4 overflow-hidden">
                                                 <div className="overflow-x-auto max-h-[300px]">
                                                     <pre className="text-xs font-mono text-foreground whitespace-pre-wrap break-all">
@@ -405,7 +410,7 @@ export default function AdminLogsPage() {
 
                                     {selectedLog.details?.snapshot && (
                                         <div className="space-y-2 pt-4 border-t border-border/50 w-full">
-                                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Son Durum (Snapshot)</h4>
+                                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Final state (snapshot)</h4>
                                             <div className="w-full rounded-lg border border-border/50 bg-muted/30 p-3 md:p-4 overflow-hidden">
                                                 <div className="overflow-x-auto max-h-[200px]">
                                                     <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">

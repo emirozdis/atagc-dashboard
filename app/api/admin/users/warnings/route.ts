@@ -23,7 +23,7 @@ export const POST = apiHandler(async (request: Request) => {
   if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   if (!canManageRole(session.user.role, targetUser.role)) {
-      return NextResponse.json({ error: "Yetkisiz işlem." }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized action." }, { status: 403 });
   }
 
   const { data: warning, error } = await supabase.from("user_warnings").insert({
@@ -64,10 +64,10 @@ export const DELETE = apiHandler(async (request: Request) => {
     if (!id) throw new Error("Missing ID");
 
     const { data: warning } = await supabase.from("user_warnings").select("*").eq("id", id).single();
-    if (!warning) return NextResponse.json({ error: "Bulunamadı" }, { status: 404 });
+    if (!warning) return NextResponse.json({ error: "Warning not found." }, { status: 404 });
 
     if (session.user.role !== ROLES.SUPERADMIN && warning.issued_by !== session.user.id) {
-        return NextResponse.json({ error: "Yetkisiz işlem" }, { status: 403 });
+        return NextResponse.json({ error: "Unauthorized action." }, { status: 403 });
     }
 
     const { error } = await supabase.from("user_warnings").delete().eq("id", id);

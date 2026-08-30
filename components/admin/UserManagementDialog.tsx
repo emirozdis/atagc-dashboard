@@ -57,11 +57,14 @@ export function ManageUserDialog({
   const [showRoleConfirm, setShowRoleConfirm] = useState(false);
   const [showSuspendConfirm, setShowSuspendConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteCooldown, setDeleteCooldown] = useState(0);
 
   const hasActiveConfirmation = showRoleConfirm || showSuspendConfirm || showDeleteConfirm;
 
   useEffect(() => {
     if (open && user) {
+      // Reset the draft when the selected user changes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedRole(user.role);
     }
   }, [open, user]);
@@ -77,6 +80,20 @@ export function ManageUserDialog({
       return () => clearTimeout(t);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const timer = window.setInterval(() => {
+      setDeleteCooldown((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [showDeleteConfirm]);
 
   if (!user) return null;
 
@@ -133,7 +150,7 @@ export function ManageUserDialog({
       >
         <DialogContent className="sm:max-w-[500px] gap-0 p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-2">
-            <DialogTitle className="text-xl font-display font-bold">Kullanıcı Yönetimi</DialogTitle>
+            <DialogTitle className="text-xl font-display font-bold">User management</DialogTitle>
             <DialogDescription>
               <span className="font-semibold text-foreground">{user.full_name}</span>
             </DialogDescription>
@@ -143,7 +160,7 @@ export function ManageUserDialog({
             {view === "main" && (
               <div className="space-y-6 animate-in slide-in-from-left-4 fade-in duration-300">
                 <div className="space-y-3">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Mevcut Rol</Label>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Current role</Label>
                   <div className={cn(
                     "flex items-start gap-4 p-4 rounded-xl border transition-all",
                     "bg-card hover:bg-accent/5 cursor-pointer group",
@@ -155,7 +172,7 @@ export function ManageUserDialog({
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <h4 className="font-semibold text-sm">{currentRoleMeta.label}</h4>
-                        <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground group-hover:text-primary">Değiştir</Button>
+                        <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground group-hover:text-primary">Change</Button>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 leading-relaxed pr-8">
                         {currentRoleMeta.description}
@@ -165,7 +182,7 @@ export function ManageUserDialog({
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Hesap İşlemleri</Label>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Account actions</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       variant="outline"
@@ -178,16 +195,16 @@ export function ManageUserDialog({
                       onClick={() => setShowSuspendConfirm(true)}
                     >
                       {user.is_suspended ? <UserCheck className="w-5 h-5" /> : <UserX className="w-5 h-5" />}
-                      <span className="text-xs font-semibold">{user.is_suspended ? "Erişimi Aç" : "Askıya Al"}</span>
+                      <span className="text-xs font-semibold">{user.is_suspended ? "Restore access" : "Suspend"}</span>
                     </Button>
 
                     <Button
                       variant="outline"
                       className="h-auto py-3 flex flex-col items-center gap-2 border-dashed border-2 border-destructive/30 hover:bg-destructive/5 hover:border-destructive hover:text-destructive"
-                      onClick={() => setShowDeleteConfirm(true)}
+                      onClick={() => { setDeleteCooldown(3); setShowDeleteConfirm(true); }}
                     >
                       <Trash2 className="w-5 h-5" />
-                      <span className="text-xs font-semibold">Kullanıcıyı Sil</span>
+                      <span className="text-xs font-semibold">Delete user</span>
                     </Button>
                   </div>
                 </div>
@@ -197,8 +214,8 @@ export function ManageUserDialog({
             {view === "role_select" && (
               <div className="space-y-4 animate-in slide-in-from-right-4 fade-in duration-300">
                 <div className="flex items-center justify-between">
-                  <Label>Atanacak Rolü Seçiniz</Label>
-                  <Button variant="ghost" size="sm" onClick={() => setView("main")} className="h-6 text-xs">İptal</Button>
+                  <Label>Select a role to assign</Label>
+                  <Button variant="ghost" size="sm" onClick={() => setView("main")} className="h-6 text-xs">Cancel</Button>
                 </div>
                 <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-1">
                   {Object.values(ROLES).map((roleKey) => {
@@ -241,18 +258,18 @@ export function ManageUserDialog({
       <AlertDialog open={showRoleConfirm} onOpenChange={(val) => { setShowRoleConfirm(val); if (!val) setView("role_select"); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Rol Değişikliğini Onayla</AlertDialogTitle>
+            <AlertDialogTitle>Confirm role change</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{user.full_name}</strong> kullanıcısının rolünü <br />
+              <strong>{user.full_name}</strong>&apos;s role will be changed to <br />
               <span className="font-semibold text-foreground">{currentRoleMeta.label}</span> &rarr; <span className={cn("font-bold", newRoleMeta.colorClass)}>{newRoleMeta.label}</span>
-              <br /> olarak değiştirmek üzeresiniz.
+              <br />.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setView("role_select")}>Geri Dön</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setView("role_select")}>Go back</AlertDialogCancel>
             <AlertDialogAction onClick={executeRoleUpdate} disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Onayla ve Değiştir
+              Confirm and change
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -262,24 +279,24 @@ export function ManageUserDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className={user.is_suspended ? "text-green-600" : "text-yellow-600"}>
-              {user.is_suspended ? "Erişim Engelini Kaldır" : "Kullanıcıyı Askıya Al"}
+              {user.is_suspended ? "Restore access" : "Suspend user"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {user.is_suspended
-                ? "Bu kullanıcının sisteme tekrar giriş yapmasına izin verilecektir."
-                : "Bu kullanıcı geçici olarak sisteme giriş yapamayacaktır."
+                ? "This user will be allowed to sign in again."
+                : "This user will temporarily be unable to sign in."
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={executeSuspend}
               disabled={loading}
               className={user.is_suspended ? "bg-green-600 hover:bg-green-700" : "bg-yellow-600 hover:bg-yellow-700"}
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              {user.is_suspended ? "Engeli Kaldır" : "Askıya Al"}
+              {user.is_suspended ? "Restore access" : "Suspend"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -290,17 +307,17 @@ export function ManageUserDialog({
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive flex items-center gap-2">
               <AlertCircle className="w-5 h-5" />
-              Kullanıcıyı Kalıcı Olarak Sil
+              MAKE SURE YOU UNDERSTAND
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Bu işlem geri alınamaz. Kullanıcı ve ilgili tüm veriler silinecektir.
+              This permanently deletes the user and all related conference data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
-            <AlertDialogAction onClick={executeDelete} disabled={loading} className="bg-destructive text-white hover:bg-destructive/90">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} disabled={loading || deleteCooldown > 0} className="bg-destructive text-white hover:bg-destructive/90">
               {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Evet, Sil
+              {deleteCooldown > 0 ? `Delete user (${deleteCooldown})` : "I understand — delete user"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

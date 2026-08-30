@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useSession } from "next-auth/react";
 import { useState, useCallback } from "react";
 import Link from "next/link";
@@ -93,7 +92,7 @@ export default function GalleryPage() {
 
   if (statusLoading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 sm:p-8">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-[400px] w-full rounded-xl" />
       </div>
@@ -103,15 +102,14 @@ export default function GalleryPage() {
   // Gallery disabled
   if (!status?.enabled) {
     return (
-      <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-        <Breadcrumbs items={[{ label: "Galeri" }]} />
+      <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
         <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
           <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mb-4">
             <Camera className="w-8 h-8 text-pink-500" />
           </div>
-          <h2 className="text-xl font-bold">Galeri Kapalı</h2>
+          <h2 className="text-xl font-bold">Gallery unavailable</h2>
           <p className="text-muted-foreground mt-2">
-            Fotoğraf galerisi henüz aktif edilmemiş. Lütfen daha sonra tekrar kontrol edin.
+            The photo gallery is not available yet. Please check back later.
           </p>
         </div>
       </div>
@@ -121,23 +119,22 @@ export default function GalleryPage() {
   const currentPhoto = lightboxIndex !== null ? photos[lightboxIndex] : null;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Galeri" }]} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-display font-bold text-foreground">Fotoğraf Galerisi</h2>
-          <p className="text-muted-foreground mt-1">Etkinlik fotoğrafları</p>
+          <h2 className="text-3xl font-display font-bold text-foreground">Photo gallery</h2>
+          <p className="text-muted-foreground mt-1">Moments from the conference</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Area filter */}
           <Select value={selectedAreaId} onValueChange={(v) => { setSelectedAreaId(v); setPage(1); }}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Alan Filtrele" />
+              <SelectValue placeholder="Filter by area" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tüm Alanlar</SelectItem>
+              <SelectItem value="all">All areas</SelectItem>
               {areas?.map((area) => (
                 <SelectItem key={area.id} value={area.id}>
                   {area.name}
@@ -150,7 +147,7 @@ export default function GalleryPage() {
             <Button asChild>
               <Link href="/organisation/press/upload">
                 <Upload className="w-4 h-4 mr-2" />
-                Fotoğraf Yükle
+                Upload photos
               </Link>
             </Button>
           )}
@@ -169,8 +166,8 @@ export default function GalleryPage() {
           <div className="w-16 h-16 rounded-full bg-muted/20 flex items-center justify-center mb-4">
             <ImageOff className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold">Henüz fotoğraf yok</h3>
-          <p className="text-muted-foreground mt-1">Bu alanda henüz fotoğraf yüklenmemiş.</p>
+          <h3 className="text-lg font-semibold">No photos yet</h3>
+          <p className="text-muted-foreground mt-1">No photos have been uploaded for this area.</p>
         </div>
       ) : (
         <>
@@ -184,7 +181,7 @@ export default function GalleryPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photo.signed_url || ""}
-                  alt="Etkinlik fotoğrafı"
+                  alt="Conference photo"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
                 />
@@ -272,7 +269,7 @@ export default function GalleryPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={currentPhoto.signed_url || ""}
-                alt="Etkinlik fotoğrafı"
+                alt="Conference photo"
                 className="max-w-full max-h-[80vh] object-contain"
               />
 
@@ -294,7 +291,7 @@ export default function GalleryPage() {
                     <Download className="w-7 h-7" />
                   </button>
                   <span className="text-white/60 text-xs ml-auto">
-                    {new Date(currentPhoto.created_at).toLocaleDateString("tr-TR", {
+                    {new Date(currentPhoto.created_at).toLocaleDateString("en-GB", {
                       day: "numeric",
                       month: "long",
                       year: "numeric",

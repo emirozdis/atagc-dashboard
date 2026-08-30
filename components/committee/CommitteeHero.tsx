@@ -37,7 +37,7 @@ export const CommitteeHero = ({
                 {roleMeta.label}
               </Badge>
             )}
-            <span className="text-xs text-muted-foreground font-medium">ATAGÇ 2026</span>
+            <span className="text-xs text-muted-foreground font-medium">RavenMUN 2026</span>
           </div>
 
           <div>

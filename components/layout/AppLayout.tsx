@@ -9,16 +9,16 @@ import { MobileNav } from "@/components/dashboard/MobileNav";
 import { AdminMobileNav } from "@/components/dashboard/AdminMobileNav";
 import { OrganisationMobileNav } from "@/components/organisation/OrganisationMobileNav";
 import { RoleSyncer } from "@/components/dashboard/RoleSyncer";
-import { ADMIN_ROLES, ORGANISATION_ROLES, getEffectiveRole } from "@/lib/roles";
+import { ADMIN_ROLES, ORGANISATION_ROLES, ROLES, UserRole, getEffectiveRole } from "@/lib/roles";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
     const { data: session } = useSession();
 
     // Determine effective role considering applicant targets
-    const effectiveRole = session?.user ? getEffectiveRole(session.user) : 'applicant';
+    const effectiveRole: UserRole = session?.user ? getEffectiveRole(session.user) : ROLES.APPLICANT;
     
-    const isAdmin = ADMIN_ROLES.includes(effectiveRole as any);
-    const isOrg = ORGANISATION_ROLES.includes(effectiveRole as any);
+    const isAdmin = ADMIN_ROLES.includes(effectiveRole);
+    const isOrg = ORGANISATION_ROLES.includes(effectiveRole);
 
     return (
         <div className="flex h-[100dvh] w-full overflow-hidden bg-background relative">

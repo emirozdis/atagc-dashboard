@@ -52,8 +52,7 @@ export const GET = apiHandler(async (request: Request) => {
   if (observerError) throw observerError;
   if (!observerData) return NextResponse.json({ error: "Observer data not found" }, { status: 404 });
 
-  // Cast to any to avoid complex TS inference issues
-  const observerUser = observerData as any;
+  const observerUser = observerData;
 
   // Unwrap Relations
   const details = Array.isArray(observerUser.user_details)

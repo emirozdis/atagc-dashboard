@@ -35,12 +35,12 @@ export const GET = apiHandler(async (request: Request) => {
     for(let i=0; i<7; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toLocaleDateString("tr-TR", { day: 'numeric', month: 'short' });
+        const dateStr = d.toLocaleDateString("en-GB", { day: 'numeric', month: 'short' });
         dailyCounts[dateStr] = 0;
     }
 
     trendData?.forEach((item) => {
-        const dateStr = new Date(item.created_at).toLocaleDateString("tr-TR", { day: 'numeric', month: 'short' });
+        const dateStr = new Date(item.created_at).toLocaleDateString("en-GB", { day: 'numeric', month: 'short' });
         if (dailyCounts[dateStr] !== undefined) {
             dailyCounts[dateStr]++;
         }

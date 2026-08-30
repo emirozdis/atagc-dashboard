@@ -56,7 +56,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
         }
     });
 
-    const replyMutation = useMutation({
+    const replyMutation = useMutation<unknown, Error, ReplyVariables, { previousTicket?: Ticket }>({
         mutationFn: async ({ message, files }: ReplyVariables) => {
             const formData = new FormData();
             formData.append("message", message);
@@ -80,7 +80,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
             const previousTicket = queryClient.getQueryData<Ticket>(['ticket', ticketId]);
 
             if (previousTicket && message.trim()) {
-                const newMessage = {
+            const newMessage = {
                     id: `temp-${Date.now()}`,
                     ticket_id: ticketId,
                     sender_id: null,
@@ -89,7 +89,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                     is_staff_reply: isAdmin,
                     created_at: new Date().toISOString(),
                     sender: {
-                        full_name: isAdmin ? "Yönetici (Siz)" : "Siz",
+                        full_name: isAdmin ? "Administrator (you)" : "You",
                         role: isAdmin ? "admin" : "applicant"
                     }
                 };
@@ -106,7 +106,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
 
             return { previousTicket };
         },
-        onError: (err: any, variables, context) => {
+        onError: (err, variables, context) => {
             if (context?.previousTicket) {
                 queryClient.setQueryData(['ticket', ticketId], context.previousTicket);
             }
@@ -131,14 +131,14 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
         },
         onSuccess: (data, status) => {
             if (status === 'closed') {
-                toast.success("Talep başarıyla kapatıldı");
+                toast.success("Ticket closed successfully");
             } else {
-                toast.success("Durum güncellendi");
+                toast.success("Status updated");
             }
             setIsCloseDialogOpen(false);
             refetch();
         },
-        onError: () => toast.error("İşlem başarısız oldu")
+        onError: () => toast.error("Action failed")
     });
 
     const handleSend = () => {
@@ -149,7 +149,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
     if (isLoading) {
         return (
             <div className="flex flex-col relative min-h-[calc(100vh-8rem)]">
-                <div className="flex-shrink-0 border-b border-border/50 bg-background/95 -mx-4 md:-mx-8 -mt-4 md:-mt-8 mb-6">
+                <div className="flex-shrink-0 rounded-2xl border border-border/50 bg-background/95 mb-6">
                     <div className="px-6 py-4 md:px-8">
                         <div className="flex items-start gap-4">
                             <div className="w-8 h-8 rounded-lg bg-muted animate-pulse" />
@@ -170,7 +170,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
         );
     }
     
-    if (!ticket) return <div className="flex-1 flex items-center justify-center h-full text-muted-foreground">Talep bulunamadı.</div>;
+    if (!ticket) return <div className="flex-1 flex items-center justify-center h-full text-muted-foreground">Ticket not found.</div>;
 
     const statusMeta = TICKET_STATUSES.find(s => s.value === ticket.status);
     const categoryLabel = TICKET_CATEGORIES.find(c => c.value === ticket.category)?.label;
@@ -178,7 +178,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
 
     return (
         <div className="flex flex-col relative min-h-[calc(100vh-8rem)]">
-            <div className="sticky top-[-1rem] md:top-[-2rem] z-30 flex-shrink-0 border-b border-border/50 bg-background/95 backdrop-blur shadow-sm -mx-4 md:-mx-8 -mt-4 md:-mt-8 mb-6">
+            <div className="sticky top-0 z-30 flex-shrink-0 rounded-2xl border border-border/50 bg-background/95 backdrop-blur shadow-sm mb-6">
                 <div className="px-6 py-4 md:px-8">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-start gap-4">
@@ -191,7 +191,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                 <div className="flex flex-wrap items-center gap-3">
                                     <h2 className="text-xl md:text-2xl font-bold font-display leading-tight">{ticket.subject}</h2>
                                     <Badge className={cn("text-xs font-medium px-2.5 py-0.5 border shadow-sm", statusMeta?.color)}>{statusMeta?.label}</Badge>
-                                    {ticket.is_anonymous && <Badge variant="secondary" className="text-[10px] font-normal border-border/50">Anonim</Badge>}
+                                    {ticket.is_anonymous && <Badge variant="secondary" className="text-[10px] font-normal border-border/50">Anonymous</Badge>}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-muted-foreground">
                                     <div className="flex items-center gap-1.5 bg-secondary/30 px-2 py-0.5 rounded text-xs">
@@ -199,7 +199,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <Calendar className="w-3.5 h-3.5" />
-                                        <span>{new Date(ticket.created_at).toLocaleString('tr-TR')}</span>
+                                        <span>{new Date(ticket.created_at).toLocaleString('en-GB')}</span>
                                     </div>
                                     {ticket.user && (
                                         <div className="flex items-center gap-1.5 border-l border-border/50 pl-4">
@@ -221,14 +221,14 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                         className="h-9"
                                         disabled={statusMutation.isPending}
                                     >
-                                        İncelemeye Al
+                                        Mark under review
                                     </Button>
                                 )}
                                 
                                 <AlertDialog open={isCloseDialogOpen} onOpenChange={setIsCloseDialogOpen}>
                                     <AlertDialogTrigger asChild>
                                         <Button size="sm" variant="destructive" className="h-9 shadow-sm">
-                                            Talebi Kapat
+                                            Close ticket
                                         </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
@@ -236,13 +236,13 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                             <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-2">
                                                 <AlertCircle className="w-6 h-6 text-destructive" />
                                             </div>
-                                            <AlertDialogTitle className="text-center">Destek Talebi Kapatılsın mı?</AlertDialogTitle>
+                                            <AlertDialogTitle className="text-center">Close this ticket?</AlertDialogTitle>
                                             <AlertDialogDescription className="text-center">
-                                                Bu işlemi onayladığınızda talep <strong>kalıcı olarak kapatılacaktır</strong>.
+                                                Once confirmed, this ticket <strong>will be permanently closed</strong>.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter className="sm:justify-center gap-3">
-                                            <AlertDialogCancel className="mt-0">Vazgeç</AlertDialogCancel>
+                                            <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
                                             <AlertDialogAction 
                                                 onClick={(e) => {
                                                     e.preventDefault();
@@ -252,7 +252,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                                 disabled={statusMutation.isPending}
                                             >
                                                 {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                                Evet, Talebi Kapat
+                                                Yes, close ticket
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
@@ -291,7 +291,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                         alignRight ? "border-white/20 opacity-90" : "border-border/50 text-muted-foreground"
                                     )}>
                                         <span className="font-bold uppercase tracking-wide">
-                                            {msg.sender?.full_name || (isStaff ? "Yetkili" : "Kullanıcı")}
+                                            {msg.sender?.full_name || (isStaff ? "Staff" : "Participant")}
                                         </span>
                                         <span className="flex items-center gap-1">
                                             {isTemp && <Loader2 className="w-2 h-2 animate-spin" />}
@@ -320,7 +320,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                                     )}
                                                 >
                                                     <a href={url} target="_blank" rel="noopener noreferrer">
-                                                        <Paperclip className="w-3.5 h-3.5 mr-2" /> Ek Dosya {i + 1}
+                                                        <Paperclip className="w-3.5 h-3.5 mr-2" /> Attachment {i + 1}
                                                         <ExternalLink className="w-3 h-3 ml-2 opacity-70" />
                                                     </a>
                                                 </Button>
@@ -334,7 +334,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                 </div>
             </div>
 
-            <div className="sticky bottom-[-1rem] md:bottom-[-2rem] z-30 shrink-0 px-4 md:px-6 pointer-events-none pb-4 md:pb-8 -mx-4 md:-mx-8 mt-auto">
+            <div className="sticky bottom-0 z-30 shrink-0 px-0 pb-4 md:pb-8 pointer-events-none mt-auto">
                 <div className="max-w-4xl mx-auto pointer-events-auto">
                     <div className="bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl p-3 md:p-4">
                         {isClosed ? (
@@ -342,7 +342,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                 <div className="p-2 md:p-3 bg-secondary rounded-full">
                                     <Lock className="w-5 h-5 md:w-6 md:h-6 opacity-50" />
                                 </div>
-                                <p className="font-medium text-foreground text-sm md:text-base">Bu talep kapatılmıştır.</p>
+                                <p className="font-medium text-foreground text-sm md:text-base">This ticket is closed.</p>
                             </div>
                         ) : (
                             <div className="space-y-2">
@@ -388,7 +388,7 @@ export function TicketDetailView({ ticketId, accessToken, isAdmin = false, onBac
                                     </button>
 
                                     <Textarea
-                                        placeholder="Yanıtınızı buraya yazınız..."
+                                        placeholder="Write your reply here..."
                                         value={reply}
                                         onChange={(e) => setReply(e.target.value)}
                                         onKeyDown={(e) => {

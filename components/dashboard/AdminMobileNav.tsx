@@ -9,11 +9,11 @@ export function AdminMobileNav() {
   const pathname = usePathname();
 
   const items = [
-    { href: "/admin", icon: LayoutDashboard, label: "Panel" },
-    { href: "/admin/applications", icon: FileText, label: "Başvuru" },
-    { href: "/admin/users", icon: Users, label: "Üyeler" },
-    { href: "/admin/roll-call", icon: QrCode, label: "Yoklama" },
-    { href: "/profile", icon: User, label: "Profil" },
+    { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/admin/applications", icon: FileText, label: "Applications" },
+    { href: "/admin/users", icon: Users, label: "People" },
+    { href: "/admin/roll-call", icon: QrCode, label: "Roll call" },
+    { href: "/profile", icon: User, label: "Profile" },
   ];
 
   return (

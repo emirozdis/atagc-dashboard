@@ -74,7 +74,7 @@ export const POST = apiHandler(async (request: Request) => {
   }
 
   if (!matchedUser) {
-    throw new Error("Bu kimlik numarasına ait kullanıcı bulunamadı.");
+    throw new Error("No user was found for this ID.");
   }
 
   const userId = matchedUser.id;
@@ -96,7 +96,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (existingLog) {
     return NextResponse.json(
-      { success: false, message: "Bu kullanıcı bugün zaten kaydedilmiş." },
+      { success: false, message: "This user has already been recorded today." },
       { status: 409 }
     );
   }

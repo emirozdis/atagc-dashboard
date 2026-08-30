@@ -2,21 +2,16 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import {
-    submissionAccountSchema,
-    FullApplicationSubmission,
     ApplicationStatusEnum,
-    personalDetailsSchema
 } from "@/types/application";
 import { PaymentStatusEnum } from "@/types/payment";
 import { Logger } from "@/lib/logger";
 import { apiHandler } from "@/lib/api-handler";
-import { rateLimit } from "@/lib/rate-limit";
 import { sendSystemNotification } from "@/lib/notification-service";
 import { z } from "zod";
-import { ROLES } from "@/lib/roles";
+import { PUBLIC_APPLICATION_TYPES, ROLES } from "@/lib/roles";
 import { searchParamsSchema, updateApplicationSchema } from "@/lib/schemas";
-
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+import { hashOpaqueToken } from "@/lib/passwordless";
 
 interface JoinedForm {
     title: string;
@@ -27,10 +22,19 @@ interface JoinedForm {
 interface ApplicationData {
     status: string;
     user_id: string;
+    application_type?: string;
+    form_snapshot?: Record<string, unknown>;
     review_notes?: string;
     payment_status?: string;
     form: JoinedForm | JoinedForm[] | null;
 }
+
+const ravenApplicationSchema = z.object({
+    applicationType: z.enum(["delegate", "chairboard", "delegation", "press", "observer"]),
+    formData: z.record(z.string(), z.unknown()).refine((value) => Object.keys(value).length <= 100, "Too many application fields.").refine((value) => JSON.stringify(value).length <= 100_000, "Application data is too large."),
+    delegationInviteToken: z.string().min(16).max(200).optional(),
+    delegationMagiclinkId: z.string().uuid().optional(),
+});
 
 function unwrapRelation<T>(data: T | T[] | null): T | null {
     if (!data) return null;
@@ -40,13 +44,15 @@ function unwrapRelation<T>(data: T | T[] | null): T | null {
 
 async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
     const { page, limit, search, status, sort_by, sort_order } = params;
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
 
     let query = supabase
         .from("applications")
         .select(`
             id,
+            user_id,
+            form_id,
+            application_type,
+            form_version,
             status,
             submitted_at,
             review_notes,
@@ -78,237 +84,271 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
 
     if (status !== "all") {
         if (status === 'unassigned') {
-            query = query
-                .eq('status', 'approved')
-                .eq('form.slug', 'delegate')
-                .is('user.committee_members.id', null);
+            // Joined-field filters are applied after the Prisma compatibility
+            // layer hydrates the applicant relation below.
+            query = query.eq('status', 'approved');
         } else {
             query = query.eq("status", status);
         }
     }
 
     if (search) {
-        query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`, { foreignTable: 'user' });
+        const { data: matchingUsers, error: userSearchError } = await supabase
+            .from("users")
+            .select("id")
+            .or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+        if (userSearchError) throw new Error(userSearchError.message);
+        const matchingUserIds = (matchingUsers || []).map((user) => user.id);
+        if (matchingUserIds.length === 0) {
+            return {
+                data: [],
+                meta: { total: 0, page, limit, totalPages: 0 },
+            };
+        }
+        query = query.in("user_id", matchingUserIds);
     }
-
-    if (sort_by === 'full_name') {
-        query = query.order('full_name', { foreignTable: 'users', ascending: sort_order === 'asc' });
-    } else {
-        query = query.order(sort_by, { ascending: sort_order === 'asc' });
-    }
-
-    query = query.range(from, to);
 
     const { data, error, count } = await query;
 
     if (error) throw new Error(error.message);
 
+    const asRecord = (value: unknown): Record<string, unknown> | null => (
+        value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null
+    );
+    const firstRecord = (value: unknown): Record<string, unknown> | null => {
+        if (Array.isArray(value)) return asRecord(value[0]);
+        return asRecord(value);
+    };
+    const getApplicant = (application: unknown) => firstRecord(asRecord(application)?.user);
+    const getSchoolName = (application: unknown) => {
+        const user = getApplicant(application);
+        const details = firstRecord(user?.user_details);
+        const highSchool = firstRecord(details?.high_schools);
+        const school = typeof highSchool?.school_name === "string" ? highSchool.school_name : "";
+        if (school) return school;
+        const additional = asRecord(details?.additional_info);
+        return typeof additional?.manual_school_name === "string" ? additional.manual_school_name : "";
+    };
+
+    let rows = (data || []) as unknown as Array<Record<string, unknown>>;
+    const missingUserIds = rows
+        .filter((application) => !getApplicant(application) && typeof application.user_id === "string")
+        .map((application) => String(application.user_id));
+    if (missingUserIds.length > 0) {
+        const { data: fallbackUsers, error: fallbackUserError } = await supabase
+            .from("users")
+            .select(`
+                id,
+                full_name,
+                email,
+                user_details (
+                    id,
+                    phone_number,
+                    high_school_id,
+                    city,
+                    grade,
+                    profile_picture_url,
+                    additional_info,
+                    high_schools(school_name)
+                ),
+                committee_members (
+                    id,
+                    committee:committees (id, name)
+                )
+            `)
+            .in("id", [...new Set(missingUserIds)]);
+        if (fallbackUserError) throw new Error(fallbackUserError.message);
+        const usersById = new Map((fallbackUsers || []).map((user) => [String(user.id), user]));
+        rows = rows.map((application) => (
+            getApplicant(application) || !usersById.has(String(application.user_id))
+                ? application
+                : { ...application, user: usersById.get(String(application.user_id)) }
+        ));
+    }
+    if (status === "unassigned") {
+        rows = rows.filter((application) => {
+            const form = firstRecord(application.form);
+            const user = getApplicant(application);
+            const committeeMembers = user?.committee_members;
+            return form?.slug === "delegate" && (!Array.isArray(committeeMembers) || committeeMembers.length === 0);
+        });
+    }
+
+    rows.sort((left, right) => {
+        const leftUser = getApplicant(left);
+        const rightUser = getApplicant(right);
+        const leftValue = sort_by === "full_name"
+            ? String(leftUser?.full_name || "")
+            : sort_by === "school_name"
+                ? getSchoolName(left)
+                : String(left[sort_by] || "");
+        const rightValue = sort_by === "full_name"
+            ? String(rightUser?.full_name || "")
+            : sort_by === "school_name"
+                ? getSchoolName(right)
+                : String(right[sort_by] || "");
+        const comparison = leftValue.localeCompare(rightValue, "en", { sensitivity: "base", numeric: true });
+        return sort_order === "asc" ? comparison : -comparison;
+    });
+
+    const from = (page - 1) * limit;
+    const paginatedRows = rows.slice(from, from + limit);
+    const total = status === "unassigned" ? rows.length : count || rows.length;
+
     return {
-        data,
+        data: paginatedRows,
         meta: {
-            total: count || 0,
+            total,
             page,
             limit,
-            totalPages: Math.ceil((count || 0) / limit),
+            totalPages: Math.ceil(total / limit),
         }
     };
 }
 
-async function processApplicationSubmission(
-    body: FullApplicationSubmission,
-    ip: string,
-    req: Request
+async function processRavenApplicationSubmission(
+    input: z.infer<typeof ravenApplicationSchema>,
+    sessionUser: { id: string; email?: string | null },
 ) {
-    await limiter.check(5, ip);
-    const userAgent = req.headers.get("user-agent") || "Unknown";
-
-    const { data: settings } = await supabase.from("system_settings").select("applications_open").single();
-    if (settings && settings.applications_open === false) {
-        throw new Error("Başvurular şu anda kapalıdır.");
+    const applicationType = input.applicationType;
+    if (!PUBLIC_APPLICATION_TYPES.includes(applicationType)) {
+        throw new Error("Invalid application type.");
     }
 
-    const accountData = submissionAccountSchema.parse(body.account);
-    const personalData = personalDetailsSchema.parse(body.personalDetails);
+    const formData = input.formData;
 
-    // KVKK Consent Check (Server Side)
-    if (personalData.kvkk_consent !== true) {
-        throw new Error("KVKK Aydınlatma Metni'ni onaylamanız gerekmektedir.");
-    }
+    const { data: settings } = await supabase.from("ravenmun_settings").select("applications_open").eq("id", true).maybeSingle();
+    if (settings?.applications_open === false) throw new Error("Applications are currently closed.");
 
-    let finalHighSchoolId: number | null = personalData.high_school_id === -1 ? null : personalData.high_school_id;
-
-    const { data: existingUser } = await supabase
-        .from("users")
-        .select("id, full_name")
-        .eq("email", accountData.email)
-        .maybeSingle();
-
-    let userId: string;
-
-    if (existingUser) {
-        userId = existingUser.id;
-        const { data: existingApp } = await supabase
-            .from("applications")
-            .select("id")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-        if (existingApp) {
-            throw new Error("Bu kullanıcı hesabıyla zaten bir başvuru yapılmış.");
-        }
-    } else {
-        if (!accountData.adSoyad) {
-            throw new Error("Yeni hesap oluşturmak için Ad Soyad alanı zorunludur.");
-        }
-
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const { data: verification } = await supabase
-            .from("email_verifications")
-            .select("id")
-            .eq("email", accountData.email)
-            .eq("verified", true)
-            .gt("created_at", oneHourAgo)
-            .limit(1)
-            .maybeSingle();
-
-        const { data: magiclink } = await supabase
-            .from("delegation_magiclinks")
-            .select("id")
-            .eq("sent_to", accountData.email)
-            .limit(1)
-            .maybeSingle();
-
-        if (!verification && !magiclink) throw new Error("E-posta adresi doğrulanmamış veya doğrulama süresi dolmuş.");
-
-        const randomHash = Math.random().toString(36).substring(2);
-        const now = new Date().toISOString();
-
-        const { data: newUser, error: createUserError } = await supabase
-            .from("users")
-            .insert({
-                full_name: accountData.adSoyad,
-                email: accountData.email,
-                password_hash: randomHash,
-                role: ROLES.APPLICANT,
-                created_at: now,
-                updated_at: now
-            })
-            .select("id")
-            .single();
-
-        if (createUserError || !newUser) throw new Error("Kullanıcı hesabı oluşturulamadı.");
-        userId = newUser.id;
-    }
-
-    const { data: formTemplate } = await supabase
+    const { data: form, error: formError } = await supabase
         .from("application_forms")
-        .select("id, slug, steps")
-        .eq("id", body.formId)
-        .single();
-
-    if (!formTemplate) throw new Error("Geçersiz başvuru formu şablonu.");
-
-    const additionalInfo: Record<string, any> = {};
-
-    if (personalData.high_school_id === -1 && personalData.manual_school_name) {
-        additionalInfo.manual_school_name = personalData.manual_school_name;
-    }
-
-    const cleanFormData = { ...body.formData };
-    const steps = formTemplate.steps as Array<{ fields: Array<{ id: string; system_map?: string }> }>;
-    const STATIC_COLUMNS = ['phone_number', 'birth_date', 'city', 'grade', 'high_school_id'];
-
-    if (Array.isArray(steps)) {
-        steps.forEach(step => {
-            step.fields.forEach(field => {
-                const value = body.formData[field.id];
-                if (value !== undefined && field.system_map) {
-                    if (!STATIC_COLUMNS.includes(field.system_map)) {
-                        additionalInfo[field.system_map] = value;
-                    }
-                }
-            });
-        });
-    }
-
-    const userDetailsUpdate: Record<string, any> = {
-        user_id: userId,
-        phone_number: personalData.phone_number,
-        birth_date: personalData.birth_date,
-        city: personalData.city,
-        grade: personalData.grade,
-        high_school_id: finalHighSchoolId,
-        additional_info: additionalInfo,
-        notification_preferences: {
-            application: true, committee: true, social: true, system: true
-        }
-    };
-
-    const { data: existingDetails } = await supabase
-        .from("user_details")
-        .select("id, additional_info")
-        .eq("user_id", userId)
+        .select("id, application_type, title, description, fee, questions, version, is_active")
+        .eq("application_type", applicationType)
+        .eq("is_active", true)
         .maybeSingle();
+    if (formError || !form) throw new Error("This application is not currently available.");
+
+    const questions = Array.isArray(form.questions) ? form.questions as Array<{ id: string; label: string; type?: string; required?: boolean; options?: Array<{ value: string }> }> : [];
+    if (!questions.length || !questions.some((question) => question.type === "email")) throw new Error("This application form is missing an email field.");
+    const sessionEmail = sessionUser.email?.trim().toLowerCase();
+    const formEmailField = questions.find((question) => question.type === "email")?.id;
+    const submittedEmailValue = formData[formEmailField || "email"];
+    const submittedEmail = typeof submittedEmailValue === "string" ? submittedEmailValue.trim().toLowerCase() : "";
+    if (!sessionEmail || !submittedEmail || sessionEmail !== submittedEmail) {
+        throw new Error("The verified email must match the application email.");
+    }
+    const questionIds = new Set(questions.map((question) => question.id));
+    const unknownFields = Object.keys(formData).filter((fieldId) => !questionIds.has(fieldId));
+    if (unknownFields.length) throw new Error("The application contains unsupported fields.");
+    const missing = questions.filter((question) => question.required && (formData[question.id] === undefined || formData[question.id] === null || formData[question.id] === "" || formData[question.id] === false));
+    if (missing.length) throw new Error(`Please complete: ${missing.map((question) => question.label).join(", ")}`);
+    for (const question of questions) {
+        const value = formData[question.id];
+        if (value === undefined || value === null || value === "") continue;
+        const type = question.type || "text";
+        if (["text", "email", "tel", "date", "url", "textarea", "select"].includes(type) && typeof value !== "string") throw new Error(`${question.label} must be text.`);
+        if (type === "checkbox" && typeof value !== "boolean") throw new Error(`${question.label} must be checked or unchecked.`);
+        if (type === "number" && !["number", "string"].includes(typeof value)) throw new Error(`${question.label} must be a number.`);
+        const stringValue = typeof value === "string" ? value.trim() : String(value);
+        if (["text", "email", "tel", "date", "url"].includes(question.type || "") && stringValue.length > 500) throw new Error(`${question.label} is too long.`);
+        if (["textarea"].includes(question.type || "") && stringValue.length > 20000) throw new Error(`${question.label} is too long.`);
+        if (question.type === "email" && !/^\S+@\S+\.\S+$/.test(stringValue)) throw new Error(`${question.label} must be a valid email address.`);
+        if (question.type === "date" && Number.isNaN(Date.parse(stringValue))) throw new Error(`${question.label} must be a valid date.`);
+        if (question.type === "url") { try { new URL(stringValue); } catch { throw new Error(`${question.label} must be a valid URL.`); } }
+        if (question.type === "number" && !Number.isFinite(Number(value))) throw new Error(`${question.label} must be a number.`);
+        if (question.type === "select" && question.options?.length && !question.options.some((option) => option.value === stringValue)) throw new Error(`${question.label} contains an invalid selection.`);
+    }
+
+    const { data: duplicate } = await supabase
+        .from("applications")
+        .select("id")
+        .eq("user_id", sessionUser.id)
+        .eq("application_type", applicationType)
+        .maybeSingle();
+    if (duplicate) throw new Error("You have already submitted this application type.");
+
+    const now = new Date().toISOString();
+    let invite: { id: string; delegation_id: string; email: string | null } | null = null;
+    let legacyMagiclink: { id: string; delegation: string; sent_to: string; is_used: boolean } | null = null;
+    if (input.delegationInviteToken && input.delegationMagiclinkId) {
+        throw new Error("Only one delegation invitation can be used.");
+    }
+    if (input.delegationInviteToken) {
+        if (applicationType !== "delegate") throw new Error("Delegation invitations are only valid for delegate applications.");
+        const { data: inviteData } = await supabase
+            .from("delegation_invites")
+            .select("id, delegation_id, email, expires_at, used_at")
+            .eq("token_hash", hashOpaqueToken(input.delegationInviteToken))
+            .is("used_at", null)
+            .gt("expires_at", now)
+            .maybeSingle();
+        if (!inviteData || inviteData.email?.toLowerCase() !== sessionEmail) throw new Error("This delegation invitation is invalid or belongs to another email.");
+        invite = inviteData;
+    }
+    if (input.delegationMagiclinkId) {
+        if (applicationType !== "delegate") throw new Error("Delegation invitations are only valid for delegate applications.");
+        const { data: magiclink } = await supabase.from("delegation_magiclinks").select("id, delegation, sent_to, is_used").eq("id", input.delegationMagiclinkId).maybeSingle();
+        if (!magiclink || magiclink.is_used || magiclink.sent_to.toLowerCase() !== sessionEmail) throw new Error("This delegation invitation is invalid or belongs to another email.");
+        legacyMagiclink = magiclink;
+    }
+
+    // Some existing databases still have the first RavenMUN RPC version,
+    // which writes omitted profile fields as NULL. Snapshot the profile before
+    // submission so a chair/press form cannot erase data from an earlier form.
+    const { data: existingDetails, error: existingDetailsError } = await supabase
+        .from("user_details")
+        .select("phone_number, school, city, grade, additional_info")
+        .eq("user_id", sessionUser.id)
+        .maybeSingle();
+    if (existingDetailsError) throw new Error("Unable to load your profile.");
+
+    const { data: application, error: applicationError } = await supabase.rpc("submit_ravenmun_application", {
+        p_user_id: sessionUser.id,
+        p_email: sessionEmail,
+        p_application_type: applicationType,
+        p_form_id: form.id,
+        p_form_version: form.version,
+        p_form_snapshot: { title: form.title, description: form.description, fee: form.fee, questions, version: form.version },
+        p_form_data: formData,
+        p_delegation_id: invite?.delegation_id || legacyMagiclink?.delegation || null,
+        p_invite_id: invite?.id || null,
+        p_magiclink_id: legacyMagiclink?.id || null,
+        p_delegation_name: typeof formData.delegationName === "string" ? formData.delegationName : null,
+    });
+    if (applicationError || !application) throw applicationError || new Error("Unable to submit application.");
 
     if (existingDetails) {
-        userDetailsUpdate.additional_info = {
-            ...(existingDetails.additional_info as object),
-            ...additionalInfo,
-            kvkk_approved: true,
-            kvkk_approved_at: new Date().toISOString(),
+        const submittedValue = (keys: string[]) => {
+            for (const key of keys) {
+                const value = formData[key];
+                if (typeof value === "string" && value.trim()) return value.trim();
+            }
+            return null;
         };
-        await supabase.from("user_details").update(userDetailsUpdate).eq("user_id", userId);
-    } else {
-        userDetailsUpdate.additional_info.kvkk_approved = true;
-        userDetailsUpdate.additional_info.kvkk_approved_at = new Date().toISOString();
-        await supabase.from("user_details").insert(userDetailsUpdate);
+        const existingAdditionalInfo = existingDetails.additional_info && typeof existingDetails.additional_info === "object" && !Array.isArray(existingDetails.additional_info)
+            ? existingDetails.additional_info as Record<string, unknown>
+            : {};
+        const { error: profilePreservationError } = await supabase
+            .from("user_details")
+            .update({
+                phone_number: submittedValue(["phone", "phoneNumber", "phone_number"]) || existingDetails.phone_number,
+                school: submittedValue(["school", "schoolName", "school_name", "schoolOrOrganization", "manual_school_name"]) || existingDetails.school,
+                city: submittedValue(["city", "cityName", "city_name"]) || existingDetails.city,
+                grade: submittedValue(["grade", "gradeOrYear", "grade_or_year", "year", "schoolYear", "school_year"]) || existingDetails.grade,
+                additional_info: { ...existingAdditionalInfo, ...formData },
+                updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", sessionUser.id);
+        if (profilePreservationError) throw new Error("Application submitted, but your profile could not be updated.");
     }
 
-    await supabase.from("user_consents").insert({
-        user_id: userId,
-        consent_type: 'KVKK_CLARIFICATION',
-        consent_version: 'v1.0', 
-        action: 'GRANTED',
-        ip_address: ip,
-        user_agent: userAgent,
-        created_at: new Date().toISOString()
-    });
-
-    const { data: newApp, error: appError } = await supabase
-        .from("applications")
-        .insert({
-            user_id: userId,
-            form_id: body.formId,
-            form_data: cleanFormData,
-            status: ApplicationStatusEnum.PENDING,
-            payment_status: PaymentStatusEnum.UNPAID,
-            submitted_at: new Date().toISOString()
-        })
-        .select("id")
-        .single();
-
-    if (appError) throw appError;
-
-    await Logger.audit(
-        { userId: userId, req: req },
-        {
-            action: "submit_application",
-            category: "business",
-            resourceType: "application",
-            resourceId: newApp.id,
-            metadata: { form_id: body.formId, role: formTemplate.slug }
-        }
-    );
-    await sendSystemNotification(userId, "application_received");
-
-    if (formTemplate.slug === "delegation") {
-        const delegationName = personalData.delegation_name?.trim() || `${accountData.adSoyad || 'İsimsiz'} Delegasyonu`;
-        
-        await supabase.from("delegations").insert({ 
-            created_by: userId, 
-            name: String(delegationName) 
-        });
+    try {
+        await sendSystemNotification(sessionUser.id, "application_received");
+    } catch (notificationError) {
+        console.error("Application notification failed:", notificationError);
     }
+
+    return application;
 }
 
 async function updateApplicationStatus(
@@ -320,16 +360,16 @@ async function updateApplicationStatus(
 
     const { data: currentAppData, error: fetchError } = await supabase
         .from("applications")
-        .select("status, review_notes, payment_status, user_id, form:application_forms(slug, fee)")
+        .select("status, review_notes, payment_status, user_id, application_type, form_snapshot, form:application_forms(slug, fee)")
         .eq("id", id)
         .single();
 
-    if (fetchError || !currentAppData) throw new Error("Başvuru bulunamadı.");
+    if (fetchError || !currentAppData) throw new Error("Application not found.");
 
     const currentApp = currentAppData as unknown as ApplicationData;
     const formObj = unwrapRelation(currentApp.form);
 
-    if (status === ApplicationStatusEnum.APPROVED) {
+    if ((status === ApplicationStatusEnum.APPROVED || status === ApplicationStatusEnum.ACCEPTED) && !currentApp.form_snapshot?.title) {
         const { data: member } = await supabase
             .from("delegation_members")
             .select("delegation")
@@ -339,21 +379,26 @@ async function updateApplicationStatus(
         if (member) {
             const { data: del } = await supabase.from("delegations").select("created_by").eq("id", member.delegation).single();
             if (del) {
-                const { data: leaderApp } = await supabase.from("applications").select("status").eq("user_id", del.created_by).maybeSingle();
+                const { data: leaderApp } = await supabase.from("applications").select("status").eq("user_id", del.created_by).order("submitted_at", { ascending: false }).limit(1).maybeSingle();
                 if (leaderApp?.status !== 'approved') {
-                    throw new Error("Kullanıcının dahil olduğu delegasyonun lideri henüz onaylanmamış. Lider onaylanmadan üyeler onaylanamaz.");
+                    throw new Error("The leader of this user's delegation has not been approved yet. Members cannot be approved before the leader.");
                 }
             }
         }
     }
 
-    const updatePayload: Record<string, any> = {
-        status,
+    const updatePayload: {
+        status: ApplicationStatusEnum;
+        review_notes?: string;
+        reviewed_at: string;
+        payment_status?: PaymentStatusEnum;
+    } = {
+        status: status as ApplicationStatusEnum,
         review_notes,
         reviewed_at: new Date().toISOString(),
     };
 
-    if (status === ApplicationStatusEnum.APPROVED) {
+    if (status === ApplicationStatusEnum.APPROVED || status === ApplicationStatusEnum.ACCEPTED) {
         const fee = Number(formObj?.fee || 0);
         if (fee === 0) {
             updatePayload.payment_status = PaymentStatusEnum.EXEMPT;
@@ -367,9 +412,12 @@ async function updateApplicationStatus(
 
     if (error) throw error;
 
-    if (status === ApplicationStatusEnum.APPROVED) {
+    if (status === ApplicationStatusEnum.APPROVED || status === ApplicationStatusEnum.ACCEPTED) {
+        // RavenMUN acceptance is intentionally separate from conference role
+        // assignment. Legacy applications retain their compatibility
+        // behavior until the old review screens are retired.
         const targetSlug = formObj?.slug;
-        if (targetSlug) {
+        if (targetSlug && !currentApp.form_snapshot?.title) {
             await supabase.from("users").update({ role: targetSlug }).eq("id", currentApp.user_id);
         }
 
@@ -389,7 +437,7 @@ async function updateApplicationStatus(
                     day3: false
                 });
         }
-    } else {
+    } else if (!currentApp.form_snapshot?.title) {
         await supabase.from("users").update({ role: ROLES.APPLICANT }).eq("id", currentApp.user_id);
     }
 
@@ -423,7 +471,7 @@ async function updateApplicationStatus(
 }
 
 export const GET = apiHandler(async (request: Request) => {
-    const auth = await getAuthorization({ requireAuth: true, allowedRoles: ROLES.SUPERADMIN });
+    const auth = await getAuthorization({ requireAuth: true, allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] });
     if (!auth.ok) throw new Error("Unauthorized");
 
     const { searchParams } = new URL(request.url);
@@ -433,16 +481,25 @@ export const GET = apiHandler(async (request: Request) => {
 });
 
 export const POST = apiHandler(async (request: Request) => {
-    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
     const body = await request.json();
 
-    await processApplicationSubmission(body, ip, request);
+    if (body && typeof body.applicationType === "string" && body.formData && typeof body.formData === "object") {
+        const auth = await getAuthorization({ requireAuth: true });
+        if (!auth.ok || !auth.session) throw new Error("Unauthorized");
+        const input = ravenApplicationSchema.parse(body);
+        const application = await processRavenApplicationSubmission(input, auth.session.user);
+        return NextResponse.json({ success: true, application });
+    }
 
-    return NextResponse.json({ success: true, message: "Başvuru başarıyla alındı." });
+    return NextResponse.json(
+        { error: "The legacy application flow has been retired. Use the passwordless RavenMUN application form." },
+        { status: 410 },
+    );
+
 });
 
 export const PUT = apiHandler(async (request: Request) => {
-    const auth = await getAuthorization({ requireAuth: true, allowedRoles: ROLES.SUPERADMIN });
+    const auth = await getAuthorization({ requireAuth: true, allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] });
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
 
     const body = await request.json();
@@ -450,5 +507,5 @@ export const PUT = apiHandler(async (request: Request) => {
 
     await updateApplicationStatus(validData, auth.session.user.id, request);
 
-    return NextResponse.json({ success: true, message: "Başvuru güncellendi." });
+    return NextResponse.json({ success: true, message: "Application updated." });
 });

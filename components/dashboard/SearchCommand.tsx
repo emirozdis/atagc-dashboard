@@ -36,7 +36,7 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
     const isStaff = actualRole ? STAFF_ROLES.includes(actualRole) : false;
 
     // Use organization items if user is organization, else dashboard items
-    const sourceItems = effectiveRole && ORGANISATION_ROLES.includes(effectiveRole as any) 
+    const sourceItems = effectiveRole && ORGANISATION_ROLES.includes(effectiveRole)
         ? organisationItems 
         : participantItems;
 
@@ -64,9 +64,9 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
 
     return (
         <CommandDialog open={open} onOpenChange={setOpen}>
-            <CommandInput placeholder="Bir komut yazın veya arayın..." />
+            <CommandInput placeholder="Type a command or search..." />
             <CommandList>
-                <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
+                <CommandEmpty>No results found.</CommandEmpty>
 
                 <CommandGroup heading="Genel">
                     {items.map((item) => {
@@ -100,14 +100,14 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
 
                 <CommandSeparator />
 
-                <CommandGroup heading="Profil ve Ödeme">
+                <CommandGroup heading="Profile and payment">
                     {items
                         .filter(item => item.href === "/profile" || item.href === "/payment")
                         .map((item) => (
                             <div key={item.href}>
                                 <CommandItem
                                     onSelect={() => runCommand(() => router.push(item.href))}
-                                    keywords={item.href === "/profile" ? ['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings'] : []}
+                                    keywords={item.href === "/profile" ? ['password', 'reset', 'change', 'settings'] : []}
                                 >
                                     <item.icon className="mr-2 h-4 w-4" />
                                     {item.title}
@@ -127,20 +127,20 @@ export function SearchCommand({ open, setOpen }: SearchCommandProps) {
                             </div>
                         ))}
                     <CommandItem
-                        keywords={['password', 'şifre', 'reset', 'change', 'ayarlar', 'settings']}
+                        keywords={['password', 'reset', 'change', 'settings']}
                         onSelect={() => runCommand(() => router.push("/profile#security"))}
                     >
                         <Settings className="mr-2 h-4 w-4" />
-                        Şifre ve Ayarlar
+                        Password and settings
                     </CommandItem>
                 </CommandGroup>
 
                 <CommandSeparator />
 
-                <CommandGroup heading="Oturum">
+                <CommandGroup heading="Session">
                     <CommandItem onSelect={() => runCommand(() => signOut({ callbackUrl: "/login" }))}>
                         <LogOut className="mr-2 h-4 w-4 text-destructive" />
-                        <span className="text-destructive">Çıkış Yap</span>
+                        <span className="text-destructive">Sign out</span>
                     </CommandItem>
                 </CommandGroup>
             </CommandList>

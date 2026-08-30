@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     AlertTriangle, Trash2, Plus, ShieldAlert,
@@ -43,12 +43,12 @@ interface WarningManagerProps {
     variant?: "default" | "compact";
 }
 
-const CATEGORIES: Record<WarningCategory, { label: string; icon: any; color: string; bg: string }> = {
-    behavior: { label: "Davranış", icon: Gavel, color: "text-red-500", bg: "bg-red-500/10" },
-    attendance: { label: "Devamsızlık", icon: Clock, color: "text-orange-500", bg: "bg-orange-500/10" },
-    dress_code: { label: "Kılık Kıyafet", icon: Shirt, color: "text-blue-500", bg: "bg-blue-500/10" },
-    academic: { label: "Akademik", icon: BookOpen, color: "text-purple-500", bg: "bg-purple-500/10" },
-    other: { label: "Diğer", icon: AlertTriangle, color: "text-gray-500", bg: "bg-gray-500/10" }
+const CATEGORIES: Record<WarningCategory, { label: string; icon: typeof Gavel; color: string; bg: string }> = {
+    behavior: { label: "Behavior", icon: Gavel, color: "text-red-500", bg: "bg-red-500/10" },
+    attendance: { label: "Attendance", icon: Clock, color: "text-orange-500", bg: "bg-orange-500/10" },
+    dress_code: { label: "Dress code", icon: Shirt, color: "text-blue-500", bg: "bg-blue-500/10" },
+    academic: { label: "Academic", icon: BookOpen, color: "text-purple-500", bg: "bg-purple-500/10" },
+    other: { label: "Other", icon: AlertTriangle, color: "text-gray-500", bg: "bg-gray-500/10" }
 };
 
 export function WarningManager({ user, className, variant = "default" }: WarningManagerProps) {
@@ -60,6 +60,21 @@ export function WarningManager({ user, className, variant = "default" }: Warning
     const [reason, setReason] = useState("");
     const [category, setCategory] = useState<WarningCategory>("behavior");
     const [warningToDelete, setWarningToDelete] = useState<string | null>(null);
+    const [deleteCooldown, setDeleteCooldown] = useState(0);
+
+    useEffect(() => {
+        if (!warningToDelete) return;
+        const timer = window.setInterval(() => {
+            setDeleteCooldown((current) => {
+                if (current <= 1) {
+                    window.clearInterval(timer);
+                    return 0;
+                }
+                return current - 1;
+            });
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [warningToDelete]);
 
     // Permission Checks
     const currentUserRole = session?.user?.role || "applicant";
@@ -80,13 +95,13 @@ export function WarningManager({ user, className, variant = "default" }: Warning
             }
         },
         onSuccess: () => {
-            toast.success("Uyarı eklendi");
+            toast.success("Warning added");
             setReason("");
             setCategory("behavior");
             setIsAddOpen(false);
             queryClient.invalidateQueries({ queryKey: ["user", user.id] });
         },
-        onError: (err: any) => toast.error(err.message)
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to add warning.")
     });
 
     const deleteWarningMutation = useMutation({
@@ -98,11 +113,11 @@ export function WarningManager({ user, className, variant = "default" }: Warning
             }
         },
         onSuccess: () => {
-            toast.success("Uyarı kaldırıldı");
+            toast.success("Warning removed");
             setWarningToDelete(null);
             queryClient.invalidateQueries({ queryKey: ["user", user.id] });
         },
-        onError: (err: any) => toast.error(err.message)
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to remove warning.")
     });
 
     const canDelete = (warning: Warning) => {
@@ -115,11 +130,11 @@ export function WarningManager({ user, className, variant = "default" }: Warning
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                    Disiplin & Uyarılar
+                    Discipline & warnings
                 </CardTitle>
                 {canWarn && (
                     <Button size="sm" variant="outline" onClick={() => setIsAddOpen(true)} className="h-8">
-                        <Plus className="w-3.5 h-3.5 mr-1.5" /> Ekle
+                        <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
                     </Button>
                 )}
             </CardHeader>
@@ -128,7 +143,7 @@ export function WarningManager({ user, className, variant = "default" }: Warning
                     {(!user.user_warnings || user.user_warnings.length === 0) ? (
                         <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground text-sm border-2 border-dashed border-border/30 rounded-lg bg-muted/5">
                             <ShieldAlert className="w-8 h-8 opacity-20 mb-2" />
-                            <p>Bu kullanıcının aktif uyarısı yok.</p>
+                            <p>This user has no active warnings.</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -145,7 +160,7 @@ export function WarningManager({ user, className, variant = "default" }: Warning
                                                     {catMeta.label}
                                                 </Badge>
                                                 <span className="text-xs text-muted-foreground">
-                                                    {new Date(w.created_at).toLocaleDateString('tr-TR')}
+                                                    {new Date(w.created_at).toLocaleDateString('en-GB')}
                                                 </span>
                                             </div>
                                             {canDelete(w) && (
@@ -153,7 +168,7 @@ export function WarningManager({ user, className, variant = "default" }: Warning
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-6 w-6 -mt-1 -mr-1 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    onClick={() => setWarningToDelete(w.id)}
+                                                    onClick={() => { setDeleteCooldown(3); setWarningToDelete(w.id); }}
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </Button>
@@ -164,7 +179,7 @@ export function WarningManager({ user, className, variant = "default" }: Warning
                                         </p>
                                         <div className="text-[10px] text-muted-foreground flex items-center justify-between pt-2 border-t border-border/30 mt-2">
                                             <div className="flex items-center gap-1">
-                                                <span className="opacity-70">Veren:</span>
+                                                <span className="opacity-70">Issued by:</span>
                                                 <span className="font-medium">{w.issuer.full_name}</span>
                                             </div>
                                             <span className="opacity-50 uppercase tracking-wider text-[9px]">{w.issuer.role}</span>
@@ -180,31 +195,31 @@ export function WarningManager({ user, className, variant = "default" }: Warning
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Uyarı Ekle</DialogTitle>
+                        <DialogTitle>Add warning</DialogTitle>
                         <DialogDescription>
-                            Bu kullanıcıya disiplin uyarısı tanımlıyorsunuz.
+                            You are adding a disciplinary warning for this user.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
-                            <Label>Kategori</Label>
-                            <Select value={category} onValueChange={(val: any) => setCategory(val)}>
+                            <Label>Category</Label>
+                            <Select value={category} onValueChange={(val) => setCategory(val as WarningCategory)}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Kategori seçiniz" />
+                                    <SelectValue placeholder="Select a category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="behavior">Davranış</SelectItem>
-                                    <SelectItem value="attendance">Devamsızlık</SelectItem>
-                                    <SelectItem value="dress_code">Kılık Kıyafet</SelectItem>
-                                    <SelectItem value="academic">Akademik / Prosedür</SelectItem>
-                                    <SelectItem value="other">Diğer</SelectItem>
+                                    <SelectItem value="behavior">Behavior</SelectItem>
+                                    <SelectItem value="attendance">Attendance</SelectItem>
+                                    <SelectItem value="dress_code">Dress code</SelectItem>
+                                    <SelectItem value="academic">Academic / procedure</SelectItem>
+                                    <SelectItem value="other">Other</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Açıklama</Label>
+                            <Label>Description</Label>
                             <Textarea
-                                placeholder="Uyarı sebebini detaylıca yazınız..."
+                                placeholder="Describe the reason for the warning..."
                                 className="min-h-[100px]"
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
@@ -212,13 +227,13 @@ export function WarningManager({ user, className, variant = "default" }: Warning
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsAddOpen(false)}>İptal</Button>
+                        <Button variant="ghost" onClick={() => setIsAddOpen(false)}>Cancel</Button>
                         <Button
                             variant="destructive"
                             onClick={() => addWarningMutation.mutate()}
                             disabled={!reason.trim() || addWarningMutation.isPending}
                         >
-                            {addWarningMutation.isPending ? "Ekleniyor..." : "Uyarıyı Kaydet"}
+                            {addWarningMutation.isPending ? "Adding..." : "Save warning"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -228,18 +243,19 @@ export function WarningManager({ user, className, variant = "default" }: Warning
             <AlertDialog open={!!warningToDelete} onOpenChange={(val) => !val && setWarningToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Uyarıyı Kaldır</AlertDialogTitle>
+                        <AlertDialogTitle>MAKE SURE YOU UNDERSTAND</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Bu uyarıyı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                            This permanently removes this warning from the conference record. This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => warningToDelete && deleteWarningMutation.mutate(warningToDelete)}
+                            disabled={deleteWarningMutation.isPending || deleteCooldown > 0}
                             className="bg-destructive text-white hover:bg-destructive/90"
                         >
-                            Sil
+                            {deleteCooldown > 0 ? `Remove (${deleteCooldown})` : "I understand — remove"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

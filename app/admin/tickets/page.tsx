@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,18 +65,17 @@ export default function AdminTicketsPage() {
     };
 
     return (
-        <div className={cn("animate-fade-in max-w-7xl mx-auto", view !== 'detail' && "pb-12")}>
+        <div className={cn("mx-auto max-w-7xl p-5 animate-fade-in sm:p-8", view !== 'detail' && "pb-12")}>
             {/* Header Section */}
             <div className={cn(
                 "pb-6 mb-2",
                 view === 'detail' && "hidden"
             )}>
-                <Breadcrumbs items={[{ label: "Destek Talepleri" }]} />
 
                 <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center mt-4">
                     <div>
-                        <h2 className="text-3xl font-display font-bold text-foreground">Destek Talepleri</h2>
-                        <p className="text-muted-foreground mt-1">Kullanıcı destek taleplerini ve raporlarını yönetin.</p>
+                        <h2 className="text-3xl font-display font-bold text-foreground">Support tickets</h2>
+                        <p className="text-muted-foreground mt-1">Manage participant support requests and reports.</p>
                     </div>
                 </div>
             </div>
@@ -88,7 +86,7 @@ export default function AdminTicketsPage() {
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                                placeholder="Konu, kullanıcı veya e-posta ara..."
+                                placeholder="Search subject, user, or email..."
                                 className="pl-9 bg-background border-border/50"
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
@@ -99,21 +97,21 @@ export default function AdminTicketsPage() {
                                 <SelectTrigger className="w-full md:w-[150px] bg-background border-border/50">
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                         <Filter className="w-3.5 h-3.5" />
-                                        <span className="text-foreground">{TICKET_STATUSES.find(s => s.value === statusFilter)?.label || "Durum"}</span>
+                                        <span className="text-foreground">{TICKET_STATUSES.find(s => s.value === statusFilter)?.label || "Status"}</span>
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Tüm Durumlar</SelectItem>
+                                    <SelectItem value="all">All statuses</SelectItem>
                                     {TICKET_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
 
                             <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(1); }}>
                                 <SelectTrigger className="w-full md:w-[180px] bg-background border-border/50">
-                                    <SelectValue placeholder="Kategori" />
+                                    <SelectValue placeholder="Category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Tüm Kategoriler</SelectItem>
+                                    <SelectItem value="all">All categories</SelectItem>
                                     {TICKET_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -131,11 +129,11 @@ export default function AdminTicketsPage() {
                             <Table>
                                 <TableHeader className="bg-muted/30">
                                     <TableRow>
-                                        <TableHead>Kullanıcı</TableHead>
-                                        <TableHead>Konu</TableHead>
-                                        <TableHead>Kategori</TableHead>
-                                        <TableHead>Durum</TableHead>
-                                        <TableHead>Tarih</TableHead>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Date</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -143,7 +141,7 @@ export default function AdminTicketsPage() {
                                     {tickets.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
-                                                Sonuç bulunamadı.
+                                                No results found.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -165,7 +163,7 @@ export default function AdminTicketsPage() {
                                                     <TableCell className="font-medium text-foreground max-w-[200px] truncate">{t.subject}</TableCell>
                                                     <TableCell className="text-muted-foreground text-xs">{cat?.label}</TableCell>
                                                     <TableCell><Badge variant="outline" className={cn("text-[10px] px-2 h-5", status?.color)}>{status?.label}</Badge></TableCell>
-                                                    <TableCell className="text-muted-foreground text-xs font-mono">{new Date(t.created_at).toLocaleDateString('tr-TR')}</TableCell>
+                                                    <TableCell className="text-muted-foreground text-xs font-mono">{new Date(t.created_at).toLocaleDateString('en-GB')}</TableCell>
                                                     <TableCell>
                                                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleOpen(t.id); }}>
                                                             <Eye className="w-4 h-4 text-muted-foreground hover:text-primary" />

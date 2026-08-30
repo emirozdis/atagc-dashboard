@@ -20,8 +20,8 @@ export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedPr
                     <div className="bg-primary/10 p-4 rounded-full mb-4">
                         <Megaphone className="w-8 h-8 text-primary" />
                     </div>
-                    <p className="text-lg font-medium">Henüz duyuru bulunmuyor</p>
-                    <p className="text-sm">Yeni duyurular eklendiğinde burada görünecek.</p>
+                    <p className="text-lg font-medium">No announcements yet</p>
+                    <p className="text-sm">New updates will appear here.</p>
                 </CardContent>
             </Card>
         );
@@ -45,18 +45,18 @@ export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedPr
                                             <span className="truncate">
                                                 {item.committees_list && item.committees_list.length > 0
                                                     ? item.committees_list.map(c => c.name).join(", ")
-                                                    : `${item.committee_ids.length} Komiteye Özel`
+                                                    : `${item.committee_ids.length} committee${item.committee_ids.length === 1 ? "" : "s"}`
                                                 }
                                             </span>
                                         </Badge>
                                     ) : (item.target_user_ids && item.target_user_ids.length > 0) ? (
                                         <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">
                                             <User className="w-3 h-3 mr-1" />
-                                            {item.target_user_ids.length === 1 ? "Kişiye Özel" : `${item.target_user_ids.length} Kişiye Özel`}
+                                            {item.target_user_ids.length === 1 ? "Private" : `${item.target_user_ids.length} people`}
                                         </Badge>
                                     ) : (
                                         <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 whitespace-nowrap">
-                                            <Globe className="w-3 h-3 mr-1" /> Genel
+                                            <Globe className="w-3 h-3 mr-1" /> Everyone
                                         </Badge>
                                     )}
 
@@ -80,7 +80,7 @@ export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedPr
                                 <div className="flex items-center gap-1.5">
                                     <CalendarDays className="w-3.5 h-3.5" />
                                     <span className="font-medium">
-                                        {new Date(item.created_at).toLocaleDateString("tr-TR", {
+                                        {new Date(item.created_at).toLocaleDateString("en-GB", {
                                             day: 'numeric',
                                             month: 'long',
                                             year: 'numeric'
@@ -103,7 +103,7 @@ export function AnnouncementFeed({ announcements, onDelete }: AnnouncementFeedPr
                         />
                         {(item.target_user_ids && item.target_user_ids.length > 0) && (
                             <p className="mt-2 text-xs text-muted-foreground italic border-t border-border/50 pt-2">
-                                Bu duyuru özel olarak gönderilmiştir.
+                                This announcement was sent privately.
                             </p>
                         )}
                     </CardContent>

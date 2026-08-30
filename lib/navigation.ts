@@ -45,7 +45,7 @@ export interface NavigationItem {
 // 1. Dashboard Items (Delegates, Chairs)
 export const participantItems: NavigationItem[] = [
     {
-        title: "Genel Durum",
+        title: "Overview",
         href: "/dashboard",
         icon: LayoutDashboard,
         roles: DASHBOARD_ROLES,
@@ -53,7 +53,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: false,
     },
     {
-        title: "Profilim",
+        title: "Profile",
         href: "/profile",
         icon: User,
         roles: DASHBOARD_ROLES,
@@ -61,24 +61,24 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: false,
     },
     {
-        title: "Ödeme",
+        title: "Payment",
         href: "/payment",
         icon: CreditCard,
         roles: ["applicant", "delegate"],
         mobileCore: false,
-        requiresApproved: true, // Kullanıcı onaylanmadan ödemeyi göremez
+        requiresApproved: true,
     },
     {
-        title: "Delegasyon",
+        title: "Delegation",
         href: "/dashboard/delegation",
         icon: Users,
         roles: ["applicant", "delegate"],
         mobileCore: false,
-        requiresApproved: false, // Delegasyon davetine yanıt verebilmesi için onaysızken de görmeli
+        requiresApproved: false,
         requiresDelegation: true,
     },
     {
-        title: "Komitem",
+        title: "My committee",
         href: "/dashboard/committee",
         icon: Briefcase,
         roles: ["delegate", "committee_chairman", "chair"],
@@ -86,7 +86,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Yoklama Yönetimi",
+        title: "Roll call",
         href: "/dashboard/committee/roll-call",
         icon: QrCode,
         roles: ["committee_chairman", "chair"],
@@ -94,7 +94,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Ortak Çalışma",
+        title: "Collaborative document",
         href: "/dashboard/editor",
         icon: PenTool,
         roles: ["delegate", "committee_chairman", "chair"],
@@ -102,7 +102,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Tanıştıklarım",
+        title: "Connections",
         href: "/connections",
         icon: UsersRound,
         roles: DASHBOARD_ROLES,
@@ -110,7 +110,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Kaynaklar",
+        title: "Resources",
         href: "/resources",
         icon: FolderOpen,
         roles: DASHBOARD_ROLES,
@@ -118,7 +118,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Duyurular",
+        title: "Announcements",
         href: "/announcements",
         icon: Megaphone,
         roles: DASHBOARD_ROLES,
@@ -126,7 +126,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Yemek",
+        title: "Catering",
         href: "/catering",
         icon: UtensilsCrossed,
         roles: DASHBOARD_ROLES,
@@ -134,7 +134,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Galeri",
+        title: "Gallery",
         href: "/gallery",
         icon: Camera,
         roles: DASHBOARD_ROLES,
@@ -142,7 +142,7 @@ export const participantItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Destek",
+        title: "Support",
         href: "/tickets",
         icon: MessageSquare,
         roles: DASHBOARD_ROLES,
@@ -154,7 +154,7 @@ export const participantItems: NavigationItem[] = [
 // 2. Organisation Items (Observers, Press, Security)
 export const organisationItems: NavigationItem[] = [
     {
-        title: "Genel Durum",
+        title: "Overview",
         href: "/organisation",
         icon: LayoutDashboard,
         roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
@@ -162,7 +162,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: false,
     },
     {
-        title: "Profilim",
+        title: "Profile",
         href: "/profile",
         icon: User,
         roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
@@ -170,7 +170,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: false,
     },
     {
-        title: "Ödeme",
+        title: "Payment",
         href: "/payment",
         icon: CreditCard,
         roles: [...OBSERVER_TEAM, ...PRESS_TEAM],
@@ -179,7 +179,7 @@ export const organisationItems: NavigationItem[] = [
     },
     // Observer Specific
     {
-        title: "Görev Oluştur",
+        title: "Create task",
         href: "/organisation/observers/tasks",
         icon: ClipboardList,
         roles: ["head_observer"],
@@ -187,7 +187,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Görevlerim",
+        title: "My tasks",
         href: "/organisation/observers/my-tasks",
         icon: ListTodo,
         roles: OBSERVER_TEAM,
@@ -195,7 +195,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Gözlemci Atama",
+        title: "Assign observers",
         href: "/organisation/observers/assign",
         icon: Users,
         roles: ["head_observer"],
@@ -204,7 +204,7 @@ export const organisationItems: NavigationItem[] = [
     },
     // Press Specific
     {
-        title: "Basın Galerisi",
+        title: "Press gallery",
         href: "/gallery",
         icon: Camera,
         roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
@@ -212,7 +212,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Dosya Yükle",
+        title: "Upload file",
         href: "/organisation/press/upload",
         icon: FolderOpen,
         roles: PRESS_TEAM,
@@ -221,7 +221,7 @@ export const organisationItems: NavigationItem[] = [
     },
     // Security Specific
     {
-        title: "QR Tara",
+        title: "Scan QR code",
         href: "/organisation/security/scan",
         icon: ScanLine,
         roles: SECURITY_TEAM,
@@ -229,7 +229,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Giriş Logları",
+        title: "Entry logs",
         href: "/organisation/security/logs",
         icon: ShieldCheck,
         roles: ["head_security"],
@@ -238,7 +238,7 @@ export const organisationItems: NavigationItem[] = [
     },
     // Shared Org Items
     {
-        title: "Tanıştıklarım",
+        title: "Connections",
         href: "/connections",
         icon: UsersRound,
         roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
@@ -246,7 +246,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Yemek",
+        title: "Catering",
         href: "/catering",
         icon: UtensilsCrossed,
         roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
@@ -254,7 +254,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Duyurular",
+        title: "Announcements",
         href: "/announcements",
         icon: Megaphone,
         roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],
@@ -262,7 +262,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Destek",
+        title: "Support",
         href: "/tickets",
         icon: MessageSquare,
         roles: [...OBSERVER_TEAM, ...PRESS_TEAM, ...SECURITY_TEAM],

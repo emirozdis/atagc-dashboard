@@ -4,6 +4,14 @@ import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 
+type DelegationListRow = {
+    id: string;
+    name: string;
+    created_at: string;
+    leader?: { full_name?: string; email?: string; application?: Array<{ status?: string }> } | Array<{ full_name?: string; email?: string; application?: Array<{ status?: string }> }> | null;
+    members?: Array<{ count?: number }>;
+};
+
 export const GET = apiHandler(async (request: Request) => {
     const auth = await getAuthorization({ 
         requireAuth: true, 
@@ -43,13 +51,13 @@ export const GET = apiHandler(async (request: Request) => {
 
     if (error) throw error;
 
-    const formattedData = data.map((d: any) => ({
+    const formattedData = (data as unknown as DelegationListRow[]).map((d) => ({
         id: d.id,
         name: d.name,
         created_at: d.created_at,
         leader: d.leader,
         member_count: d.members?.[0]?.count || 0,
-        status: d.leader?.application?.[0]?.status || 'pending'
+        status: (Array.isArray(d.leader) ? d.leader[0]?.application?.[0]?.status : d.leader?.application?.[0]?.status) || 'pending'
     }));
 
     return NextResponse.json({

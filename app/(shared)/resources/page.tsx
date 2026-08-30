@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, Download, Info, FileText, BookOpen, Globe, Building2, Calendar, Search } from "lucide-react";
+import { Download, Info, FileText, Globe, Building2, Calendar, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,7 +9,6 @@ import { useSession } from "next-auth/react";
 import { ResourceUploadDialog } from "@/components/admin/ResourceUploadDialog";
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 interface Resource {
   id: string;
@@ -40,7 +39,7 @@ function ResourceCard({ resource }: { resource: Resource }) {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="w-3 h-3" />
               <time dateTime={resource.created_at}>
-                {new Date(resource.created_at).toLocaleDateString("tr-TR", {
+                {new Date(resource.created_at).toLocaleDateString("en-GB", {
                   day: 'numeric',
                   month: 'short',
                   year: 'numeric'
@@ -67,7 +66,7 @@ function ResourceCard({ resource }: { resource: Resource }) {
         >
           <a href={resource.file_url} target="_blank" rel="noopener noreferrer">
             <Download className="w-4 h-4 mr-2" />
-            Görüntüle / İndir
+            View / download
           </a>
         </Button>
       </CardContent>
@@ -183,16 +182,15 @@ export default function SharedResourcesPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Kaynaklar" }]} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
       <div className="space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
-              Kaynaklar
+              Resources
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl">
-              Etkinlik süresince ihtiyaç duyacağınız tüm dokümanlar ve materyaller
+              All documents and materials you may need during the event.
             </p>
           </div>
 
@@ -208,7 +206,7 @@ export default function SharedResourcesPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Kaynak ara..."
+              placeholder="Search resources..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-11 bg-card border-border/50 focus:border-primary"
@@ -223,9 +221,9 @@ export default function SharedResourcesPage() {
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Info className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">Henüz Kaynak Yok</h3>
+            <h3 className="text-xl font-semibold mb-2">No resources yet</h3>
             <p className="text-muted-foreground max-w-md">
-              Henüz bir kaynak yüklenmedi. Kaynaklar yüklendiğinde burada görünecektir.
+              Resources will appear here when they are published.
             </p>
           </CardContent>
         </Card>
@@ -233,9 +231,9 @@ export default function SharedResourcesPage() {
         <Card className="border border-border/50 bg-card/50">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Search className="w-12 h-12 text-muted-foreground mb-3" />
-            <h3 className="text-lg font-semibold mb-1">Sonuç Bulunamadı</h3>
+            <h3 className="text-lg font-semibold mb-1">No results found</h3>
             <p className="text-muted-foreground">
-              Aramanızla eşleşen kaynak bulunamadı. Farklı bir terim deneyin.
+              No resources match your search. Try a different term.
             </p>
           </CardContent>
         </Card>
@@ -243,7 +241,7 @@ export default function SharedResourcesPage() {
         <div className="space-y-12">
           <div ref={committeeSectionRef}>
             <ResourceSection
-              title="Komite Kaynakları"
+              title="Committee resources"
               icon={Building2}
               resources={committeeResources}
               badge={committeeResources.length > 0 ? `${committeeResources.length}` : undefined}
@@ -252,7 +250,7 @@ export default function SharedResourcesPage() {
 
           <div ref={generalSectionRef}>
             <ResourceSection
-              title="Genel Kaynaklar"
+              title="General resources"
               icon={Globe}
               resources={generalResources}
               badge={generalResources.length > 0 ? `${generalResources.length}` : undefined}

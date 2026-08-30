@@ -2,7 +2,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import { sendEmail } from "@/lib/email";
 import { NotificationType, generateEmailHtml } from "@/lib/email-templates";
 
-const BASE_URL = process.env.NEXTAUTH_URL || "https://panel.atagc.com.tr";
+const BASE_URL = process.env.NEXTAUTH_URL || "https://ravenmun.org";
 
 export async function sendSystemNotification(
   userId: string,
@@ -79,7 +79,7 @@ export async function sendSystemNotification(
 
 function extractSubject(html: string): string {
   const match = html.match(/<title>(.*?)<\/title>/);
-  return match ? match[1] : "ATAGÇ Bildirim";
+  return match ? match[1] : "RavenMUN notification";
 }
 
 // Change Log:

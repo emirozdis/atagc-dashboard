@@ -6,6 +6,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { createTicketSchema } from "@/lib/schemas";
 import { Logger } from "@/lib/logger";
 import { MANAGEMENT_ROLES } from "@/lib/roles";
+import { assertFileSignature } from "@/lib/upload-validation";
+import crypto from "node:crypto";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -34,10 +36,10 @@ export const GET = apiHandler(async (request: Request) => {
 
         if (error || !data) return NextResponse.json({ error: "Ticket not found or invalid token" }, { status: 404 });
         
-        const isStaff = MANAGEMENT_ROLES.includes(session.user.role as any);
+        const isStaff = MANAGEMENT_ROLES.includes(session.user.role);
         
         if (data.is_anonymous && !isStaff) {
-            delete (data as any).user_id;
+            delete data.user_id;
         }
         
         return NextResponse.json(data);
@@ -59,7 +61,7 @@ export const GET = apiHandler(async (request: Request) => {
             user:users(full_name, email)
         `, { count: 'exact' });
 
-    const isStaff = MANAGEMENT_ROLES.includes(session.user.role as any);
+    const isStaff = MANAGEMENT_ROLES.includes(session.user.role);
     if (!isStaff) {
         query = query.eq("user_id", session.user.id);
     }
@@ -97,7 +99,7 @@ export const POST = apiHandler(async (request: Request) => {
     const session = auth.session;
 
     const formData = await request.formData();
-    const rawBody: any = {};
+    const rawBody: Record<string, string> = {};
     const files: File[] = [];
 
     formData.forEach((value, key) => {
@@ -114,21 +116,22 @@ export const POST = apiHandler(async (request: Request) => {
 
     const attachmentPaths: string[] = [];
     if (files.length > 0) {
-        if (files.length > 3) throw new Error("Maksimum 3 dosya yükleyebilirsiniz.");
+        if (files.length > 3) throw new Error("You can upload a maximum of three files.");
 
         for (const file of files) {
-            if (file.size > MAX_FILE_SIZE) throw new Error(`${file.name} boyutu çok büyük (Max 5MB).`);
-            if (!ALLOWED_TYPES.includes(file.type)) throw new Error(`${file.name} formatı desteklenmiyor.`);
+            if (file.size > MAX_FILE_SIZE) throw new Error(`${file.name} is too large (max 20 MB).`);
+            if (!ALLOWED_TYPES.includes(file.type)) throw new Error(`${file.name} has an unsupported file type.`);
 
-            const ext = file.name.split('.').pop();
-            const fileName = `tickets/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+            await assertFileSignature(file);
+            const ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+            const fileName = `tickets/${crypto.randomUUID()}.${ext}`;
             const arrayBuffer = await file.arrayBuffer();
             
             const { error: uploadError } = await supabase.storage
                 .from("ticket-attachments")
                 .upload(fileName, Buffer.from(arrayBuffer), { contentType: file.type });
 
-            if (uploadError) throw new Error("Dosya yüklenemedi.");
+            if (uploadError) throw new Error("File upload failed.");
             attachmentPaths.push(fileName);
         }
     }
@@ -145,7 +148,10 @@ export const POST = apiHandler(async (request: Request) => {
         .select("id, access_token")
         .single();
 
-    if (ticketError) throw ticketError;
+    if (ticketError) {
+        if (attachmentPaths.length) await supabase.storage.from("ticket-attachments").remove(attachmentPaths);
+        throw ticketError;
+    }
 
     const { error: msgError } = await supabase
         .from("ticket_messages")
@@ -159,6 +165,7 @@ export const POST = apiHandler(async (request: Request) => {
 
     if (msgError) {
         await supabase.from("tickets").delete().eq("id", ticket.id);
+        if (attachmentPaths.length) await supabase.storage.from("ticket-attachments").remove(attachmentPaths);
         throw msgError;
     }
 

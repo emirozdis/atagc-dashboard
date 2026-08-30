@@ -4,17 +4,29 @@ import getAuthorization from "@/lib/getAuthorization";
 import { UAParser } from "ua-parser-js";
 import { apiHandler } from "@/lib/api-handler";
 
-export const GET = apiHandler(async (request: Request) => {
+export const GET = apiHandler(async () => {
   const auth = await getAuthorization({ requireAuth: true });
   if (!auth.ok || !auth.session) throw new Error("Unauthorized");
   
   const userId = auth.session.user.id;
   const currentSessionId = auth.session.user.sessionId;
+  const now = new Date().toISOString();
+
+  if (currentSessionId) {
+    await supabase
+      .from("active_sessions")
+      .update({ last_active: now })
+      .eq("id", currentSessionId)
+      .eq("user_id", userId)
+      .is("revoked_at", null);
+  }
 
   const { data: sessions, error } = await supabase
     .from("active_sessions")
     .select("*")
     .eq("user_id", userId)
+    .is("revoked_at", null)
+    .gt("expires_at", now)
     .order("last_active", { ascending: false });
 
   if (error) throw error;
@@ -37,8 +49,8 @@ export const GET = apiHandler(async (request: Request) => {
       deviceInfo: {
         browser: `${browser.name || 'Unknown'} ${browser.version || ''}`,
         os: `${os.name || 'Unknown'} ${os.version || ''}`,
-        type: deviceName.trim(),
-        raw: s.user_agent
+        type: device.type === 'mobile' || device.type === 'tablet' ? 'mobile' : 'desktop',
+        model: deviceName.trim()
       }
     };
   });
@@ -65,7 +77,7 @@ export const DELETE = apiHandler(async (request: Request) => {
         .neq("id", currentSessionId);
     
     if (error) throw error;
-    return NextResponse.json({ success: true, message: "Diğer tüm cihazlardan çıkış yapıldı." });
+    return NextResponse.json({ success: true, message: "Signed out from all other devices." });
   }
 
   if (sessionId) {
@@ -76,7 +88,7 @@ export const DELETE = apiHandler(async (request: Request) => {
         .eq("user_id", userId); 
 
     if (error) throw error;
-    return NextResponse.json({ success: true, message: "Cihazdan çıkış yapıldı." });
+    return NextResponse.json({ success: true, message: "Signed out from the device." });
   }
 
   throw new Error("Invalid request");

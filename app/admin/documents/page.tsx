@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { Committee } from "@/types/admin";
 import { CardSkeleton } from "@/components/ui/skeleton-loader";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export default function AdminDocumentsPage() {
   const router = useRouter();
@@ -28,7 +27,7 @@ export default function AdminDocumentsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
+      <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
         <Skeleton className="h-4 w-32" /> {/* Breadcrumbs */}
         <div className="space-y-2">
           <Skeleton className="h-10 w-64" />
@@ -40,11 +39,10 @@ export default function AdminDocumentsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Belgeler" }]} />
-      <h2 className="text-3xl font-display font-bold text-foreground">Komite Belgeleri</h2>
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
+      <h2 className="text-3xl font-display font-bold text-foreground">Committee documents</h2>
       <p className="text-muted-foreground">
-        Görüntülemek veya yorum yapmak istediğiniz komiteyi seçin.
+        Choose a committee document to view or edit.
       </p>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -65,7 +63,7 @@ export default function AdminDocumentsPage() {
                 className="w-full"
                 variant="secondary"
               >
-                Belgeyi Aç <ArrowRight className="w-4 h-4 ml-2" />
+                Open document <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </CardContent>
           </Card>

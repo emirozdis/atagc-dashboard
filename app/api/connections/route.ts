@@ -8,6 +8,8 @@ import { sendSystemNotification } from "@/lib/notification-service";
 import { apiHandler } from "@/lib/api-handler";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+type ConnectionUser = { user_details?: { profile_picture_url?: string | null } | Array<{ profile_picture_url?: string | null }> | null };
+type ConnectionRow = Record<string, unknown>;
 
 export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true, requireApproved: true });
@@ -70,10 +72,11 @@ export const GET = apiHandler(async (request: Request) => {
     .eq("recipient_id", userId)
     .eq("status", "connected");
 
-  const signImages = async (list: any[], userKey: string) => {
-    return Promise.all((list || []).map(async (item: any) => {
-      const userObj = item[userKey];
-      const d = Array.isArray(userObj.user_details) ? userObj.user_details[0] : userObj.user_details;
+  const signImages = async (list: ConnectionRow[] | null | undefined, userKey: string) => {
+    return Promise.all((list || []).map(async (item) => {
+      const userObj = item[userKey] as ConnectionUser | ConnectionUser[] | null | undefined;
+      const user = Array.isArray(userObj) ? userObj[0] : userObj;
+      const d = user ? (Array.isArray(user.user_details) ? user.user_details[0] : user.user_details) : null;
       if (d?.profile_picture_url) {
         d.profile_picture_url = await getSignedUrl("profile-pictures", d.profile_picture_url);
       }
@@ -90,7 +93,7 @@ export const GET = apiHandler(async (request: Request) => {
   return NextResponse.json({
     pending: receivedFormatted,
     sent: sentFormatted,
-    connected: connectedFormatted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    connected: connectedFormatted.sort((a, b) => new Date(String(b.updated_at || "")).getTime() - new Date(String(a.updated_at || "")).getTime())
   });
 });
 
@@ -114,7 +117,7 @@ export const POST = apiHandler(async (request: Request) => {
     .single();
 
   if (targetDetails && targetDetails.allow_connections === false) {
-    return NextResponse.json({ error: "Kullanıcı bağlantı isteklerini kapatmış." }, { status: 403 });
+    return NextResponse.json({ error: "This user has disabled connection requests." }, { status: 403 });
   }
 
   const { data: existing } = await supabase
@@ -125,13 +128,13 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (existing) {
     if (existing.status === 'connected') {
-      return NextResponse.json({ message: "Zaten bağlantınız var.", status: "already_connected" });
+      return NextResponse.json({ message: "You are already connected.", status: "already_connected" });
     }
     if (existing.status === 'pending') {
-      return NextResponse.json({ message: "İstek zaten gönderilmiş veya bekleniyor.", status: "pending" });
+      return NextResponse.json({ message: "The request was already sent or is pending.", status: "pending" });
     }
     if (existing.status === 'blocked') {
-      return NextResponse.json({ error: "İşlem gerçekleştirilemedi." }, { status: 403 });
+      return NextResponse.json({ error: "The action could not be completed." }, { status: 403 });
     }
 
     if (existing.status === 'rejected') {
@@ -159,7 +162,7 @@ export const POST = apiHandler(async (request: Request) => {
 
         await sendSystemNotification(targetUserId, "connection_request");
 
-        return NextResponse.json({ success: true, message: "İstek tekrar gönderildi." });
+        return NextResponse.json({ success: true, message: "Request sent again." });
       } else {
         await supabase.from("user_connections").delete().eq("id", existing.id);
       }
@@ -196,6 +199,6 @@ export const POST = apiHandler(async (request: Request) => {
 
   return NextResponse.json({
     success: true,
-    message: `Bağlantı isteği gönderildi: ${targetUser?.full_name}`
+    message: `Connection request sent to ${targetUser?.full_name}`
   });
 });

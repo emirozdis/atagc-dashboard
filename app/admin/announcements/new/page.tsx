@@ -3,6 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
+
+interface PreviewUser {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
+interface AnnouncementPayload {
+  title: string;
+  content: string;
+  turnstileToken: string;
+  targetType?: "all" | "committee" | "role" | "user";
+  committeeIds?: string[];
+  targetRoles?: string[];
+  userIds?: string[];
+}
 import {
   ArrowLeft,
   Loader2,
@@ -37,8 +53,8 @@ import { Committee } from "@/types/admin";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { MultiSelectPopover, MultiSelectOption } from "@/components/ui/multi-select-popover";
+import { TURNSTILE_SITE_KEY, Turnstile } from "@/components/ui/turnstile";
 
 export default function NewAnnouncementPage() {
   const router = useRouter();
@@ -47,9 +63,15 @@ export default function NewAnnouncementPage() {
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-  const [activePreset, setActivePreset] = useState<"all" | "committee" | "custom">("custom");
+  const [activePreset, setActivePreset] = useState<"all" | "committee" | "role" | "custom">("custom");
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const roleOptions = [
+    { value: "delegate", label: "Delegates" }, { value: "committee_chairman", label: "Chairboard" }, { value: "press", label: "Press" },
+    { value: "observer", label: "Observers" }, { value: "security", label: "Security" }, { value: "admin", label: "Site admins" },
+  ];
 
   const [selectedCommitteeIds, setSelectedCommitteeIds] = useState<string[]>([]);
 
@@ -72,7 +94,7 @@ export default function NewAnnouncementPage() {
     .map(c => c.name);
 
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
-  const { data: previewUsers = [], isLoading: loadingPreview } = useQuery({
+  const { data: previewUsers = [], isLoading: loadingPreview } = useQuery<PreviewUser[]>({
     queryKey: ['preview-users', selectedUserIds],
     queryFn: async () => {
       const idsToFetch = selectedUserIds.slice(0, 50).join(",");
@@ -87,13 +109,17 @@ export default function NewAnnouncementPage() {
   // Mutations
   const createMutation = useMutation({
     mutationFn: async () => {
-      const payload: any = { title, content };
+      if (!turnstileToken) throw new Error("Please complete the security verification first.");
+      const payload: AnnouncementPayload = { title, content, turnstileToken };
 
       if (activePreset === 'all') {
         payload.targetType = 'all';
       } else if (activePreset === 'committee') {
         payload.targetType = 'committee';
         payload.committeeIds = selectedCommitteeIds;
+      } else if (activePreset === 'role') {
+        payload.targetType = 'role';
+        payload.targetRoles = selectedRoles;
       } else {
         payload.targetType = 'user';
         payload.userIds = selectedUserIds;
@@ -108,10 +134,10 @@ export default function NewAnnouncementPage() {
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      toast.success("Duyuru başarıyla oluşturuldu.");
+      toast.success("Announcement created successfully.");
       router.push("/admin/announcements");
     },
-    onError: () => toast.error("Duyuru oluşturulamadı.")
+    onError: () => toast.error("Could not create announcement.")
   });
 
   const handlePresetSelect = (preset: "all" | "committee") => {
@@ -119,14 +145,23 @@ export default function NewAnnouncementPage() {
       setActivePreset("all");
       setSelectedUserIds([]);
       setSelectedCommitteeIds([]);
-      toast.success("Hedef olarak 'Tüm Kullanıcılar' seçildi.");
+      setSelectedRoles([]);
+      toast.success("Audience set to all users.");
     } else {
       setActivePreset("committee");
+      setSelectedRoles([]);
     }
+  };
+
+  const handleRoleSelection = (role: string) => {
+    setActivePreset("role");
+    setSelectedRoles((current) => current.includes(role) ? current.filter((item) => item !== role) : [...current, role]);
+    setSelectedUserIds([]);
+    setSelectedCommitteeIds([]);
   };
   
   const handleCommitteeSelectionChange = async (newCommitteeIds: string[]) => {
-      const toastId = toast.loading("Komite üyeleri güncelleniyor...");
+      const toastId = toast.loading("Updating committee members...");
       try {
           const promises = newCommitteeIds.map(id => fetch(`/api/admin/users/ids?committee_id=${id}`).then(res => res.json()));
           const results = await Promise.all(promises);
@@ -136,23 +171,27 @@ export default function NewAnnouncementPage() {
           setSelectedUserIds(allUserIds);
           setSelectedCommitteeIds(newCommitteeIds);
 
-          toast.success(`Toplam ${allUserIds.length} üye eklendi.`, { id: toastId });
+          toast.success(`${allUserIds.length} users added in total.`, { id: toastId });
       } catch (e) {
-          toast.error("Üyeler getirilirken bir hata oluştu.", { id: toastId });
+          toast.error("Could not load members.", { id: toastId });
       }
   };
 
   const handleNext = () => {
     if (currentStep === 1) {
       if (!title.trim() || !content.trim()) {
-        toast.error("Başlık ve içerik alanları zorunludur.");
+        toast.error("Title and content are required.");
         return;
       }
       setDirection('forward');
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      if (activePreset !== 'all' && selectedUserIds.length === 0) {
-        toast.error("En az bir kullanıcı veya hedef kitle seçmelisiniz.");
+      if (activePreset === 'role' && selectedRoles.length === 0) {
+        toast.error("At least one role must be selected.");
+        return;
+      }
+      if (activePreset !== 'all' && activePreset !== 'role' && selectedUserIds.length === 0) {
+        toast.error("Select at least one user or audience.");
         return;
       }
       setDirection('forward');
@@ -168,14 +207,13 @@ export default function NewAnnouncementPage() {
   };
 
   const steps = [
-    { id: 1, title: "İçerik", icon: FileText, description: "Duyuru detayları" },
-    { id: 2, title: "Hedef Kitle", icon: Users, description: "Alıcı seçimi" },
-    { id: 3, title: "Önizleme", icon: CheckCircle2, description: "Onay ve gönderim" },
+    { id: 1, title: "Content", icon: FileText, description: "Announcement details" },
+    { id: 2, title: "Audience", icon: Users, description: "Select recipients" },
+    { id: 3, title: "Preview", icon: CheckCircle2, description: "Confirm and send" },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in pb-12">
-      <Breadcrumbs items={[{ label: "Duyurular", href: "/admin/announcements" }, { label: "Yeni Duyuru" }]} />
+    <div className="mx-auto max-w-7xl space-y-8 p-5 pb-12 animate-fade-in sm:p-8">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/admin/announcements">
@@ -184,9 +222,9 @@ export default function NewAnnouncementPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Yeni Duyuru</h1>
+          <h1 className="text-2xl font-bold tracking-tight">New announcement</h1>
           <p className="text-muted-foreground">
-            Duyuru oluşturma sihirbazı.
+            Share an update with the right participants and teams.
           </p>
         </div>
       </div>
@@ -253,25 +291,25 @@ export default function NewAnnouncementPage() {
         )}>
           <Card className="bg-card border-border/50 shadow-md">
             <CardHeader>
-              <CardTitle>Duyuru İçeriği</CardTitle>
-              <CardDescription>Duyurunuzun başlığını ve metnini giriniz.</CardDescription>
+              <CardTitle>Announcement content</CardTitle>
+              <CardDescription>Enter the announcement title and message.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="title">Başlık</Label>
+                <Label htmlFor="title">Title</Label>
                 <Input
                   id="title"
-                  placeholder="Örn: Açılış Töreni Hakkında"
+                  placeholder="For example: Opening ceremony information"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   className="text-lg font-medium"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="content">Mesaj</Label>
+                <Label htmlFor="content">Message</Label>
                 <Textarea
                   id="content"
-                  placeholder="Duyuru metni..."
+                  placeholder="Announcement message..."
                   className="min-h-[300px] text-base leading-relaxed resize-none font-normal"
                   value={content}
                   onChange={e => setContent(e.target.value)}
@@ -292,21 +330,21 @@ export default function NewAnnouncementPage() {
         )}>
           <Card className="bg-card border-border/50 shadow-md">
             <CardHeader>
-              <CardTitle>Hedef Kitle</CardTitle>
+              <CardTitle>Audience</CardTitle>
               <CardDescription>
-                Duyurunun kimlere gönderileceğini seçiniz.
+                Choose who should receive this announcement.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div
                   className={`cursor-pointer rounded-xl border p-4 flex flex-col items-center gap-3 transition-all hover:bg-secondary/10 ${activePreset === 'all' ? 'border-primary bg-primary/5 shadow-[0_0_0_1px_rgba(var(--primary))]' : 'border-border'}`}
                   onClick={() => handlePresetSelect('all')}
                 >
                   <Globe className="w-6 h-6 text-primary" />
                   <div className="text-center">
-                    <div className="font-semibold text-sm">Tüm Kullanıcılar</div>
-                    <div className="text-xs text-muted-foreground">Herkese açık yayınla</div>
+                    <div className="font-semibold text-sm">All users</div>
+                    <div className="text-xs text-muted-foreground">Publish to everyone</div>
                   </div>
                 </div>
 
@@ -316,24 +354,30 @@ export default function NewAnnouncementPage() {
                 >
                   <Building2 className="w-6 h-6 text-primary" />
                   <div className="text-center">
-                    <div className="font-semibold text-sm">Komiteye Özel</div>
-                    <div className="text-xs text-muted-foreground">Komite üyelerini seç</div>
+                    <div className="font-semibold text-sm">Specific committees</div>
+                    <div className="text-xs text-muted-foreground">Select committee members</div>
                   </div>
+                </div>
+                <div className={`cursor-pointer rounded-xl border p-4 flex flex-col items-center gap-3 transition-all hover:bg-secondary/10 ${activePreset === 'role' ? 'border-primary bg-primary/5 shadow-[0_0_0_1px_rgba(var(--primary))]' : 'border-border'}`} onClick={() => { setActivePreset('role'); setSelectedUserIds([]); setSelectedCommitteeIds([]); }}>
+                  <Users className="w-6 h-6 text-primary" />
+                  <div className="text-center"><div className="font-semibold text-sm">By role</div><div className="text-xs text-muted-foreground">Choose conference roles</div></div>
                 </div>
               </div>
 
+              {activePreset === 'role' && <div className="animate-in fade-in slide-in-from-top-2 rounded-lg border border-border/50 bg-secondary/10 p-4"><Label className="mb-2 block">Roles</Label><div className="flex flex-wrap gap-2">{roleOptions.map((role) => <button type="button" key={role.value} onClick={() => handleRoleSelection(role.value)} className={`rounded-full border px-3 py-1.5 text-sm ${selectedRoles.includes(role.value) ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>{role.label}</button>)}</div></div>}
+
               {activePreset === 'committee' && (
                 <div className="animate-in fade-in slide-in-from-top-2 p-4 bg-secondary/10 rounded-lg border border-border/50">
-                  <Label className="mb-2 block">Komite Seçiniz</Label>
+                  <Label className="mb-2 block">Select committees</Label>
                   <MultiSelectPopover
                     options={committeeOptions}
                     selected={selectedCommitteeIds}
                     onChange={handleCommitteeSelectionChange}
-                    placeholder="Komiteleri seçin"
+                    placeholder="Select committees"
                     className="w-full"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    Seçtiğiniz komitelerin üyeleri alıcı listesine eklenecektir.
+                    Members of the selected committees will be added to the recipient list.
                   </p>
                 </div>
               )}
@@ -341,7 +385,7 @@ export default function NewAnnouncementPage() {
               <Separator />
 
               <div className="space-y-2">
-                <Label>Özelleştirilmiş Kullanıcı Listesi ({selectedUserIds.length})</Label>
+                <Label>Custom user list ({selectedUserIds.length})</Label>
                 <UserSelectionTable
                   selectedUsers={selectedUserIds}
                   onSelectionChange={(ids) => {
@@ -367,22 +411,22 @@ export default function NewAnnouncementPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  Genel Bakış
+                  Overview
                 </CardTitle>
                 <CardDescription>
-                  Göndermeden önce detayları kontrol ediniz.
+                  Review the details before sending.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground uppercase tracking-widest text-xs font-semibold">Başlık</Label>
+                      <Label className="text-muted-foreground uppercase tracking-widest text-xs font-semibold">Title</Label>
                   <div className="text-xl font-bold font-display">{title}</div>
                 </div>
 
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground uppercase tracking-widest text-xs font-semibold">İçerik Önizleme</Label>
+                      <Label className="text-muted-foreground uppercase tracking-widest text-xs font-semibold">Content preview</Label>
                   <div className="bg-secondary/10 p-5 rounded-lg text-sm leading-relaxed whitespace-pre-wrap border border-border/50">
                     {content}
                   </div>
@@ -393,22 +437,24 @@ export default function NewAnnouncementPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <Label className="text-muted-foreground uppercase tracking-widest text-xs font-semibold">Alıcılar</Label>
+                      <Label className="text-muted-foreground uppercase tracking-widest text-xs font-semibold">Recipients</Label>
                       <div className="flex items-center gap-2">
                         {activePreset === 'all' ? (
                           <Badge variant="outline" className="text-base px-3 py-1 bg-green-500/10 text-green-500 border-green-500/20">
-                            <Globe className="w-3 h-3 mr-1 inline" /> Tüm Kullanıcılar
+                            <Globe className="w-3 h-3 mr-1 inline" /> All users
                           </Badge>
                         ) : activePreset === 'committee' && selectedCommitteeIds.length > 0 ? (
                           <Badge variant="outline" className="text-base px-3 py-1 bg-purple-500/10 text-purple-500 border-purple-500/20">
-                            <Building2 className="w-3 h-3 mr-1 inline" /> {selectedCommitteeNames.length <= 2 ? selectedCommitteeNames.join(", ") : `${selectedCommitteeNames.length} Komite`}
+                            <Building2 className="w-3 h-3 mr-1 inline" /> {selectedCommitteeNames.length <= 2 ? selectedCommitteeNames.join(", ") : `${selectedCommitteeNames.length} committees`}
                           </Badge>
+                        ) : activePreset === 'role' && selectedRoles.length > 0 ? (
+                          <Badge variant="outline" className="text-base px-3 py-1 bg-purple-500/10 text-purple-500 border-purple-500/20">{selectedRoles.map((role) => roleOptions.find((item) => item.value === role)?.label || role).join(", ")}</Badge>
                         ) : (
                           <>
                             <Badge variant="outline" className="text-base px-3 py-1 bg-primary/10 text-primary border-primary/20">
-                              {selectedUserIds.length} Kişi
+                              {selectedUserIds.length} users
                             </Badge>
-                            <span className="text-sm text-muted-foreground">seçildi</span>
+                            <span className="text-sm text-muted-foreground">selected</span>
                           </>
                         )}
                       </div>
@@ -421,7 +467,7 @@ export default function NewAnnouncementPage() {
                         onClick={() => setIsPreviewExpanded(!isPreviewExpanded)}
                         className="gap-2"
                       >
-                        {isPreviewExpanded ? "Listeyi Gizle" : "Listeyi Göster"}
+                        {isPreviewExpanded ? "Hide list" : "Show list"}
                         {isPreviewExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </Button>
                     )}
@@ -434,17 +480,17 @@ export default function NewAnnouncementPage() {
                   )}>
                     <div className="min-h-0">
                       <div className="bg-muted/30 p-3 border-b text-xs font-medium text-muted-foreground flex justify-between">
-                        <span>Seçili Kullanıcılar ({selectedUserIds.length})</span>
-                        {selectedUserIds.length > 50 && <span>İlk 50 gösteriliyor</span>}
+                        <span>Selected users ({selectedUserIds.length})</span>
+                        {selectedUserIds.length > 50 && <span>Showing the first 50</span>}
                       </div>
                       <ScrollArea className="h-[250px] w-full p-2">
                         {loadingPreview ? (
                           <div className="flex items-center justify-center h-full text-muted-foreground gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" /> Yükleniyor...
+                            <Loader2 className="w-4 h-4 animate-spin" /> Loading...
                           </div>
                         ) : previewUsers.length > 0 ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {previewUsers.map((user: any) => (
+                            {previewUsers.map((user) => (
                               <div key={user.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/10 transition-colors border border-transparent hover:border-border/50">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
                                   {user.full_name.substring(0, 2).toUpperCase()}
@@ -457,15 +503,19 @@ export default function NewAnnouncementPage() {
                             ))}
                             {selectedUserIds.length > 50 && (
                               <div className="col-span-full text-center py-2 text-xs text-muted-foreground italic">
-                                ... ve {selectedUserIds.length - 50} kişi daha
+                                ... and {selectedUserIds.length - 50} more
                               </div>
                             )}
                           </div>
                         ) : (
-                          <div className="text-center py-8 text-muted-foreground text-sm">Listelenecek kullanıcı yok.</div>
+                          <div className="text-center py-8 text-muted-foreground text-sm">No users to list.</div>
                         )}
                       </ScrollArea>
                     </div>
+                  </div>
+                  <div className="rounded-xl border border-border/50 bg-secondary/10 p-4">
+                    <Label className="mb-2 block">Security check</Label>
+                    {TURNSTILE_SITE_KEY ? <Turnstile siteKey={TURNSTILE_SITE_KEY} onVerify={setTurnstileToken} onError={() => setTurnstileToken("")} onExpire={() => setTurnstileToken("")} /> : <p className="text-sm text-rose-300">Security verification is not configured.</p>}
                   </div>
                 </div>
               </CardContent>
@@ -480,22 +530,22 @@ export default function NewAnnouncementPage() {
           <div className="bg-card border border-border/50 shadow-md rounded-lg py-3 px-6 min-h-[56px] flex justify-between items-center gap-4 pointer-events-auto">
             {currentStep > 1 ? (
               <Button variant="outline" onClick={handleBack} className="px-4 py-2">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Geri
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back
               </Button>
             ) : (
               <Link href="/admin/announcements">
-                <Button variant="ghost" className="px-4 py-2">İptal</Button>
+                <Button variant="ghost" className="px-4 py-2">Cancel</Button>
               </Link>
             )}
 
             {currentStep < 3 ? (
               <Button onClick={handleNext} className="px-6 py-2 shadow-md shadow-primary/15">
-                İleri <ChevronRight className="w-4 h-4 ml-2" />
+                Next <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending} className="px-6 py-2 shadow-md shadow-primary/15">
+              <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !turnstileToken} className="px-6 py-2 shadow-md shadow-primary/15">
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                Yayınla
+                Publish
               </Button>
             )}
           </div>

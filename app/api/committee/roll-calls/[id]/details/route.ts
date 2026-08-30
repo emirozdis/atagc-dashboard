@@ -85,7 +85,7 @@ export const GET = apiHandler(async (
     const attendedUserIds = new Set(logs.map(l => l.user_id));
     const logsMap = new Map(logs.map(l => [l.user_id, l.scanned_at]));
 
-    const detailedMembers = members.map((m: any) => {
+    const detailedMembers = members.map((m) => {
         const u = Array.isArray(m.user) ? m.user[0] : m.user;
         return {
             id: m.id,

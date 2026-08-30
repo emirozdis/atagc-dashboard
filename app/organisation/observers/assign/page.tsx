@@ -76,12 +76,12 @@ export default function AssignObserversPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Atama başarısız.");
+        throw new Error(err.error || "Assignment failed.");
       }
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      toast.success("Gözlemci başarıyla atandı.");
+      toast.success("Observer assigned successfully.");
       setSavedIds((prev) => new Set(prev).add(variables.user_id));
       setTimeout(() => setSavedIds((prev) => {
         const next = new Set(prev);
@@ -179,18 +179,18 @@ export default function AssignObserversPage() {
     <div className="animate-fade-in max-w-7xl mx-auto pb-12 space-y-8">
       <Breadcrumbs
         items={[
-          { label: "Organizasyon", href: "/organisation" },
-          { label: "Gözlemci Atama" },
+          { label: "Organisation", href: "/organisation" },
+          { label: "Assign observers" },
         ]}
       />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
-            Gözlemci Atama
+            Assign observers
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Gözlemcileri komitelere veya saha görevine atayın.
+            Assign observers to committees or field duties.
           </p>
         </div>
       </div>
@@ -200,7 +200,7 @@ export default function AssignObserversPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="İsim veya e-posta ile ara..."
+            placeholder="Search by name or email..."
             className="pl-9 h-10 bg-background border-border/50"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -208,7 +208,7 @@ export default function AssignObserversPage() {
         </div>
         <Badge variant="secondary" className="w-fit self-center px-3 py-1.5">
           <Users className="w-3 h-3 mr-1" />
-          {filtered?.length ?? 0} gözlemci
+          {filtered?.length ?? 0} observers
         </Badge>
       </div>
 
@@ -216,7 +216,7 @@ export default function AssignObserversPage() {
       <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
         <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <Eye className="w-4 h-4 text-primary" /> Gözlemci Listesi
+            <Eye className="w-4 h-4 text-primary" /> Observer list
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -242,9 +242,9 @@ export default function AssignObserversPage() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>Gözlemci</TableHead>
-                      <TableHead>Mevcut Atama</TableHead>
-                      <TableHead className="text-right">Atama</TableHead>
+                      <TableHead>Observer</TableHead>
+                      <TableHead>Current assignment</TableHead>
+                      <TableHead className="text-right">Assignment</TableHead>
                       <TableHead className="w-[60px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -269,16 +269,16 @@ export default function AssignObserversPage() {
                             {observer.allocation?.allocated_committee ? (
                               <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
                                 <Briefcase className="w-3 h-3 mr-1" />
-                                {committees?.find((c) => c.id === observer.allocation?.allocated_committee)?.name || "Komite"}
+                                {committees?.find((c) => c.id === observer.allocation?.allocated_committee)?.name || "Committee"}
                               </Badge>
                             ) : observer.allocation ? (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
                                 <MapPin className="w-3 h-3 mr-1" />
-                                {observer.allocation.allocated_field || "Saha Gözlemcisi"}
+                                {observer.allocation.allocated_field || "Field observer"}
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="bg-gray-500/10 text-gray-400 border-gray-500/20">
-                                Atanmamış
+                                Not assigned
                               </Badge>
                             )}
                           </TableCell>
@@ -286,7 +286,7 @@ export default function AssignObserversPage() {
                             <div className="flex items-center justify-end gap-2">
                               {isField && (
                                 <Input
-                                  placeholder="Alan adı..."
+                                  placeholder="Field name..."
                                   className="h-9 w-40 text-sm"
                                   value={sel.field || ""}
                                   onChange={(e) => handleFieldChange(observer.id, e.target.value)}
@@ -297,11 +297,11 @@ export default function AssignObserversPage() {
                                 onValueChange={(val) => handleSelectionChange(observer.id, val)}
                               >
                                 <SelectTrigger className="w-48 h-9">
-                                  <SelectValue placeholder="Atama seçin..." />
+                                  <SelectValue placeholder="Select assignment..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value={FIELD_OBSERVER_VALUE}>
-                                    Saha Gözlemcisi
+                                    Field observer
                                   </SelectItem>
                                   {committees?.map((c) => (
                                     <SelectItem key={c.id} value={c.id}>
@@ -355,7 +355,7 @@ export default function AssignObserversPage() {
                         {observer.allocation?.allocated_committee ? (
                           <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">
                             <Briefcase className="w-3 h-3 mr-1" />
-                            {committees?.find((c) => c.id === observer.allocation?.allocated_committee)?.name || "Komite"}
+                            {committees?.find((c) => c.id === observer.allocation?.allocated_committee)?.name || "Committee"}
                           </Badge>
                         ) : observer.allocation ? (
                           <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs">
@@ -364,14 +364,14 @@ export default function AssignObserversPage() {
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="bg-gray-500/10 text-gray-400 border-gray-500/20 text-xs">
-                            Atanmamış
+                            Not assigned
                           </Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
                         {isField && (
                           <Input
-                            placeholder="Alan adı..."
+                          placeholder="Field name..."
                             className="h-9 flex-1 text-sm"
                             value={sel.field || ""}
                             onChange={(e) => handleFieldChange(observer.id, e.target.value)}
@@ -382,11 +382,11 @@ export default function AssignObserversPage() {
                           onValueChange={(val) => handleSelectionChange(observer.id, val)}
                         >
                           <SelectTrigger className={isField ? "w-40 h-9" : "flex-1 h-9"}>
-                            <SelectValue placeholder="Atama seçin..." />
+                          <SelectValue placeholder="Select assignment..." />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value={FIELD_OBSERVER_VALUE}>
-                              Saha Gözlemcisi
+                              Field observer
                             </SelectItem>
                             {committees?.map((c) => (
                               <SelectItem key={c.id} value={c.id}>
@@ -421,10 +421,10 @@ export default function AssignObserversPage() {
                 <Eye className="w-7 h-7 text-muted-foreground" />
               </div>
               <h4 className="font-semibold text-xl text-foreground mb-2">
-                Gözlemci Bulunamadı
+                No observers found
               </h4>
               <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                {search ? "Arama kriterlerinize uygun gözlemci bulunamadı." : "Henüz gözlemci rolünde kullanıcı bulunmuyor."}
+                {search ? "No observers match your search." : "There are no users with an observer role yet."}
               </p>
             </div>
           )}

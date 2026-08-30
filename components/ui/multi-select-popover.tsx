@@ -69,9 +69,9 @@ export function MultiSelectPopover({
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Ara..." />
+          <CommandInput placeholder="Search..." />
           <CommandList>
-            <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
+            <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selected.includes(option.value);

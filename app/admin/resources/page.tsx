@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -35,8 +35,17 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResourceUploadDialog } from "@/components/admin/ResourceUploadDialog";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Committee } from "@/types/admin";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Resource {
   id: string;
@@ -55,6 +64,22 @@ export default function AdminResourcesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [committeeFilter, setCommitteeFilter] = useState("all");
+  const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
+  const [deleteCooldown, setDeleteCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!resourceToDelete) return;
+    const timer = window.setInterval(() => {
+      setDeleteCooldown((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resourceToDelete]);
 
   const { data: resources = [], isLoading } = useQuery<Resource[]>({
     queryKey: ["admin-resources", committeeFilter],
@@ -81,10 +106,14 @@ export default function AdminResourcesPage() {
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      toast.success("Dosya silindi");
+      toast.success("File deleted");
+      setResourceToDelete(null);
       queryClient.invalidateQueries({ queryKey: ["admin-resources"] });
     },
-    onError: () => toast.error("Silme başarısız")
+    onError: () => {
+      toast.error("Delete failed");
+      setResourceToDelete(null);
+    }
   });
 
   const filteredResources = resources.filter(r =>
@@ -93,11 +122,11 @@ export default function AdminResourcesPage() {
 
   const getCategoryBadge = (cat: string) => {
     const map: Record<string, string> = {
-      general: "Genel",
-      guide: "Kılavuz",
-      rules: "Kurallar",
-      award: "Ödül",
-      schedule: "Program"
+      general: "General",
+      guide: "Guide",
+      rules: "Rules",
+      award: "Award",
+      schedule: "Schedule"
     };
     return <Badge variant="secondary">{map[cat] || cat}</Badge>;
   };
@@ -119,16 +148,14 @@ export default function AdminResourcesPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
                 <a href={res.file_url} target="_blank" rel="noopener noreferrer">
-                  <Download className="w-4 h-4 mr-2" /> İndir
+                  <Download className="w-4 h-4 mr-2" /> Download
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
-                onClick={() => {
-                  if (confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
-                }}
+                onClick={() => { setDeleteCooldown(3); setResourceToDelete(res); }}
               >
-                <Trash2 className="w-4 h-4 mr-2" /> Sil
+                <Trash2 className="w-4 h-4 mr-2" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -137,8 +164,8 @@ export default function AdminResourcesPage() {
         <div className="flex flex-wrap gap-2 text-xs">
           {getCategoryBadge(res.category)}
           {res.is_public ?
-            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Herkese Açık</Badge> :
-            <Badge variant="outline" className="text-muted-foreground">Gizli</Badge>
+              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Public</Badge> :
+            <Badge variant="outline" className="text-muted-foreground">Private</Badge>
           }
         </div>
 
@@ -152,24 +179,23 @@ export default function AdminResourcesPage() {
             ) : (
               <>
                 <Globe className="w-3 h-3" />
-                <span>Genel</span>
+                <span>General</span>
               </>
             )}
           </div>
-          <div>{new Date(res.created_at).toLocaleDateString("tr-TR")}</div>
+          <div>{new Date(res.created_at).toLocaleDateString("en-GB")}</div>
         </div>
       </CardContent>
     </Card>
   );
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Kaynaklar" }]} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Kaynak Kütüphanesi</h2>
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Resources</h2>
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
-            Delegeler için dosya ve doküman paylaşımı.
+            Share files and documents with participants.
           </p>
         </div>
         <ResourceUploadDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-resources"] })} />
@@ -179,7 +205,7 @@ export default function AdminResourcesPage() {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Dosya ara..."
+            placeholder="Search files..."
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -189,12 +215,12 @@ export default function AdminResourcesPage() {
           <SelectTrigger className="w-full md:w-[240px]">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4" />
-              <SelectValue placeholder="Komite Filtrele" />
+              <SelectValue placeholder="Filter by committee" />
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tüm Komiteler</SelectItem>
-            <SelectItem value="general">Genel Kaynaklar</SelectItem>
+            <SelectItem value="all">All committees</SelectItem>
+            <SelectItem value="general">General resources</SelectItem>
             {committees.map((c) => (
               <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
             ))}
@@ -209,7 +235,7 @@ export default function AdminResourcesPage() {
           ) : filteredResources.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border rounded-xl bg-card">
               <FolderOpen className="w-12 h-12 opacity-20 mb-3" />
-              <p>Dosya bulunamadı.</p>
+              <p>No files found.</p>
             </div>
           ) : (
             <>
@@ -223,12 +249,12 @@ export default function AdminResourcesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Dosya Adı</TableHead>
-                      <TableHead>Komite</TableHead>
-                      <TableHead>Kategori</TableHead>
-                      <TableHead>Erişim</TableHead>
-                      <TableHead>Yükleyen</TableHead>
-                      <TableHead className="text-right">İşlemler</TableHead>
+                      <TableHead>File name</TableHead>
+                      <TableHead>Committee</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Access</TableHead>
+                      <TableHead>Uploaded by</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -249,19 +275,19 @@ export default function AdminResourcesPage() {
                           ) : (
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <Globe className="w-3 h-3" />
-                              <span>Genel</span>
+                              <span>General</span>
                             </div>
                           )}
                         </TableCell>
                         <TableCell>{getCategoryBadge(res.category)}</TableCell>
                         <TableCell>
                           {res.is_public ?
-                            <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20">Herkese Açık</Badge> :
-                            <Badge variant="outline">Gizli</Badge>
+                            <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20">Public</Badge> :
+                            <Badge variant="outline">Private</Badge>
                           }
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {res.uploader?.full_name} • {new Date(res.created_at).toLocaleDateString("tr-TR")}
+                          {res.uploader?.full_name} • {new Date(res.created_at).toLocaleDateString("en-GB")}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
@@ -273,9 +299,7 @@ export default function AdminResourcesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => {
-                                if (confirm("Silmek istediğinize emin misiniz?")) deleteMutation.mutate(res.id);
-                              }}
+                              onClick={() => { setDeleteCooldown(3); setResourceToDelete(res); }}
                             >
                               <Trash2 className="w-4 h-4 text-destructive opacity-70 hover:opacity-100" />
                             </Button>
@@ -290,6 +314,26 @@ export default function AdminResourcesPage() {
           )}
         </CardContent>
       </Card>
+      <AlertDialog open={!!resourceToDelete} onOpenChange={(open) => !open && setResourceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>MAKE SURE YOU UNDERSTAND</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes <strong>{resourceToDelete?.title}</strong> from the resource library. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending || deleteCooldown > 0}
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => resourceToDelete && deleteMutation.mutate(resourceToDelete.id)}
+            >
+              {deleteMutation.isPending ? "Deleting…" : deleteCooldown > 0 ? `Delete (${deleteCooldown})` : "I understand — delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

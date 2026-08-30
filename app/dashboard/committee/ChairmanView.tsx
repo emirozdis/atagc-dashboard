@@ -14,8 +14,9 @@ import { SessionInfoPanel } from "@/components/committee/SessionInfoPanel";
 import { TopicCard } from "@/components/committee/TopicCard";
 import { useState } from "react";
 import { CommitteeMemberDetailDialog } from "@/components/committee/CommitteeMemberDetailDialog";
+import type { Session } from "next-auth";
 
-export function ChairmanView({ session }: { session: any }) {
+export function ChairmanView({ session }: { session: Session | null }) {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -60,7 +61,7 @@ export function ChairmanView({ session }: { session: any }) {
           <RollCallHistory variant="compact" />
           <Button asChild className="w-full bg-background hover:bg-muted text-foreground border border-border/50 shadow-sm" variant="outline">
             <Link href="/dashboard/committee/roll-call">
-              <Clock className="w-4 h-4 mr-2 text-muted-foreground" /> Yoklama Yönetimi
+              <Clock className="w-4 h-4 mr-2 text-muted-foreground" /> Roll-call management
             </Link>
           </Button>
         </aside>
@@ -117,12 +118,12 @@ function EmptyState() {
         <Users className="w-10 h-10 text-muted-foreground" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold font-display">Komite Bulunamadı</h2>
+        <h2 className="text-2xl font-bold font-display">Committee not found</h2>
         <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-          Yönettiğiniz bir komite bulunamadı.
+          No committee assigned to you was found.
         </p>
       </div>
-      <Button asChild variant="outline"><Link href="/dashboard">Panele Dön</Link></Button>
+      <Button asChild variant="outline"><Link href="/dashboard">Back to dashboard</Link></Button>
     </div>
   );
 }

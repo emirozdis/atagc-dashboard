@@ -37,7 +37,7 @@ export function MultiSelect({
   options,
   selected,
   onChange,
-  placeholder = "Seçiniz...",
+  placeholder = "Select...",
   className,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
@@ -56,7 +56,7 @@ export function MultiSelect({
 
   // Group options
   const groupedOptions = options.reduce((acc, option) => {
-    const group = option.group || "Diğer";
+    const group = option.group || "Other";
     if (!acc[group]) acc[group] = [];
     acc[group].push(option);
     return acc;
@@ -79,7 +79,7 @@ export function MultiSelect({
               {selected.length > 0 && (
                 <>
                   <span className="text-sm font-medium mr-2">
-                    {selected.length} Kişi Seçildi
+                    {selected.length} selected
                   </span>
                 </>
               )}
@@ -89,9 +89,9 @@ export function MultiSelect({
         </PopoverTrigger>
         <PopoverContent className="w-[400px] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Ara..." />
+            <CommandInput placeholder="Search..." />
             <CommandList className="max-h-[300px]">
-              <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
+            <CommandEmpty>No results found.</CommandEmpty>
               {Object.entries(groupedOptions).map(([group, groupOpts]) => (
                 <CommandGroup key={group} heading={group}>
                   {groupOpts.map((option) => (
@@ -146,7 +146,7 @@ export function MultiSelect({
                 className="text-xs h-auto p-0 text-muted-foreground hover:text-foreground"
                 onClick={() => onChange([])}
              >
-                Tümünü Temizle
+                Clear all
              </Button>
           </div>
         </div>

@@ -4,6 +4,11 @@ import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 
+type ApplicationSummary = { id?: string; status?: string };
+type DelegationUser = { id?: string; full_name?: string; email?: string; role?: string; application?: ApplicationSummary | ApplicationSummary[] };
+type DelegationMember = { user_id: string; accepted?: boolean; joined_at?: string | null; user?: DelegationUser | DelegationUser[] };
+type DelegationLeader = DelegationUser | DelegationUser[] | null;
+
 export const GET = apiHandler(async (
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -49,9 +54,9 @@ export const GET = apiHandler(async (
         .eq("id", id)
         .single();
 
-    if (error || !d) throw new Error("Delegasyon bulunamadı");
+    if (error || !d) throw new Error("Delegation not found");
 
-    const leaderRaw = d.leader as any;
+    const leaderRaw = d.leader as unknown as DelegationLeader;
     const leader = Array.isArray(leaderRaw) ? leaderRaw[0] : leaderRaw;
     const leaderApp = Array.isArray(leader?.application) ? leader.application[0] : leader?.application;
 
@@ -63,8 +68,8 @@ export const GET = apiHandler(async (
         leader_application_id: leaderApp?.id || null,
         status: leaderApp?.status || 'pending',
         member_count: d.members?.length || 0,
-        members: (d.members || []).map((m: any) => {
-            const memberUser = m.user;
+        members: ((d.members || []) as unknown as DelegationMember[]).map((m) => {
+            const memberUser = Array.isArray(m.user) ? m.user[0] : m.user;
             const memberApp = Array.isArray(memberUser?.application) ? memberUser.application[0] : memberUser?.application;
             
             return {

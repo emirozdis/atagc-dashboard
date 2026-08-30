@@ -9,7 +9,7 @@ export const committeeAssignmentSchema = z.object({
 
 export const committeeSchema = z.object({
   id: z.uuid().optional(),
-  name: z.string().min(2, "Komite adı en az 2 karakter olmalıdır."),
+  name: z.string().min(2, "Committee name must be at least 2 characters."),
   description: z.string().optional(),
   topicTitle: z.string().optional(),
   topicDescription: z.string().optional(),
@@ -18,7 +18,7 @@ export const committeeSchema = z.object({
 export const warningSchema = z.object({
   userId: z.uuid(),
   category: z.enum(['behavior', 'attendance', 'dress_code', 'academic', 'other']),
-  reason: z.string().min(3, "Sebep en az 3 karakter olmalıdır."),
+  reason: z.string().min(3, "Reason must be at least 3 characters."),
 });
 
 // Auth
@@ -79,8 +79,8 @@ export const updateApplicationSchema = z.object({
 // Tickets
 export const createTicketSchema = z.object({
   category: z.enum(['general', 'person_report', 'dashboard', 'other']),
-  subject: z.string().min(3, "Konu en az 3 karakter olmalıdır.").max(100),
-  message: z.string().min(10, "Mesaj en az 10 karakter olmalıdır.").max(2000),
+  subject: z.string().min(3, "Subject must be at least 3 characters.").max(100),
+  message: z.string().min(10, "Message must be at least 10 characters.").max(2000),
   is_anonymous: z.preprocess((val) => val === 'true' || val === true, z.boolean()),
   attachments: z.any().optional()
 });
@@ -98,6 +98,6 @@ export const updateTicketStatusSchema = z.object({
 });
 
 export const trackTicketSchema = z.object({
-  ticketId: z.string().uuid("Geçersiz bilet ID formatı"),
-  accessToken: z.string().uuid("Geçersiz erişim anahtarı formatı"),
+  ticketId: z.string().uuid("Invalid ticket ID format."),
+  accessToken: z.string().uuid("Invalid access token format."),
 });

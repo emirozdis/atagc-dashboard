@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
+import { z } from "zod";
+
+const changeSchema = z.object({
+    target_user_id: z.uuid(),
+    action: z.enum(["accept", "reject", "remove"]),
+});
 
 export const POST = apiHandler(async (req) => {
     const auth = await getAuthorization({ requireAuth: true });
@@ -10,7 +16,8 @@ export const POST = apiHandler(async (req) => {
         throw new Error(auth.message ?? "Unauthorized");
     }
 
-    const userId = (auth.session as any).user.id;
+    if (!auth.session) throw new Error("Unauthorized");
+    const userId = auth.session.user.id;
 
     const { data: delegation, error: delegationError } = await supabase
         .from("delegations")
@@ -25,21 +32,7 @@ export const POST = apiHandler(async (req) => {
         );
     }
 
-    const { target_user_id, action } = await req.json();
-
-    if (!target_user_id || !action) {
-        return NextResponse.json(
-            { error: "Validation Error", message: "target_user_id and action are required" },
-            { status: 400 }
-        );
-    }
-
-    if (!["accept", "reject", "remove"].includes(action)) {
-        return NextResponse.json(
-            { error: "Validation Error", message: "action must be accept, reject, or remove" },
-            { status: 400 }
-        );
-    }
+    const { target_user_id, action } = changeSchema.parse(await req.json());
 
     const { data: member } = await supabase
         .from("delegation_members")

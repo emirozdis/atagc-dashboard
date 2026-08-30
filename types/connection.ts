@@ -7,7 +7,8 @@ export interface ConnectionRequest {
     role: string;
     user_details?: {
       profile_picture_url?: string | null;
-      additional_info?: any;
+      high_schools?: { school_name: string } | null;
+      additional_info?: { manual_school_name?: string; [key: string]: unknown };
     } | null;
   };
   created_at: string;
@@ -22,7 +23,8 @@ export interface SentRequest {
     role: string;
     user_details?: {
       profile_picture_url?: string | null;
-      additional_info?: any;
+      high_schools?: { school_name: string } | null;
+      additional_info?: { manual_school_name?: string; [key: string]: unknown };
     } | null;
   };
   created_at: string;
@@ -38,7 +40,8 @@ export interface ConnectedUser {
     user_details?: {
       profile_picture_url?: string | null;
       school_name?: string;
-      additional_info?: any;
+      high_schools?: { school_name: string } | null;
+      additional_info?: { manual_school_name?: string; [key: string]: unknown };
     } | null;
   };
   created_at: string; // When connection was requested

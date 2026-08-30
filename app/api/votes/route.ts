@@ -4,6 +4,7 @@ import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { canAccessCommittee } from "@/lib/committee-access";
 
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
@@ -19,6 +20,12 @@ export const POST = apiHandler(async (request: Request) => {
   if (!auth.ok) throw new Error(auth.message);
 
   const { committeeId, title, options } = await request.json();
+  if (typeof committeeId !== "string" || typeof title !== "string" || !Array.isArray(options) || options.length < 2 || options.length > 10 || options.some((option: unknown) => typeof option !== "string" || !option.trim())) {
+    throw new Error("Invalid vote input");
+  }
+  if (!(await canAccessCommittee(auth.session!.user.id, auth.session!.user.role, committeeId, true))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { data: vote, error: voteError } = await supabase
     .from("votes")
@@ -63,26 +70,7 @@ export const GET = apiHandler(async (request: Request) => {
   if (session.user.role !== ROLES.SUPERADMIN && session.user.role !== ROLES.ADMIN) {
       let isAuthorized = false;
 
-      if (session.user.role === ROLES.CHAIRMAN) {
-          const { data: managed } = await supabase
-              .from("committees")
-              .select("id")
-              .eq("id", committeeId)
-              .eq("admin_id", session.user.id)
-              .maybeSingle();
-          if (managed) isAuthorized = true;
-      }
-
-      if (!isAuthorized) {
-          const { data: membership } = await supabase
-              .from("committee_members")
-              .select("id")
-              .eq("committee_id", committeeId)
-              .eq("user_id", session.user.id)
-              .maybeSingle();
-          
-          if (membership) isAuthorized = true;
-      }
+      isAuthorized = await canAccessCommittee(session.user.id, session.user.role, committeeId);
 
       if (!isAuthorized) {
           return NextResponse.json({ error: "Forbidden: You are not a member of this committee." }, { status: 403 });

@@ -30,7 +30,9 @@ export interface ProfileData {
             id: string;
             birth_date: string;
             phone_number: string;
+            school?: string;
             school_name: string;
+            high_schools?: { school_name: string } | null;
             city?: string;
             grade?: GradeEnum;
             profile_picture_url?: string | null;
@@ -70,7 +72,7 @@ export interface ProfileData {
         status: string;
         submitted_at: string;
         review_notes: string | null;
-        form_data?: Record<string, any>;
+        form_data?: Record<string, unknown>;
         form?: {
             id: string;
             slug: string;

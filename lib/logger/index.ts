@@ -15,10 +15,10 @@ interface AuditOptions {
     resourceType?: string;
     resourceId?: string;
     // For automatic diff generation
-    prevState?: any;
-    nextState?: any;
+    prevState?: unknown;
+    nextState?: unknown;
     // Additional arbitrary data
-    metadata?: any; 
+    metadata?: Record<string, unknown>;
     reason?: string;
 }
 
@@ -28,7 +28,7 @@ class LoggerService {
      * Standard info log. Good for tracking flows without saving to DB (unless configured).
      * Currently prints to console for Vercel logs.
      */
-    info(message: string, meta?: any) {
+    info(message: string, meta?: unknown) {
         if (process.env.NODE_ENV === 'development') {
             console.log(`[INFO] ${message}`, JSON.stringify(scrubPII(meta), null, 2));
         } else {
@@ -39,7 +39,7 @@ class LoggerService {
     /**
      * Error log. Prints to console (stderr) and saves critical errors to DB.
      */
-    async error(context: LogContext, message: string, error?: any) {
+    async error(context: LogContext, message: string, error?: unknown) {
         console.error(`[ERROR] ${message}`, error);
         
         const { ip, userAgent } = getHttpContext(context.req);
@@ -52,8 +52,8 @@ class LoggerService {
             category: 'system',
             details: {
                 message,
-                error: error?.message || String(error),
-                stack: error?.stack
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
             },
             ip_address: ip,
             user_agent: userAgent
@@ -100,7 +100,7 @@ class LoggerService {
     /**
      * Internal method to write to Supabase
      */
-    private async persist(payload: any) {
+    private async persist(payload: Record<string, unknown>) {
         try {
             const { error } = await supabase.from("logs").insert({
                 ...payload,

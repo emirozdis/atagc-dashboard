@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createTicketSchema } from "@/lib/schemas";
@@ -26,13 +27,17 @@ interface TicketFormProps {
 
 type TicketFormValues = z.output<typeof createTicketSchema>;
 
+const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const ATTACHMENT_RULES = "JPG, PNG, WebP, or PDF files up to 20 MB";
+
 export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
     const [files, setFiles] = useState<File[]>([]);
     const [dragActive, setDragActive] = useState(false);
     const [successData, setSuccessData] = useState<{ ticketId: string, accessToken: string } | null>(null);
 
     const form = useForm<TicketFormValues>({
-        resolver: zodResolver(createTicketSchema) as any,
+        resolver: zodResolver(createTicketSchema) as Resolver<TicketFormValues>,
         defaultValues: {
             category: "general",
             subject: "",
@@ -43,7 +48,7 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
 
     const isAnonymous = form.watch("is_anonymous");
 
-    const mutation = useMutation<any, Error, TicketFormValues>({
+    const mutation = useMutation<{ ticketId: string; accessToken: string }, Error, TicketFormValues>({
         mutationFn: async (data) => {
             const formData = new FormData();
             formData.append("category", data.category);
@@ -68,20 +73,34 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
             if (form.getValues("is_anonymous")) {
                 setSuccessData(data);
             } else {
-                toast.success("Bildiriminiz gönderildi.", { description: "Taleplerim sekmesinden takip edebilirsiniz." });
+                toast.success("Your ticket was submitted.", { description: "You can follow its progress from your tickets." });
                 form.reset();
                 setFiles([]);
                 if (onSubmitSuccess) onSubmitSuccess();
             }
         },
-        onError: (err: any) => toast.error(err.message)
+        onError: (err) => toast.error(err.message)
     });
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const newFiles = Array.from(e.target.files);
-            setFiles(prev => [...prev, ...newFiles].slice(0, 3));
+    const addFiles = (selectedFiles: File[]) => {
+        const validFiles: File[] = [];
+        for (const file of selectedFiles) {
+            if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
+                toast.error(`${file.name}: unsupported file type`, { description: `Use ${ATTACHMENT_RULES}.` });
+                continue;
+            }
+            if (file.size > MAX_ATTACHMENT_SIZE) {
+                toast.error(`${file.name}: file is too large`, { description: `Use ${ATTACHMENT_RULES}.` });
+                continue;
+            }
+            validFiles.push(file);
         }
+        setFiles(prev => [...prev, ...validFiles].slice(0, 3));
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) addFiles(Array.from(e.target.files));
+        e.target.value = "";
     };
 
     const handleDrag = (e: React.DragEvent) => {
@@ -95,15 +114,12 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
-        if (e.dataTransfer.files) {
-            const newFiles = Array.from(e.dataTransfer.files);
-            setFiles(prev => [...prev, ...newFiles].slice(0, 3));
-        }
+        if (e.dataTransfer.files) addFiles(Array.from(e.dataTransfer.files));
     };
 
     const copyToClipboard = (text: string, label: string) => {
         navigator.clipboard.writeText(text);
-        toast.success(`${label} kopyalandı`);
+        toast.success(`${label} copied`);
     };
 
     if (!isLoggedIn) {
@@ -112,12 +128,12 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Lock className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Giriş Yapmalısınız</h3>
+                <h3 className="text-xl font-bold mb-2">Sign in required</h3>
                 <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                    Destek talebi oluşturabilmek için sistemde oturum açmış olmanız gerekmektedir. Anonim taleplerde bile kimlik doğrulaması zorunludur.
+                    You must be signed in to create a support ticket. Anonymous tickets still require identity verification.
                 </p>
                 <Button asChild>
-                    <a href="/login">Giriş Ekranına Git</a>
+                    <a href="/login">Go to sign in</a>
                 </Button>
             </Card>
         );
@@ -131,9 +147,9 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                     <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                         <CheckCircle2 className="w-10 h-10 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl font-display font-bold">Bildiriminiz Alındı</CardTitle>
+                    <CardTitle className="text-2xl font-display font-bold">Ticket received</CardTitle>
                     <CardDescription className="max-w-xs mx-auto">
-                        Anonim bildiriminiz başarıyla iletildi. Gizliliğiniz için bu bilet hesabınızla ilişkilendirilmemiştir.
+                        Your anonymous ticket was submitted. It is not linked to your account for privacy.
                     </CardDescription>
                 </CardHeader>
 
@@ -141,7 +157,7 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                     <div className="grid gap-4 bg-secondary/30 p-6 rounded-2xl border border-border/50">
                         <div className="space-y-2">
                             <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
-                                <Hash className="w-3 h-3" /> Takip Numarası (Ticket ID)
+                                <Hash className="w-3 h-3" /> Ticket ID
                             </div>
                             <div className="flex gap-2">
                                 <code className="flex-1 bg-background border border-border/50 px-4 py-2.5 rounded-lg font-mono text-sm break-all flex items-center">
@@ -151,7 +167,7 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                                     size="icon" 
                                     variant="secondary" 
                                     className="h-10 w-10 shrink-0"
-                                    onClick={() => copyToClipboard(successData.ticketId, "Takip numarası")}
+                                    onClick={() => copyToClipboard(successData.ticketId, "Tracking number")}
                                 >
                                     <Copy className="w-4 h-4" />
                                 </Button>
@@ -160,7 +176,7 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
 
                         <div className="space-y-2">
                             <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
-                                <Key className="w-3 h-3" /> Erişim Anahtarı (Access Token)
+                                <Key className="w-3 h-3" /> Access token
                             </div>
                             <div className="flex gap-2">
                                 <code className="flex-1 bg-background border border-border/50 px-4 py-2.5 rounded-lg font-mono text-sm break-all flex items-center text-primary font-bold">
@@ -170,7 +186,7 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                                     size="icon" 
                                     variant="secondary" 
                                     className="h-10 w-10 shrink-0"
-                                    onClick={() => copyToClipboard(successData.accessToken, "Erişim anahtarı")}
+                                    onClick={() => copyToClipboard(successData.accessToken, "Access key")}
                                 >
                                     <Copy className="w-4 h-4" />
                                 </Button>
@@ -180,19 +196,19 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
 
                     <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 py-4">
                         <ShieldAlert className="h-5 w-5" />
-                        <AlertTitle className="font-bold">Önemli Hatırlatma</AlertTitle>
+                        <AlertTitle className="font-bold">Important</AlertTitle>
                         <AlertDescription className="text-xs opacity-90">
-                            Anonim biletler listenizde gözükmez. Bu bilgileri kaydetmezseniz bildiriminize tekrar erişemezsiniz.
+                            Anonymous tickets do not appear in your list. Save these details or you will not be able to access the ticket again.
                         </AlertDescription>
                     </Alert>
                 </CardContent>
 
                 <CardFooter className="flex flex-col sm:flex-row gap-3 px-6 md:px-10 pb-8">
                     <Button variant="outline" onClick={() => { setSuccessData(null); form.reset(); setFiles([]); }} className="w-full sm:flex-1">
-                        Yeni Bildirim
+                        New ticket
                     </Button>
                     <Button onClick={() => { if (onSubmitSuccess) onSubmitSuccess(); }} className="w-full sm:flex-1">
-                        Listeye Dön
+                        Back to tickets
                     </Button>
                 </CardFooter>
             </Card>
@@ -202,21 +218,21 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
     return (
         <Card className="border-border/50 shadow-lg">
             <CardHeader>
-                <CardTitle>Bildirim Oluştur</CardTitle>
+                <CardTitle>Create a ticket</CardTitle>
                 <CardDescription>
-                    Sistem hataları veya önerileriniz için formu doldurunuz.
+                    Tell the conference team about a problem or suggestion.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-6">
                     <div className="grid sm:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <Label>Kategori</Label>
+                            <Label>Category</Label>
                             <Select 
-                                onValueChange={(val) => form.setValue("category", val as any)} 
+                                onValueChange={(val) => form.setValue("category", val as TicketFormValues["category"])}
                                 defaultValue={form.getValues("category")}
                             >
-                                <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
                                 <SelectContent>
                                     {TICKET_CATEGORIES.map(cat => (
                                         <SelectItem key={cat.value} value={cat.value}>
@@ -227,18 +243,18 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Konu</Label>
-                            <Input placeholder="Kısaca özetleyiniz" {...form.register("subject")} />
+                            <Label>Subject</Label>
+                            <Input placeholder="Briefly summarize the issue" {...form.register("subject")} />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Detaylı Açıklama</Label>
-                        <Textarea placeholder="Lütfen detayları buraya yazınız..." className="min-h-[150px] resize-y" {...form.register("message")} />
+                        <Label>Details</Label>
+                        <Textarea placeholder="Describe the issue or request..." className="min-h-[150px] resize-y" {...form.register("message")} />
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Ekler (Opsiyonel)</Label>
+                        <Label>Attachments (optional)</Label>
                         <div
                             onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
                             className={cn(
@@ -246,9 +262,9 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                                 dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-secondary/20"
                             )}
                         >
-                            <input type="file" multiple accept="image/*,.pdf" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                            <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                             <Paperclip className="w-6 h-6 text-muted-foreground" />
-                            <p className="text-sm font-medium">Dosyaları buraya sürükleyin veya seçin</p>
+                            <p className="text-sm font-medium">Drag files here or click to select</p>
                         </div>
 
                         {files.length > 0 && (
@@ -256,7 +272,7 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                                 {files.map((file, i) => (
                                     <div key={i} className="flex items-center justify-between text-sm p-2 bg-secondary/20 rounded-md border border-border/50">
                                         <div className="flex items-center gap-2 truncate"><FileText className="w-4 h-4 text-muted-foreground shrink-0" /><span>{file.name}</span></div>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setFiles(files.filter(f => f !== file))}><X className="w-4 h-4" /></Button>
+                                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setFiles(files.filter(f => f !== file))}><X className="w-4 h-4" /></Button>
                                     </div>
                                 ))}
                             </div>
@@ -267,13 +283,13 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center space-x-2">
                                 <Switch id="anon-mode" checked={!!isAnonymous} onCheckedChange={(val) => form.setValue("is_anonymous", val)} />
-                                <Label htmlFor="anon-mode" className="cursor-pointer font-semibold">Anonim Gönder</Label>
+                                <Label htmlFor="anon-mode" className="cursor-pointer font-semibold">Submit anonymously</Label>
                             </div>
                             {isAnonymous && (
                                 <div className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/30 p-3 rounded-lg border border-border/50 animate-in fade-in slide-in-from-top-1">
                                     <Info className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
                                     <p>
-                                        Anonim modda bildiriminiz hesabınızla ilişkilendirilmez. Takip etmek için size verilecek olan <strong>Takip ID</strong> ve <strong>Erişim Kodunu</strong> mutlaka kaydetmelisiniz.
+                                        Anonymous tickets are not linked to your account. Save the <strong>Ticket ID</strong> and <strong>access token</strong> to follow the ticket.
                                     </p>
                                 </div>
                             )}
@@ -281,7 +297,7 @@ export function TicketForm({ isLoggedIn, onSubmitSuccess }: TicketFormProps) {
                         
                         <div className="flex justify-end">
                             <Button type="submit" disabled={mutation.isPending} className="px-8 w-full sm:w-auto shadow-md">
-                                {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />} Bildirimi Gönder
+                                {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />} Submit ticket
                             </Button>
                         </div>
                     </div>

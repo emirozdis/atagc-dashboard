@@ -13,7 +13,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 interface RollCall {
   id: string;
@@ -24,6 +23,16 @@ interface RollCall {
     committee_members: { count: number }[];
   } | null;
   roll_call_logs: { count: number }[];
+}
+
+interface CommitteeOption {
+  id: string;
+  name: string;
+}
+
+interface RollCallResponse {
+  data: RollCall[];
+  meta?: { totalPages?: number };
 }
 
 export default function AdminRollCallsPage() {
@@ -38,7 +47,7 @@ export default function AdminRollCallsPage() {
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  const { data: committeesData } = useQuery({
+  const { data: committeesData } = useQuery<CommitteeOption[]>({
     queryKey: ['admin-committees-list'],
     queryFn: async () => {
       const res = await fetch('/api/admin/committees');
@@ -57,7 +66,7 @@ export default function AdminRollCallsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch } = useQuery<RollCallResponse>({
     queryKey: ['admin-roll-calls', page, limit, debouncedSearch, committeeFilter, startDate, endDate, sortBy, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -131,7 +140,7 @@ export default function AdminRollCallsPage() {
               </div>
               <div className="text-xs text-muted-foreground flex items-center gap-2">
                 <Calendar className="w-3 h-3" />
-                {new Date(rc.created_at).toLocaleString("tr-TR", { dateStyle: 'medium', timeStyle: 'short' })}
+                {new Date(rc.created_at).toLocaleString("en-GB", { dateStyle: 'medium', timeStyle: 'short' })}
               </div>
             </div>
 
@@ -142,11 +151,11 @@ export default function AdminRollCallsPage() {
 
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div className="bg-secondary/10 p-3 rounded-lg border border-border/50">
-              <div className="text-xs text-muted-foreground mb-1">Komite</div>
-              <div className="font-medium text-sm truncate">{rc.committee?.name || "Bilinmiyor"}</div>
+              <div className="text-xs text-muted-foreground mb-1">Committee</div>
+              <div className="font-medium text-sm truncate">{rc.committee?.name || "Unknown"}</div>
             </div>
             <div className="bg-secondary/10 p-3 rounded-lg border border-border/50">
-              <div className="text-xs text-muted-foreground mb-1">Katılım</div>
+              <div className="text-xs text-muted-foreground mb-1">Attendance</div>
               <div className="font-medium text-sm flex items-center gap-1">
                 <Users className="w-3 h-3 text-muted-foreground" />
                 {attendedCount} / {totalMembers}
@@ -159,13 +168,12 @@ export default function AdminRollCallsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Yoklama" }]} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-display font-bold text-foreground">Yoklamalar</h2>
+          <h2 className="text-3xl font-display font-bold text-foreground">Roll call</h2>
           <p className="text-muted-foreground mt-1">
-            Tüm komitelerin yoklama geçmişi ve anlık durumları.
+            Roll-call history and live status for all committees.
           </p>
         </div>
         <CreateRollCallDialog onSuccess={refetch} />
@@ -175,7 +183,7 @@ export default function AdminRollCallsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Oturum ismine göre ara..."
+            placeholder="Search by session name..."
             className="pl-9 h-10 w-full bg-background border-border/50"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -185,11 +193,11 @@ export default function AdminRollCallsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex gap-2 items-center">
           <Select value={committeeFilter} onValueChange={setCommitteeFilter}>
             <SelectTrigger className="w-full lg:w-[150px] h-10 bg-background border-border/50">
-              <SelectValue placeholder="Komite" />
+              <SelectValue placeholder="Committee" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tüm Komiteler</SelectItem>
-              {committees.map((c: any) => (
+              <SelectItem value="all">All committees</SelectItem>
+              {committees.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
@@ -197,13 +205,13 @@ export default function AdminRollCallsPage() {
 
           <Select value={ratioFilter} onValueChange={setRatioFilter}>
             <SelectTrigger className="w-full lg:w-[130px] h-10 bg-background border-border/50">
-              <SelectValue placeholder="Katılım Oranı" />
+              <SelectValue placeholder="Attendance rate" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tüm Oranlar</SelectItem>
-              <SelectItem value="full">Tam (%100)</SelectItem>
-              <SelectItem value="high">Yüksek (%75+)</SelectItem>
-              <SelectItem value="low">Düşük (%50'den az)</SelectItem>
+              <SelectItem value="all">All rates</SelectItem>
+              <SelectItem value="full">Full (100%)</SelectItem>
+              <SelectItem value="high">High (75%+)</SelectItem>
+              <SelectItem value="low">Low (under 50%)</SelectItem>
             </SelectContent>
           </Select>
 
@@ -211,13 +219,13 @@ export default function AdminRollCallsPage() {
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 text-xs w-full lg:w-auto">
                 <CalendarDays className="w-4 h-4" />
-                <span>{startDate || endDate ? "Tarih Seçildi" : "Tarih Aralığı"}</span>
+                <span>{startDate || endDate ? "Date selected" : "Date range"}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-72 p-4" align="center">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">Başlangıç Tarihi</label>
+                  <label className="text-xs font-medium text-muted-foreground">Start date</label>
                   <Input
                     type="date"
                     value={startDate}
@@ -226,7 +234,7 @@ export default function AdminRollCallsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">Bitiş Tarihi</label>
+                  <label className="text-xs font-medium text-muted-foreground">End date</label>
                   <Input
                     type="date"
                     value={endDate}
@@ -235,7 +243,7 @@ export default function AdminRollCallsPage() {
                   />
                 </div>
                 <div className="flex justify-end pt-2">
-                  <Button variant="secondary" size="sm" onClick={() => { setStartDate(""); setEndDate(""); }}>Temizle</Button>
+                  <Button variant="secondary" size="sm" onClick={() => { setStartDate(""); setEndDate(""); }}>Clear</Button>
                 </div>
               </div>
             </PopoverContent>
@@ -245,22 +253,22 @@ export default function AdminRollCallsPage() {
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 w-full lg:w-auto">
                 <ArrowUpDown className="w-4 h-4" />
-                <span>Sırala</span>
+                <span>Sort</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-2" align="end">
               <div className="space-y-1">
-                <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Tarih</Button>
-                <Button variant={sortBy === 'session_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('session_name')}>Oturum İsmi</Button>
-                <Button variant={sortBy === 'ratio' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('ratio')}>Katılım Oranı</Button>
+                <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Date</Button>
+                <Button variant={sortBy === 'session_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('session_name')}>Session name</Button>
+                <Button variant={sortBy === 'ratio' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('ratio')}>Attendance rate</Button>
                 <div className="h-px bg-border my-1" />
-                <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Artan (A-Z)</Button>
-                <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Azalan (Z-A)</Button>
+                <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Ascending (A-Z)</Button>
+                <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Descending (Z-A)</Button>
               </div>
             </PopoverContent>
           </Popover>
           {(search !== "" || committeeFilter !== "all" || ratioFilter !== "all" || startDate !== "" || endDate !== "" || sortBy !== "created_at" || sortOrder !== "desc") && (
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" onClick={resetFilters} title="Filtreleri Temizle">
+            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" onClick={resetFilters} title="Clear filters">
               <X className="w-4 h-4" />
             </Button>
           )}
@@ -274,8 +282,8 @@ export default function AdminRollCallsPage() {
           ) : processedRollCalls.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
               <Search className="w-12 h-12 opacity-20 mb-3" />
-              <p>Kriterlere uygun yoklama bulunamadı.</p>
-              <Button variant="link" onClick={resetFilters} className="mt-2">Filtreleri Temizle</Button>
+              <p>No roll calls matched your filters.</p>
+              <Button variant="link" onClick={resetFilters} className="mt-2">Clear filters</Button>
             </div>
           ) : (
             <>
@@ -286,15 +294,15 @@ export default function AdminRollCallsPage() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>Oturum</TableHead>
-                      <TableHead>Komite</TableHead>
-                      <TableHead>Tarih</TableHead>
-                      <TableHead>Katılım / Toplam</TableHead>
-                      <TableHead>Oran</TableHead>
+                      <TableHead>Session</TableHead>
+                      <TableHead>Committee</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Attendance / total</TableHead>
+                      <TableHead>Rate</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {processedRollCalls.map((rc: any) => {
+                     {processedRollCalls.map((rc) => {
                       const attendedCount = rc.roll_call_logs?.[0]?.count || 0;
                       const totalMembers = rc.committee?.committee_members?.[0]?.count || 0;
                       const ratio = totalMembers > 0 ? Math.round((attendedCount / totalMembers) * 100) : 0;
@@ -307,9 +315,9 @@ export default function AdminRollCallsPage() {
                               {rc.session_name}
                             </div>
                           </TableCell>
-                          <TableCell>{rc.committee?.name || "Bilinmiyor"}</TableCell>
+                          <TableCell>{rc.committee?.name || "Unknown"}</TableCell>
                           <TableCell className="text-muted-foreground">
-                            {new Date(rc.created_at).toLocaleString("tr-TR", { dateStyle: 'medium', timeStyle: 'short' })}
+                            {new Date(rc.created_at).toLocaleString("en-GB", { dateStyle: 'medium', timeStyle: 'short' })}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">

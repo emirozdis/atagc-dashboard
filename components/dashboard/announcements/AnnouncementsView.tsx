@@ -20,7 +20,7 @@ export function AnnouncementsView() {
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
+            <div className="mx-auto max-w-6xl space-y-6 p-5 sm:p-8">
                 <div className="space-y-2">
                     <Skeleton className="h-10 w-64" />
                     <Skeleton className="h-5 w-96" />
@@ -31,12 +31,11 @@ export function AnnouncementsView() {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="mx-auto max-w-6xl space-y-6 p-5 animate-fade-in sm:p-8">
             <div>
-                <h2 className="text-3xl font-display font-bold text-foreground">Duyurular</h2>
-                <p className="text-muted-foreground mt-1">
-                    Etkinlik ve komiteler hakkında güncel bilgiler.
-                </p>
+                <p className="text-sm text-[#C4B5FD]">Stay informed</p>
+                <h1 className="mt-2 text-3xl font-semibold text-[#F5F3FF]">Announcements</h1>
+                <p className="mt-2 text-[#9CA3AF]">Important updates from the RavenMUN team and committees.</p>
             </div>
 
             <AnnouncementFeed announcements={announcements} />

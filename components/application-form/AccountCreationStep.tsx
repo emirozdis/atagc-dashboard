@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Turnstile } from "@/components/ui/turnstile";
+import { TURNSTILE_SITE_KEY, Turnstile } from "@/components/ui/turnstile";
 
 interface AccountCreationStepProps {
     form: UseFormReturn<AccountCreationData>;
@@ -59,6 +59,8 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     }, [turnstileToken, onTokenChange]);
 
     useEffect(() => {
+        // Reset the anti-bot widget when the account flow changes state.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setTurnstileToken("");
         setTurnstileKey(prev => prev + 1);
     }, [stepState]);
@@ -69,7 +71,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
 
         const isDev = process.env.NODE_ENV === "development";
         if (!turnstileToken && !isDev) {
-            toast.error("Lütfen doğrulamayı tamamlayın.");
+            toast.error("Please complete verification.");
             return;
         }
 
@@ -83,18 +85,18 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             const data = await res.json();
 
             if (data.status === 'has_application') {
-                toast.warning("Başvurunuz Mevcut", { description: "Zaten bir başvurunuz var. Yönlendiriliyorsunuz..." });
+                toast.warning("Application already exists", { description: "Redirecting you to it..." });
                 setTimeout(() => window.location.href = '/login', 2000);
             } else if (data.status === 'resume_application') {
                 setResumeName(data.user_name);
                 setStepState('login');
                 onModeChange('login');
-                toast.info("Tekrar Hoşgeldiniz", { description: "Kaldığınız yerden devam etmek için giriş yapınız." });
+                toast.info("Welcome back", { description: "Sign in to continue where you left off." });
             } else {
                 await sendVerificationCode();
             }
         } catch (e) {
-            toast.error("Bağlantı hatası");
+            toast.error("Connection error");
             setTurnstileToken("");
             setTurnstileKey(prev => prev + 1);
         } finally {
@@ -124,9 +126,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
 
             setStepState('verifying');
             onModeChange('register');
-            toast.success("Doğrulama Kodu Gönderildi");
-        } catch (e: any) {
-            toast.error("Kod gönderilemedi.", { description: e.message });
+            toast.success("Verification code sent");
+        } catch (error: unknown) {
+            toast.error("Could not send the code.", { description: error instanceof Error ? error.message : "Please try again." });
             setTurnstileToken("");
             setTurnstileKey(prev => prev + 1);
         } finally {
@@ -148,9 +150,9 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
 
             onVerify(true);
             setStepState('details');
-            toast.success("E-posta Doğrulandı");
+            toast.success("Email verified");
         } catch (e) {
-            toast.error("Hatalı Kod", { description: "Lütfen kodu kontrol ediniz." });
+            toast.error("Invalid code", { description: "Check the code and try again." });
             setTurnstileToken("");
             setTurnstileKey(prev => prev + 1);
         } finally {
@@ -179,7 +181,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             {stepState === 'email' && (
                 <div className="space-y-4">
                     <Label htmlFor="email" className="text-base font-medium text-foreground">
-                        E-posta Adresi
+                        Email address
                     </Label>
                     <div className="flex flex-col gap-4">
                         <div className="flex gap-3">
@@ -208,7 +210,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                         <div className="flex justify-center sm:justify-start">
                             <Turnstile
                                 key={`turnstile-email-${turnstileKey}`}
-                                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                                siteKey={TURNSTILE_SITE_KEY}
                                 onVerify={setTurnstileToken}
                             />
                         </div>
@@ -220,7 +222,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             {/* Read-Only Email Display for subsequent steps */}
             {stepState !== 'email' && (
                 <div className="space-y-4">
-                    <Label className="text-base font-medium text-muted-foreground">E-posta Adresi</Label>
+                    <Label className="text-base font-medium text-muted-foreground">Email address</Label>
                     <div className="flex gap-3">
                         <div className="relative flex-1">
                             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -246,13 +248,13 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             <User className="w-5 h-5" />
                         </div>
                         <div>
-                            <h4 className="font-semibold text-foreground">Hoşgeldin, {resumeName}</h4>
-                            <p className="text-xs text-muted-foreground">Başvuruya devam etmek için şifreni gir.</p>
+                            <h4 className="font-semibold text-foreground">Welcome back, {resumeName}</h4>
+                            <p className="text-xs text-muted-foreground">Enter your password to continue the application.</p>
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Şifre</Label>
+                        <Label>Password</Label>
                         <div className="relative">
                             <Input
                                 type={showPassword ? "text" : "password"}
@@ -265,20 +267,20 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             </button>
                         </div>
                         <div className="flex justify-end">
-                            <a href="/forgot-password" target="_blank" className="text-xs text-primary hover:underline">Şifremi Unuttum</a>
+                            <a href="/forgot-password" target="_blank" className="text-xs text-primary hover:underline">Forgot password?</a>
                         </div>
                     </div>
 
                     <div className="pt-2 flex justify-center sm:justify-start">
                         <Turnstile
                             key={`turnstile-login-${turnstileKey}`}
-                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                        siteKey={TURNSTILE_SITE_KEY}
                             onVerify={setTurnstileToken}
                         />
                     </div>
 
                     <Button onClick={onNext} disabled={isSubmitting} className="w-full cursor-pointer">
-                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Devam Et"}
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Continue"}
                     </Button>
                 </div>
             )}
@@ -287,7 +289,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             {stepState === 'verifying' && (
                 <div className="p-6 rounded-xl bg-secondary/10 border border-border/50 space-y-4 animate-in slide-in-from-top-4 fade-in">
                     <div className="text-sm text-muted-foreground text-center">
-                        <span className="font-semibold text-foreground">{email}</span> adresine gönderilen 6 haneli kodu giriniz.
+                        Enter the six-digit code sent to <span className="font-semibold text-foreground">{email}</span>.
                     </div>
                     <div className="flex justify-center gap-2">
                         <Input
@@ -307,7 +309,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                     </div>
                     <div className="text-center">
                         <button onClick={sendVerificationCode} disabled={loading} className="text-xs text-muted-foreground hover:text-primary underline cursor-pointer">
-                            Kodu Tekrar Gönder
+                            Resend code
                         </button>
                     </div>
                 </div>
@@ -317,14 +319,14 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
             {stepState === 'details' && (
                 <div className="space-y-6 animate-in slide-in-from-top-4 fade-in">
                     <div className="space-y-2">
-                        <Label>Ad Soyad <span className="text-destructive">*</span></Label>
-                        <Input {...register("adSoyad")} placeholder="Adınız Soyadınız" className="h-11 bg-background/50 cursor-pointer" />
+                        <Label>Full name <span className="text-destructive">*</span></Label>
+                        <Input {...register("adSoyad")} placeholder="Your full name" className="h-11 bg-background/50 cursor-pointer" />
                         {errors.adSoyad && <p className="text-sm text-destructive">{errors.adSoyad.message}</p>}
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-3">
-                            <Label>Şifre Oluştur <span className="text-destructive">*</span></Label>
+                            <Label>Create password <span className="text-destructive">*</span></Label>
                             <div className="relative">
                                 <Input type={showPassword ? "text" : "password"} {...register("password")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer pr-10" />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer">
@@ -335,14 +337,14 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                             {/* Password Strength Indicators */}
                             <div className="grid grid-cols-2 gap-2 mt-2">
                                 <Requirement label="En az 8 karakter" met={hasMinLength} />
-                                <Requirement label="Büyük Harf (A-Z)" met={hasUpper} />
-                                <Requirement label="Küçük Harf (a-z)" met={hasLower} />
+                                <Requirement label="Uppercase letter (A-Z)" met={hasUpper} />
+                                <Requirement label="Lowercase letter (a-z)" met={hasLower} />
                                 <Requirement label="Rakam (0-9)" met={hasNumber} />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Şifre Tekrar <span className="text-destructive">*</span></Label>
+                            <Label>Confirm password <span className="text-destructive">*</span></Label>
                             <div className="relative">
                                 <Input type={showConfirmPassword ? "text" : "password"} {...register("confirmPassword")} placeholder="••••••••" className="h-11 bg-background/50 cursor-pointer pr-10" />
                                 <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer">
@@ -357,7 +359,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                     <div className="pt-2 flex justify-center sm:justify-start">
                         <Turnstile
                             key={`turnstile-details-${turnstileKey}`}
-                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            siteKey={TURNSTILE_SITE_KEY}
                             onVerify={setTurnstileToken}
                         />
                     </div>

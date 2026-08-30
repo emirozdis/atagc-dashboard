@@ -25,39 +25,39 @@ export function PaymentSummaryCard() {
         switch (status) {
             case 'paid':
                 return {
-                    label: "Ödeme Onaylandı",
+                    label: "Payment approved",
                     icon: CheckCircle2,
                     color: "text-emerald-600",
                     bg: "bg-emerald-500/10",
                     border: "border-emerald-500/20",
-                    desc: "Kaydınız tamamlandı."
+                    desc: "Your registration is complete."
                 };
             case 'processing':
                 return {
-                    label: "İnceleniyor",
+                    label: "Under review",
                     icon: Clock,
                     color: "text-amber-600",
                     bg: "bg-amber-500/10",
                     border: "border-amber-500/20",
-                    desc: "Dekont kontrol ediliyor."
+                    desc: "Your receipt is being reviewed."
                 };
             case 'rejected':
                 return {
-                    label: "Reddedildi",
+                    label: "Rejected",
                     icon: AlertCircle,
                     color: "text-red-600",
                     bg: "bg-red-500/10",
                     border: "border-red-500/20",
-                    desc: "Lütfen kontrol ediniz."
+                    desc: "Please review the details."
                 };
             default:
                 return {
-                    label: "Ödeme Bekleniyor",
+                    label: "Payment pending",
                     icon: CreditCard,
                     color: "text-primary",
                     bg: "bg-secondary/50",
                     border: "border-border",
-                    desc: "Dekont yükleyiniz."
+                    desc: "Upload your receipt."
                 };
         }
     };
@@ -80,7 +80,7 @@ export function PaymentSummaryCard() {
 
                 <Button size="sm" variant="ghost" asChild className="shrink-0 h-8 text-xs">
                     <Link href="/dashboard/payment">
-                        Detaylar <ArrowRight className="w-3 h-3 ml-1.5" />
+                        Details <ArrowRight className="w-3 h-3 ml-1.5" />
                     </Link>
                 </Button>
             </CardContent>

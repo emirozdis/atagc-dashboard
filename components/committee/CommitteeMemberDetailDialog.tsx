@@ -35,9 +35,9 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
 
     const getRoleLabel = (role: string) => {
         switch (role) {
-            case 'applicant': return 'Delege';
-            case 'committee_chairman': return 'Komite Başkanı';
-            case 'chair': return 'Başkan Yrd.';
+            case 'applicant': return 'Delegate';
+            case 'committee_chairman': return 'Committee chair';
+            case 'chair': return 'Deputy chair';
             default: return role;
         }
     };
@@ -45,17 +45,17 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
     const gradeLabel = details?.grade ? GRADE_OPTIONS.find(opt => opt.value === details.grade)?.label : null;
 
     // Resolve School Name logic
-    const schoolName = (details as any)?.high_schools?.school_name || 
+    const schoolName = details?.high_schools?.school_name ||
                        details?.additional_info?.manual_school_name || 
-                       "Belirtilmemiş";
+                       "Not specified";
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-lg h-[85vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-6 pb-4 border-b border-border/50 bg-muted/5">
-                    <DialogTitle>Üye Detayları</DialogTitle>
+                    <DialogTitle>Member details</DialogTitle>
                     <DialogDescription>
-                        Komite üyesi hakkında bilgiler ve işlemler.
+                        Information and actions for this committee member.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -65,8 +65,8 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
                     </div>
                 ) : error || !user ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 text-center">
-                        <p>Kullanıcı bilgileri yüklenemedi.</p>
-                        <p className="text-xs mt-2 opacity-70">Yetkiniz olmayabilir veya kullanıcı silinmiş olabilir.</p>
+                        <p>Could not load user information.</p>
+                        <p className="text-xs mt-2 opacity-70">You may not have permission, or the user may have been deleted.</p>
                     </div>
                 ) : (
                     <ScrollArea className="flex-1">
@@ -90,7 +90,7 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
                                         <Badge variant="secondary" className="text-xs font-normal">
                                             {getRoleLabel(user.role)}
                                         </Badge>
-                                        {user.is_suspended && <Badge variant="destructive" className="text-[10px]">Askıya Alındı</Badge>}
+                                        {user.is_suspended && <Badge variant="destructive" className="text-[10px]">Suspended</Badge>}
                                     </div>
                                 </div>
                             </div>
@@ -101,25 +101,25 @@ export function CommitteeMemberDetailDialog({ memberId, open, onOpenChange }: Co
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div className="space-y-1">
                                     <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                                        <Phone className="w-3 h-3" /> Telefon
+                                        <Phone className="w-3 h-3" /> Phone
                                     </span>
                                     <p>{details?.phone_number || "-"}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                                        <School className="w-3 h-3" /> Okul
+                                        <School className="w-3 h-3" /> School
                                     </span>
                                     <p className="line-clamp-1" title={schoolName}>{schoolName}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                                        <Building2 className="w-3 h-3" /> Sınıf
+                                        <Building2 className="w-3 h-3" /> Grade
                                     </span>
                                     <p>{gradeLabel || "-"}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                                        <MapPin className="w-3 h-3" /> Şehir
+                                        <MapPin className="w-3 h-3" /> City
                                     </span>
                                     <p>{details?.city || "-"}</p>
                                 </div>

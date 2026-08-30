@@ -1,8 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { DigitalIdCard } from "@/components/dashboard/DigitalIdCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,8 +9,6 @@ import { cn } from "@/lib/utils";
 import { ProfileData } from "@/types/dashboard";
 
 export default function SharedCateringPage() {
-  const { data: session } = useSession();
-
   const { data: profileData, isLoading: profileLoading } = useQuery<ProfileData>({
     queryKey: ["profile"],
     queryFn: async () => {
@@ -46,12 +42,11 @@ export default function SharedCateringPage() {
   const isActive = cateringStatus ?? false;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Yemek" }]} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
       <div>
-        <h2 className="text-3xl font-display font-bold text-foreground">Yemek</h2>
+        <h2 className="text-3xl font-display font-bold text-foreground">Catering</h2>
         <p className="text-muted-foreground mt-1">
-          Etkinlik süresince sunulacak yemek ve ikram bilgileri.
+          Catering and refreshments available during the conference.
         </p>
       </div>
 
@@ -67,8 +62,8 @@ export default function SharedCateringPage() {
                     <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mb-4">
                         <ShieldCheck className="w-8 h-8 text-muted-foreground/50" />
                     </div>
-                    <h3 className="font-semibold text-lg text-foreground mb-2">Kimlik Kartı Pasif</h3>
-                    <p className="text-muted-foreground text-sm">Başvurunuz henüz onaylanmadığı için dijital kimlik kartınız aktif değildir.</p>
+                    <h3 className="font-semibold text-lg text-foreground mb-2">Digital ID inactive</h3>
+                    <p className="text-muted-foreground text-sm">Your digital ID will become active after your application is approved.</p>
                 </CardContent>
             </Card>
         )}
@@ -77,7 +72,7 @@ export default function SharedCateringPage() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <UtensilsCrossed className="w-5 h-5" />
-              Bugünün Yemeği
+              Today&apos;s catering
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -92,17 +87,17 @@ export default function SharedCateringPage() {
                     : "border-border bg-muted/50"
                 )}
               >
-                <span className="font-medium text-foreground">Bugünün Yemeği</span>
+                <span className="font-medium text-foreground">Today&apos;s catering</span>
                 <div className="flex items-center gap-2">
                   {isActive ? (
                     <>
                       <Check className="w-5 h-5 text-emerald-600" />
-                      <span className="text-sm font-medium text-emerald-600">Alındı</span>
+                      <span className="text-sm font-medium text-emerald-600">Collected</span>
                     </>
                   ) : (
                     <>
                       <X className="w-5 h-5 text-muted-foreground" />
-                      <span className="text-sm font-medium text-muted-foreground">Alınmadı</span>
+                      <span className="text-sm font-medium text-muted-foreground">Not collected</span>
                     </>
                   )}
                 </div>

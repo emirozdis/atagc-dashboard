@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -30,13 +31,15 @@ const COLORS = [
 
 import { CommitteeInfo, EditorMember as Member } from "@/types/dashboard";
 
-export default function CollaborativeEditorPage() {
+function CollaborativeEditorContent() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
 
   const [hasJoined, setHasJoined] = useState(false);
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [status, setStatus] = useState('disconnected');
-  const [userColor] = useState(COLORS[Math.floor(Math.random() * COLORS.length)]);
+  // Keep the cursor color stable across renders without using an impure render-time random value.
+  const userColor = COLORS[(session?.user?.id?.charCodeAt(0) ?? 0) % COLORS.length];
 
   const [committeeInfo, setCommitteeInfo] = useState<CommitteeInfo | null>(null);
   const [allCommittees, setAllCommittees] = useState<CommitteeInfo[]>([]);
@@ -52,14 +55,17 @@ export default function CollaborativeEditorPage() {
 
       const role = session.user.role;
 
-      // 1. Superadmin Logic
-      if (role === ROLES.SUPERADMIN) {
+      // Site administrators can inspect any committee document in read-only mode.
+      if (role === ROLES.SUPERADMIN || role === ROLES.ADMIN) {
         try {
           const res = await fetch('/api/admin/committees');
           if (res.ok) {
             const data = await res.json();
             setAllCommittees(data);
             setCanWrite(false);
+            const requestedCommittee = searchParams.get("committeeId");
+            const selectedCommittee = data.find((committee: CommitteeInfo) => committee.id === requestedCommittee);
+            if (selectedCommittee) setCommitteeInfo(selectedCommittee);
           }
         } catch (e) { console.error(e); }
         return;
@@ -91,13 +97,13 @@ export default function CollaborativeEditorPage() {
     };
 
     initData();
-  }, [session]);
+  }, [searchParams, session]);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ history: false }),
       Placeholder.configure({
-        placeholder: 'Birlikte yazmaya başlayın... (Eğer yazamıyorsanız yetkiniz kısıtlanmış olabilir)'
+        placeholder: 'Start writing together... (You may not have permission to edit)'
       }),
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
@@ -129,7 +135,7 @@ export default function CollaborativeEditorPage() {
 
   const handleJoinRoom = () => {
     if (!session?.user || !committeeInfo) {
-      toast.error("Eksik Bilgi");
+      toast.error("Missing information");
       return;
     }
 
@@ -141,7 +147,7 @@ export default function CollaborativeEditorPage() {
     try {
       const doc = new Y.Doc();
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const websocketUrl = `${protocol}://${window.location.hostname}:${process.env.NEXT_PUBLIC_COLLAB_PORT || 3001}`;
+      const websocketUrl = `${protocol}://${window.location.hostname}:${process.env.NEXT_PUBLIC_COLLAB_PORT || 1234}`;
 
       const newProvider = new HocuspocusProvider({
         url: websocketUrl,
@@ -154,16 +160,16 @@ export default function CollaborativeEditorPage() {
             const msg = JSON.parse(payload);
             if (msg.type === 'PERMISSION_UPDATE' && msg.userId === session.user.id) {
               setCanWrite(msg.canWrite);
-              toast[msg.canWrite ? 'success' : 'warning'](msg.canWrite ? "Yazma izniniz açıldı." : "Yazma izniniz kısıtlandı.");
+              toast[msg.canWrite ? 'success' : 'warning'](msg.canWrite ? "You can edit this document." : "Your editing permission was removed.");
             }
             if (msg.type === 'client_reload') {
-              toast.info("Belge geri yüklendi, sayfa yenileniyor...");
+              toast.info("The document was restored. Refreshing the page...");
               setTimeout(() => window.location.reload(), 1000);
             }
           } catch (e) { }
         },
         onAuthenticationFailed: () => {
-          toast.error("Yetkisiz Erişim");
+          toast.error("Unauthorized access");
           setStatus('disconnected');
           setHasJoined(false);
         }
@@ -172,7 +178,7 @@ export default function CollaborativeEditorPage() {
       setProvider(newProvider);
       setHasJoined(true);
     } catch (e) {
-      toast.error("Bağlantı Hatası");
+      toast.error("Connection error");
     }
   };
 
@@ -202,8 +208,8 @@ export default function CollaborativeEditorPage() {
           canWrite: !currentStatus
         }));
       }
-      toast.success("Yetki Güncellendi");
-    } catch (error) { toast.error("Hata oluştu"); }
+      toast.success("Permission updated");
+    } catch (error) { toast.error("Something went wrong"); }
   };
 
   if (!hasJoined) {
@@ -222,19 +228,19 @@ export default function CollaborativeEditorPage() {
 
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-120px)] animate-fade-in relative overflow-hidden">
-      <Breadcrumbs items={[{ label: "Ortak Çalışma" }]} />
+      <Breadcrumbs items={[{ label: "Collaborative document" }]} />
       <div className="flex h-full gap-6 relative overflow-hidden">
         <div className={`flex-1 flex flex-col transition-all duration-300 ${showChairmanPanel ? 'mr-[350px]' : ''}`}>
           <div className="flex flex-col md:flex-row justify-between gap-4 mb-4 shrink-0">
             <div>
               <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-                Ortak Çalışma
-                {session?.user?.role === ROLES.CHAIRMAN && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Yönetici</span>}
+                Collaborative document
+                {session?.user?.role === ROLES.CHAIRMAN && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Manager</span>}
               </h2>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm font-medium text-muted-foreground">{committeeInfo?.name}</span>
                 <div className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${status === 'connected' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
-                  <Circle className="w-2 h-2 fill-current" /> {status === 'connected' ? 'Canlı' : 'Bağlantı Koptu'}
+                  <Circle className="w-2 h-2 fill-current" /> {status === 'connected' ? 'Live' : 'Disconnected'}
                 </div>
               </div>
             </div>
@@ -247,7 +253,7 @@ export default function CollaborativeEditorPage() {
                 className="gap-2"
               >
                 <History className="w-4 h-4" />
-                Geçmiş
+                History
               </Button>
 
               {session?.user?.role === ROLES.CHAIRMAN && (
@@ -258,7 +264,7 @@ export default function CollaborativeEditorPage() {
                   className="gap-2"
                 >
                   <UserCog className="w-4 h-4" />
-                  {showChairmanPanel ? "Paneli Gizle" : "Üye Yönetimi"}
+                  {showChairmanPanel ? "Hide panel" : "Member management"}
                 </Button>
               )}
               <Button variant="ghost" size="icon" className="text-destructive" onClick={() => window.location.reload()}>
@@ -275,7 +281,7 @@ export default function CollaborativeEditorPage() {
             {!canWrite && (
               <div className="absolute bottom-4 left-4 right-4 bg-destructive/10 text-destructive border border-destructive/20 p-2 rounded text-center text-sm font-medium backdrop-blur-md">
                 <Lock className="w-4 h-4 inline mr-2" />
-                Yazma izniniz bulunmamaktadır.
+                You do not have permission to edit this document.
               </div>
             )}
           </Card>
@@ -301,5 +307,13 @@ export default function CollaborativeEditorPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CollaborativeEditorPage() {
+  return (
+    <Suspense fallback={<div className="space-y-4 p-6" aria-label="Loading collaborative document"><div className="h-5 w-48 animate-pulse rounded bg-muted" /><div className="h-12 w-full animate-pulse rounded-xl bg-muted" /><div className="h-[500px] w-full animate-pulse rounded-xl bg-muted" /></div>}>
+      <CollaborativeEditorContent />
+    </Suspense>
   );
 }

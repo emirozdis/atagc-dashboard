@@ -3,6 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
+import { canAccessCommittee } from "@/lib/committee-access";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
@@ -26,6 +27,9 @@ export const GET = apiHandler(async (
 
     if (rcError || !rollCall) {
         return NextResponse.json({ error: "Roll call not found" }, { status: 404 });
+    }
+    if (!(await canAccessCommittee(auth.session!.user.id, auth.session!.user.role, rollCall.committee_id))) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { count: scannedCount, error: scanError } = await supabase

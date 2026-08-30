@@ -30,20 +30,20 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
     });
 
     const getTeamLabel = () => {
-        if (!effectiveRole) return "Organizasyon";
-        if (OBSERVER_TEAM.includes(effectiveRole as UserRole)) return "Gözlemci Ekibi";
-        if (PRESS_TEAM.includes(effectiveRole as UserRole)) return "Basın Ekibi";
-        if (SECURITY_TEAM.includes(effectiveRole as UserRole)) return "Güvenlik Ekibi";
-        return "Organizasyon";
+        if (!effectiveRole) return "Organisation";
+        if (OBSERVER_TEAM.includes(effectiveRole as UserRole)) return "Observer team";
+        if (PRESS_TEAM.includes(effectiveRole as UserRole)) return "Press team";
+        if (SECURITY_TEAM.includes(effectiveRole as UserRole)) return "Security team";
+        return "Organisation";
     };
 
     return (
         <div className="flex flex-col h-full bg-background border-r border-border">
             <div className="p-6 border-b border-border">
                 <Link href="/organisation" prefetch={false} className="flex items-center gap-3" onClick={onClose}>
-                    <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
+                    <img src="/ravenmun-logo.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
                     <span className="font-display font-bold text-lg text-primary flex flex-col leading-none">
-                        ATAGÇ
+                        RavenMUN
                         <span className="text-[10px] font-normal text-muted-foreground mt-1 uppercase tracking-wider">
                             {getTeamLabel()}
                         </span>
@@ -53,7 +53,7 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
 
             <ScrollArea className="flex-1 min-h-0 p-4">
                 <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Menü
+                    Menu
                 </div>
 
                 <nav className="space-y-1">
@@ -83,7 +83,7 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
                     className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
                 >
                     <LogOut className="w-4 h-4" />
-                    Çıkış Yap
+                    Sign out
                 </button>
             </div>
         </div>

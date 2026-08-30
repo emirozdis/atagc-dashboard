@@ -25,7 +25,7 @@ export const GET = apiHandler(async (request: Request) => {
     .single();
 
   if (!settings?.gallery_enabled) {
-    return NextResponse.json({ error: "Galeri şu an kapalı." }, { status: 403 });
+    return NextResponse.json({ error: "The gallery is currently closed." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -84,7 +84,7 @@ export const DELETE = apiHandler(async (request: Request) => {
 
   const { searchParams } = new URL(request.url);
   const photoId = searchParams.get("id");
-  if (!photoId) return NextResponse.json({ error: "Fotoğraf ID gerekli." }, { status: 400 });
+  if (!photoId) return NextResponse.json({ error: "Photo ID is required." }, { status: 400 });
 
   // Fetch photo
   const { data: photo, error: fetchError } = await supabase
@@ -94,13 +94,13 @@ export const DELETE = apiHandler(async (request: Request) => {
     .single();
 
   if (fetchError || !photo) {
-    return NextResponse.json({ error: "Fotoğraf bulunamadı." }, { status: 404 });
+    return NextResponse.json({ error: "Photo not found." }, { status: 404 });
   }
 
   // Only admin or the uploader can delete
   const isAdmin = MANAGEMENT_ROLES.includes(session.user.role);
   if (!isAdmin && photo.uploaded_by !== session.user.id) {
-    return NextResponse.json({ error: "Bu fotoğrafı silme yetkiniz yok." }, { status: 403 });
+    return NextResponse.json({ error: "You do not have permission to delete this photo." }, { status: 403 });
   }
 
   // Delete from storage

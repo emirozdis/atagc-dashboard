@@ -24,6 +24,16 @@ import { ROLES, ROLE_METADATA, UserRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface UserSelectionTableProps {
   selectedUsers?: string[];
@@ -36,16 +46,16 @@ const roleOptions: MultiSelectOption[] = Object.values(ROLES).map(role => ({
 }));
 
 const statusOptions: MultiSelectOption[] = [
-  { value: "active", label: "Aktif" },
-  { value: "suspended", label: "Askıda" },
+  { value: "active", label: "Active" },
+  { value: "suspended", label: "Suspended" },
 ];
 
 const paymentStatusOptions: MultiSelectOption[] = [
-  { value: PaymentStatusEnum.PAID, label: "Ödendi" },
-  { value: PaymentStatusEnum.PROCESSING, label: "İnceleniyor" },
-  { value: PaymentStatusEnum.REJECTED, label: "Reddedildi" },
-  { value: PaymentStatusEnum.UNPAID, label: "Ödenmedi" },
-  { value: PaymentStatusEnum.EXEMPT, label: "Muaf" },
+  { value: PaymentStatusEnum.PAID, label: "Paid" },
+  { value: PaymentStatusEnum.PROCESSING, label: "Processing" },
+  { value: PaymentStatusEnum.REJECTED, label: "Rejected" },
+  { value: PaymentStatusEnum.UNPAID, label: "Unpaid" },
+  { value: PaymentStatusEnum.EXEMPT, label: "Exempt" },
 ];
 
 export function UserSelectionTable({ selectedUsers: externalSelected, onSelectionChange }: UserSelectionTableProps) {
@@ -53,6 +63,22 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   const queryClient = useQueryClient();
   const [internalSelected, setInternalSelected] = useState<string[]>([]);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteCooldown, setDeleteCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const timer = window.setInterval(() => {
+      setDeleteCooldown((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [showDeleteConfirm]);
 
   const isControlled = externalSelected !== undefined;
   const selectedIds = isControlled ? externalSelected : internalSelected;
@@ -111,14 +137,18 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      for (const id of ids) await fetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
+      for (const id of ids) {
+        const response = await fetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
+        if (!response.ok) throw new Error("One or more users could not be deleted.");
+      }
     },
     onSuccess: () => {
-      toast.success(`${selectedIds.length} kullanıcı silindi`);
+      toast.success(`${selectedIds.length} users deleted`);
+      setShowDeleteConfirm(false);
       handleSelectionChange([]);
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
-    onError: () => toast.error("Silme işlemi başarısız oldu.")
+    onError: () => toast.error("Unable to delete users.")
   });
 
   const roleMutation = useMutation({
@@ -131,11 +161,11 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      toast.success("Roller güncellendi");
+      toast.success("Roles updated");
       handleSelectionChange([]);
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
-    onError: () => toast.error("Rol güncelleme başarısız.")
+    onError: () => toast.error("Unable to update roles.")
   });
 
   const toggleUser = (id: string) => {
@@ -151,11 +181,12 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   };
 
   const handleDelete = () => {
-    if (confirm(`Seçili ${selectedIds.length} kullanıcıyı silmek istediğinize emin misiniz?`)) deleteMutation.mutate(selectedIds);
+    setDeleteCooldown(3);
+    setShowDeleteConfirm(true);
   };
 
   const handleBatchRole = (role: string) => {
-    if (confirm(`Seçili ${selectedIds.length} kullanıcının rolünü değiştirmek istiyor musunuz?`)) roleMutation.mutate({ ids: selectedIds, role });
+    if (confirm(`Change the role for the selected ${selectedIds.length} users?`)) roleMutation.mutate({ ids: selectedIds, role });
   };
 
   const resetFilters = () => {
@@ -179,9 +210,9 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
       const status = app?.payment_status || PaymentStatusEnum.UNPAID;
 
       if (status === PaymentStatusEnum.EXEMPT) {
-        toast.info("Bu kullanıcı ödemeden muaftır.");
+        toast.info("This user is exempt from payment.");
       } else if (status === PaymentStatusEnum.UNPAID) {
-        toast.info("Bu kullanıcı henüz ödeme bildirimi yapmamış.");
+        toast.info("This user has not submitted a payment yet.");
       } else {
         router.push(`/admin/payments?search=${user.email}`);
       }
@@ -206,15 +237,15 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
 
     switch (paymentStatus) {
       case PaymentStatusEnum.PAID:
-        return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}><CheckCircle2 className="w-3 h-3" /> Ödendi</Badge>;
+        return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}><CheckCircle2 className="w-3 h-3" /> Paid</Badge>;
       case PaymentStatusEnum.PROCESSING:
-        return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20 cursor-pointer gap-1 animate-pulse" onClick={(e) => handlePaymentClick(e, user)}><CreditCard className="w-3 h-3" /> İnceleniyor</Badge>;
+        return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20 cursor-pointer gap-1 animate-pulse" onClick={(e) => handlePaymentClick(e, user)}><CreditCard className="w-3 h-3" /> Processing</Badge>;
       case PaymentStatusEnum.REJECTED:
-        return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}><X className="w-3 h-3" /> Reddedildi</Badge>;
+        return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20 cursor-pointer gap-1" onClick={(e) => handlePaymentClick(e, user)}><X className="w-3 h-3" /> Rejected</Badge>;
       case PaymentStatusEnum.EXEMPT:
-        return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20 cursor-default gap-1"><ShieldCheck className="w-3 h-3" /> Muaf</Badge>;
+        return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20 cursor-default gap-1"><ShieldCheck className="w-3 h-3" /> Exempt</Badge>;
       default:
-        return <Badge variant="outline" className="text-muted-foreground bg-transparent font-normal opacity-50 cursor-default">Ödenmedi</Badge>;
+        return <Badge variant="outline" className="text-muted-foreground bg-transparent font-normal opacity-50 cursor-default">Unpaid</Badge>;
     }
   };
 
@@ -232,32 +263,32 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         {/* Search Bar */}
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input placeholder="İsim veya e-posta ile ara..." className="pl-9 h-10 w-full bg-background border-border/50" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="Search by name or email..." className="pl-9 h-10 w-full bg-background border-border/50" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-            <MultiSelectPopover options={roleOptions} selected={roleFilter} onChange={setRoleFilter} placeholder="Rol" triggerIcon={<Shield className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
-            <MultiSelectPopover options={statusOptions} selected={statusFilter} onChange={setStatusFilter} placeholder="Durum" triggerIcon={<Filter className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
-            <MultiSelectPopover options={paymentStatusOptions} selected={paymentStatusFilter} onChange={setPaymentStatusFilter} placeholder="Ödeme" triggerIcon={<CreditCard className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
+            <MultiSelectPopover options={roleOptions} selected={roleFilter} onChange={(value) => { setRoleFilter(value); setPage(1); }} placeholder="Role" triggerIcon={<Shield className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
+            <MultiSelectPopover options={statusOptions} selected={statusFilter} onChange={(value) => { setStatusFilter(value); setPage(1); }} placeholder="Status" triggerIcon={<Filter className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
+            <MultiSelectPopover options={paymentStatusOptions} selected={paymentStatusFilter} onChange={(value) => { setPaymentStatusFilter(value); setPage(1); }} placeholder="Payment" triggerIcon={<CreditCard className="w-4 h-4 shrink-0" />} className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px]" />
             <Select value={warningFilter} onValueChange={setWarningFilter}>
-              <SelectTrigger className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px] h-10 bg-background border-border/50"><div className="flex items-center gap-2"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><SelectValue placeholder="Uyarı" /></div></SelectTrigger>
-              <SelectContent><SelectItem value="all">Tümü</SelectItem><SelectItem value="has_warnings">Uyarı Alanlar</SelectItem></SelectContent>
+              <SelectTrigger className="w-[calc(50%-0.25rem)] min-[480px]:w-auto min-[480px]:min-w-[130px] h-10 bg-background border-border/50"><div className="flex items-center gap-2"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><SelectValue placeholder="Warnings" /></div></SelectTrigger>
+              <SelectContent><SelectItem value="all">All users</SelectItem><SelectItem value="has_warnings">Has warnings</SelectItem></SelectContent>
             </Select>
           </div>
           {/* Sort/Clear - Changed w-full strategy to prevent wrapping overflow */}
           <div className="flex items-center gap-2 ml-auto w-full sm:w-auto justify-end">
             <Popover>
-              <PopoverTrigger asChild><Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 shrink-0"><ArrowUpDown className="w-4 h-4" /><span className="hidden sm:inline">Sırala</span></Button></PopoverTrigger>
+              <PopoverTrigger asChild><Button variant="outline" className="h-10 px-3 gap-2 bg-background border-border/50 shrink-0"><ArrowUpDown className="w-4 h-4" /><span className="hidden sm:inline">Sort</span></Button></PopoverTrigger>
               <PopoverContent className="w-48 p-2" align="end">
                 <div className="space-y-1">
-                  <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Kayıt Tarihi</Button>
-                  <Button variant={sortBy === 'full_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('full_name')}>İsim</Button>
-                  <Button variant={sortBy === 'warnings_count' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('warnings_count')}>Uyarı Sayısı</Button>
+                  <Button variant={sortBy === 'created_at' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('created_at')}>Registration date</Button>
+                  <Button variant={sortBy === 'full_name' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('full_name')}>Name</Button>
+                  <Button variant={sortBy === 'warnings_count' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortBy('warnings_count')}>Warning count</Button>
                   <div className="h-px bg-border my-1" />
-                  <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Artan (A-Z)</Button>
-                  <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Azalan (Z-A)</Button>
+                  <Button variant={sortOrder === 'asc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('asc')}>Ascending (A-Z)</Button>
+                  <Button variant={sortOrder === 'desc' ? 'secondary' : 'ghost'} size="sm" className="w-full justify-start h-8 text-xs" onClick={() => setSortOrder('desc')}>Descending (Z-A)</Button>
                 </div>
               </PopoverContent>
             </Popover>
@@ -272,7 +303,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
       ) : users.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
           <UserCog className="w-12 h-12 mx-auto mb-3 opacity-20" />
-          <p>Kriterlerinize uyan kullanıcı bulunamadı.</p>
+          <p>No users match the selected filters.</p>
         </div>
       ) : (
         <>
@@ -282,12 +313,12 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
               <TableHeader className="bg-muted/30">
                 <TableRow>
                   <TableHead className="w-[50px] text-center"><Checkbox checked={users.length > 0 && users.every(u => selectedIds.includes(u.id))} onCheckedChange={toggleAll} /></TableHead>
-                  <TableHead className="w-[300px]">Kullanıcı</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead>Ödeme</TableHead>
-                  <TableHead>Uyarı</TableHead>
-                  <TableHead>Durum</TableHead>
-                  <TableHead className="text-right">Kayıt Tarihi</TableHead>
+                  <TableHead className="w-[300px]">User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Warnings</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Registration date</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -310,8 +341,8 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                     <TableCell>{getRoleBadge(user)}</TableCell>
                     <TableCell>{getPaymentBadge(user)}</TableCell>
                     <TableCell>{user.warnings_count && user.warnings_count > 0 ? <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20"><AlertTriangle className="w-3 h-3 mr-1" /> {user.warnings_count}</Badge> : <span className="text-xs text-muted-foreground opacity-50">-</span>}</TableCell>
-                    <TableCell>{user.is_suspended ? <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge> : <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600 hover:bg-green-500/20">Aktif</Badge>}</TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">{new Date(user.created_at).toLocaleDateString("tr-TR")}</TableCell>
+                    <TableCell>{user.is_suspended ? <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Suspended</Badge> : <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600 hover:bg-green-500/20">Active</Badge>}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">{new Date(user.created_at).toLocaleDateString("en-GB")}</TableCell>
                     <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user.id}`); }}><UserCog className="w-4 h-4 text-muted-foreground hover:text-primary" /></Button></TableCell>
                   </TableRow>
                 ))}
@@ -323,7 +354,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
           <div className="md:hidden flex flex-col gap-4">
             {users.length > 0 && (
               <div className="flex items-center justify-between bg-card p-3 rounded-xl border border-border/50 shadow-sm">
-                <span className="text-sm font-medium text-muted-foreground">Tüm Kullanıcıları Seç</span>
+                <span className="text-sm font-medium text-muted-foreground">Select all users</span>
                 <Checkbox checked={users.length > 0 && users.every(u => selectedIds.includes(u.id))} onCheckedChange={toggleAll} className="h-5 w-5" />
               </div>
             )}
@@ -365,14 +396,14 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                       </Badge>
                     ) : null}
                     {user.is_suspended ? (
-                      <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Askıda</Badge>
+                      <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Suspended</Badge>
                     ) : (
-                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600">Aktif</Badge>
+                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-green-500/10 text-green-600">Active</Badge>
                     )}
                   </div>
                   
                   <div className="text-xs text-muted-foreground text-right border-t border-border/50 pt-2">
-                    Kayıt: {new Date(user.created_at).toLocaleDateString("tr-TR")}
+                    Registered: {new Date(user.created_at).toLocaleDateString("en-GB")}
                   </div>
                 </CardContent>
               </Card>
@@ -413,8 +444,8 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                   {selectedIds.length}
                 </motion.div>
                 <span className="text-sm font-medium whitespace-nowrap">
-                  <span className="md:hidden">Seçildi</span>
-                  <span className="hidden md:inline">Kullanıcı Seçildi</span>
+                  <span className="md:hidden">Selected</span>
+                  <span className="hidden md:inline">Users selected</span>
                 </span>
               </div>
               <div className="h-6 w-px bg-border hidden md:block" />
@@ -423,7 +454,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="ghost" className="h-8 px-2 md:px-3 hover:bg-secondary/80">
                       <Shield className="w-4 h-4 md:mr-2" />
-                      <span className="hidden md:inline">Rol Değiştir</span>
+                      <span className="hidden md:inline">Change role</span>
                       <ChevronUp className="w-3 h-3 ml-1 md:hidden opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -437,12 +468,12 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
                 </DropdownMenu>
                 <Button size="sm" variant="ghost" disabled={deleteMutation.isPending} className="h-8 px-2 md:px-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors" onClick={handleDelete}>
                   <Trash2 className="w-4 h-4 md:mr-2" />
-                  <span className="hidden md:inline">Sil</span>
+                  <span className="hidden md:inline">Delete</span>
                 </Button>
                 <div className="h-4 w-px bg-border mx-1" />
                 <Button size="sm" variant="ghost" className="h-8 w-8 md:w-auto md:px-3 rounded-full md:rounded-md hover:bg-secondary p-0 md:p-2" onClick={() => handleSelectionChange([])}>
                   <X className="w-4 h-4 md:hidden" />
-                  <span className="hidden md:inline text-xs font-medium">Vazgeç</span>
+                  <span className="hidden md:inline text-xs font-medium">Cancel</span>
                 </Button>
               </div>
             </div>
@@ -451,6 +482,27 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
       </AnimatePresence>
 
       <PaymentReviewDialog paymentId={selectedReceiptId} open={!!selectedReceiptId} onOpenChange={(open) => !open && setSelectedReceiptId(null)} />
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>MAKE SURE YOU UNDERSTAND</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes {selectedIds.length} selected user account{selectedIds.length === 1 ? "" : "s"} and related conference records. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending || deleteCooldown > 0}
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => deleteMutation.mutate(selectedIds)}
+            >
+              {deleteMutation.isPending ? "Deleting…" : deleteCooldown > 0 ? `Delete (${deleteCooldown})` : "I understand — delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

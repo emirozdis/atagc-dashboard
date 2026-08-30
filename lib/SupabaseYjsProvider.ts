@@ -1,4 +1,4 @@
-import { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import * as Y from 'yjs';
 import { Observable } from 'lib0/observable';
 import { Awareness } from 'y-protocols/awareness';
@@ -60,7 +60,7 @@ export class SupabaseYjsProvider extends Observable<string> {
                     this.synced = true;
                     // Broadcast initial awareness
                     if (this.awareness.getLocalState() !== null) {
-                        const update = import('y-protocols/awareness').then(({ encodeAwarenessUpdate }) => {
+                        import('y-protocols/awareness').then(({ encodeAwarenessUpdate }) => {
                             const update = encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
                             this.channel.send({
                                 type: 'broadcast',
@@ -75,7 +75,7 @@ export class SupabaseYjsProvider extends Observable<string> {
             });
     }
 
-    private handleDocUpdate = (update: Uint8Array, origin: any) => {
+    private handleDocUpdate = (update: Uint8Array, origin: unknown) => {
         if (origin !== this) {
             this.channel.send({
                 type: 'broadcast',
@@ -85,7 +85,7 @@ export class SupabaseYjsProvider extends Observable<string> {
         }
     };
 
-    private handleAwarenessUpdate = ({ added, updated, removed }: any, origin: any) => {
+    private handleAwarenessUpdate = ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) => {
         if (origin !== this) {
             import('y-protocols/awareness').then(({ encodeAwarenessUpdate }) => {
                 const changedClients = added.concat(updated).concat(removed);

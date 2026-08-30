@@ -1,0 +1,718 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model active_sessions {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String                 @db.Uuid
+  user_agent           String?
+  ip_address           String?
+  last_active          DateTime               @default(now()) @db.Timestamptz(6)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  expires_at           DateTime               @default(dbgenerated("(now() + '1 year'::interval)")) @db.Timestamptz(6)
+  revoked_at           DateTime?              @db.Timestamptz(6)
+  users                users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  device_pairing_codes device_pairing_codes[]
+
+  @@index([user_id, created_at(sort: Desc)], map: "active_sessions_user_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model announcement_recipients {
+  announcement_id String        @db.Uuid
+  user_id         String        @db.Uuid
+  emailed_at      DateTime?     @db.Timestamptz(6)
+  announcements   announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([announcement_id, user_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model announcements {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                   String
+  content                 String
+  author_id               String?                   @db.Uuid
+  target_type             String
+  target_roles            String[]                  @default([])
+  target_committee_ids    String[]                  @default([]) @db.Uuid
+  target_user_ids         String[]                  @default([]) @db.Uuid
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  is_public               Boolean                   @default(true)
+  committee_ids           String[]                  @default([]) @db.Uuid
+  announcement_recipients announcement_recipients[]
+  users                   users?                    @relation(fields: [author_id], references: [id], onUpdate: NoAction)
+  email_outbox            email_outbox[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model application_forms {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  application_type String         @unique @default("delegate")
+  slug             String         @unique
+  title            String
+  description      String?
+  fee              Decimal        @default(0) @db.Decimal
+  steps            Json           @default("[]")
+  questions        Json           @default("[]")
+  version          Int            @default(1)
+  is_active        Boolean        @default(true)
+  created_at       DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime       @default(now()) @db.Timestamptz(6)
+  applications     applications[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model applications {
+  id                                                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                                              String             @db.Uuid
+  application_type                                     String             @default("delegate")
+  form_id                                              String?            @db.Uuid
+  form_version                                         Int                @default(1)
+  form_snapshot                                        Json               @default("{}")
+  form_data                                            Json               @default("{}")
+  status                                               String             @default("pending")
+  payment_status                                       String             @default("unpaid")
+  review_notes                                         String?
+  reviewed_by                                          String?            @db.Uuid
+  reviewed_at                                          DateTime?          @db.Timestamptz(6)
+  submitted_at                                         DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                                           DateTime           @default(now()) @db.Timestamptz(6)
+  delegation_id                                        String?            @db.Uuid
+  delegations_applications_delegation_idTodelegations  delegations?       @relation("applications_delegation_idTodelegations", fields: [delegation_id], references: [id], onUpdate: NoAction)
+  application_forms                                    application_forms? @relation(fields: [form_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  users_applications_reviewed_byTousers                users?             @relation("applications_reviewed_byTousers", fields: [reviewed_by], references: [id], onUpdate: NoAction)
+  users_applications_user_idTousers                    users              @relation("applications_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  delegations_delegations_application_idToapplications delegations?       @relation("delegations_application_idToapplications")
+  payment_receipts                                     payment_receipts[]
+
+  @@unique([user_id, application_type])
+  @@index([status, application_type, submitted_at(sort: Desc)], map: "applications_status_type_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model audit_logs {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String?  @db.Uuid
+  action        String
+  resource_type String?
+  resource_id   String?
+  metadata      Json     @default("{}")
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  users         users?   @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model auth_challenges {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String
+  purpose     String
+  code_hash   String
+  metadata    Json      @default("{}")
+  attempts    Int       @default(0)
+  expires_at  DateTime  @db.Timestamptz(6)
+  consumed_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([email, created_at(sort: Desc)], map: "auth_challenges_email_created_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model auth_login_exchanges {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token_hash  String    @unique
+  user_id     String    @db.Uuid
+  expires_at  DateTime  @db.Timestamptz(6)
+  consumed_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model catering_logs {
+  id                                    BigInt    @id @default(autoincrement())
+  user_id                               String?   @db.Uuid
+  datetime                              DateTime? @db.Timestamptz(6)
+  created_by                            String?   @db.Uuid
+  created_at                            DateTime  @default(now()) @db.Timestamptz(6)
+  day1                                  Boolean?  @default(false)
+  day2                                  Boolean?  @default(false)
+  day3                                  Boolean?  @default(false)
+  users_catering_logs_created_byTousers users?    @relation("catering_logs_created_byTousers", fields: [created_by], references: [id], onUpdate: NoAction)
+  users_catering_logs_user_idTousers    users?    @relation("catering_logs_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model committee_documents {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  committee_id  String?     @unique @db.Uuid
+  document_blob Bytes?
+  is_locked     Boolean?    @default(false)
+  updated_at    DateTime?   @default(now()) @db.Timestamptz(6)
+  committees    committees? @relation(fields: [committee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model committee_members {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  committee_id String?     @db.Uuid
+  user_id      String?     @db.Uuid
+  joined_at    DateTime?   @default(now()) @db.Timestamptz(6)
+  can_write    Boolean?    @default(false)
+  committees   committees? @relation(fields: [committee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users?      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([committee_id, user_id], map: "committee_members_unique_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model committees {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String
+  slug                   String?                  @unique @default(dbgenerated("('committee-'::text || substr((gen_random_uuid())::text, 1, 8))"))
+  description            String?
+  image_url              String?
+  documents              Json                     @default("[]")
+  is_published           Boolean                  @default(true)
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  admin_id               String?                  @db.Uuid
+  committee_documents    committee_documents?
+  committee_members      committee_members[]
+  users                  users?                   @relation(fields: [admin_id], references: [id], onUpdate: NoAction)
+  conference_assignments conference_assignments[]
+  document_versions      document_versions[]
+  observer_allocations   observer_allocations[]
+  observer_tasks         observer_tasks[]
+  resources              resources[]
+  roll_calls             roll_calls[]
+  topics                 topics[]
+  votes                  votes[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model conference_assignments {
+  user_id                                         String      @id @db.Uuid
+  role                                            String
+  committee_id                                    String?     @db.Uuid
+  assigned_by                                     String?     @db.Uuid
+  assigned_at                                     DateTime    @default(now()) @db.Timestamptz(6)
+  users_conference_assignments_assigned_byTousers users?      @relation("conference_assignments_assigned_byTousers", fields: [assigned_by], references: [id], onUpdate: NoAction)
+  committees                                      committees? @relation(fields: [committee_id], references: [id], onUpdate: NoAction)
+  users_conference_assignments_user_idTousers     users       @relation("conference_assignments_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([role, committee_id], map: "conference_assignments_role_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model conference_pages {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug         String   @unique
+  title        String
+  excerpt      String?
+  body         String   @default("")
+  is_published Boolean  @default(true)
+  updated_by   String?  @db.Uuid
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+  users        users?   @relation(fields: [updated_by], references: [id], onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model conference_team_members {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  full_name    String
+  role         String
+  bio          String?
+  image_url    String?
+  sort_order   Int      @default(0)
+  is_published Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model delegation_invites {
+  id                                                        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  delegation_id                                             String?      @db.Uuid
+  email                                                     String?
+  token_hash                                                String?      @unique
+  expires_at                                                DateTime?    @db.Timestamptz(6)
+  used_at                                                   DateTime?    @db.Timestamptz(6)
+  created_at                                                DateTime     @default(now()) @db.Timestamptz(6)
+  delegation                                                String?      @db.Uuid
+  invite_code                                               String?      @default(dbgenerated("encode(gen_random_bytes(6), 'hex'::text)"))
+  uses_left                                                 Int?         @default(0) @db.SmallInt
+  delegations_delegation_invites_delegationTodelegations    delegations? @relation("delegation_invites_delegationTodelegations", fields: [delegation], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  delegations_delegation_invites_delegation_idTodelegations delegations? @relation("delegation_invites_delegation_idTodelegations", fields: [delegation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model delegation_magiclinks {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  delegation  String      @db.Uuid
+  sent_to     String
+  is_used     Boolean     @default(false)
+  delegations delegations @relation(fields: [delegation], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model delegation_members {
+  delegation_id                                             String       @db.Uuid
+  user_id                                                   String       @db.Uuid
+  accepted                                                  Boolean      @default(false)
+  joined_at                                                 DateTime?    @db.Timestamptz(6)
+  delegation                                                String?      @db.Uuid
+  delegations_delegation_members_delegationTodelegations    delegations? @relation("delegation_members_delegationTodelegations", fields: [delegation], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  delegations_delegation_members_delegation_idTodelegations delegations  @relation("delegation_members_delegation_idTodelegations", fields: [delegation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                                                     users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([delegation_id, user_id])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model delegations {
+  id                                                               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_id                                                         String?                 @unique @db.Uuid
+  name                                                             String
+  application_id                                                   String?                 @unique @db.Uuid
+  created_at                                                       DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                                                       DateTime                @default(now()) @db.Timestamptz(6)
+  created_by                                                       String?                 @unique(map: "delegations_created_by_unique_idx", where: raw("(created_by IS NOT NULL)")) @db.Uuid
+  applications_applications_delegation_idTodelegations             applications[]          @relation("applications_delegation_idTodelegations")
+  delegation_invites_delegation_invites_delegationTodelegations    delegation_invites[]    @relation("delegation_invites_delegationTodelegations")
+  delegation_invites_delegation_invites_delegation_idTodelegations delegation_invites[]    @relation("delegation_invites_delegation_idTodelegations")
+  delegation_magiclinks                                            delegation_magiclinks[]
+  delegation_members_delegation_members_delegationTodelegations    delegation_members[]    @relation("delegation_members_delegationTodelegations")
+  delegation_members_delegation_members_delegation_idTodelegations delegation_members[]    @relation("delegation_members_delegation_idTodelegations")
+  applications_delegations_application_idToapplications            applications?           @relation("delegations_application_idToapplications", fields: [application_id], references: [id], onUpdate: NoAction)
+  users_delegations_created_byTousers                              users?                  @relation("delegations_created_byTousers", fields: [created_by], references: [id], onUpdate: NoAction)
+  users_delegations_owner_idTousers                                users?                  @relation("delegations_owner_idTousers", fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model device_pairing_codes {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String          @db.Uuid
+  creator_session_id String          @db.Uuid
+  code_hash          String          @unique
+  expires_at         DateTime        @db.Timestamptz(6)
+  consumed_at        DateTime?       @db.Timestamptz(6)
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  active_sessions    active_sessions @relation(fields: [creator_session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model document_versions {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  committee_id  String     @db.Uuid
+  document_blob Bytes
+  created_at    DateTime?  @default(now()) @db.Timestamptz(6)
+  created_by    String?    @db.Uuid
+  version_name  String?
+  is_auto_save  Boolean?   @default(false)
+  committees    committees @relation(fields: [committee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users?     @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model email_outbox {
+  id                      String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipient_email         String
+  recipient_name          String?
+  subject                 String
+  html                    String
+  related_announcement_id String?        @db.Uuid
+  attempts                Int            @default(0)
+  available_at            DateTime       @default(now()) @db.Timestamptz(6)
+  sent_at                 DateTime?      @db.Timestamptz(6)
+  last_error              String?
+  created_at              DateTime       @default(now()) @db.Timestamptz(6)
+  locked_at               DateTime?      @db.Timestamptz(6)
+  locked_by               String?
+  announcements           announcements? @relation(fields: [related_announcement_id], references: [id], onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model high_schools {
+  id          BigInt  @id @default(autoincrement())
+  city        String
+  district    String  @default("")
+  school_name String
+  address     String?
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model logs {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String?   @db.Uuid
+  action        String
+  details       Json?     @default("{}")
+  ip_address    String?
+  user_agent    String?
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  severity      String?   @default("info")
+  category      String?   @default("system")
+  resource_id   String?   @db.Uuid
+  resource_type String?
+  users         users?    @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model observer_allocations {
+  id                  String      @id @db.Uuid
+  allocated_committee String?     @db.Uuid
+  allocated_field     String?
+  field_observer      Boolean     @default(true)
+  created_at          DateTime    @default(now()) @db.Timestamptz(6)
+  committees          committees? @relation(fields: [allocated_committee], references: [id], onUpdate: NoAction)
+  users               users       @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model observer_tasks {
+  id                                      BigInt      @id @default(autoincrement())
+  assigned_by                             String?     @db.Uuid
+  assigned_to                             String?     @db.Uuid
+  assigned_task                           String?
+  assigned_committee                      String?     @db.Uuid
+  created_at                              DateTime?   @default(now()) @db.Timestamptz(6)
+  status                                  String      @default("created")
+  task_description                        String?
+  users_observer_tasks_assigned_byTousers users?      @relation("observer_tasks_assigned_byTousers", fields: [assigned_by], references: [id], onUpdate: NoAction)
+  committees                              committees? @relation(fields: [assigned_committee], references: [id], onUpdate: NoAction)
+  users_observer_tasks_assigned_toTousers users?      @relation("observer_tasks_assigned_toTousers", fields: [assigned_to], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payment_receipts {
+  id                                        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                                   String        @unique @db.Uuid
+  storage_path                              String
+  file_type                                 String?
+  status                                    String        @default("unpaid")
+  admin_note                                String?
+  reviewed_by                               String?       @db.Uuid
+  reviewed_at                               DateTime?     @db.Timestamptz(6)
+  created_at                                DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime      @default(now()) @db.Timestamptz(6)
+  application_id                            String?       @db.Uuid
+  applications                              applications? @relation(fields: [application_id], references: [id], onUpdate: NoAction)
+  users_payment_receipts_reviewed_byTousers users?        @relation("payment_receipts_reviewed_byTousers", fields: [reviewed_by], references: [id], onUpdate: NoAction)
+  users_payment_receipts_user_idTousers     users         @relation("payment_receipts_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model photo_areas {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  description  String?
+  created_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  press_photos press_photos[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model press_photos {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uploaded_by  String?      @db.Uuid
+  area_id      String?      @db.Uuid
+  storage_path String
+  title        String?
+  description  String?
+  status       String       @default("pending")
+  created_at   DateTime?    @default(now()) @db.Timestamptz(6)
+  photo_areas  photo_areas? @relation(fields: [area_id], references: [id], onUpdate: NoAction)
+  users        users?       @relation(fields: [uploaded_by], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ravenmun_settings {
+  id                Boolean   @id @default(true)
+  conference_name   String    @default("RavenMUN")
+  conference_year   Int       @default(2026)
+  location          String?
+  site_url          String?
+  event_start_date  DateTime? @db.Timestamptz(6)
+  event_end_date    DateTime? @db.Timestamptz(6)
+  applications_open Boolean   @default(true)
+  maintenance_mode  Boolean   @default(false)
+  theme             Json      @default("{}")
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model resources {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  description  String?
+  file_url     String
+  file_type    String?
+  category     String      @default("general")
+  uploaded_by  String?     @db.Uuid
+  is_public    Boolean?    @default(false)
+  created_at   DateTime?   @default(now()) @db.Timestamptz(6)
+  committee_id String?     @db.Uuid
+  storage_path String?
+  committees   committees? @relation(fields: [committee_id], references: [id], onUpdate: NoAction)
+  users        users?      @relation(fields: [uploaded_by], references: [id], onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model roll_call_logs {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roll_call_id String?     @db.Uuid
+  user_id      String?     @db.Uuid
+  scanned_at   DateTime?   @default(now()) @db.Timestamptz(6)
+  roll_calls   roll_calls? @relation(fields: [roll_call_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users?      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([roll_call_id, user_id], map: "roll_call_logs_unique_scan_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model roll_calls {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  committee_id   String?          @db.Uuid
+  session_name   String
+  qr_code        String           @unique
+  session_date   DateTime?        @db.Timestamptz(6)
+  created_at     DateTime?        @default(now()) @db.Timestamptz(6)
+  secret_key     String?
+  roll_call_logs roll_call_logs[]
+  committees     committees?      @relation(fields: [committee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model security_entry_logs {
+  id                                               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scanned_user_id                                  String   @db.Uuid
+  scanned_by                                       String   @db.Uuid
+  scanned_at                                       DateTime @default(now()) @db.Timestamptz(6)
+  result                                           String   @default("allowed")
+  metadata                                         Json     @default("{}")
+  users_security_entry_logs_scanned_byTousers      users    @relation("security_entry_logs_scanned_byTousers", fields: [scanned_by], references: [id], onUpdate: NoAction)
+  users_security_entry_logs_scanned_user_idTousers users    @relation("security_entry_logs_scanned_user_idTousers", fields: [scanned_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([scanned_at(sort: Desc)], map: "security_entry_logs_time_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model system_settings {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applications_open   Boolean?  @default(true)
+  maintenance_mode    Boolean?  @default(false)
+  term_name           String?   @default("RavenMUN 2026")
+  contact_email       String?   @default("info@ravenmun.org")
+  event_start_date    DateTime? @db.Timestamptz(6)
+  event_end_date      DateTime? @db.Timestamptz(6)
+  location            String?
+  bank_name           String?
+  bank_account_holder String?
+  bank_iban           String?
+  gallery_enabled     Boolean?  @default(true)
+  updated_at          DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ticket_messages {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticket_id      String   @db.Uuid
+  sender_id      String?  @db.Uuid
+  is_staff_reply Boolean  @default(false)
+  message        String   @default("")
+  attachments    Json?    @default("[]")
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  users          users?   @relation(fields: [sender_id], references: [id], onUpdate: NoAction)
+  tickets        tickets  @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tickets {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String?           @db.Uuid
+  is_anonymous    Boolean           @default(false)
+  access_token    String?           @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category        String            @default("general")
+  subject         String
+  status          String            @default("submitted")
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  ticket_messages ticket_messages[]
+  users           users?            @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model topics {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  committee_id String?     @db.Uuid
+  title        String
+  description  String?
+  created_at   DateTime?   @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime?   @default(now()) @db.Timestamptz(6)
+  committees   committees? @relation(fields: [committee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_connections {
+  id                                         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requester_id                               String    @db.Uuid
+  recipient_id                               String    @db.Uuid
+  status                                     String    @default("pending")
+  created_at                                 DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime? @default(now()) @db.Timestamptz(6)
+  note                                       String?
+  users_user_connections_recipient_idTousers users     @relation("user_connections_recipient_idTousers", fields: [recipient_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_user_connections_requester_idTousers users     @relation("user_connections_requester_idTousers", fields: [requester_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([requester_id, recipient_id], map: "user_connections_pair_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_consents {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String   @db.Uuid
+  consent_type    String
+  consent_version String
+  ip_address      String?
+  user_agent      String?
+  action          String
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  users           users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_details {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                   String    @unique @db.Uuid
+  phone_number              String?
+  birth_date                DateTime? @db.Date
+  national_id               String?
+  gender                    String?
+  school                    String?
+  city                      String?
+  grade                     String?
+  profile_picture_url       String?
+  is_profile_picture_hidden Boolean   @default(false)
+  allow_connections         Boolean   @default(true)
+  notification_preferences  Json      @default("{\"social\": true, \"system\": true, \"committee\": true, \"application\": true}")
+  additional_info           Json      @default("{}")
+  created_at                DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime  @default(now()) @db.Timestamptz(6)
+  high_school_id            BigInt?
+  users                     users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_warnings {
+  id                                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                              String    @db.Uuid
+  issued_by                            String    @db.Uuid
+  reason                               String
+  category                             String    @default("other")
+  created_at                           DateTime? @default(now()) @db.Timestamptz(6)
+  users_user_warnings_issued_byTousers users     @relation("user_warnings_issued_byTousers", fields: [issued_by], references: [id], onUpdate: NoAction)
+  users_user_warnings_user_idTousers   users     @relation("user_warnings_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model users {
+  id                                                               String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                                                            String                    @unique
+  full_name                                                        String                    @default("")
+  role                                                             String                    @default("applicant")
+  account_role                                                     String                    @default("member")
+  is_suspended                                                     Boolean                   @default(false)
+  created_at                                                       DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                                                       DateTime                  @default(now()) @db.Timestamptz(6)
+  active_sessions                                                  active_sessions[]
+  announcement_recipients                                          announcement_recipients[]
+  announcements                                                    announcements[]
+  applications_applications_reviewed_byTousers                     applications[]            @relation("applications_reviewed_byTousers")
+  applications_applications_user_idTousers                         applications[]            @relation("applications_user_idTousers")
+  audit_logs                                                       audit_logs[]
+  auth_login_exchanges                                             auth_login_exchanges[]
+  catering_logs_catering_logs_created_byTousers                    catering_logs[]           @relation("catering_logs_created_byTousers")
+  catering_logs_catering_logs_user_idTousers                       catering_logs[]           @relation("catering_logs_user_idTousers")
+  committee_members                                                committee_members[]
+  committees                                                       committees[]
+  conference_assignments_conference_assignments_assigned_byTousers conference_assignments[]  @relation("conference_assignments_assigned_byTousers")
+  conference_assignments_conference_assignments_user_idTousers     conference_assignments?   @relation("conference_assignments_user_idTousers")
+  conference_pages                                                 conference_pages[]
+  delegation_members                                               delegation_members[]
+  delegations_delegations_created_byTousers                        delegations?              @relation("delegations_created_byTousers")
+  delegations_delegations_owner_idTousers                          delegations?              @relation("delegations_owner_idTousers")
+  device_pairing_codes                                             device_pairing_codes[]
+  document_versions                                                document_versions[]
+  logs                                                             logs[]
+  observer_allocations                                             observer_allocations?
+  observer_tasks_observer_tasks_assigned_byTousers                 observer_tasks[]          @relation("observer_tasks_assigned_byTousers")
+  observer_tasks_observer_tasks_assigned_toTousers                 observer_tasks[]          @relation("observer_tasks_assigned_toTousers")
+  payment_receipts_payment_receipts_reviewed_byTousers             payment_receipts[]        @relation("payment_receipts_reviewed_byTousers")
+  payment_receipts_payment_receipts_user_idTousers                 payment_receipts?         @relation("payment_receipts_user_idTousers")
+  press_photos                                                     press_photos[]
+  resources                                                        resources[]
+  roll_call_logs                                                   roll_call_logs[]
+  security_entry_logs_security_entry_logs_scanned_byTousers        security_entry_logs[]     @relation("security_entry_logs_scanned_byTousers")
+  security_entry_logs_security_entry_logs_scanned_user_idTousers   security_entry_logs[]     @relation("security_entry_logs_scanned_user_idTousers")
+  ticket_messages                                                  ticket_messages[]
+  tickets                                                          tickets[]
+  user_connections_user_connections_recipient_idTousers            user_connections[]        @relation("user_connections_recipient_idTousers")
+  user_connections_user_connections_requester_idTousers            user_connections[]        @relation("user_connections_requester_idTousers")
+  user_consents                                                    user_consents[]
+  user_details                                                     user_details?
+  user_warnings_user_warnings_issued_byTousers                     user_warnings[]           @relation("user_warnings_issued_byTousers")
+  user_warnings_user_warnings_user_idTousers                       user_warnings[]           @relation("user_warnings_user_idTousers")
+  vote_responses                                                   vote_responses[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model vote_options {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vote_id        String           @db.Uuid
+  label          String
+  votes          votes            @relation(fields: [vote_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vote_responses vote_responses[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model vote_responses {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vote_id      String       @db.Uuid
+  option_id    String       @db.Uuid
+  user_id      String       @db.Uuid
+  created_at   DateTime?    @default(now()) @db.Timestamptz(6)
+  vote_options vote_options @relation(fields: [option_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  votes        votes        @relation(fields: [vote_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([vote_id, user_id], map: "vote_responses_one_per_user_idx")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model votes {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  committee_id   String           @db.Uuid
+  title          String
+  status         String           @default("open")
+  created_at     DateTime?        @default(now()) @db.Timestamptz(6)
+  vote_options   vote_options[]
+  vote_responses vote_responses[]
+  committees     committees       @relation(fields: [committee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}

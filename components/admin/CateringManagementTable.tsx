@@ -42,7 +42,7 @@ export function CateringManagementTable() {
         page: page.toString(),
         limit: limit.toString(),
         search: debouncedSearch,
-        role: "delegate,press,observer,committee_chairman,chair", // Sadece onaylı tipler
+        role: "delegate,press,observer,committee_chairman,chair", // Approved roles only
       });
 
       const res = await fetch(`/api/admin/users?${params}`);
@@ -65,7 +65,7 @@ export function CateringManagementTable() {
   const totalPages = usersData?.meta?.totalPages || 1;
   const isLoading = usersLoading || cateringLoading;
 
-  // Performans için user_id -> catering_status map oluştur
+  // Build a user_id -> catering_status map for efficient lookups
   const cateringMap = new Map<string, CateringStatus>();
   if (cateringData) {
     cateringData.forEach((catering) => {
@@ -85,9 +85,9 @@ export function CateringManagementTable() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["catering-all"] });
-      toast.success("Yemek durumu güncellendi");
+      toast.success("Catering status updated.");
     },
-    onError: () => toast.error("Güncelleme başarısız oldu.")
+    onError: () => toast.error("Unable to update catering status.")
   });
 
   const handleToggleDay = (userid: string, day: number) => {
@@ -130,7 +130,7 @@ export function CateringManagementTable() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="İsim veya e-posta ile ara..."
+            placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-background border-border/50 h-10"
@@ -143,7 +143,7 @@ export function CateringManagementTable() {
       ) : users.length === 0 ? (
         <div className="text-center text-muted-foreground py-16 border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
           <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
-          <p>Kullanıcı bulunamadı.</p>
+          <p>No participants found.</p>
         </div>
       ) : (
         <>
@@ -152,11 +152,11 @@ export function CateringManagementTable() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead className="pl-6">Kullanıcı</TableHead>
-                  <TableHead className="text-center">Gün 1</TableHead>
-                  <TableHead className="text-center">Gün 2</TableHead>
-                  <TableHead className="text-center">Gün 3</TableHead>
-                  <TableHead className="text-right pr-6">Durum</TableHead>
+                  <TableHead className="pl-6">Participant</TableHead>
+                  <TableHead className="text-center">Day 1</TableHead>
+                  <TableHead className="text-center">Day 2</TableHead>
+                  <TableHead className="text-center">Day 3</TableHead>
+                  <TableHead className="text-right pr-6">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -195,7 +195,7 @@ export function CateringManagementTable() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right pr-6">
-                        <span className="text-sm font-medium text-muted-foreground">{activeDays}/3 aktif</span>
+                        <span className="text-sm font-medium text-muted-foreground">{activeDays}/3 active</span>
                       </TableCell>
                     </TableRow>
                   );
@@ -226,21 +226,21 @@ export function CateringManagementTable() {
                         </div>
                       </div>
                       <span className="text-xs font-medium text-muted-foreground shrink-0 ml-2 bg-secondary/30 px-2 py-1 rounded-md">
-                        {activeDays}/3 aktif
+                        {activeDays}/3 active
                       </span>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-3 border-t border-border/50 pt-3">
                       <div className="flex flex-col items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Gün 1</span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Day 1</span>
                         <DayToggle active={catering.day1} onClick={() => handleToggleDay(user.id, 1)} disabled={toggleDayMutation.isPending} />
                       </div>
                       <div className="flex flex-col items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Gün 2</span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Day 2</span>
                         <DayToggle active={catering.day2} onClick={() => handleToggleDay(user.id, 2)} disabled={toggleDayMutation.isPending} />
                       </div>
                       <div className="flex flex-col items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Gün 3</span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Day 3</span>
                         <DayToggle active={catering.day3} onClick={() => handleToggleDay(user.id, 3)} disabled={toggleDayMutation.isPending} />
                       </div>
                     </div>

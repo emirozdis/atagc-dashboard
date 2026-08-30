@@ -37,9 +37,9 @@ export function CommitteeResources({ committeeId, isChairman }: CommitteeResourc
     const generalResources = resources.filter(r => r.committee_id === null);
 
     const categories = [
-        { id: "guide", label: "Çalışma Kılavuzları", icon: BookOpen },
-        { id: "rules", label: "Prosedürler & Kurallar", icon: FileText },
-        { id: "general", label: "Diğer Dosyalar", icon: Archive },
+        { id: "guide", label: "Working guides", icon: BookOpen },
+        { id: "rules", label: "Procedures & rules", icon: FileText },
+        { id: "general", label: "Other files", icon: Archive },
     ];
 
     if (isLoading) {
@@ -64,8 +64,8 @@ export function CommitteeResources({ committeeId, isChairman }: CommitteeResourc
                 <Archive className="w-6 h-6 text-primary" />
             </div>
             <div>
-                <h3 className="font-bold text-foreground">Komite Kaynakları</h3>
-                <p className="text-xs text-muted-foreground">Gerekli dokümanlar ve çalışma dosyaları.</p>
+                <h3 className="font-bold text-foreground">Committee resources</h3>
+                <p className="text-xs text-muted-foreground">Required documents and working files.</p>
             </div>
           </div>
           {isChairman && (
@@ -76,7 +76,7 @@ export function CommitteeResources({ committeeId, isChairman }: CommitteeResourc
         {resources.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
             <Info className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>Bu komite için henüz kaynak yüklenmedi.</p>
+            <p>No resources have been uploaded for this committee yet.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -98,7 +98,7 @@ export function CommitteeResources({ committeeId, isChairman }: CommitteeResourc
             {/* General Resources */}
             {generalResources.length > 0 && (
               <div className="space-y-3 pt-6 border-t border-border/50">
-                <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground"><Globe className="w-4 h-4" /> Genel Kaynaklar</h4>
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground"><Globe className="w-4 h-4" /> General resources</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {generalResources.map(res => <ResourceCard key={res.id} resource={res} />)}
                 </div>
@@ -122,14 +122,14 @@ function ResourceCard({ resource }: { resource: Resource }) {
             {resource.title}
           </CardTitle>
           <CardDescription className="text-xs mt-1">
-            {new Date(resource.created_at).toLocaleDateString("tr-TR")}
+            {new Date(resource.created_at).toLocaleDateString("en-GB")}
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-0">
         <Button size="sm" asChild className="w-full h-9 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
           <a href={resource.file_url} target="_blank" rel="noopener noreferrer">
-            <Download className="w-4 h-4 mr-2" /> Görüntüle / İndir
+            <Download className="w-4 h-4 mr-2" /> View / download
           </a>
         </Button>
       </CardContent>

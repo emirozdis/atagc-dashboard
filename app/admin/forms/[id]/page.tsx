@@ -1,321 +1,128 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Save, Loader2, Plus, Trash2, } from "lucide-react";
+import { Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { ApplicationFormTemplate, FormStep, FormField } from "@/types/application";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ApplicationFormTemplate, FormField } from "@/types/application";
+
+type EditableForm = {
+  id: string;
+  title: string;
+  description: string;
+  fee: number;
+  is_active?: boolean;
+  questions: FormField[];
+};
+
+function fieldsFromForm(form: ApplicationFormTemplate): FormField[] {
+  if (Array.isArray(form.questions) && form.questions.length) return form.questions;
+  return Array.isArray(form.steps) ? form.steps.flatMap((step) => Array.isArray(step.fields) ? step.fields : []) : [];
+}
 
 export default function EditFormPage() {
-    const params = useParams();
-    const id = params.id as string;
-    const router = useRouter();
-    const queryClient = useQueryClient();
+  const params = useParams();
+  const id = params.id as string;
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [formConfig, setFormConfig] = useState<EditableForm | null>(null);
 
-    const [formConfig, setFormConfig] = useState<Partial<ApplicationFormTemplate>>({});
-    const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const { data: initialData, isLoading } = useQuery<ApplicationFormTemplate>({
+    queryKey: ["admin-form", id],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/forms?id=${id}`);
+      if (!response.ok) throw new Error("Unable to load application form.");
+      return response.json();
+    },
+  });
 
-    const { data: initialData, isLoading } = useQuery<ApplicationFormTemplate>({
-        queryKey: ['admin-form', id],
-        queryFn: async () => {
-            const res = await fetch(`/api/admin/forms?id=${id}`);
-            if (!res.ok) throw new Error("Failed");
-            return res.json();
-        }
+  useEffect(() => {
+    if (!initialData) return;
+    // The query result is external state; copy it into the editable local draft.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFormConfig({
+      id: initialData.id,
+      title: initialData.title,
+      description: initialData.description || "",
+      fee: Number(initialData.fee || 0),
+      is_active: (initialData as ApplicationFormTemplate & { is_active?: boolean }).is_active,
+      questions: fieldsFromForm(initialData),
     });
+  }, [initialData]);
 
-    useEffect(() => {
-        if (initialData) {
-            setFormConfig(initialData);
-        }
-    }, [initialData]);
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!formConfig) throw new Error("Form is not ready.");
+      const response = await fetch("/api/admin/forms", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formConfig),
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(result?.message || result?.error || "Unable to update form.");
+      }
+    },
+    onSuccess: () => {
+      toast.success("Application form updated.");
+      queryClient.invalidateQueries({ queryKey: ["admin-form", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-forms"] });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to update form."),
+  });
 
-    const updateMutation = useMutation({
-        mutationFn: async () => {
-            const res = await fetch("/api/admin/forms", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formConfig)
-            });
-            if (!res.ok) throw new Error("Update failed");
-        },
-        onSuccess: () => {
-            toast.success("Form güncellendi");
-            queryClient.invalidateQueries({ queryKey: ['admin-form', id] });
-            queryClient.invalidateQueries({ queryKey: ['admin-forms'] });
-        },
-        onError: () => toast.error("Hata oluştu")
-    });
+  const updateField = <K extends keyof FormField>(index: number, key: K, value: FormField[K]) => {
+    setFormConfig((current) => current ? { ...current, questions: current.questions.map((field, fieldIndex) => fieldIndex === index ? { ...field, [key]: value } : field) } : current);
+  };
 
-    const addStep = () => {
-        const newStep: FormStep = { id: `step-${Date.now()}`, title: "Yeni Adım", fields: [] };
-        setFormConfig(prev => ({ ...prev, steps: [...(prev.steps || []), newStep] }));
-        setActiveStepIndex((formConfig.steps?.length || 0));
-    };
+  const addField = () => {
+    setFormConfig((current) => current ? { ...current, questions: [...current.questions, { id: `field-${Date.now()}`, label: "New question", type: "text", required: false }] } : current);
+  };
 
-    const removeStep = (idx: number) => {
-        if (confirm("Bu adımı silmek istediğinize emin misiniz?")) {
-            const newSteps = [...(formConfig.steps || [])];
-            newSteps.splice(idx, 1);
-            setFormConfig({ ...formConfig, steps: newSteps });
-            setActiveStepIndex(Math.max(0, idx - 1));
-        }
-    };
+  const removeField = (index: number) => {
+    setFormConfig((current) => current ? { ...current, questions: current.questions.filter((_, fieldIndex) => fieldIndex !== index) } : current);
+  };
 
-    const updateStep = (idx: number, field: keyof FormStep, value: any) => {
-        const newSteps = [...(formConfig.steps || [])];
-        newSteps[idx] = { ...newSteps[idx], [field]: value };
-        setFormConfig({ ...formConfig, steps: newSteps });
-    };
+  if (isLoading || !formConfig) {
+    return <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 sm:p-8"><div className="flex justify-between"><Skeleton className="h-8 w-64" /><Skeleton className="h-10 w-24" /></div><div className="grid gap-6 lg:grid-cols-[320px_1fr]"><Skeleton className="h-72 rounded-xl" /><Skeleton className="h-[600px] rounded-xl" /></div></div>;
+  }
 
-    const addField = (stepIdx: number) => {
-        const newField: FormField = {
-            id: `field-${Date.now()}`,
-            label: "Yeni Soru",
-            type: "text",
-            required: false
-        };
-        const newSteps = [...(formConfig.steps || [])];
-        newSteps[stepIdx].fields.push(newField);
-        setFormConfig({ ...formConfig, steps: newSteps });
-    };
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div><p className="text-sm text-muted-foreground">Application forms</p><h1 className="font-display text-2xl font-bold">Edit {initialData?.title || "application form"}</h1><p className="mt-1 text-sm text-muted-foreground">All questions are shown on one application page.</p></div>
+        <div className="flex gap-2"><Button variant="outline" onClick={() => router.push("/admin/forms")}>Back</Button><Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>{updateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save changes</Button></div>
+      </div>
 
-    const removeField = (stepIdx: number, fieldIdx: number) => {
-        const newSteps = [...(formConfig.steps || [])];
-        newSteps[stepIdx].fields.splice(fieldIdx, 1);
-        setFormConfig({ ...formConfig, steps: newSteps });
-    };
+      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+        <Card className="h-fit"><CardHeader><CardTitle className="text-base">General settings</CardTitle></CardHeader><CardContent className="space-y-4">
+          <div className="space-y-2"><Label>Title</Label><Input value={formConfig.title} onChange={(event) => setFormConfig({ ...formConfig, title: event.target.value })} /></div>
+          <div className="space-y-2"><Label>Fee</Label><Input type="number" min="0" value={formConfig.fee} onChange={(event) => setFormConfig({ ...formConfig, fee: Number(event.target.value) })} /></div>
+          <div className="space-y-2"><Label>Description</Label><Textarea value={formConfig.description} onChange={(event) => setFormConfig({ ...formConfig, description: event.target.value })} /></div>
+          <div className="flex items-center justify-between rounded-lg border border-border/50 p-3"><Label htmlFor="form-active">Available to applicants</Label><Switch id="form-active" checked={formConfig.is_active !== false} onCheckedChange={(checked) => setFormConfig({ ...formConfig, is_active: checked })} /></div>
+        </CardContent></Card>
 
-    const updateField = (stepIdx: number, fieldIdx: number, key: keyof FormField, value: any) => {
-        const newSteps = [...(formConfig.steps || [])];
-        newSteps[stepIdx].fields[fieldIdx] = { ...newSteps[stepIdx].fields[fieldIdx], [key]: value };
-        setFormConfig({ ...formConfig, steps: newSteps });
-    };
-
-    if (isLoading || !formConfig.steps) {
-        return (
-            <div className="max-w-7xl mx-auto space-y-6 pb-12">
-                <div className="flex justify-between">
-                    <Skeleton className="h-8 w-48" />
-                    <Skeleton className="h-10 w-24" />
-                </div>
-                <div className="grid grid-cols-12 gap-6">
-                    <div className="col-span-12 md:col-span-4 space-y-6">
-                        <Skeleton className="h-64 rounded-xl" />
-                        <Skeleton className="h-48 rounded-xl" />
-                    </div>
-                    <div className="col-span-12 md:col-span-8">
-                        <Skeleton className="h-[600px] rounded-xl" />
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    const activeStep = formConfig.steps[activeStepIndex];
-
-    return (
-        <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-12">
-            <Breadcrumbs items={[{ label: "Formlar", href: "/admin/forms" }, { label: "Düzenle" }]} />
-
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold font-display">Form Düzenleyici: {initialData?.title}</h2>
-                <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    Kaydet
-                </Button>
-            </div>
-
-            <div className="grid grid-cols-12 gap-6">
-
-                {/* Sidebar: Config & Steps List */}
-                <div className="col-span-12 md:col-span-4 space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Genel Ayarlar</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Başlık</Label>
-                                <Input value={formConfig.title} onChange={e => setFormConfig({ ...formConfig, title: e.target.value })} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Ücret (TL)</Label>
-                                <Input type="number" value={formConfig.fee} onChange={e => setFormConfig({ ...formConfig, fee: Number(e.target.value) })} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Açıklama</Label>
-                                <Textarea value={formConfig.description} onChange={e => setFormConfig({ ...formConfig, description: e.target.value })} />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between py-4">
-                            <CardTitle className="text-base">Adımlar</CardTitle>
-                            <Button variant="ghost" size="sm" onClick={addStep}><Plus className="w-4 h-4" /></Button>
-                        </CardHeader>
-                        <CardContent className="p-2 space-y-1">
-                            {formConfig.steps.map((step, idx) => (
-                                <div
-                                    key={step.id}
-                                    onClick={() => setActiveStepIndex(idx)}
-                                    className={`flex items-center justify-between p-3 rounded-md cursor-pointer transition-colors ${activeStepIndex === idx ? 'bg-primary/10 border border-primary/20' : 'hover:bg-secondary/30'}`}
-                                >
-                                    <span className="text-sm font-medium">{idx + 1}. {step.title}</span>
-                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeStep(idx)}>
-                                            <Trash2 className="w-3 h-3" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Main Editor: Active Step Fields */}
-                <div className="col-span-12 md:col-span-8 space-y-6">
-                    {activeStep ? (
-                        <Card className="border-primary/20">
-                            <CardHeader className="bg-muted/5 border-b border-border/50 pb-4">
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label>Adım Başlığı</Label>
-                                        <Input value={activeStep.title} onChange={e => updateStep(activeStepIndex, 'title', e.target.value)} className="font-semibold text-lg" />
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-6">
-                                {activeStep.fields.map((field, fieldIdx) => (
-                                    <div key={field.id} className="p-4 bg-card border border-border/50 rounded-xl space-y-4 relative group hover:border-primary/20 transition-colors">
-                                        <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => removeField(activeStepIndex, fieldIdx)}>
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label>Soru Etiketi (Label)</Label>
-                                                <Input value={field.label} onChange={e => updateField(activeStepIndex, fieldIdx, 'label', e.target.value)} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Teknik ID (Benzersiz)</Label>
-                                                <Input value={field.id} onChange={e => updateField(activeStepIndex, fieldIdx, 'id', e.target.value)} className="font-mono text-xs" />
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4 items-end">
-                                            <div className="space-y-2">
-                                                <Label>Tip</Label>
-                                                <Select value={field.type} onValueChange={val => updateField(activeStepIndex, fieldIdx, 'type', val)}>
-                                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="text">Kısa Metin</SelectItem>
-                                                        <SelectItem value="textarea">Uzun Metin</SelectItem>
-                                                        <SelectItem value="select">Seçim (Dropdown)</SelectItem>
-                                                        <SelectItem value="number">Sayı</SelectItem>
-                                                        <SelectItem value="date">Tarih</SelectItem>
-                                                        <SelectItem value="tel">Telefon</SelectItem>
-                                                        <SelectItem value="email">E-posta</SelectItem>
-                                                        <SelectItem value="checkbox">Onay Kutusu</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Zorunlu</Label>
-                                                <div className="flex items-center h-10">
-                                                    <Switch checked={field.required} onCheckedChange={c => updateField(activeStepIndex, fieldIdx, 'required', c)} />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {field.type === 'select' && (
-                                            <div className="space-y-3 pt-4 border-t border-border/50 mt-2">
-                                                <div className="flex items-center justify-between">
-                                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Seçenekler</Label>
-                                                    <span className="text-[10px] text-muted-foreground">Label (Görünen) — Value (Değer)</span>
-                                                </div>
-                                                
-                                                <div className="space-y-2">
-                                                    {(field.options || []).map((option, optIdx) => (
-                                                        <div key={optIdx} className="flex gap-2 items-center">
-                                                            <Input 
-                                                                placeholder="Görünen İsim"
-                                                                value={option.label}
-                                                                onChange={e => {
-                                                                    const newOptions = [...(field.options || [])];
-                                                                    newOptions[optIdx] = { ...option, label: e.target.value };
-                                                                    updateField(activeStepIndex, fieldIdx, 'options', newOptions);
-                                                                }}
-                                                                className="h-9 text-sm"
-                                                            />
-                                                            <Input 
-                                                                placeholder="Değer"
-                                                                value={option.value}
-                                                                onChange={e => {
-                                                                    const newOptions = [...(field.options || [])];
-                                                                    newOptions[optIdx] = { ...option, value: e.target.value };
-                                                                    updateField(activeStepIndex, fieldIdx, 'options', newOptions);
-                                                                }}
-                                                                className="h-9 text-sm font-mono bg-muted/30"
-                                                            />
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0"
-                                                                onClick={() => {
-                                                                    const newOptions = [...(field.options || [])];
-                                                                    newOptions.splice(optIdx, 1);
-                                                                    updateField(activeStepIndex, fieldIdx, 'options', newOptions);
-                                                                }}
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    ))}
-                                                    
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="w-full text-xs border-dashed h-9"
-                                                        onClick={() => {
-                                                            const newOptions = [...(field.options || [])];
-                                                            newOptions.push({ label: "", value: "" });
-                                                            updateField(activeStepIndex, fieldIdx, 'options', newOptions);
-                                                        }}
-                                                    >
-                                                        <Plus className="w-3 h-3 mr-2" /> Seçenek Ekle
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-
-                                <Button variant="outline" className="w-full border-dashed" onClick={() => addField(activeStepIndex)}>
-                                    <Plus className="w-4 h-4 mr-2" /> Yeni Soru Ekle
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <div className="h-full flex items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl">
-                            Soldan bir adım seçin veya oluşturun.
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+        <Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle className="text-base">Application questions</CardTitle><p className="mt-1 text-sm text-muted-foreground">Questions appear in this order on the public form.</p></div><Button variant="outline" size="sm" onClick={addField}><Plus className="mr-2 h-4 w-4" />Add question</Button></CardHeader><CardContent className="space-y-4">
+          {formConfig.questions.map((field, index) => <div key={field.id} className="relative space-y-4 rounded-xl border border-border/50 bg-card p-4">
+            <Button variant="ghost" size="icon" aria-label={`Remove question ${index + 1}`} className="absolute right-2 top-2 text-destructive hover:bg-destructive/10" onClick={() => removeField(index)}><Trash2 className="h-4 w-4" /></Button>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Question {index + 1}</p>
+            <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Label</Label><Input value={field.label} onChange={(event) => updateField(index, "label", event.target.value)} /></div><div className="space-y-2"><Label>Field ID</Label><Input value={field.id} onChange={(event) => updateField(index, "id", event.target.value)} className="font-mono text-xs" /></div></div>
+            <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Type</Label><Select value={field.type} onValueChange={(value) => updateField(index, "type", value as FormField["type"])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="text">Short text</SelectItem><SelectItem value="textarea">Long text</SelectItem><SelectItem value="select">Dropdown</SelectItem><SelectItem value="number">Number</SelectItem><SelectItem value="date">Date</SelectItem><SelectItem value="tel">Phone</SelectItem><SelectItem value="email">Email</SelectItem><SelectItem value="url">URL</SelectItem><SelectItem value="checkbox">Checkbox</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Placeholder</Label><Input value={field.placeholder || ""} onChange={(event) => updateField(index, "placeholder", event.target.value)} /></div></div>
+            <div className="flex items-center justify-between rounded-lg border border-border/50 p-3"><Label htmlFor={`required-${field.id}`}>Required</Label><Switch id={`required-${field.id}`} checked={field.required === true} onCheckedChange={(checked) => updateField(index, "required", checked)} /></div>
+            {field.type === "select" && <div className="space-y-3 border-t border-border/50 pt-4"><div className="flex items-center justify-between"><Label>Options</Label><Button variant="outline" size="sm" onClick={() => updateField(index, "options", [...(field.options || []), { label: "", value: "" }])}><Plus className="mr-2 h-3 w-3" />Add option</Button></div>{(field.options || []).map((option, optionIndex) => <div key={`${field.id}-option-${optionIndex}`} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><Input aria-label={`Option ${optionIndex + 1} label`} placeholder="Label" value={option.label} onChange={(event) => updateField(index, "options", (field.options || []).map((current, currentIndex) => currentIndex === optionIndex ? { ...current, label: event.target.value } : current))} /><Input aria-label={`Option ${optionIndex + 1} value`} placeholder="Value" value={option.value} onChange={(event) => updateField(index, "options", (field.options || []).map((current, currentIndex) => currentIndex === optionIndex ? { ...current, value: event.target.value } : current))} /><Button variant="ghost" size="icon" aria-label={`Remove option ${optionIndex + 1}`} onClick={() => updateField(index, "options", (field.options || []).filter((_, currentIndex) => currentIndex !== optionIndex))}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>)}</div>}
+          </div>)}
+          {!formConfig.questions.length && <div className="rounded-xl border border-dashed border-border/50 p-10 text-center text-sm text-muted-foreground">No questions yet. Add the first question to this form.</div>}
+        </CardContent></Card>
+      </div>
+    </div>
+  );
 }

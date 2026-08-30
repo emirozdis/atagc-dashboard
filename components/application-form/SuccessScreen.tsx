@@ -1,6 +1,6 @@
-import { CheckCircle, Instagram, Mail, LayoutDashboard, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CheckCircle, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 interface SuccessScreenProps {
   onReset: () => void;
@@ -8,61 +8,28 @@ interface SuccessScreenProps {
 
 export function SuccessScreen({ onReset }: SuccessScreenProps) {
   return (
-    <div className="text-center py-8 md:py-12 animate-fade-in">
-      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
-        <CheckCircle className="w-10 h-10 text-primary" />
+    <div className="animate-fade-in py-8 text-center md:py-12">
+      <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+        <CheckCircle className="h-10 w-10 text-primary" />
       </div>
-      
-      <h2 className="text-2xl md:text-3xl font-display font-bold gold-gradient mb-4">
-        Başvurunuz Alındı!
-      </h2>
-      
-      <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
-        Başvurunuz başarıyla alınmıştır. Başvurunuz ekibimiz tarafından en kısa sürede 
-        titizlikle değerlendirilecek ve sonuç, kayıtlı e-posta adresiniz üzerinden 
-        tarafınıza iletilecektir.
+      <h2 className="gold-gradient mb-4 text-2xl font-bold md:text-3xl">Application received</h2>
+      <p className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
+        Your application was submitted successfully. The conference team will review it and send updates to your verified email address.
       </p>
-
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-        <Button asChild className="w-full sm:w-auto h-12 px-8">
-          <Link href="/dashboard">
-            <LayoutDashboard className="w-4 h-4 mr-2" />
-            Panelime Git
+      <div className="mb-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <Button asChild className="h-12 w-full px-8 sm:w-auto">
+          <Link href="/portal">
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Open participant portal
           </Link>
         </Button>
-        <Button
-          variant="outline"
-          onClick={onReset}
-          className="w-full sm:w-auto h-12 px-8 border-primary/30 text-primary hover:bg-primary/10"
-        >
-          Yeni Başvuru Yap
+        <Button variant="outline" onClick={onReset} className="h-12 w-full border-primary/30 px-8 text-primary hover:bg-primary/10 sm:w-auto">
+          Submit another application
         </Button>
       </div>
-
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-        <a
-          href="https://instagram.com/atagc26"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-secondary-foreground text-sm"
-        >
-          <Instagram className="w-4 h-4" />
-          <span>@atagc26</span>
-        </a>
-        <a
-          href="mailto:info@atagc.com.tr"
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-secondary-foreground text-sm"
-        >
-          <Mail className="w-4 h-4" />
-          <span>info@atagc.com.tr</span>
-        </a>
-      </div>
-
-      <div className="pt-4 border-t border-border/40 max-w-xs mx-auto">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-          ATAGÇ 2026 Organizasyon Komitesi
-        </p>
-      </div>
+      <p className="border-t border-border/40 pt-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        RavenMUN 2026 Organizing Committee
+      </p>
     </div>
   );
 }

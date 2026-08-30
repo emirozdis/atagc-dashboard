@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -31,7 +31,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +49,8 @@ export default function ApplicationDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const queryClient = useQueryClient();
-  const [selectedCommittee, setSelectedCommittee] = useState<string>("none");
+  const [selectedCommittee, setSelectedCommittee] = useState<string | null>(null);
+  const [assignmentRole, setAssignmentRole] = useState<string | null>(null);
   
   // Modal States
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
@@ -76,19 +76,21 @@ export default function ApplicationDetailPage() {
     }
   });
 
-  useEffect(() => {
+  const assignedCommitteeId = (() => {
     const committeeMemberData = application?.user?.committee_members;
-    const committeeMembers = Array.isArray(committeeMemberData) ? committeeMemberData : (committeeMemberData ? [committeeMemberData] : []);
-    
-    if (committeeMembers && committeeMembers.length > 0) {
-      setSelectedCommittee(committeeMembers[0].committee.id);
-    } else {
-      setSelectedCommittee("none");
-    }
-  }, [application]);
+    const committeeMembers = Array.isArray(committeeMemberData) ? committeeMemberData : committeeMemberData ? [committeeMemberData] : [];
+    return committeeMembers[0]?.committee?.id ?? "none";
+  })();
+  const defaultAssignmentRole = application?.application_type === "chairboard"
+    ? "committee_chairman"
+    : application?.user.role === "chair"
+      ? "chair"
+      : "delegate";
+  const effectiveSelectedCommittee = selectedCommittee ?? assignedCommitteeId;
+  const effectiveAssignmentRole = assignmentRole ?? defaultAssignmentRole;
 
   const statusMutation = useMutation({
-    mutationFn: async ({ status, notes }: { status: "approved" | "rejected", notes?: string }) => {
+    mutationFn: async ({ status, notes }: { status: "accepted" | "approved" | "rejected", notes?: string }) => {
       const res = await fetch("/api/applications", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -96,11 +98,11 @@ export default function ApplicationDetailPage() {
       });
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || "İşlem başarısız");
+        throw new Error(errorData.error || "Action failed");
       }
     },
     onSuccess: () => {
-      toast.success("İşlem Başarılı");
+      toast.success("Action completed");
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       setShowRejectConfirm(false);
       setShowApproveConfirm(false);
@@ -116,29 +118,31 @@ export default function ApplicationDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: application?.user.id,
-          committeeId: selectedCommittee === "none" ? null : selectedCommittee
+           committeeId: effectiveSelectedCommittee === "none" ? null : effectiveSelectedCommittee,
+           role: effectiveAssignmentRole
         })
       });
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      toast.success("Komite ataması güncellendi");
+      toast.success("Committee assignment updated");
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       setShowAssignConfirm(false);
     },
-    onError: () => toast.error("Hata oluştu")
+    onError: () => toast.error("Something went wrong")
   });
 
   const handleReject = () => {
     if (!rejectionReason.trim()) {
-      toast.error("Lütfen reddetme sebebini giriniz.");
+      toast.error("Please enter a rejection reason.");
       return;
     }
     statusMutation.mutate({ status: 'rejected', notes: rejectionReason });
   };
 
   const handleApprove = () => {
-    statusMutation.mutate({ status: 'approved' });
+    if (!application) return;
+    statusMutation.mutate({ status: application.form_snapshot?.title ? 'accepted' : 'approved' });
   };
 
   const handleAssign = () => {
@@ -147,7 +151,7 @@ export default function ApplicationDetailPage() {
 
   if (appLoading) {
     return (
-      <div className="max-w-7xl mx-auto space-y-6 pb-12">
+      <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 sm:p-8">
         <div className="flex justify-between items-center mb-6">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-10 w-32" />
@@ -164,32 +168,36 @@ export default function ApplicationDetailPage() {
     );
   }
 
-  if (error || !application) return <div>Bulunamadı</div>;
+  if (error || !application) return <div>Not found</div>;
 
   const user = application.user;
   const details = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
   const formData = application.form_data || {};
   const formDef = Array.isArray(application.form) ? application.form[0] : application.form;
 
-  const schoolName = details?.high_schools?.school_name || details?.additional_info?.manual_school_name || "Belirtilmemiş";
+  const schoolName = details?.high_schools?.school_name || details?.additional_info?.manual_school_name || "Not specified";
 
   const getFieldLabel = (key: string) => {
     if (formDef?.steps) {
       for (const step of formDef.steps) {
         if (step.fields) {
-          const field = step.fields.find((f: any) => f.id === key);
+          const field = step.fields.find((f) => f.id === key);
           if (field) return field.label;
         }
       }
     }
+    const snapshotQuestions = (application.form_snapshot as { questions?: Array<{ id: string; label: string }> } | undefined)?.questions || formDef?.questions;
+    const question = snapshotQuestions?.find((field: { id: string }) => field.id === key);
+    if (question?.label) return question.label;
     return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "approved": return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Onaylı</Badge>;
-      case "rejected": return <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="w-3 h-3 mr-1" /> Reddedildi</Badge>;
-      default: return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="w-3 h-3 mr-1" /> Bekliyor</Badge>;
+      case "approved": return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>;
+      case "accepted": return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Accepted</Badge>;
+      case "rejected": return <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="w-3 h-3 mr-1" /> Rejected</Badge>;
+      default: return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>;
     }
   };
 
@@ -201,7 +209,7 @@ export default function ApplicationDetailPage() {
     );
 
     if (entries.length === 0) {
-      return <div className="text-center text-muted-foreground text-sm italic py-8">Ek form verisi bulunmamaktadır.</div>;
+      return <div className="text-center text-muted-foreground text-sm italic py-8">No additional form data is available.</div>;
     }
 
     return (
@@ -229,7 +237,7 @@ export default function ApplicationDetailPage() {
   const leaderApp = Array.isArray(actualLeader?.application) ? actualLeader.application[0] : actualLeader?.application;
   const leaderStatus = leaderApp?.status;
   const leaderAppId = leaderApp?.id;
-  const delegationName = actualDelegation?.name || "Bilinmeyen Delegasyon";
+  const delegationName = actualDelegation?.name || "Unknown delegation";
 
   const ownedDel = Array.isArray(user.owned_delegation) ? user.owned_delegation[0] : user.owned_delegation;
   const isLeader = !!ownedDel;
@@ -241,11 +249,10 @@ export default function ApplicationDetailPage() {
   // A member can be approved ONLY IF they are accepted to the delegation AND their leader is approved.
   const canReviewApplication = !isDelegationMember || (isAcceptedToDelegation && isLeaderApproved);
 
-  const selectedCommitteeName = committees.find(c => c.id === selectedCommittee)?.name || "Atama Yok (Kaldırılacak)";
+  const selectedCommitteeName = committees.find(c => c.id === effectiveSelectedCommittee)?.name || "No assignment (will be removed)";
 
   return (
-    <div className="animate-fade-in pb-12 max-w-7xl mx-auto space-y-6">
-      <Breadcrumbs items={[{ label: "Başvurular", href: "/admin/applications" }, { label: formDef?.title || "Başvuru" }]} />
+    <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
 
       <div className="bg-card border border-border/50 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 sticky top-4 z-20 shadow-sm">
         <div className="flex items-center gap-3">
@@ -256,10 +263,10 @@ export default function ApplicationDetailPage() {
             <span className="font-bold text-lg leading-none">{user.full_name}</span>
             <span className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
               <Badge variant="outline" className="text-[10px] px-2 py-0 h-5 gap-1.5 font-medium border-primary/20 text-primary bg-primary/5">
-                {formDef?.title || "Başvuru"}
+                {formDef?.title || "Application"}
               </Badge>
               <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-              {new Date(application.submitted_at).toLocaleDateString('tr-TR')}
+              {new Date(application.submitted_at).toLocaleDateString('en-GB')}
             </span>
           </div>
         </div>
@@ -268,14 +275,14 @@ export default function ApplicationDetailPage() {
 
           {application.status === 'pending' && canReviewApplication && (
             <>
-              <Button variant="destructive" size="sm" onClick={() => setShowRejectConfirm(true)}>Reddet</Button>
-              <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => setShowApproveConfirm(true)}>Onayla</Button>
+              <Button variant="destructive" size="sm" onClick={() => setShowRejectConfirm(true)}>Reject</Button>
+              <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => setShowApproveConfirm(true)}>Approve</Button>
             </>
           )}
 
           {application.status === 'pending' && isDelegationMember && !canReviewApplication && (
             <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 whitespace-nowrap">
-              {!isAcceptedToDelegation ? "Delegasyon Lideri Onayı Bekliyor" : "Liderin Başvuru Onayı Bekleniyor"}
+              {!isAcceptedToDelegation ? "Waiting for delegation leader approval" : "Waiting for leader approval of the application"}
             </Badge>
           )}
         </div>
@@ -298,7 +305,7 @@ export default function ApplicationDetailPage() {
             <div className="p-5 space-y-4 text-sm">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Phone className="w-4 h-4 shrink-0" />
-                <span className="text-foreground">{details?.phone_number || "Belirtilmemiş"}</span>
+                <span className="text-foreground">{details?.phone_number || "Not specified"}</span>
               </div>
               <Separator />
               <div className="flex items-center gap-3 text-muted-foreground">
@@ -319,7 +326,7 @@ export default function ApplicationDetailPage() {
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Calendar className="w-4 h-4 shrink-0" />
                 <span className="text-foreground">
-                  {details?.birth_date ? new Date(details.birth_date).toLocaleDateString('tr-TR') : "-"}
+                  {details?.birth_date ? new Date(details.birth_date).toLocaleDateString('en-GB') : "-"}
                 </span>
               </div>
               <Separator />
@@ -329,43 +336,47 @@ export default function ApplicationDetailPage() {
                   {isLeader ? (
                     <div className="flex flex-col">
                       <span className="font-medium text-primary">{ownedDel?.name}</span>
-                      <span className="text-[10px] font-medium mt-0.5">Delegasyon Lideri</span>
+                      <span className="text-[10px] font-medium mt-0.5">Delegation leader</span>
                     </div>
                   ) : delegationMember ? (
                     <div className="flex flex-col">
                       {leaderAppId ? (
                          <Link href={`/admin/applications/${leaderAppId}`} className="font-medium text-primary hover:underline">
-                            Delegasyon: {delegationName}
+                            Delegation: {delegationName}
                          </Link>
                       ) : (
-                         <span className="font-medium text-primary">Delegasyon: {delegationName}</span>
+                         <span className="font-medium text-primary">Delegation: {delegationName}</span>
                       )}
                       <span className="text-[10px] text-muted-foreground mt-0.5">
-                        Lider Durumu: {leaderStatus === 'approved' ? 'Onaylı' : leaderStatus === 'rejected' ? 'Reddedildi' : 'Bekliyor'}
+                        Leader status: {leaderStatus === 'approved' ? 'Approved' : leaderStatus === 'rejected' ? 'Rejected' : 'Pending'}
                       </span>
                     </div>
-                  ) : "Bireysel Katılımcı"}
+                  ) : "Individual participant"}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Enhanced Committee Assignment Card */}
-          {application.status === 'approved' && ['delegate', 'chair', 'committee_chairman'].includes(user.role) && (
+          {(application.status === 'approved' || application.status === 'accepted') && (application.application_type === 'delegate' || application.application_type === 'chairboard' || ['delegate', 'chair', 'committee_chairman'].includes(user.role)) && (
             <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
               <div className="bg-muted/30 px-6 py-4 border-b border-border/50 flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-primary" />
-                <h3 className="font-bold text-foreground">Komite Ataması</h3>
+                <h3 className="font-bold text-foreground">Committee assignment</h3>
               </div>
               <div className="p-6 space-y-4">
-                <p className="text-sm text-muted-foreground">Kullanıcıyı uygun bir komiteye atayın veya mevcut atamasını güncelleyin.</p>
+                <p className="text-sm text-muted-foreground">Assign the user to a committee or update the current assignment.</p>
                 <div className="space-y-3">
-                  <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
+                  <Select value={effectiveAssignmentRole} onValueChange={setAssignmentRole}>
+                    <SelectTrigger className="bg-background h-11"><SelectValue placeholder="Conference role" /></SelectTrigger>
+                    <SelectContent><SelectItem value="delegate">Delegate</SelectItem><SelectItem value="committee_chairman">Chair</SelectItem><SelectItem value="chair">Deputy Chair</SelectItem></SelectContent>
+                  </Select>
+                  <Select value={effectiveSelectedCommittee} onValueChange={setSelectedCommittee}>
                     <SelectTrigger className="bg-background h-11">
-                      <SelectValue placeholder="Komite Seçiniz" />
+                      <SelectValue placeholder="Select a committee" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none"> <XCircle className="w-4 h-4" /> Atama Yok </SelectItem>
+                      <SelectItem value="none"> <XCircle className="w-4 h-4" /> No assignment </SelectItem>
                       {committees.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -374,7 +385,7 @@ export default function ApplicationDetailPage() {
                     disabled={assignMutation.isPending}
                     className="w-full h-11"
                   >
-                    {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Atamayı Kaydet"}
+                    {assignMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save assignment"}
                   </Button>
                 </div>
               </div>
@@ -386,7 +397,7 @@ export default function ApplicationDetailPage() {
           <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
             <div className="bg-muted/30 px-6 py-4 border-b border-border/50 flex items-center gap-2">
               <FileText className="w-4 h-4 text-primary" />
-              <h3 className="font-bold text-foreground">Başvuru Formu Cevapları</h3>
+              <h3 className="font-bold text-foreground">Application form responses</h3>
             </div>
             <div className="p-6">
               {renderFormData()}
@@ -399,13 +410,13 @@ export default function ApplicationDetailPage() {
       <AlertDialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Başvuruyu Onayla</AlertDialogTitle>
+            <AlertDialogTitle>Approve application</AlertDialogTitle>
             <AlertDialogDescription>
-              Bu başvuruyu onaylamak istediğinize emin misiniz? Onaylandığında kullanıcıya otomatik olarak bildirim e-postası gönderilecektir ve rolü <strong>{formDef?.title || "Katılımcı"}</strong> olarak güncellenecektir.
+              Are you sure you want to approve this application? The user will receive an automatic notification email and their role will be updated to <strong>{formDef?.title || "participant"}</strong>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={statusMutation.isPending}>İptal</AlertDialogCancel>
+            <AlertDialogCancel disabled={statusMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
                 onClick={(e) => {
                     e.preventDefault();
@@ -414,7 +425,7 @@ export default function ApplicationDetailPage() {
                 className="bg-green-600 text-white hover:bg-green-700"
                 disabled={statusMutation.isPending}
             >
-                {statusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Onayla
+                {statusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Approve
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -427,9 +438,9 @@ export default function ApplicationDetailPage() {
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">Başvuruyu Reddet</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">Reject application</AlertDialogTitle>
             <AlertDialogDescription>
-              Başvuruyu reddetmek üzeresiniz. Lütfen reddetme sebebini giriniz. Bu sebep kullanıcıya iletilecektir.
+              You are about to reject this application. Enter a reason; it will be shared with the applicant.
             </AlertDialogDescription>
           </AlertDialogHeader>
           
@@ -437,13 +448,13 @@ export default function ApplicationDetailPage() {
               <Textarea
                 value={rejectionReason}
                 onChange={e => setRejectionReason(e.target.value)}
-                placeholder="Örn: Yaş sınırı uyumsuzluğu, eksik bilgi..."
+                placeholder="For example: age limit issue or missing information..."
                 className="min-h-[100px]"
               />
           </div>
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={statusMutation.isPending}>İptal</AlertDialogCancel>
+            <AlertDialogCancel disabled={statusMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
                 onClick={(e) => {
                     e.preventDefault();
@@ -452,7 +463,7 @@ export default function ApplicationDetailPage() {
                 className="bg-destructive text-white hover:bg-destructive/90"
                 disabled={statusMutation.isPending || !rejectionReason.trim()}
             >
-                {statusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Reddet ve Bitir
+                {statusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Reject and close
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -462,13 +473,13 @@ export default function ApplicationDetailPage() {
       <AlertDialog open={showAssignConfirm} onOpenChange={setShowAssignConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Komite Atamasını Onayla</AlertDialogTitle>
+            <AlertDialogTitle>Confirm committee assignment</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{user.full_name}</strong> isimli kullanıcıyı <strong>{selectedCommitteeName}</strong> komitesine atamak üzeresiniz. Onaylıyor musunuz?
+              You are assigning <strong>{user.full_name}</strong> to <strong>{selectedCommitteeName}</strong>. Continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={assignMutation.isPending}>İptal</AlertDialogCancel>
+            <AlertDialogCancel disabled={assignMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
                 onClick={(e) => {
                     e.preventDefault();
@@ -476,7 +487,7 @@ export default function ApplicationDetailPage() {
                 }} 
                 disabled={assignMutation.isPending}
             >
-                {assignMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Atamayı Kaydet
+                {assignMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save assignment
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

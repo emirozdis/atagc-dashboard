@@ -25,7 +25,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (!assigned_to || !assigned_task?.trim()) {
     return NextResponse.json(
-      { error: "assigned_to ve assigned_task alanları zorunludur." },
+      { error: "assigned_to and assigned_task are required." },
       { status: 400 }
     );
   }
@@ -39,14 +39,14 @@ export const POST = apiHandler(async (request: Request) => {
 
   if (targetError || !targetUser) {
     return NextResponse.json(
-      { error: "Atanacak kullanıcı bulunamadı." },
+      { error: "The assigned user was not found." },
       { status: 404 }
     );
   }
 
   if (targetUser.role !== ROLES.OBSERVER) {
     return NextResponse.json(
-      { error: "Görev yalnızca gözlemci rolündeki kullanıcılara atanabilir." },
+      { error: "Tasks can only be assigned to observers." },
       { status: 400 }
     );
   }

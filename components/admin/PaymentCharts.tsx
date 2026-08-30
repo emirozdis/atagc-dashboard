@@ -44,8 +44,8 @@ const COLORS = {
 
 // --- Status Distribution Chart (Donut) ---
 const statusConfig = {
-  paid: { label: "Ödeme Yapan", color: COLORS.paid },
-  unpaid: { label: "Ödeme Yapmayan", color: COLORS.unpaid },
+  paid: { label: "Paid", color: COLORS.paid },
+  unpaid: { label: "Unpaid", color: COLORS.unpaid },
 } satisfies ChartConfig;
 
 export function StatusDistributionChart({ data }: { data: ChartDataProps['stats'] }) {
@@ -68,9 +68,9 @@ export function StatusDistributionChart({ data }: { data: ChartDataProps['stats'
       <CardHeader className="items-start pb-0">
         <CardTitle className="text-lg font-medium flex items-center gap-2">
             <PieIcon className="w-5 h-5 text-emerald-600" />
-            Ödeme Oranı
+            Payment rate
         </CardTitle>
-        <CardDescription>Onaylı delegelerin ödeme durumu</CardDescription>
+        <CardDescription>Payment status of approved delegates</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0 min-h-[250px]">
         <ChartContainer
@@ -116,7 +116,7 @@ export function StatusDistributionChart({ data }: { data: ChartDataProps['stats'
                           y={(viewBox.cy || 0) + 24}
                           className="fill-muted-foreground text-xs font-medium uppercase tracking-wider"
                         >
-                          TAMAMLANDI
+                          COMPLETED
                         </tspan>
                       </text>
                     );
@@ -130,14 +130,14 @@ export function StatusDistributionChart({ data }: { data: ChartDataProps['stats'
       </CardContent>
       <CardFooter className="flex-col gap-2 pt-4 border-t border-border/50 bg-muted/5">
         <div className="flex w-full items-center justify-between">
-            <span className="text-sm text-muted-foreground font-medium">Toplam Tahsilat</span>
+            <span className="text-sm text-muted-foreground font-medium">Total collected</span>
             <span className="text-lg font-bold text-foreground font-mono">
-                {collectedAmount.toLocaleString('tr-TR')} ₺
+                {collectedAmount.toLocaleString('en-GB')} ₺
             </span>
         </div>
         <div className="w-full flex justify-between text-[10px] text-muted-foreground">
-            <span>Hedef: {potentialAmount.toLocaleString('tr-TR')} ₺</span>
-            <span>{data.paid} / {data.total} Kişi</span>
+            <span>Target: {potentialAmount.toLocaleString('en-GB')} ₺</span>
+            <span>{data.paid} / {data.total} people</span>
         </div>
       </CardFooter>
     </Card>
@@ -147,7 +147,7 @@ export function StatusDistributionChart({ data }: { data: ChartDataProps['stats'
 // --- Trend Chart (Area) ---
 const trendConfig = {
   count: {
-    label: "Yükleme",
+    label: "Uploads",
     color: COLORS.trend,
   },
 } satisfies ChartConfig;
@@ -160,9 +160,9 @@ export function UploadTrendChart({ data }: { data: ChartDataProps['trend'] }) {
       <CardHeader>
         <CardTitle className="text-lg font-medium flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-emerald-600" />
-            İşlem Hacmi
+            Activity volume
         </CardTitle>
-        <CardDescription>Son 7 gündeki dekont yükleme aktivitesi</CardDescription>
+        <CardDescription>Receipt upload activity over the last 7 days</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 min-h-[200px]">
         <ChartContainer config={trendConfig} className="max-h-[250px] w-full">
@@ -212,8 +212,8 @@ export function UploadTrendChart({ data }: { data: ChartDataProps['trend'] }) {
                 <Wallet className="w-4 h-4" />
             </div>
             <div className="flex flex-col">
-                <span className="text-xs font-medium uppercase tracking-wide opacity-70">Haftalık Aktivite</span>
-                <span className="text-sm font-semibold text-foreground">{totalActivity} <span className="font-normal text-muted-foreground">yeni dekont yüklendi</span></span>
+                <span className="text-xs font-medium uppercase tracking-wide opacity-70">Weekly activity</span>
+                <span className="text-sm font-semibold text-foreground">{totalActivity} <span className="font-normal text-muted-foreground">new receipts uploaded</span></span>
             </div>
         </div>
       </CardFooter>

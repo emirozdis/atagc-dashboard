@@ -6,7 +6,7 @@ const SENSITIVE_KEYS = [
     'authorization', 'cookie', 'verification_code', 'code'
 ];
 
-export function scrubPII(data: any): any {
+export function scrubPII(data: unknown): unknown {
     if (!data) return data;
     
     if (Array.isArray(data)) {
@@ -14,15 +14,16 @@ export function scrubPII(data: any): any {
     }
 
     if (typeof data === 'object') {
-        const cleaned: any = {};
-        for (const key in data) {
-            if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const cleaned: Record<string, unknown> = {};
+        const record = data as Record<string, unknown>;
+        for (const key in record) {
+            if (Object.prototype.hasOwnProperty.call(record, key)) {
                 if (SENSITIVE_KEYS.some(k => key.toLowerCase().includes(k))) {
                     cleaned[key] = '[REDACTED]';
-                } else if (typeof data[key] === 'object') {
-                    cleaned[key] = scrubPII(data[key]);
+                } else if (typeof record[key] === 'object') {
+                    cleaned[key] = scrubPII(record[key]);
                 } else {
-                    cleaned[key] = data[key];
+                    cleaned[key] = record[key];
                 }
             }
         }
@@ -37,7 +38,7 @@ export function scrubPII(data: any): any {
  * Returns an object containing flattened keys of changes.
  * Format: { "key.subkey": { from: oldVal, to: newVal } }
  */
-export function calculateDiff(oldVal: any, newVal: any, prefix = ""): Record<string, { from: any, to: any }> | null {
+export function calculateDiff(oldVal: unknown, newVal: unknown, prefix = ""): Record<string, { from: unknown, to: unknown }> | null {
     // 1. Identical Check
     if (oldVal === newVal) return null;
     
@@ -49,7 +50,7 @@ export function calculateDiff(oldVal: any, newVal: any, prefix = ""): Record<str
 
     // Helper to check if value is an object (and not null)
     // We treat Arrays as objects here to recurse into indices
-    const isObject = (v: any) => v && typeof v === 'object';
+    const isObject = (v: unknown): v is Record<string, unknown> | unknown[] => Boolean(v) && typeof v === 'object';
 
     // 2. If one side is primitive (or null), or if types mismatch (e.g. object vs array), return direct diff
     if (!isObject(v1) || !isObject(v2) || (Array.isArray(v1) !== Array.isArray(v2))) {
@@ -59,15 +60,17 @@ export function calculateDiff(oldVal: any, newVal: any, prefix = ""): Record<str
     }
 
     // 3. Both are objects/arrays: Recurse keys
-    const diffs: Record<string, { from: any, to: any }> = {};
-    const keys = new Set([...Object.keys(v1), ...Object.keys(v2)]);
+    const diffs: Record<string, { from: unknown, to: unknown }> = {};
+    const record1 = v1 as Record<string, unknown>;
+    const record2 = v2 as Record<string, unknown>;
+    const keys = new Set([...Object.keys(record1), ...Object.keys(record2)]);
 
     keys.forEach(key => {
         // Skip ignored fields
         if (['updated_at', 'created_at', 'password_hash'].includes(key)) return;
 
         const path = prefix ? `${prefix}.${key}` : key;
-        const subDiff = calculateDiff(v1[key], v2[key], path);
+        const subDiff = calculateDiff(record1[key], record2[key], path);
         
         if (subDiff) {
             Object.assign(diffs, subDiff);

@@ -15,7 +15,7 @@ export const GET = apiHandler(async () => {
 
     if (error) {
         console.error("Stats RPC Error:", error);
-        throw new Error("Veritabanı istatistikleri alınamadı.");
+        throw new Error("Could not load database statistics.");
     }
 
     return NextResponse.json(data);

@@ -53,7 +53,7 @@ export default function CommitteeRollCallPage() {
   // Mutations
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!sessionName) throw new Error("Oturum adı giriniz");
+      if (!sessionName) throw new Error("Enter a session name.");
 
       const res = await fetch("/api/roll-call/create", {
         method: "POST",
@@ -70,10 +70,10 @@ export default function CommitteeRollCallPage() {
     onSuccess: (data) => {
       setRollCallId(data.id);
       setIsCompleted(false);
-      toast.success("Oturum Başlatıldı");
+      toast.success("Session started");
       queryClient.invalidateQueries({ queryKey: ["committee-roll-call-history"] });
     },
-    onError: (e: any) => toast.error(e.message)
+    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "An unexpected error occurred")
   });
 
   const triggerManualFinish = () => {
@@ -83,7 +83,7 @@ export default function CommitteeRollCallPage() {
   const confirmManualFinish = () => {
     setIsCompleted(true);
     setShowFinishConfirm(false);
-    toast.info("Yoklama manuel olarak sonlandırıldı.");
+    toast.info("Roll call ended manually.");
   };
 
   const handleClose = () => {
@@ -94,36 +94,36 @@ export default function CommitteeRollCallPage() {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Komitem", href: "/dashboard/committee" }, { label: "Yoklama" }]} />
+      <Breadcrumbs items={[{ label: "My committee", href: "/dashboard/committee" }, { label: "Roll call" }]} />
       <div>
-        <h2 className="text-3xl font-display font-bold text-foreground">Yoklama Oluştur</h2>
+        <h2 className="text-3xl font-display font-bold text-foreground">Create roll call</h2>
         <p className="text-muted-foreground mt-1">
-          Komiteniz için dinamik QR kod oluşturun.
+          Create a dynamic QR code for your committee.
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         <Card className="bg-card border-border/50">
           <CardHeader>
-            <CardTitle>Oturum Bilgileri</CardTitle>
-            <CardDescription>Aktif oturum için bir isim giriniz.</CardDescription>
+            <CardTitle>Session details</CardTitle>
+            <CardDescription>Enter a name for the active session.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-3 bg-primary/10 border border-primary/20 rounded-md text-sm text-primary flex gap-2">
               <Info className="w-4 h-4 mt-0.5 shrink-0" />
               <p>
                 {committee?.name ? (
-                  <>Yoklama <span className="font-bold">{committee.name}</span> komitesine atanacaktır.</>
+                  <>The roll call will be assigned to <span className="font-bold">{committee.name}</span>.</>
                 ) : (
-                  "Oluşturulan QR kod otomatik olarak yöneticisi olduğunuz komiteye atanacaktır."
+                  "The QR code will be assigned automatically to the committee you manage."
                 )}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>Oturum Adı</Label>
+              <Label>Session name</Label>
               <Input
-                placeholder="Örn: 1. Oturum, Sabah Oturumu"
+                placeholder="For example: Session 1, morning session"
                 value={sessionName}
                 onChange={(e) => setSessionName(e.target.value)}
                 disabled={!!rollCallId && !isCompleted}
@@ -133,7 +133,7 @@ export default function CommitteeRollCallPage() {
             {!rollCallId && (
               <Button onClick={() => createMutation.mutate()} className="w-full mt-4" disabled={createMutation.isPending}>
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
-                Başlat
+                Start
               </Button>
             )}
           </CardContent>
@@ -150,13 +150,13 @@ export default function CommitteeRollCallPage() {
               </div>
 
               <div className="space-y-2">
-                <h3 className="font-bold text-2xl text-green-500">Yoklama Tamamlandı</h3>
+                <h3 className="font-bold text-2xl text-green-500">Roll call completed</h3>
                 <p className="text-muted-foreground font-medium text-lg">{sessionName}</p>
               </div>
 
               {finalStats && (
                 <div className="bg-secondary/30 border border-border/50 rounded-xl p-6 max-w-xs mx-auto">
-                  <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mb-2">Katılım Durumu</div>
+                  <div className="text-sm text-muted-foreground uppercase tracking-widest font-semibold mb-2">Attendance status</div>
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-4xl font-bold text-foreground">{finalStats.scanned}</span>
                     <span className="text-xl text-muted-foreground">/ {finalStats.total}</span>
@@ -180,7 +180,7 @@ export default function CommitteeRollCallPage() {
             /* Empty State */
             <div className="text-center text-muted-foreground">
               <QrCode className="w-16 h-16 mx-auto mb-4 opacity-20" />
-              <p>QR kod burada görüntülenecektir.</p>
+              <p>The QR code will appear here.</p>
             </div>
           )}
         </Card>
@@ -193,15 +193,15 @@ export default function CommitteeRollCallPage() {
       <AlertDialog open={showFinishConfirm} onOpenChange={setShowFinishConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Yoklamayı Bitir</AlertDialogTitle>
+            <AlertDialogTitle>End roll call?</AlertDialogTitle>
             <AlertDialogDescription>
-              Bu işlem yoklamayı manuel olarak sonlandıracaktır. QR kod geçersiz hale gelecektir ve yeni katılım kabul edilmeyecektir.
+              This will end the roll call manually. The QR code will become invalid and new attendance will not be accepted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmManualFinish} className="bg-destructive text-white hover:bg-destructive/90">
-              Bitir
+              End
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -5,8 +5,13 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getSignedUrls } from "@/lib/storage-utils";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { canAccessCommittee } from "@/lib/committee-access";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+
+type CommitteeUser = { id: string; full_name: string; email: string; role: string; user_details?: { profile_picture_url?: string | null; is_profile_picture_hidden?: boolean } | Array<{ profile_picture_url?: string | null; is_profile_picture_hidden?: boolean }> | null };
+type CommitteeMemberRow = { id: string; can_write?: boolean; user?: CommitteeUser | CommitteeUser[] | null };
+type ProcessedUser = { id: string; userId: string; full_name: string; email: string; role: string; can_edit: boolean; image: string | null };
 
 export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
@@ -68,7 +73,7 @@ export const GET = apiHandler(async (request: Request) => {
   const pathsToSign: string[] = [];
   const memberMap = new Map(); 
 
-  const processUser = (u: any, isChairman = false, memberId?: string, canWrite = false) => {
+  const processUser = (u: CommitteeUser | null | undefined, isChairman = false, memberId?: string, canWrite = false): ProcessedUser | null => {
     if (!u) return null;
     
     const details = Array.isArray(u.user_details) ? u.user_details[0] : u.user_details;
@@ -103,13 +108,14 @@ export const GET = apiHandler(async (request: Request) => {
 
   let adminObj = null;
   if (adminRes.data?.admin) {
-    adminObj = processUser(adminRes.data.admin, true);
+    const admin = Array.isArray(adminRes.data.admin) ? adminRes.data.admin[0] : adminRes.data.admin;
+    adminObj = processUser(admin as unknown as CommitteeUser, true);
   }
 
-  const membersList = (membersRes.data || []).map((m: any) => {
+  const membersList = ((membersRes.data || []) as unknown as CommitteeMemberRow[]).map((m) => {
     const u = Array.isArray(m.user) ? m.user[0] : m.user;
-    return processUser(u, false, m.id, m.can_write);
-  }).filter(Boolean);
+    return processUser(u, false, m.id, m.can_write ?? false);
+  }).filter((member): member is ProcessedUser => member !== null);
 
   if (pathsToSign.length > 0) {
     const uniquePaths = Array.from(new Set(pathsToSign));
@@ -122,7 +128,7 @@ export const GET = apiHandler(async (request: Request) => {
       adminObj.image = urlMap.get(adminObj.image);
     }
 
-    membersList.forEach((m: any) => {
+    membersList.forEach((m) => {
       if (m.image && urlMap.has(m.image)) {
         m.image = urlMap.get(m.image);
       }
@@ -133,4 +139,20 @@ export const GET = apiHandler(async (request: Request) => {
     admin: adminObj,
     members: membersList
   });
+});
+
+export const PUT = apiHandler(async (request: Request) => {
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CHAIRMAN, ROLES.DEPUTY_CHAIR] });
+  if (!auth.ok || !auth.session) throw new Error("Unauthorized");
+  const body = await request.json();
+  if (typeof body.memberId !== "string" || typeof body.canEdit !== "boolean") throw new Error("Invalid permission update.");
+
+  const { data: member } = await supabase.from("committee_members").select("id, user_id, committee_id, can_write").eq("id", body.memberId).maybeSingle();
+  if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
+  if (!(await canAccessCommittee(auth.session.user.id, auth.session.user.role, member.committee_id, true))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { error } = await supabase.from("committee_members").update({ can_write: body.canEdit }).eq("id", member.id);
+  if (error) throw error;
+  await supabase.from("audit_logs").insert({ user_id: auth.session.user.id, action: "update_committee_member_permission", resource_type: "committee_member", resource_id: member.id, metadata: { target_user_id: member.user_id, can_write: body.canEdit } });
+  return NextResponse.json({ success: true });
 });

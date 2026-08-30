@@ -80,22 +80,22 @@ export default function ScanPage() {
 
       if (res.ok) {
         if (data.status === 'already_connected') {
-          setResultMessage(data.message || "Zaten bağlantınız var.");
+          setResultMessage(data.message || "You are already connected.");
           setScanState('duplicate');
         } else if (data.status === 'pending') {
-          setResultMessage(data.message || "İstek zaten gönderildi.");
+          setResultMessage(data.message || "The request has already been sent.");
           setScanState('duplicate');
         } else {
-          setSessionName("Bağlantı İsteği");
-          setResultMessage(data.message || "İstek gönderildi.");
+          setSessionName("Connection request");
+          setResultMessage(data.message || "Request sent.");
           setScanState('success');
-          toast.success("İstek Gönderildi");
+          toast.success("Request sent");
         }
       } else {
-        throw new Error(data.error || "İşlem başarısız");
+        throw new Error(data.error || "Action failed");
       }
-    } catch (err: any) {
-      setResultMessage(err.message || "Bilinmeyen bir hata oluştu.");
+    } catch (error: unknown) {
+      setResultMessage(error instanceof Error ? error.message : "An unknown error occurred.");
       setScanState('error');
     }
   };
@@ -111,19 +111,19 @@ export default function ScanPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setSessionName(data.session_name || "Oturum");
-        setResultMessage(data.message || "Yoklama alındı.");
+        setSessionName(data.session_name || "Session");
+        setResultMessage(data.message || "Attendance recorded.");
         setScanState('success');
-        toast.success("İşlem Başarılı");
+        toast.success("Action completed");
       } else if (res.status === 409) {
-        setResultMessage(data.error || "Bu oturum için zaten yoklama verdiniz.");
+        setResultMessage(data.error || "You have already recorded attendance for this session.");
         setScanState('duplicate');
       } else {
-        throw new Error(data.error || "İşlem başarısız");
+        throw new Error(data.error || "Action failed");
       }
 
-    } catch (err: any) {
-      setResultMessage(err.message || "Bilinmeyen bir hata oluştu.");
+    } catch (error: unknown) {
+      setResultMessage(error instanceof Error ? error.message : "An unknown error occurred.");
       setScanState('error');
     }
   };
@@ -137,12 +137,12 @@ export default function ScanPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6 md:space-y-8 animate-fade-in py-4 md:py-6 px-4 pb-12 overflow-hidden">
-      <Breadcrumbs items={[{ label: "Tara" }]} />
+      <Breadcrumbs items={[{ label: "Scan" }]} />
 
       <div className="space-y-2 text-center">
-        <h2 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground">QR Tara</h2>
+        <h2 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground">Scan QR code</h2>
         <p className="text-muted-foreground text-sm md:text-base max-w-sm mx-auto">
-          Yoklama QR kodunu veya başka bir delegenin kimlik kartını okutun.
+          Scan an attendance QR code or another delegate&apos;s ID card.
         </p>
       </div>
 
@@ -160,8 +160,8 @@ export default function ScanPage() {
               <Loader2 className="w-12 h-12 md:w-16 md:h-16 text-primary animate-spin relative z-10" />
             </div>
             <div className="text-center space-y-1">
-              <h3 className="text-lg md:text-xl font-semibold">Kod İşleniyor</h3>
-              <p className="text-muted-foreground text-sm">Lütfen bekleyin...</p>
+              <h3 className="text-lg md:text-xl font-semibold">Processing code</h3>
+              <p className="text-muted-foreground text-sm">Please wait...</p>
             </div>
           </motion.div>
         ) : scanState === 'success' ? (
@@ -188,17 +188,17 @@ export default function ScanPage() {
                   </div>
                 </div>
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-green-500 mb-2">Başarılı!</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-green-500 mb-2">Success!</h2>
               <p className="text-base md:text-lg font-medium text-foreground mb-4">{sessionName}</p>
               <p className="text-sm md:text-muted-foreground mb-6 md:mb-8 text-balance">
                 {resultMessage}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <Button onClick={resetScan} variant="outline">
-                  Tekrar Tara
+                  Scan again
                 </Button>
                 <Button onClick={() => window.location.href = scanType === 'connection' ? '/dashboard/connections' : '/dashboard'} variant="default">
-                  {scanType === 'connection' ? 'Bağlantılarım' : 'Panoya Dön'}
+                  {scanType === 'connection' ? 'My connections' : 'Back to dashboard'}
                 </Button>
               </div>
             </Card>
@@ -217,14 +217,14 @@ export default function ScanPage() {
                   <ShieldCheck className="w-12 h-12 md:w-16 md:h-16 text-yellow-500" />
                 </div>
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-yellow-500 mb-2">Bilgi</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-yellow-500 mb-2">Already handled</h2>
               <p className="text-muted-foreground mb-6 md:mb-8 text-base md:text-lg">{resultMessage}</p>
               <div className="grid grid-cols-2 gap-3">
                 <Button onClick={resetScan} variant="outline" className="border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
-                  Tekrar Tara
+                  Scan again
                 </Button>
                 <Button onClick={() => window.location.href = '/dashboard'} variant="outline" className="border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500">
-                  Panoya Dön
+                  Back to dashboard
                 </Button>
               </div>
             </Card>
@@ -243,10 +243,10 @@ export default function ScanPage() {
                   <XCircle className="w-12 h-12 md:w-16 md:h-16 text-red-500" />
                 </div>
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-red-500 mb-2">Bir Hata Oluştu</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-red-500 mb-2">Something went wrong</h2>
               <p className="text-muted-foreground mb-6 md:mb-8 text-base md:text-lg">{resultMessage}</p>
               <Button onClick={resetScan} variant="outline" className="w-full h-11 md:h-12 text-base md:text-lg border-red-500/30 hover:bg-red-500/10 text-red-500">
-                <RotateCcw className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3" /> Tekrar Dene
+                <RotateCcw className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3" /> Try again
               </Button>
             </Card>
           </motion.div>
@@ -280,9 +280,9 @@ export default function ScanPage() {
                       <CameraOff className="w-12 h-12 md:w-16 md:h-16 opacity-40" />
                     </div>
                   </div>
-                  <h3 className="text-lg md:text-xl font-medium text-white mb-2">Kamera Kapalı</h3>
+                  <h3 className="text-lg md:text-xl font-medium text-white mb-2">Camera is off</h3>
                   <p className="text-muted-foreground text-xs md:text-sm max-w-[240px] text-center">
-                    QR kodunu okutmak için kamerayı aktif etmelisiniz.
+                    Turn on the camera to scan a QR code.
                   </p>
                 </div>
               )}
@@ -295,7 +295,7 @@ export default function ScanPage() {
                   onClick={() => setIsCameraActive(!isCameraActive)}
                 >
                   {isCameraActive ? <CameraOff className="w-4 h-4 md:w-5 md:h-5" /> : <Camera className="w-4 h-4 md:w-5 md:h-5" />}
-                  {isCameraActive ? "Kamerayı Durdur" : "Taramayı Başlat"}
+                  {isCameraActive ? "Stop camera" : "Start scanning"}
                 </Button>
               </div>
             </div>

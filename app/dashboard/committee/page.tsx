@@ -14,7 +14,7 @@ export default function CommitteePage() {
 
   return (
     <div className="animate-fade-in max-w-7xl mx-auto pb-12 space-y-6">
-      <Breadcrumbs items={[{ label: "Komitem" }]} />
+      <Breadcrumbs items={[{ label: "My committee" }]} />
 
       {isManager ? (
         <ChairmanView session={session} />

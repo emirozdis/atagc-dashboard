@@ -5,6 +5,8 @@ import { apiHandler } from "@/lib/api-handler";
 import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { PRESS_TEAM } from "@/lib/roles";
+import { assertFileSignature } from "@/lib/upload-validation";
+import crypto from "node:crypto";
 
 const uploadLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
 
@@ -25,12 +27,13 @@ export const POST = apiHandler(async (request: Request) => {
   const formData = await request.formData();
   const file = formData.get("file") as File;
   const areaId = formData.get("area_id") as string;
-  if (!file) throw new Error("Dosya yüklenmedi.");
-  if (!areaId) throw new Error("Alan seçimi gerekli.");
-  if (file.size > MAX_FILE_SIZE) throw new Error("Dosya boyutu çok büyük (Max 10MB).");
+  if (!file) throw new Error("No file was uploaded.");
+  if (!areaId) throw new Error("Select an area.");
+  if (file.size > MAX_FILE_SIZE) throw new Error("The file is too large (max 10 MB).");
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-    throw new Error("Sadece resim dosyaları (JPG, PNG, WEBP) yüklenebilir.");
+    throw new Error("Only image files (JPG, PNG, WEBP) can be uploaded.");
   }
+  await assertFileSignature(file);
 
   // Validate area exists
   const { data: area, error: areaError } = await supabase
@@ -39,11 +42,11 @@ export const POST = apiHandler(async (request: Request) => {
     .eq("id", areaId)
     .single();
 
-  if (areaError || !area) throw new Error("Geçersiz alan seçimi.");
+  if (areaError || !area) throw new Error("Invalid area selection.");
 
   // Upload to storage
   const ext = file.type.split("/")[1] === "jpeg" ? "jpg" : file.type.split("/")[1];
-  const fileName = `${Date.now()}.${ext}`;
+  const fileName = `${crypto.randomUUID()}.${ext}`;
   const filePath = `photos/${areaId}/${fileName}`;
 
   const arrayBuffer = await file.arrayBuffer();
@@ -53,7 +56,7 @@ export const POST = apiHandler(async (request: Request) => {
       contentType: file.type,
     });
 
-  if (uploadError) throw new Error("Dosya sunucuya kaydedilemedi.");
+  if (uploadError) throw new Error("The file could not be saved on the server.");
 
   // Insert into DB
   const { data, error } = await supabase
@@ -68,7 +71,10 @@ export const POST = apiHandler(async (request: Request) => {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    await supabase.storage.from("press-photos").remove([filePath]);
+    throw error;
+  }
 
   await Logger.audit(
     { userId: session.user.id, req: request },

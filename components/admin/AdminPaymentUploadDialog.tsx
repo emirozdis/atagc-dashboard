@@ -33,16 +33,16 @@ export function AdminPaymentUploadDialog({ userId, userFullName, open, onOpenCha
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Yükleme başarısız oldu.");
+        throw new Error(err.error || "Upload failed.");
       }
     },
     onSuccess: () => {
-      toast.success("Dekont başarıyla yüklendi", { description: `${userFullName} için ödeme incelemeye alındı.` });
+      toast.success("Receipt uploaded successfully", { description: `Payment for ${userFullName} is now under review.` });
       onSuccess();
       onOpenChange(false);
       setFile(null);
     },
-    onError: (e: any) => toast.error("Yükleme Başarısız", { description: e.message }),
+    onError: (error) => toast.error("Upload failed", { description: error instanceof Error ? error.message : "Please try again." }),
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,9 +71,9 @@ export function AdminPaymentUploadDialog({ userId, userFullName, open, onOpenCha
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Dekont Yükle</DialogTitle>
+          <DialogTitle>Upload receipt</DialogTitle>
           <DialogDescription>
-            <strong>{userFullName}</strong> adlı kullanıcı için ödeme dekontu yükleyin. Bu işlem, kullanıcının ödeme durumunu 'İnceleniyor' olarak güncelleyecektir.
+            Upload a payment receipt for <strong>{userFullName}</strong>. The payment status will be updated to “Under review.”
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
@@ -97,14 +97,14 @@ export function AdminPaymentUploadDialog({ userId, userFullName, open, onOpenCha
             >
               <input type="file" accept="image/jpeg,image/png,application/pdf,image/jpg" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" disabled={uploadMutation.isPending} />
               <div className="p-3 bg-background rounded-full border border-border"><UploadCloud className={cn("w-6 h-6", dragActive ? "text-primary" : "text-muted-foreground")} /></div>
-              <div className="space-y-1"><p className="text-sm font-semibold">Dosyayı buraya sürükleyin veya tıklayın</p><p className="text-xs text-muted-foreground">PDF, JPG veya PNG (Max 5MB)</p></div>
+              <div className="space-y-1"><p className="text-sm font-semibold">Drag a file here or click to browse</p><p className="text-xs text-muted-foreground">PDF, JPG, or PNG (max 5 MB)</p></div>
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploadMutation.isPending}>İptal</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploadMutation.isPending}>Cancel</Button>
           <Button onClick={() => file && uploadMutation.mutate(file)} disabled={!file || uploadMutation.isPending}>
-            {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Yükle ve Onaya Gönder"}
+            {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Upload for review"}
           </Button>
         </DialogFooter>
       </DialogContent>

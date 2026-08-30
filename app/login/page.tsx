@@ -1,274 +1,140 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, Mail, Key, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import Link from "next/link";
-import { Turnstile } from "@/components/ui/turnstile";
+import { TURNSTILE_SITE_KEY, Turnstile } from "@/components/ui/turnstile";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [challengeId, setChallengeId] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [turnstileKey, setTurnstileKey] = useState(0);
-  const [step, setStep] = useState<"credentials" | "otp">("credentials");
-  const [otp, setOtp] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [mode, setMode] = useState<"email" | "device">("email");
+  const [deviceCode, setDeviceCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const isDev = process.env.NODE_ENV === "development";
-    const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
-
-    if (!effectiveToken) {
-      toast.error("Lütfen doğrulamayı tamamlayın.");
+  async function requestCode(event: FormEvent) {
+    event.preventDefault();
+    if (!turnstileToken) {
+      setMessage("Please complete the security verification first.");
       return;
     }
-
-    if (step === "otp" && otp.length < 6) {
-      toast.error("Lütfen geçerli bir doğrulama kodu giriniz.");
-      return;
-    }
-
     setLoading(true);
-
+    setMessage("");
     try {
-      const result = await signIn("credentials", {
-        redirect: false,
-        email: formData.email,
-        password: formData.password,
-        token: effectiveToken,
-        otp: step === "otp" ? otp : "",
+      const response = await fetch("/api/auth/challenges/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, purpose: "login", turnstileToken }),
       });
-
-      if (result?.error) {
-        if (result.error === "2FA_REQUIRED") {
-            setStep("otp");
-            toast.success("Doğrulama Kodu Gönderildi", { description: "Lütfen e-posta adresinizi kontrol edin." });
-            setTurnstileToken("");
-            setTurnstileKey(prev => prev + 1);
-            setLoading(false);
-            return;
-        }
-
-        let errorMessage = result.error;
-        if (result.error === "CredentialsSignin") errorMessage = "E-posta veya şifre hatalı.";
-        if (result.error === "INVALID_OTP") errorMessage = "Girdiğiniz doğrulama kodu hatalı veya süresi dolmuş.";
-        
-        toast.error("Giriş Başarısız", {
-          description: errorMessage,
-        });
-        
-        if (result.error !== "INVALID_OTP") {
-            setStep("credentials");
-            setOtp("");
-        }
-
-        setTurnstileToken("");
-        setTurnstileKey(prev => prev + 1);
-        setLoading(false);
-      } else {
-        toast.success("Giriş Başarılı", {
-          description: "Yönlendiriliyorsunuz...",
-        });
-
-        const sessionRes = await fetch("/api/auth/session");
-        const session = await sessionRes.json();
-
-        if (session?.user?.role === "superadmin" || session?.user?.role === "admin") {
-          router.push("/admin");
-        } else {
-          router.push("/dashboard");
-        }
-        router.refresh();
-      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || result.error || "Unable to send code.");
+      setChallengeId(result.challengeId);
+      setMessage(result.developmentCode ? `Development code: ${result.developmentCode}` : "A sign-in code has been sent to your email.");
     } catch (error) {
-      toast.error("Hata", {
-        description: "Bir sorun oluştu.",
-      });
-      setTurnstileToken("");
-      setTurnstileKey(prev => prev + 1);
+      setMessage(error instanceof Error ? error.message : "Unable to send code.");
+    } finally {
       setLoading(false);
     }
-  };
+  }
+
+  async function verifyCode(event: FormEvent) {
+    event.preventDefault();
+    if (!challengeId) return;
+    setLoading(true);
+    setMessage("");
+    try {
+      const verifyResponse = await fetch("/api/auth/challenges/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId, email, purpose: "login", code }),
+      });
+      const verification = await verifyResponse.json();
+      if (!verifyResponse.ok) throw new Error(verification.message || verification.error || "Invalid code.");
+
+      await finishSignIn(verification.exchangeToken);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to verify code.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function finishSignIn(exchangeToken: string) {
+      const result = await signIn("passwordless", { exchangeToken, redirect: false });
+      if (result?.error) throw new Error("Unable to start your session.");
+
+      const sessionResponse = await fetch("/api/auth/session");
+      const session = await sessionResponse.json();
+      const callbackUrl = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("callbackUrl") : null;
+      if (callbackUrl?.startsWith("/")) router.push(callbackUrl);
+      else if (session?.user?.role === "superadmin" || session?.user?.role === "admin") router.push("/admin");
+      else router.push("/portal");
+      router.refresh();
+  }
+
+  async function verifyDeviceCode(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/auth/device-codes/exchange", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: deviceCode }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || result.error || "Invalid device code.");
+      await finishSignIn(result.exchangeToken);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to sign in with device code.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="fixed inset-0 -z-10 bg-background">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl" />
-      </div>
-
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <img
-            src="/logo.webp"
-            alt="ATAGÇ Logo"
-            className="w-20 h-20 mx-auto mb-4 object-contain"
-          />
-          <h1 className="text-2xl font-bold font-display gold-gradient">
-            ATAGÇ
-          </h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            {step === "credentials" ? "Lütfen hesabınıza giriş yapın" : "İki Aşamalı Doğrulama"}
-          </p>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#08070D] px-4 py-12 text-[#F5F3FF]">
+      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-[#7C3AED]/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-20 h-96 w-96 rounded-full bg-[#C4B5FD]/10 blur-3xl" />
+      <section className="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#12101A]/90 p-8 shadow-2xl shadow-black/40 backdrop-blur">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#C4B5FD]/30 bg-[#7C3AED]/15 text-[#C4B5FD]"><ShieldCheck className="h-8 w-8" /></div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C4B5FD]">RavenMUN</p>
+          <h1 className="mt-3 text-3xl font-semibold">Welcome back</h1>
+          <p className="mt-2 text-sm text-[#9CA3AF]">Sign in securely with your email. No password required.</p>
         </div>
 
-        <div className="bg-card/80 backdrop-blur-md p-8 rounded-2xl border border-border/50 shadow-xl">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            
-            {step === "credentials" ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-posta</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="ornek@mail.com"
-                      className="pl-9"
-                      required
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Şifre</Label>
-                    <Link 
-                      href="/forgot-password" 
-                      className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
-                    >
-                      Şifremi Unuttum / Yardım
-                    </Link>
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="pl-9 pr-10"
-                      required
-                      value={formData.password}
-                      onChange={(e) =>
-                        setFormData({ ...formData, password: e.target.value })
-                      }
-                    />
-                    <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="py-2 flex justify-center sm:justify-start">
-                  <Turnstile 
-                    key={`turnstile-login-${turnstileKey}`}
-                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                    onVerify={(token) => setTurnstileToken(token)}
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-2"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    "Giriş Yap"
-                  )}
-                </Button>
-              </>
-            ) : (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-                  <div className="text-center p-4 bg-secondary/20 rounded-xl border border-border/50 text-sm text-muted-foreground mb-4">
-                      <strong className="text-foreground block mb-1">{formData.email}</strong>
-                      adresine gönderilen 6 haneli kodu giriniz.
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="otp">Doğrulama Kodu</Label>
-                      <div className="relative">
-                          <Key className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                              id="otp"
-                              type="text"
-                              maxLength={6}
-                              placeholder="000000"
-                              className="pl-9 text-center tracking-widest font-mono text-lg"
-                              required
-                              value={otp}
-                              onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                          />
-                      </div>
-                  </div>
-                  
-                  <div className="py-2 flex justify-center sm:justify-start">
-                    <Turnstile 
-                      key={`turnstile-otp-${turnstileKey}`}
-                      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                      onVerify={(token) => setTurnstileToken(token)}
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                      <Button 
-                          type="button" 
-                          variant="outline" 
-                          className="flex-1" 
-                          disabled={loading}
-                          onClick={() => { 
-                            setStep("credentials"); 
-                            setOtp(""); 
-                            setTurnstileToken(""); 
-                            setTurnstileKey(k => k + 1); 
-                          }}
-                      >
-                          <ArrowLeft className="w-4 h-4 mr-2" /> Geri Dön
-                      </Button>
-                      <Button type="submit" className="flex-1" disabled={loading || otp.length < 6}>
-                          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Doğrula"}
-                      </Button>
-                  </div>
-              </div>
-            )}
-            
+        {mode === "device" ? (
+          <form onSubmit={verifyDeviceCode} className="space-y-5">
+            <div className="rounded-2xl border border-[#7C3AED]/30 bg-[#7C3AED]/10 p-4 text-sm text-[#C3C7D1]">Generate a pairing code from a device where you are already signed in. It works once and expires in ten minutes.</div>
+            <div className="space-y-2"><Label htmlFor="device-code" className="text-[#C3C7D1]">Device pairing code</Label><Input id="device-code" required value={deviceCode} onChange={(event) => setDeviceCode(event.target.value.toUpperCase())} placeholder="AB12CD34EF" className="border-white/10 bg-black/20 text-center font-mono tracking-[0.2em] text-white" /></div>
+            <Button type="submit" disabled={loading || deviceCode.length < 8} className="w-full bg-[#7C3AED] text-white hover:bg-[#6D28D9]">{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}Use device code</Button>
+            <button type="button" onClick={() => { setMode("email"); setDeviceCode(""); setMessage(""); }} className="w-full text-sm text-[#C4B5FD] hover:text-white">Sign in by email instead</button>
           </form>
+        ) : !challengeId ? (
+          <form onSubmit={requestCode} className="space-y-5">
+            <div className="space-y-2"><Label htmlFor="email" className="text-[#C3C7D1]">Email address</Label><div className="relative"><Mail className="absolute left-3 top-3 h-4 w-4 text-[#9CA3AF]" /><Input id="email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="border-white/10 bg-black/20 pl-10 text-white" /></div></div>
+            {TURNSTILE_SITE_KEY ? <Turnstile siteKey={TURNSTILE_SITE_KEY} onVerify={setTurnstileToken} onError={() => setTurnstileToken("")} onExpire={() => setTurnstileToken("")} /> : <p className="text-sm text-rose-300">Security verification is not configured.</p>}
+            <Button type="submit" disabled={loading || !turnstileToken} className="w-full bg-[#7C3AED] text-white hover:bg-[#6D28D9]">{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}Email me a sign-in code</Button>
+          </form>
+        ) : (
+          <form onSubmit={verifyCode} className="space-y-5">
+            <div className="rounded-2xl border border-[#7C3AED]/30 bg-[#7C3AED]/10 p-4 text-sm text-[#C3C7D1]">Code sent to <strong className="text-white">{email}</strong></div>
+            <div className="space-y-2"><Label htmlFor="code" className="text-[#C3C7D1]">Six-digit code</Label><div className="relative"><KeyRound className="absolute left-3 top-3 h-4 w-4 text-[#9CA3AF]" /><Input id="code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} placeholder="000000" className="border-white/10 bg-black/20 pl-10 text-center font-mono tracking-[0.4em] text-white" /></div></div>
+            <Button type="submit" disabled={loading || code.length !== 6} className="w-full bg-[#7C3AED] text-white hover:bg-[#6D28D9]">{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}Verify and sign in</Button>
+            <button type="button" onClick={() => { setChallengeId(null); setCode(""); setTurnstileToken(""); setMessage(""); }} className="w-full text-sm text-[#C4B5FD] hover:text-white">Use a different email</button>
+          </form>
+        )}
 
-          {step === "credentials" && (
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Hesabınız yok mu? </span>
-              <Link 
-                href="/" 
-                className="text-primary hover:text-primary/80 transition-colors font-medium"
-              >
-                Başvuru Yap
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+        {message && <p className="mt-5 text-center text-sm text-[#C4B5FD]">{message}</p>}
+        {mode === "email" && <button type="button" onClick={() => { setMode("device"); setChallengeId(null); setCode(""); setMessage(""); }} className="mt-6 w-full text-center text-sm text-[#C4B5FD] hover:text-white">Have a code from another signed-in device?</button>}
+        <p className="mt-8 text-center text-sm text-[#9CA3AF]">Need to apply? <Link href="/apply" className="text-[#C4B5FD] hover:text-white">View applications</Link></p>
+      </section>
+    </main>
   );
 }

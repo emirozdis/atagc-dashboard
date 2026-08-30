@@ -46,7 +46,7 @@ export function VersionHistorySidebar({ committeeId, isOpen, onClose, canManage,
             const res = await fetch(`/api/documents/${committeeId}/versions`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: newVersionName || "Manuel Kayıt" })
+                body: JSON.stringify({ name: newVersionName || "Manual save" })
             });
             if (!res.ok) throw new Error("Failed");
         },
@@ -55,7 +55,7 @@ export function VersionHistorySidebar({ committeeId, isOpen, onClose, canManage,
             setNewVersionName("");
             queryClient.invalidateQueries({ queryKey: ["document-versions", committeeId] });
         },
-        onError: () => toast.error("Kayıt oluşturulamadı")
+        onError: () => toast.error("Could not create save point")
     });
 
     // Restore Version
@@ -69,12 +69,12 @@ export function VersionHistorySidebar({ committeeId, isOpen, onClose, canManage,
             if (!res.ok) throw new Error("Failed");
         },
         onSuccess: () => {
-            toast.success("Belge geri yüklendi");
+            toast.success("Document restored");
             setVersionToRestore(null);
             onClose();
             onRestoreTrigger(); // Signal parent to refresh socket
         },
-        onError: () => toast.error("Geri yükleme başarısız")
+        onError: () => toast.error("Restore failed")
     });
 
     return (
@@ -84,10 +84,10 @@ export function VersionHistorySidebar({ committeeId, isOpen, onClose, canManage,
                     <SheetHeader>
                         <SheetTitle className="flex items-center gap-2">
                             <History className="w-5 h-5 text-primary" />
-                            Versiyon Geçmişi
+                            Version history
                         </SheetTitle>
                         <SheetDescription>
-                            Belgenin önceki hallerini görüntüleyin ve geri yükleyin.
+                            View and restore previous versions of the document.
                         </SheetDescription>
                     </SheetHeader>
 
@@ -96,7 +96,7 @@ export function VersionHistorySidebar({ committeeId, isOpen, onClose, canManage,
                         <div className="py-4 border-b border-border space-y-2">
                             <div className="flex gap-2">
                                 <Input 
-                                    placeholder="Versiyon adı (örn: Taslak 1)" 
+                                    placeholder="Version name (for example: Draft 1)"
                                     value={newVersionName}
                                     onChange={(e) => setNewVersionName(e.target.value)}
                                 />
@@ -112,7 +112,7 @@ export function VersionHistorySidebar({ committeeId, isOpen, onClose, canManage,
                             {isLoading ? (
                                 <div className="flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
                             ) : versions.length === 0 ? (
-                                <div className="text-center text-muted-foreground text-sm py-10">Henüz kayıtlı versiyon yok.</div>
+                                <div className="text-center text-muted-foreground text-sm py-10">No saved versions yet.</div>
                             ) : (
                                 versions.map((v) => (
                                     <div key={v.id} className="flex flex-col gap-2 p-3 rounded-lg border border-border/50 bg-secondary/10 hover:bg-secondary/20 transition-colors group">
@@ -141,7 +141,7 @@ export function VersionHistorySidebar({ committeeId, isOpen, onClose, canManage,
                                                     className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                                                     onClick={() => setVersionToRestore(v)}
                                                 >
-                                                    <RotateCcw className="w-3 h-3 mr-1" /> Geri Yükle
+                                                    <RotateCcw className="w-3 h-3 mr-1" /> Restore
                                                 </Button>
                                             )}
                                         </div>
@@ -156,16 +156,16 @@ export function VersionHistorySidebar({ committeeId, isOpen, onClose, canManage,
             <AlertDialog open={!!versionToRestore} onOpenChange={(val) => !val && setVersionToRestore(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Versiyonu Geri Yükle</AlertDialogTitle>
+                        <AlertDialogTitle>Restore version?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Belge, <strong>{versionToRestore?.version_name}</strong> ({versionToRestore && format(new Date(versionToRestore.created_at), "HH:mm")}) durumuna döndürülecektir. 
-                            Mevcut düzenlemeler kaybolabilir.
+                            The document will be restored to <strong>{versionToRestore?.version_name}</strong> ({versionToRestore && format(new Date(versionToRestore.created_at), "HH:mm")}).
+                            Current edits may be lost.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={() => versionToRestore && restoreMutation.mutate(versionToRestore.id)} className="bg-destructive text-white hover:bg-destructive/90">
-                            Geri Yükle
+                            Restore
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

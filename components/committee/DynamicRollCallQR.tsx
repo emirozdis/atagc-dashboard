@@ -26,6 +26,18 @@ export function DynamicRollCallQR({
   const [isLive, setIsLive] = useState(false);
   const isCompletedRef = useRef(false);
 
+  // Keep this callback above every effect that consumes it so realtime and
+  // polling updates always use the current completion handler.
+  const checkCompletion = (scanned: number, total: number) => {
+    if (total > 0 && scanned >= total && !isCompletedRef.current) {
+      isCompletedRef.current = true;
+      setTimeout(() => {
+        onComplete();
+        toast.success("All members are present; attendance is complete.");
+      }, 500);
+    }
+  };
+
   // 1. Data Fetching with Polling (Reliable Sync)
   const { data: latestStats } = useQuery({
     queryKey: ['roll-call-stats-base', rollCallId],
@@ -43,22 +55,13 @@ export function DynamicRollCallQR({
 
   // Sync state with Polling Data
   useEffect(() => {
-    if (latestStats) {
+    if (!latestStats) return;
+    const frame = window.requestAnimationFrame(() => {
       setStats(latestStats);
       checkCompletion(latestStats.scanned, latestStats.total);
-    }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [latestStats]);
-
-  // Helper for completion check
-  const checkCompletion = (scanned: number, total: number) => {
-      if (total > 0 && scanned >= total && !isCompletedRef.current) {
-          isCompletedRef.current = true;
-          setTimeout(() => {
-              onComplete();
-              toast.success("Tüm üyeler katıldı, yoklama tamamlandı.");
-          }, 500);
-      }
-  };
 
   // 2. Client-Side Realtime Subscription (Instant Feedback)
   useEffect(() => {
@@ -128,7 +131,7 @@ export function DynamicRollCallQR({
           <div className="w-48 h-48 bg-muted/20 animate-pulse rounded-xl flex items-center justify-center">
              <RefreshCw className="w-8 h-8 text-muted-foreground animate-spin" />
           </div>
-          <p className="text-sm text-muted-foreground">Güvenli bağlantı kuruluyor...</p>
+          <p className="text-sm text-muted-foreground">Establishing a secure connection...</p>
       </div>
   );
 
@@ -157,11 +160,11 @@ export function DynamicRollCallQR({
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                   </span>
-                  Canlı (5sn)
+                  Live (5 sec)
               </span>
           ) : (
               <span className="text-amber-500 flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3 animate-spin" /> Bağlanıyor...
+                  <RefreshCw className="w-3 h-3 animate-spin" /> Connecting...
               </span>
           )}
         </p>
@@ -174,7 +177,7 @@ export function DynamicRollCallQR({
             <Users className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <div className="text-xs text-muted-foreground">Anlık Katılım</div>
+            <div className="text-xs text-muted-foreground">Live attendance</div>
             <div className="font-mono font-bold text-lg">
               {stats.scanned} <span className="text-muted-foreground/60 text-sm">/ {stats.total}</span>
             </div>
@@ -210,7 +213,7 @@ export function DynamicRollCallQR({
         className="mt-4 w-full"
       >
         <StopCircle className="w-4 h-4 mr-2" />
-        Yoklamayı Bitir
+        End attendance
       </Button>
     </div>
   );

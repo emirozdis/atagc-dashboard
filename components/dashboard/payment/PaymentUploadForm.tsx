@@ -48,13 +48,13 @@ export function PaymentUploadForm() {
             }
         },
         onSuccess: () => {
-            toast.success("Dekont başarıyla yüklendi", { description: "Yöneticilerimiz en kısa sürede inceleyecektir." });
+            toast.success("Receipt uploaded successfully", { description: "An administrator will review it shortly." });
             queryClient.invalidateQueries({ queryKey: ['payment-status'] });
             queryClient.invalidateQueries({ queryKey: ['payment-status-dashboard'] });
             setFile(null);
             setPreviewUrl(null);
         },
-        onError: (e: any) => toast.error("Yükleme Başarısız", { description: e.message })
+        onError: (error: unknown) => toast.error("Upload failed", { description: error instanceof Error ? error.message : "An unexpected error occurred" })
     });
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,14 +125,14 @@ export function PaymentUploadForm() {
                         disabled={uploadMutation.isPending}
                         className="flex-1 cursor-pointer"
                     >
-                        İptal
+                        Cancel
                     </Button>
                     <Button 
                         onClick={() => uploadMutation.mutate(file)}
                         disabled={uploadMutation.isPending}
                         className="flex-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-colors hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                     >
-                        {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Onaya Gönder</>}
+                        {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Submit for review</>}
                     </Button>
                 </div>
             </div>
@@ -165,8 +165,8 @@ export function PaymentUploadForm() {
             </div>
             
             <div className="space-y-1 pointer-events-none">
-                <p className="text-base font-semibold text-foreground">Dosyayı buraya sürükleyin</p>
-                <p className="text-sm text-muted-foreground">veya bilgisayarınızdan seçmek için tıklayın</p>
+                <p className="text-base font-semibold text-foreground">Drag your file here</p>
+                <p className="text-sm text-muted-foreground">or click to choose it from your computer</p>
             </div>
 
             <div className="flex gap-2 justify-center pt-2">

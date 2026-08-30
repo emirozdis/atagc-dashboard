@@ -1,374 +1,84 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, X, ShieldCheck, Printer, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Printer, ShieldCheck, X } from "lucide-react";
 
 interface KvkkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+const PRIVACY_SECTIONS = [
+  { title: "Purpose of processing personal data", text: "The personal data we collect, including your name, contact details, education information, and date of birth, is processed to evaluate applications, manage participant records, organize the conference, send essential updates, issue certificates, plan accommodation and transport, and meet legal obligations." },
+  { title: "Sharing and international transfers", text: "Your personal data may be shared, where necessary for these purposes, with legally authorized public institutions, service providers, program partners, and suppliers such as accommodation or transport providers. Data may also be stored or processed on servers outside your country through cloud services." },
+  { title: "Collection method and legal basis", text: "Your personal data is collected electronically through the application form on this website. Processing is based on the legitimate interests of the data controller and on steps necessary to establish or perform an agreement, while respecting your fundamental rights and freedoms." },
+  { title: "Data security and limitation of liability", text: "BAL Student Association takes reasonable technical and administrative measures to protect your personal data. However, it cannot be held responsible for a breach caused by an unforeseeable cyberattack or unauthorized access despite these measures." },
+  { title: "Your rights", text: "You may ask whether your personal data is being processed, request information about its use, learn the purposes of processing and the recipients of transfers, request correction of incomplete or inaccurate data, and request deletion where permitted by law." },
+  { title: "Contact", text: "You can send requests about your privacy rights to info@ravenmun.org." },
+] as const;
+
 export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [isPreparing, setIsPreparing] = useState(false);
 
-  // Prevent body scroll when the overlay is open
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  // Handle Escape key to close
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open) {
-        onOpenChange(false);
-      }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && open) onOpenChange(false);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onOpenChange]);
 
-  // Handle clicking outside the modal card
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onOpenChange(false);
-    }
+  const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) onOpenChange(false);
   };
 
-  // Gizli Iframe ile Native Print / PDF tetikleme
   const handlePrintPdf = () => {
     setIsPreparing(true);
-
-    // Yeni bir gizli iframe oluştur
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
     iframe.style.right = "-10000px";
     iframe.style.bottom = "-10000px";
     document.body.appendChild(iframe);
-
-    // PDF/Yazdırma için tamamen bağımsız, tertemiz bir HTML şablonu
-    // Metinler tamamen kullanıcı arayüzündeki (display) versiyon ile birebir eşitlenmiştir.
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="tr">
-      <head>
-        <meta charset="UTF-8">
-        <title>ATAGC KVKK Aydinlatma Metni</title>
-        <style>
-          @page { margin: 20mm; }
-          body { 
-            font-family: Arial, sans-serif; 
-            color: #1a1a1a; 
-            line-height: 1.6; 
-            margin: 0;
-            padding: 0;
-          }
-          h2 { 
-            color: #000; 
-            border-bottom: 2px solid #e5e7eb; 
-            padding-bottom: 12px; 
-            margin-bottom: 24px; 
-            font-size: 20px; 
-          }
-          .highlight { 
-            background-color: #f3f4f6; 
-            border: 1px solid #e5e7eb; 
-            padding: 16px; 
-            border-radius: 8px; 
-            margin-bottom: 24px; 
-            font-size: 14px;
-          }
-          .section { margin-bottom: 20px; }
-          .section h3 { 
-            color: #000; 
-            font-size: 15px; 
-            margin-bottom: 8px; 
-            border-bottom: 1px solid #f3f4f6; 
-            padding-bottom: 4px; 
-          }
-          .section p { 
-            font-size: 13px; 
-            margin: 0; 
-            padding-left: 12px; 
-            text-align: justify; 
-            color: #374151;
-          }
-          .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 12px;
-            color: #6b7280;
-            text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <h2>Kişisel Verilerin Korunması Kanunu (KVKK) Aydınlatma Metni</h2>
-        
-        <div class="highlight">
-          <p style="margin: 0;"><strong>BAL Öğrenci Derneği</strong> olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) uyarınca, veri sorumlusu sıfatıyla, kişisel verilerinizi aşağıda açıklanan amaçlar kapsamında; hukuka ve dürüstlük kurallarına uygun bir şekilde işleyebilecek, kaydedebilecek, saklayabilecek, sınıflandırabilecek, güncelleyebilecek ve mevzuatın izin verdiği hallerde üçüncü kişilere açıklayabilecek/aktarabileceğiz.</p>
-        </div>
-
-        <div class="section">
-          <h3>1. Kişisel Verilerin İşlenme Amacı</h3>
-          <p>Toplanan kişisel verileriniz (Ad-soyad, iletişim bilgileri, öğrenim durumu, doğum tarihi vb.); çalıştay başvurunuzun değerlendirilmesi, katılımcı kayıtlarının oluşturulması, etkinlik organizasyonunun sağlanması, gerekli bilgilendirmelerin yapılması, sertifikaların düzenlenmesi, konaklama ve ulaşım planlamalarının yapılması ve yasal yükümlülüklerin yerine getirilmesi amaçlarıyla işlenmektedir.</p>
-        </div>
-
-        <div class="section">
-          <h3>2. Kişisel Verilerin Aktarılması ve Yurt Dışına Çıkarılması</h3>
-          <p>Kişisel verileriniz; yukarıda belirtilen amaçların gerçekleştirilmesi doğrultusunda, kanunen yetkili kamu kurumlarına (örneğin; emniyet birimleri, ilgili bakanlıklar) ve faaliyetlerimizi yürütmek üzere hizmet aldığımız, iş birliği yaptığımız program ortaklarına, tedarikçi firmalara (konaklama, ulaşım vb. hizmet sağlayanlar) KVKK’nın 8. ve 9. maddelerinde belirtilen kişisel veri işleme şartları ve amaçları çerçevesinde aktarılabilecektir. Ayrıca, kişisel verileriniz depolama ve işlenme amacıyla yurt dışındaki sunuculara (bulut hizmetleri vb.) gönderilebilir ve bu sunucularda barındırılabilir.</p>
-        </div>
-
-        <div class="section">
-          <h3>3. Kişisel Veri Toplamanın Yöntemi ve Hukuki Sebebi</h3>
-          <p>Kişisel verileriniz, internet sitemiz üzerinden doldurduğunuz başvuru formu aracılığıyla elektronik ortamda toplanmaktadır. Bu veriler, KVKK’nın 5. maddesinde belirtilen “ilgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun meşru menfaatleri için veri işlenmesinin zorunlu olması” ve “bir sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili olması” hukuki sebeplerine dayanılarak işlenmektedir.</p>
-        </div>
-
-        <div class="section">
-          <h3>4. Veri Güvenliği ve Sorumluluk Sınırı</h3>
-          <p>BAL Öğrenci Derneği, kişisel verilerinizin güvenliğini sağlamak amacıyla gerekli tüm teknik ve idari tedbirleri almak için azami gayreti göstermektedir. Ancak, alınan tüm güvenlik önlemlerine rağmen yaşanabilecek olası bir siber saldırı veya yetkisiz erişim durumunda meydana gelebilecek veri sızıntılarından BAL Öğrenci Derneği sorumlu tutulamaz.</p>
-        </div>
-
-        <div class="section">
-          <h3>5. Veri Sahibinin Hakları</h3>
-          <p>KVKK’nın 11. maddesi uyarınca veri sahipleri; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında verilerin aktarıldığı üçüncü kişileri bilme, verilerin eksik veya yanlış işlenmiş olması hâlinde düzeltilmesini isteme, kanun çerçevesinde silinmesini veya yok edilmesini isteme haklarına sahiptir.</p>
-        </div>
-
-        <div class="section">
-          <h3>6. İletişim</h3>
-          <p>KVKK kapsamındaki haklarınızla ilgili taleplerinizi <strong>info@atagc.com.tr</strong> e-posta adresi üzerinden tarafımıza iletebilirsiniz.</p>
-        </div>
-
-        <div class="footer">
-          Bu belge BAL Öğrenci Derneği tarafından oluşturulmuştur.<br/>
-          Tarih: ${new Date().toLocaleDateString("tr-TR")}
-        </div>
-      </body>
-      </html>
-    `;
-
-    // İçeriği iframe'e yazdır
+    const sections = PRIVACY_SECTIONS.map((section, index) => `<section class="section"><h3>${index + 1}. ${section.title}</h3><p>${section.text}</p></section>`).join("");
+    const htmlContent = `<!doctype html><html lang="en"><head><meta charset="UTF-8"><title>RavenMUN privacy notice</title><style>@page{margin:20mm}body{font-family:Arial,sans-serif;color:#1a1a1a;line-height:1.6;margin:0}h2{border-bottom:2px solid #e5e7eb;padding-bottom:12px;margin-bottom:24px}.highlight{background:#f3f4f6;border:1px solid #e5e7eb;padding:16px;border-radius:8px;margin-bottom:24px}.section{margin-bottom:20px}.section h3{font-size:15px;margin-bottom:8px;border-bottom:1px solid #f3f4f6;padding-bottom:4px}.section p{font-size:13px;margin:0;padding-left:12px;text-align:justify;color:#374151}.footer{margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;text-align:center}</style></head><body><h2>Personal data privacy notice</h2><div class="highlight"><p><strong>BAL Student Association</strong> processes personal data as the data controller under applicable data protection laws and only for the purposes described below.</p></div>${sections}<div class="footer">This notice was prepared by BAL Student Association.<br>Date: ${new Date().toLocaleDateString("en-GB")}</div></body></html>`;
     const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(htmlContent);
-      doc.close();
-
-      // İframe yüklendiğinde yazdırma ekranını çağır
-      iframe.onload = () => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-
-        // İşlem bittikten sonra iframe'i DOM'dan temizle
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          setIsPreparing(false);
-        }, 1000);
-      };
-    } else {
-      setIsPreparing(false);
-    }
+    if (!doc) { setIsPreparing(false); return; }
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+    iframe.onload = () => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => { iframe.remove(); setIsPreparing(false); }, 1000);
+    };
   };
 
   if (!open) return null;
 
   return (
-    <div
-      ref={overlayRef}
-      onClick={handleBackdropClick}
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm sm:p-6 animate-in fade-in duration-200"
-    >
-      <div className="bg-background w-full sm:max-w-3xl flex flex-col h-[100dvh] sm:h-auto sm:max-h-[85vh] sm:rounded-2xl border-t sm:border border-border shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300 overflow-hidden">
-        {/* HEADER */}
-        <header className="flex items-start justify-between px-6 py-5 border-b bg-muted/10 shrink-0">
-          <div className="flex gap-4 items-center pr-4">
-            <div className="hidden sm:flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-tight">
-                Kişisel Verilerin Korunması Kanunu (KVKK) Aydınlatma Metni
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1.5">
-                Lütfen kişisel verilerinizin işlenmesi ile ilgili bilgilendirme
-                metnini dikkatlice okuyunuz.
-              </p>
-            </div>
+    <div ref={overlayRef} onClick={handleBackdropClick} className="fixed inset-0 z-[100] flex items-end justify-center bg-background/80 backdrop-blur-sm sm:items-center sm:p-6">
+      <div className="flex h-[100dvh] w-full flex-col overflow-hidden border-t border-border bg-background shadow-2xl sm:h-auto sm:max-h-[85vh] sm:max-w-3xl sm:rounded-2xl sm:border">
+        <header className="flex items-start justify-between border-b bg-muted/10 px-6 py-5">
+          <div className="flex items-center gap-4 pr-4">
+            <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary sm:flex"><ShieldCheck className="h-5 w-5" /></div>
+            <div><h2 className="text-lg font-bold leading-tight tracking-tight text-foreground sm:text-xl">Personal data privacy notice</h2><p className="mt-1.5 text-sm text-muted-foreground">Please read this notice carefully before submitting your application.</p></div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 -mr-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() => onOpenChange(false)}
-            aria-label="Kapat"
-          >
-            <X className="w-5 h-5" />
-          </Button>
+          <Button variant="ghost" size="icon" className="-mr-2 shrink-0 rounded-full text-muted-foreground" onClick={() => onOpenChange(false)} aria-label="Close"><X className="h-5 w-5" /></Button>
         </header>
-
-        {/* SCROLLABLE BODY */}
-        <main className="flex-1 overflow-y-auto overscroll-contain px-6 py-6 sm:px-8 custom-scrollbar bg-background">
-          <div className="text-sm text-muted-foreground leading-relaxed space-y-8 max-w-none">
-            {/* INTRO HIGHLIGHT */}
-            <div className="p-4 sm:p-5 bg-primary/5 rounded-xl border border-primary/10 text-foreground/90">
-              <p>
-                <strong>BAL Öğrenci Derneği</strong> olarak, 6698 sayılı Kişisel
-                Verilerin Korunması Kanunu (“KVKK”) uyarınca, veri sorumlusu
-                sıfatıyla, kişisel verilerinizi aşağıda açıklanan amaçlar
-                kapsamında; hukuka ve dürüstlük kurallarına uygun bir şekilde
-                işleyebilecek, kaydedebilecek, saklayabilecek, sınıflandırabilecek,
-                güncelleyebilecek ve mevzuatın izin verdiği hallerde üçüncü
-                kişilere açıklayabilecek/aktarabileceğiz.
-              </p>
-            </div>
-
-            {/* SECTIONS */}
-            <section className="space-y-3">
-              <h3 className="flex items-center gap-3 font-semibold text-foreground text-base border-b pb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-foreground text-xs font-bold shrink-0">
-                  1
-                </span>
-                Kişisel Verilerin İşlenme Amacı
-              </h3>
-              <p className="pl-9">
-                Toplanan kişisel verileriniz (Ad-soyad, iletişim bilgileri, öğrenim
-                durumu, doğum tarihi vb.); çalıştay başvurunuzun
-                değerlendirilmesi, katılımcı kayıtlarının oluşturulması, etkinlik
-                organizasyonunun sağlanması, gerekli bilgilendirmelerin yapılması,
-                sertifikaların düzenlenmesi, konaklama ve ulaşım planlamalarının
-                yapılması ve yasal yükümlülüklerin yerine getirilmesi amaçlarıyla
-                işlenmektedir.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="flex items-center gap-3 font-semibold text-foreground text-base border-b pb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-foreground text-xs font-bold shrink-0">
-                  2
-                </span>
-                Kişisel Verilerin Aktarılması ve Yurt Dışına Çıkarılması
-              </h3>
-              <p className="pl-9">
-                Kişisel verileriniz; yukarıda belirtilen amaçların
-                gerçekleştirilmesi doğrultusunda, kanunen yetkili kamu
-                kurumlarına (örneğin; emniyet birimleri, ilgili bakanlıklar) ve
-                faaliyetlerimizi yürütmek üzere hizmet aldığımız, iş birliği
-                yaptığımız program ortaklarına, tedarikçi firmalara (konaklama,
-                ulaşım vb. hizmet sağlayanlar) KVKK’nın 8. ve 9. maddelerinde
-                belirtilen kişisel veri işleme şartları ve amaçları çerçevesinde
-                aktarılabilecektir. Ayrıca, kişisel verileriniz depolama ve
-                işlenme amacıyla yurt dışındaki sunuculara (bulut hizmetleri vb.)
-                gönderilebilir ve bu sunucularda barındırılabilir.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="flex items-center gap-3 font-semibold text-foreground text-base border-b pb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-foreground text-xs font-bold shrink-0">
-                  3
-                </span>
-                Kişisel Veri Toplamanın Yöntemi ve Hukuki Sebebi
-              </h3>
-              <p className="pl-9">
-                Kişisel verileriniz, internet sitemiz üzerinden doldurduğunuz
-                başvuru formu aracılığıyla elektronik ortamda toplanmaktadır. Bu
-                veriler, KVKK’nın 5. maddesinde belirtilen “ilgili kişinin temel
-                hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun
-                meşru menfaatleri için veri işlenmesinin zorunlu olması” ve “bir
-                sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili
-                olması” hukuki sebeplerine dayanılarak işlenmektedir.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="flex items-center gap-3 font-semibold text-foreground text-base border-b pb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-foreground text-xs font-bold shrink-0">
-                  4
-                </span>
-                Veri Güvenliği ve Sorumluluk Sınırı
-              </h3>
-              <p className="pl-9">
-                BAL Öğrenci Derneği, kişisel verilerinizin güvenliğini sağlamak
-                amacıyla gerekli tüm teknik ve idari tedbirleri almak için azami
-                gayreti göstermektedir. Ancak, alınan tüm güvenlik önlemlerine
-                rağmen yaşanabilecek olası bir siber saldırı veya yetkisiz erişim
-                durumunda meydana gelebilecek veri sızıntılarından BAL Öğrenci
-                Derneği sorumlu tutulamaz.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="flex items-center gap-3 font-semibold text-foreground text-base border-b pb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-foreground text-xs font-bold shrink-0">
-                  5
-                </span>
-                Veri Sahibinin Hakları
-              </h3>
-              <p className="pl-9">
-                KVKK’nın 11. maddesi uyarınca veri sahipleri; kişisel verilerinin
-                işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep
-                etme, işlenme amacını ve amacına uygun kullanılıp kullanılmadığını
-                öğrenme, yurt içinde veya yurt dışında verilerin aktarıldığı üçüncü
-                kişileri bilme, verilerin eksik veya yanlış işlenmiş olması
-                hâlinde düzeltilmesini isteme, kanun çerçevesinde silinmesini
-                veya yok edilmesini isteme haklarına sahiptir.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="flex items-center gap-3 font-semibold text-foreground text-base border-b pb-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-muted text-foreground text-xs font-bold shrink-0">
-                  6
-                </span>
-                İletişim
-              </h3>
-              <p className="pl-9">
-                KVKK kapsamındaki haklarınızla ilgili taleplerinizi{" "}
-                <a
-                  href="mailto:info@atagc.com.tr"
-                  className="font-medium text-primary hover:underline transition-colors"
-                >
-                  info@atagc.com.tr
-                </a>{" "}
-                e-posta adresi üzerinden tarafımıza iletebilirsiniz.
-              </p>
-            </section>
-          </div>
-        </main>
-
-        {/* FOOTER */}
-        <footer className="px-6 py-4 border-t bg-muted/10 shrink-0 flex items-center justify-end flex-col sm:flex-row gap-4">
-          <Button
-            variant="outline"
-            onClick={handlePrintPdf}
-            disabled={isPreparing}
-            size="lg"
-            className="w-full sm:w-auto shrink-0 font-semibold"
-          >
-            {isPreparing ? (
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            ) : (
-              <Printer className="w-5 h-5 mr-2" />
-            )}
-            PDF Kaydet / Yazdır
-          </Button>
-          <Button
-            onClick={() => onOpenChange(false)}
-            size="lg"
-            className="w-full sm:w-auto shrink-0 font-semibold"
-          >
-            <CheckCircle2 className="w-5 h-5 mr-2" />
-            Okudum, Anladım
-          </Button>
+        <main className="flex-1 overflow-y-auto px-6 py-6 sm:px-8"><div className="space-y-8 text-sm leading-relaxed text-muted-foreground">
+          <div className="rounded-xl border border-primary/10 bg-primary/5 p-4 text-foreground/90 sm:p-5"><p><strong>BAL Student Association</strong> processes personal data as the data controller under applicable data protection laws and only for the purposes described below.</p></div>
+          {PRIVACY_SECTIONS.map((section, index) => <section key={section.title} className="space-y-3"><h3 className="flex items-center gap-3 border-b pb-2 text-base font-semibold text-foreground"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">{index + 1}</span>{section.title}</h3><p className="pl-9">{section.text}</p></section>)}
+        </div></main>
+        <footer className="flex flex-col items-center justify-end gap-4 border-t bg-muted/10 px-6 py-4 sm:flex-row">
+          <Button variant="outline" onClick={handlePrintPdf} disabled={isPreparing} size="lg" className="w-full shrink-0 font-semibold sm:w-auto">{isPreparing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Printer className="mr-2 h-5 w-5" />}Save / print PDF</Button>
+          <Button onClick={() => onOpenChange(false)} size="lg" className="w-full shrink-0 font-semibold sm:w-auto"><CheckCircle2 className="mr-2 h-5 w-5" />I have read and understood</Button>
         </footer>
       </div>
     </div>

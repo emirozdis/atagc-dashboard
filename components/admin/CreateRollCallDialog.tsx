@@ -50,7 +50,7 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
 
     const generateQR = async () => {
         if (!selectedCommittee || !sessionName) {
-            toast.error("Eksik Bilgi", { description: "Lütfen komite ve oturum adı seçiniz." });
+            toast.error("Missing information", { description: "Please select a committee and enter a session name." });
             return;
         }
 
@@ -75,10 +75,10 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
             setRollCallId(data.id);
             // Secret key is NOT needed on client side with SSE
             
-            toast.success("Oturum Başlatıldı");
+            toast.success("Session started");
             setStep('live');
         } catch (e) {
-            toast.error("Hata", { description: "QR Kod oluşturulamadı." });
+            toast.error("Error", { description: "Could not create the QR code." });
         } finally {
             setLoading(false);
         }
@@ -129,24 +129,24 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                 <DialogTrigger asChild>
                     <Button>
                         <Plus className="w-4 h-4 mr-2" />
-                        Yeni Yoklama
+                        New roll call
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[480px]">
                     {step === 'form' && (
                         <>
                             <DialogHeader>
-                                <DialogTitle>Yeni Yoklama Oluştur</DialogTitle>
+                                <DialogTitle>Create roll call</DialogTitle>
                                 <DialogDescription>
-                                    İstediğiniz komite için QR kod oluşturun.
+                                    Create a QR code for the selected committee.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <div className="space-y-2">
-                                    <Label>Komite</Label>
+                                    <Label>Committee</Label>
                                     <Select value={selectedCommittee} onValueChange={setSelectedCommittee}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Komite Seçiniz" />
+                                            <SelectValue placeholder="Select a committee" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {committees.map(c => (
@@ -157,9 +157,9 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Oturum Adı</Label>
+                                    <Label>Session name</Label>
                                     <Input
-                                        placeholder="Örn: 1. Oturum"
+                                        placeholder="For example: Session 1"
                                         value={sessionName}
                                         onChange={(e) => setSessionName(e.target.value)}
                                     />
@@ -167,7 +167,7 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
 
                                 <Button onClick={generateQR} className="w-full" disabled={loading}>
                                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
-                                    Oluştur
+                                    Create
                                 </Button>
                             </div>
                         </>
@@ -193,16 +193,16 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
                             </div>
 
                             <div className="space-y-2">
-                                <h3 className="font-bold text-2xl text-green-500">Yoklama Tamamlandı</h3>
+                                <h3 className="font-bold text-2xl text-green-500">Roll call completed</h3>
                                 <p className="text-muted-foreground font-medium text-lg">{sessionName}</p>
                             </div>
 
                             <div className="bg-secondary/30 border border-border/50 rounded-xl p-4 text-sm text-muted-foreground">
-                                Yoklama işlemi başarıyla sonlandırıldı. Detayları listeden inceleyebilirsiniz.
+                                Roll call ended successfully. You can review the details in the list.
                             </div>
 
                             <Button size="lg" onClick={() => handleOpenChange(false)} className="w-full">
-                                Tamam
+                                Done
                             </Button>
                         </div>
                     )}
@@ -212,14 +212,14 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
             <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Yoklamadan Çıkılıyor</AlertDialogTitle>
+                        <AlertDialogTitle>Leave roll call?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Yoklama işlemi arka planda devam edecek ancak QR kodu göremeyeceksiniz. Pencereyi kapatmak istediğinize emin misiniz?
+                            The roll call will continue in the background, but you will no longer see the QR code. Are you sure you want to close this window?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setShowExitConfirm(false)}>İptal</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmExit}>Pencereyi Kapat</AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setShowExitConfirm(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmExit}>Close window</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -227,14 +227,14 @@ export function CreateRollCallDialog({ onSuccess }: CreateRollCallDialogProps) {
             <AlertDialog open={showFinishConfirm} onOpenChange={setShowFinishConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Yoklamayı Bitir</AlertDialogTitle>
+                        <AlertDialogTitle>End roll call?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Bu işlem yoklamayı manuel olarak sonlandıracaktır. QR kod geçersiz hale gelecektir.
+                            This will end the roll call manually and invalidate the QR code.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setShowFinishConfirm(false)}>İptal</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmManualFinish} className="bg-destructive text-white hover:bg-destructive/90">Bitir</AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setShowFinishConfirm(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmManualFinish} className="bg-destructive text-white hover:bg-destructive/90">End roll call</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

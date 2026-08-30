@@ -28,11 +28,11 @@ export function ConnectionNotification() {
                 },
                 (payload) => {
                     if (payload.new.status === 'pending') {
-                        toast("Yeni Bağlantı İsteği", {
-                            description: "Biri sizinle tanışmak istiyor!",
+                        toast("New connection request", {
+                            description: "Someone would like to connect with you.",
                             icon: <UserPlus className="w-5 h-5 text-primary" />,
                             action: {
-                                label: "Görüntüle",
+                                label: "View",
                                 onClick: () => router.push("/dashboard/connections")
                             },
                             duration: 5000

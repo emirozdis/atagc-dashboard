@@ -33,15 +33,15 @@ export interface TicketMessage {
 }
 
 export const TICKET_CATEGORIES: { value: TicketCategory; label: string }[] = [
-    { value: 'general', label: 'Genel' },
-    { value: 'person_report', label: 'Kişi Bildirimi' },
-    { value: 'dashboard', label: 'Panel / Sistem' },
-    { value: 'other', label: 'Diğer' },
+    { value: 'general', label: 'General' },
+    { value: 'person_report', label: 'Participant report' },
+    { value: 'dashboard', label: 'Portal / system' },
+    { value: 'other', label: 'Other' },
 ];
 
 export const TICKET_STATUSES: { value: TicketStatus; label: string; color: string }[] = [
-    { value: 'submitted', label: 'Gönderildi', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-    { value: 'reviewing', label: 'İnceleniyor', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
-    { value: 'answered', label: 'Yanıtlandı', color: 'bg-green-500/10 text-green-600 border-green-500/20' },
-    { value: 'closed', label: 'Kapatıldı', color: 'bg-secondary text-muted-foreground border-border' },
+    { value: 'submitted', label: 'Submitted', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+    { value: 'reviewing', label: 'Under review', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
+    { value: 'answered', label: 'Answered', color: 'bg-green-500/10 text-green-600 border-green-500/20' },
+    { value: 'closed', label: 'Closed', color: 'bg-secondary text-muted-foreground border-border' },
 ];

@@ -50,7 +50,7 @@ export function VoteCard({ vote, userId, isChairman, onCloseVote, onOpenVoteModa
           <div className="space-y-1">
             <CardTitle className="text-base font-semibold leading-tight">{vote.title}</CardTitle>
             <CardDescription className="text-xs">
-              {new Date(vote.created_at).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}
+              {new Date(vote.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
             </CardDescription>
           </div>
           {isOpen ? (
@@ -59,7 +59,7 @@ export function VoteCard({ vote, userId, isChairman, onCloseVote, onOpenVoteModa
             </Badge>
           ) : (
             <Badge variant="outline" className="text-muted-foreground whitespace-nowrap">
-              Kapandı
+              Closed
             </Badge>
           )}
         </div>
@@ -72,21 +72,21 @@ export function VoteCard({ vote, userId, isChairman, onCloseVote, onOpenVoteModa
       <CardFooter className="pt-3 pb-3 bg-muted/5 border-t border-border/40 flex justify-between items-center text-xs">
         <div className="flex items-center text-muted-foreground gap-1.5">
           <User className="w-3.5 h-3.5" />
-          <span>Toplam: <strong className="text-foreground">{totalVotes}</strong> oy</span>
+          <span>Total: <strong className="text-foreground">{totalVotes}</strong> votes</span>
         </div>
 
         <div className="flex gap-2">
           {/* Delegate Action: Vote */}
           {!isChairman && isOpen && !hasUserVoted && (
             <Button size="sm" onClick={() => onOpenVoteModal(vote.id)}>
-              Oy Kullan
+              Cast vote
             </Button>
           )}
           
           {/* Delegate Status: Voted */}
           {!isChairman && isOpen && hasUserVoted && (
             <span className="text-green-600 font-medium flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Oy Verildi
+              <CheckCircle2 className="w-3.5 h-3.5" /> Vote recorded
             </span>
           )}
 
@@ -98,7 +98,7 @@ export function VoteCard({ vote, userId, isChairman, onCloseVote, onOpenVoteModa
               className="h-7 text-xs px-2.5"
               onClick={() => onCloseVote(vote)}
             >
-              <Lock className="w-3 h-3 mr-1.5" /> Bitir
+              <Lock className="w-3 h-3 mr-1.5" /> End
             </Button>
           )}
         </div>

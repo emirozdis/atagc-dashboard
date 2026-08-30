@@ -84,16 +84,16 @@ export default function OrganisationPage() {
         </div>
         <div className="space-y-4 max-w-md mx-auto px-4">
           <div>
-            <h2 className="text-3xl font-bold font-display text-foreground tracking-tight">Başvuru Bulunamadı</h2>
+            <h2 className="text-3xl font-bold font-display text-foreground tracking-tight">Application not found</h2>
             <p className="text-red-500 leading-relaxed mt-2">
-              Hesabınız başarıyla oluşturulmuş ancak hesabınıza ait aktif bir başvuru kaydı bulunmuyor.
+              Your account was created successfully, but no active application is linked to it.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
-              Etkinliğe katılmak için başvuru yapmanız gerekmektedir.
+              You must submit an application to participate in the conference.
             </p>
           </div>
           <Button asChild size="lg" className="w-full sm:w-auto min-w-[200px] shadow-lg hover:shadow-xl transition-all">
-            <Link href="/">Başvuru Yap</Link>
+            <Link href="/apply">Apply</Link>
           </Button>
         </div>
       </div>
@@ -106,10 +106,10 @@ export default function OrganisationPage() {
   const isPress = PRESS_TEAM.includes(effectiveRole);
   const isSecurity = SECURITY_TEAM.includes(effectiveRole);
 
-  const teamLabel = isObserver ? "Gözlemci Ekibi"
-    : isPress ? "Basın Ekibi"
-      : isSecurity ? "Güvenlik Ekibi"
-        : "Organizasyon";
+  const teamLabel = isObserver ? "Observer team"
+    : isPress ? "Press team"
+      : isSecurity ? "Security team"
+        : "Organisation";
 
   const teamColor = isObserver ? "cyan"
     : isPress ? "pink"
@@ -119,7 +119,7 @@ export default function OrganisationPage() {
   const paymentStatus = paymentData?.payment_status || PaymentStatusEnum.UNPAID;
 
   const appliedRoleSlug = application?.form?.slug;
-  const appliedRoleLabel = appliedRoleSlug ? ROLE_METADATA[appliedRoleSlug as UserRole]?.label : "Organizasyon";
+  const appliedRoleLabel = appliedRoleSlug ? ROLE_METADATA[appliedRoleSlug as UserRole]?.label : "Organisation";
 
   const getStatusSteps = () => {
     const steps: {
@@ -133,20 +133,20 @@ export default function OrganisationPage() {
     // Step 1: Account / Role confirmation
     steps.push({
       id: 'account',
-      label: "Başvuru Durumu",
+      label: "Application status",
       status: userProfile && appStatus === 'approved' ? 'done' : appStatus === 'rejected' ? 'error' : 'processing',
       text: appStatus === 'approved' 
               ? appliedRoleLabel 
               : appStatus === 'rejected' 
-                ? `${appliedRoleLabel} Başvurusu Reddedildi`
-                : `${appliedRoleLabel} Başvurusu İnceleniyor`,
+                ? `${appliedRoleLabel} application rejected`
+                : `${appliedRoleLabel} application under review`,
     });
 
     // Step 2: Payment
     if (hasPaymentFlow) {
       steps.push({
         id: 'payment',
-        label: "Ödeme",
+        label: "Payment",
         status:
           appStatus !== 'approved' ? 'waiting' :
           paymentStatus === PaymentStatusEnum.PAID ? 'done' :
@@ -154,7 +154,7 @@ export default function OrganisationPage() {
               paymentStatus === PaymentStatusEnum.PROCESSING ? 'processing' :
                 paymentStatus === PaymentStatusEnum.REJECTED ? 'error' : 'pending',
         date: paymentData?.last_receipt?.created_at,
-        text: paymentStatus === PaymentStatusEnum.EXEMPT ? "Muaf" : undefined
+        text: paymentStatus === PaymentStatusEnum.EXEMPT ? "Exempt" : undefined
       });
     }
 
@@ -163,11 +163,11 @@ export default function OrganisationPage() {
       const hasAllocation = observerData?.allocatedCommittee || observerData?.allocatedArea;
       steps.push({
         id: 'allocation',
-        label: "Gözlemci Ataması",
+        label: "Observer assignment",
         status: hasAllocation ? 'done' : 'waiting',
         text: hasAllocation
-          ? (observerData?.allocatedCommitteeName || observerData?.allocatedArea || "Atandı")
-          : "Atama bekleniyor",
+          ? (observerData?.allocatedCommitteeName || observerData?.allocatedArea || "Assigned")
+          : "Assignment pending",
       });
     }
 
@@ -188,24 +188,24 @@ export default function OrganisationPage() {
   };
 
   const formatDateRange = (start: string | null | undefined, end: string | null | undefined) => {
-    if (!start) return "Tarih Belirlenmedi";
+    if (!start) return "Date not set";
     try {
       const startDate = new Date(start);
       const endDate = end ? new Date(end) : null;
       const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
       if (endDate) {
         if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
-          return `${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}`;
+          return `${startDate.getDate()} - ${endDate.getDate()} ${startDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`;
         }
-        return `${startDate.toLocaleDateString('tr-TR', options)} - ${endDate.toLocaleDateString('tr-TR', options)}`;
+        return `${startDate.toLocaleDateString('en-GB', options)} - ${endDate.toLocaleDateString('en-GB', options)}`;
       }
-      return startDate.toLocaleDateString('tr-TR', options);
+      return startDate.toLocaleDateString('en-GB', options);
     } catch {
-      return "Tarih Formatı Hatalı";
+      return "Invalid date format";
     }
   };
 
-  // Ensure Digital ID displays default user role ("BAŞVURU SAHİBİ" if not approved)
+  // Ensure the digital ID displays the user's current role.
   const userForDigitalId = userProfile ? {
       id: userProfile.id,
       full_name: userProfile.full_name,
@@ -218,12 +218,12 @@ export default function OrganisationPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
-          <Breadcrumbs items={[{ label: "Organizasyon" }]} />
+          <Breadcrumbs items={[{ label: "Organisation" }]} />
           <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight mt-4">
-            Merhaba, <span className="text-primary">{session?.user?.name?.split(" ")[0]}</span>
+            Hello, <span className="text-primary">{session?.user?.name?.split(" ")[0]}</span>
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Organizasyon paneline hoş geldiniz.
+            Welcome to the organisation dashboard.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -251,7 +251,7 @@ export default function OrganisationPage() {
           <Card className="border-border/50 shadow-sm bg-card overflow-hidden hover:border-border/80 transition-colors">
             <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
-                <Info className="w-4 h-4 text-primary" /> Durum Bilgisi
+                <Info className="w-4 h-4 text-primary" /> Status
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -286,12 +286,12 @@ export default function OrganisationPage() {
                           <div className="font-medium text-sm md:text-base group-hover:text-primary transition-colors">{step.label}</div>
                           <div className="text-xs text-muted-foreground">
                             {step.text || (
-                              step.status === 'done' ? "Tamamlandı" :
-                              step.status === 'exempt' ? "Muaf (Tamamlandı)" :
-                              step.status === 'processing' ? "İnceleniyor" :
-                              step.status === 'error' ? "Sorun Var" :
-                              step.status === 'pending' ? "İşlem Bekliyor" :
-                              "Bekleniyor"
+                              step.status === 'done' ? "Completed" :
+                              step.status === 'exempt' ? "Exempt (completed)" :
+                              step.status === 'processing' ? "Under review" :
+                              step.status === 'error' ? "Action required" :
+                              step.status === 'pending' ? "Pending" :
+                              "Waiting"
                             )}
                           </div>
                         </div>
@@ -300,27 +300,27 @@ export default function OrganisationPage() {
                       <div className="flex items-center gap-4">
                         {step.date && (
                           <span className="text-[10px] text-muted-foreground hidden sm:inline-block bg-secondary/30 px-2 py-1 rounded">
-                            {new Date(step.date).toLocaleDateString("tr-TR")}
+                            {new Date(step.date).toLocaleDateString("en-GB")}
                           </span>
                         )}
 
                         {step.id === 'payment' && (step.status === 'pending' || step.status === 'error') && (
                           <Button size="sm" asChild className={cn("h-8 text-xs shadow-sm", step.status === 'error' && "bg-red-600 hover:bg-red-700")}>
                             <Link href="/payment" prefetch={false}>
-                              {step.status === 'error' ? "Düzelt" : "Öde"} <ChevronRight className="w-3 h-3 ml-1" />
+                              {step.status === 'error' ? "Fix" : "Pay"} <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
                         )}
                         {step.id === 'payment' && (step.status === 'processing' || step.status === 'exempt') && (
                           <Button size="sm" variant="outline" asChild className="h-8 text-xs hover:bg-muted/50">
-                            <Link href="/payment" prefetch={false}>Detay</Link>
+                            <Link href="/payment" prefetch={false}>Details</Link>
                           </Button>
                         )}
 
                         {step.id === 'allocation' && step.status === 'done' && (
                           <Button size="sm" variant="outline" asChild className="h-8 text-xs hover:bg-muted/50">
                             <Link href="/organisation/observers/my-tasks" prefetch={false}>
-                              Görevlerim <ChevronRight className="w-3 h-3 ml-1" />
+                              My tasks <ChevronRight className="w-3 h-3 ml-1" />
                             </Link>
                           </Button>
                         )}
@@ -337,7 +337,7 @@ export default function OrganisationPage() {
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-medium flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-primary" />
-                Etkinlik Detayları
+                Event details
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 flex-1">
@@ -351,7 +351,7 @@ export default function OrganisationPage() {
                   <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50 hover:bg-secondary/30 transition-colors">
                     <Calendar className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <div className="text-xs font-medium text-foreground">Tarih</div>
+                      <div className="text-xs font-medium text-foreground">Date</div>
                       <div className="text-xs text-muted-foreground">
                         {formatDateRange(settings?.event_start_date, settings?.event_end_date)}
                       </div>
@@ -360,9 +360,9 @@ export default function OrganisationPage() {
                   <div className="flex items-start gap-3 p-2.5 rounded-lg bg-secondary/20 border border-border/50 hover:bg-secondary/30 transition-colors">
                     <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <div>
-                      <div className="text-xs font-medium text-foreground">Konum</div>
+                      <div className="text-xs font-medium text-foreground">Location</div>
                       <div className="text-xs text-muted-foreground">
-                        {settings?.location || "Konum Belirlenmedi"}
+                        {settings?.location || "Location not set"}
                       </div>
                     </div>
                   </div>
@@ -392,7 +392,7 @@ export default function OrganisationPage() {
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/50" />
-            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Gözlemci Bilgileri</h3>
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Observer information</h3>
             <div className="h-px flex-1 bg-border/50" />
           </div>
 
@@ -410,7 +410,7 @@ export default function OrganisationPage() {
                   <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600">
                     <Users className="w-5 h-5" />
                   </div>
-                  Atanan Komite
+                  Assigned committee
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -419,7 +419,7 @@ export default function OrganisationPage() {
                     {observerData.allocatedCommitteeName || observerData.allocatedCommittee}
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Komite gözlemcisi olarak atandınız.
+                    You have been assigned as a committee observer.
                   </p>
                 </div>
               </CardContent>
@@ -431,14 +431,14 @@ export default function OrganisationPage() {
                   <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600">
                     <MapPin className="w-5 h-5" />
                   </div>
-                  Atanan Alan
+                  Assigned area
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <div className="text-xl font-bold mb-3 text-foreground">{observerData.allocatedArea}</div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Alan gözlemcisi olarak atandınız.
+                    You have been assigned as a field observer.
                   </p>
                 </div>
               </CardContent>
@@ -449,9 +449,9 @@ export default function OrganisationPage() {
                 <div className="w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center mb-5 animate-pulse">
                   <Eye className="w-7 h-7 text-cyan-500" />
                 </div>
-                <h4 className="font-semibold text-xl text-foreground mb-2">Atama Bekleniyor</h4>
+                <h4 className="font-semibold text-xl text-foreground mb-2">Assignment pending</h4>
                 <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                  Gözlemci olarak henüz bir komite veya alana atanmadınız. Atama yapıldığında bilgilendirileceksiniz.
+                  You have not been assigned to a committee or area yet. You will be notified when an assignment is made.
                 </p>
               </CardContent>
             </Card>
@@ -464,7 +464,7 @@ export default function OrganisationPage() {
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/50" />
-            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Basın Modülü</h3>
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Press module</h3>
             <div className="h-px flex-1 bg-border/50" />
           </div>
 
@@ -476,16 +476,16 @@ export default function OrganisationPage() {
                   <div className="p-2 rounded-lg bg-pink-500/10 text-pink-600">
                     <Camera className="w-5 h-5" />
                   </div>
-                  Basın Galerisi
+                  Press gallery
                 </CardTitle>
               </CardHeader>
               <CardContent className="relative z-10 space-y-4">
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Fotoğraf ve medya içeriklerini görüntüleyin ve yönetin.
+                  View and manage photos and media.
                 </p>
                 <Button variant="outline" size="sm" asChild className="w-full">
                   <Link href="/organisation/press/gallery" prefetch={false} className="flex items-center gap-2">
-                    Galeriye Git <ChevronRight className="w-4 h-4" />
+                    Open gallery <ChevronRight className="w-4 h-4" />
                   </Link>
                 </Button>
               </CardContent>
@@ -499,7 +499,7 @@ export default function OrganisationPage() {
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/50" />
-            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Güvenlik Modülü</h3>
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Security module</h3>
             <div className="h-px flex-1 bg-border/50" />
           </div>
 
@@ -511,16 +511,16 @@ export default function OrganisationPage() {
                   <div className="p-2 rounded-lg bg-zinc-500/10 text-zinc-600 dark:text-zinc-400">
                     <ShieldAlert className="w-5 h-5" />
                   </div>
-                  QR Tarama
+                  QR scanning
                 </CardTitle>
               </CardHeader>
               <CardContent className="relative z-10 space-y-4">
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Katılımcı giriş kartlarını tarayın ve kontrol edin.
+                  Scan and verify participant entry cards.
                 </p>
                 <Button variant="outline" size="sm" asChild className="w-full">
                   <Link href="/organisation/security/scan" prefetch={false} className="flex items-center gap-2">
-                    Taramaya Başla <ChevronRight className="w-4 h-4" />
+                    Start scanning <ChevronRight className="w-4 h-4" />
                   </Link>
                 </Button>
               </CardContent>

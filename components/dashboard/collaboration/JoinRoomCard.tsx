@@ -1,14 +1,14 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Users, Shield, LogIn } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Users, Shield, LogIn } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Committee {
-  id: string; // UUID
+  id: string;
   name: string;
 }
 
@@ -20,51 +20,40 @@ interface JoinRoomCardProps {
   onJoin: () => void;
 }
 
-export function JoinRoomCard({
-  userRole,
-  allCommittees,
-  committeeInfo,
-  onCommitteeSelect,
-  onJoin
-}: JoinRoomCardProps) {
+export function JoinRoomCard({ userRole, allCommittees, committeeInfo, onCommitteeSelect, onJoin }: JoinRoomCardProps) {
+  const canChooseCommittee = userRole === "superadmin" || userRole === "admin";
+
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-100px)] animate-fade-in px-4">
-      <Card className="w-full max-w-md bg-card border-card/50 ">
+    <div className="flex min-h-[calc(100vh-100px)] items-center justify-center px-4 animate-fade-in">
+      <Card className="w-full max-w-md border-card/50 bg-card">
         <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <Users className="w-8 h-8 text-primary" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <Users className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-display font-bold">Ortak Çalışma</CardTitle>
-          <CardDescription>Belge düzenlemek için odaya katılın.</CardDescription>
+          <CardTitle className="font-display text-2xl font-bold">Collaborative document</CardTitle>
+          <CardDescription>Join the committee room to view or edit its document.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {userRole === 'superadmin' ? (
+          {canChooseCommittee ? (
             <div className="space-y-4">
-              <Label>Komite Seçimi (Yönetici)</Label>
+              <Label>Committee selection (read-only)</Label>
               <Select onValueChange={onCommitteeSelect}>
-                <SelectTrigger><SelectValue placeholder="Komite seçiniz" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select a committee" /></SelectTrigger>
                 <SelectContent>
-                  {allCommittees.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
+                  {allCommittees.map((committee) => <SelectItem key={committee.id} value={committee.id}>{committee.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Button className="w-full" onClick={onJoin} disabled={!committeeInfo}>
-                Görüntüle (Salt Okunur)
-              </Button>
+              <Button className="w-full" onClick={onJoin} disabled={!committeeInfo}>View document (read-only)</Button>
             </div>
           ) : (
-            <div className="text-center space-y-4">
+            <div className="space-y-4 text-center">
               {committeeInfo ? (
-                <div className="bg-secondary/10 px-4 py-2 rounded border border-white/5 font-medium flex items-center justify-center gap-2">
-                  <Shield className="w-4 h-4 text-primary" />
+                <div className="flex items-center justify-center gap-2 rounded border border-white/5 bg-secondary/10 px-4 py-2 font-medium">
+                  <Shield className="h-4 w-4 text-primary" />
                   {committeeInfo.name}
                 </div>
-              ) : <div className="w-full flex justify-center py-2"><Skeleton className="h-8 w-40" /></div>}
-
-              <Button onClick={onJoin} className="w-full" disabled={!committeeInfo}>
-                <LogIn className="w-4 h-4 mr-2" /> Odaya Katıl
-              </Button>
+              ) : <div className="flex w-full justify-center py-2"><Skeleton className="h-8 w-40" /></div>}
+              <Button onClick={onJoin} className="w-full" disabled={!committeeInfo}><LogIn className="mr-2 h-4 w-4" />Join room</Button>
             </div>
           )}
         </CardContent>

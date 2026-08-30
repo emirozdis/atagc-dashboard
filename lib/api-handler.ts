@@ -3,26 +3,30 @@ import { ZodError } from "zod";
 import { Logger } from "@/lib/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "./auth";
+import { randomUUID } from "node:crypto";
 
-type ApiHandlerFunction = (
+type ApiHandlerFunction<TContext = unknown> = (
   req: Request,
-  context?: any
+  context: TContext
 ) => Promise<NextResponse | Response>;
 
-export function apiHandler(handler: ApiHandlerFunction): ApiHandlerFunction {
-  return async (req: Request, context?: any) => {
+export function apiHandler<TContext>(handler: ApiHandlerFunction<TContext>): ApiHandlerFunction<TContext> {
+  return async (req: Request, context: TContext) => {
     try {
       return await handler(req, context);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Get session for logging if available
-      const session = await getServerSession(authOptions as any) as any;
+      const session = await getServerSession(authOptions);
       const userId = session?.user?.id;
+      const errorMessage = err instanceof Error ? err.message : "Unknown API error";
+      const errorCode = typeof err === "object" && err !== null && "code" in err ? String(err.code) : "";
 
       // New Logger system
+      const requestId = randomUUID();
       await Logger.error(
         { userId, req },
-        `API Error: ${req.method} ${new URL(req.url).pathname}`,
-        err
+        `API Error: ${req.method} ${new URL(req.url).pathname} [${requestId}]`,
+        err instanceof Error ? err : new Error(errorMessage)
       );
 
       // Zod Validation Errors
@@ -34,30 +38,37 @@ export function apiHandler(handler: ApiHandlerFunction): ApiHandlerFunction {
       }
 
       // Known Errors
-      if (err.message === "Unauthorized" || err.message.includes("Unauthorized")) {
+      if (errorMessage === "Unauthorized" || errorMessage.includes("Unauthorized")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      if (err.message === "Forbidden" || err.message.includes("Forbidden")) {
+      if (errorMessage === "Forbidden" || errorMessage.includes("Forbidden")) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      if (err.message.includes("Rate limit")) {
+      if (errorMessage === "Account suspended") {
+        return NextResponse.json({ error: "Account unavailable" }, { status: 403 });
+      }
+
+      if (errorMessage.includes("Rate limit")) {
         return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
       }
 
+      if (errorMessage.includes("security verification")) {
+        return NextResponse.json({ error: "Security verification failed", message: errorMessage }, { status: 400 });
+      }
+
       // Database Duplicate Key Errors (Postgres)
-      if (err.code === "23505") {
+      if (errorCode === "23505") {
         return NextResponse.json(
-          { error: "Conflict", message: "Bu kayıt zaten mevcut." },
+          { error: "Conflict", message: "This record already exists." },
           { status: 409 }
         );
       }
 
       // Default Generic Error
-      const message = err instanceof Error ? err.message : "Internal Server Error";
       return NextResponse.json(
-        { error: "Internal Server Error", message },
+        { error: "Internal Server Error", requestId },
         { status: 500 }
       );
     }

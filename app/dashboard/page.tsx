@@ -13,7 +13,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      <Breadcrumbs items={[{ label: "Panel" }]} />
+      <Breadcrumbs items={[{ label: "Dashboard" }]} />
       <ParticipantDashboard user={session.user} />
     </div>
   );

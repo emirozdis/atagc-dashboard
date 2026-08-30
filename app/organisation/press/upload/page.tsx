@@ -34,11 +34,11 @@ export default function PressUploadPage() {
 
     const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedTypes.includes(selectedFile.type)) {
-      toast.error("Sadece JPG, PNG ve WEBP dosyaları desteklenir.");
+      toast.error("Only JPG, PNG, and WEBP files are supported.");
       return;
     }
     if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu en fazla 10MB olabilir.");
+      toast.error("File size cannot exceed 10 MB.");
       return;
     }
 
@@ -63,7 +63,7 @@ export default function PressUploadPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !areaId) {
-      toast.error("Lütfen dosya ve alan seçimi yapın.");
+      toast.error("Please select a file and area.");
       return;
     }
 
@@ -79,14 +79,14 @@ export default function PressUploadPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || data.message || "Yükleme başarısız.");
+        throw new Error(data.error || data.message || "Upload failed.");
       }
 
-      toast.success("Fotoğraf başarıyla yüklendi!");
+      toast.success("Photo uploaded successfully!");
       clearFile();
       setAreaId("");
-    } catch (err: any) {
-      toast.error(err.message || "Bir hata oluştu.");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
       setUploading(false);
     }
@@ -105,29 +105,29 @@ export default function PressUploadPage() {
     <div className="space-y-6 animate-fade-in max-w-2xl mx-auto pb-12">
       <Breadcrumbs
         items={[
-          { label: "Organizasyon", href: "/organisation" },
-          { label: "Fotoğraf Yükle" },
+          { label: "Organisation", href: "/organisation" },
+          { label: "Upload photo" },
         ]}
       />
 
       <div>
         <h2 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
           <Camera className="w-8 h-8 text-pink-500" />
-          Fotoğraf Yükle
+          Upload photo
         </h2>
-        <p className="text-muted-foreground mt-1">Etkinlik fotoğraflarını galeriye yükleyin.</p>
+        <p className="text-muted-foreground mt-1">Upload conference photos to the gallery.</p>
       </div>
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
         <CardHeader className="bg-muted/5 border-b border-border/50">
-          <CardTitle>Yeni Fotoğraf</CardTitle>
-          <CardDescription>JPG, PNG veya WEBP formatında, en fazla 10MB.</CardDescription>
+          <CardTitle>New photo</CardTitle>
+          <CardDescription>JPG, PNG, or WEBP, up to 10 MB.</CardDescription>
         </CardHeader>
         <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* File drop zone */}
             <div className="space-y-2">
-              <Label>Fotoğraf</Label>
+              <Label>Photo</Label>
               {!preview ? (
                 <div
                   onDragOver={(e) => e.preventDefault()}
@@ -136,13 +136,13 @@ export default function PressUploadPage() {
                   className="border-2 border-dashed border-border/50 rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/5 transition-colors"
                 >
                   <ImagePlus className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm font-medium">Dosya sürükleyin veya tıklayarak seçin</p>
+                  <p className="text-sm font-medium">Drag a file here or click to choose</p>
                   <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP - Max 10MB</p>
                 </div>
               ) : (
                 <div className="relative rounded-xl overflow-hidden border border-border/50">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={preview} alt="Önizleme" className="w-full max-h-[300px] object-contain bg-muted/10" />
+                  <img src={preview} alt="Preview" className="w-full max-h-[300px] object-contain bg-muted/10" />
                   <button
                     type="button"
                     onClick={clearFile}
@@ -166,7 +166,7 @@ export default function PressUploadPage() {
               <Label>Alan</Label>
               <Select value={areaId} onValueChange={setAreaId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Fotoğrafın çekildiği alanı seçin" />
+                  <SelectValue placeholder="Select the area where the photo was taken" />
                 </SelectTrigger>
                 <SelectContent>
                   {areas?.map((area) => (
@@ -184,12 +184,12 @@ export default function PressUploadPage() {
                   <span className="animate-spin mr-2">
                     <Upload className="w-4 h-4" />
                   </span>
-                  Yükleniyor...
+                  Uploading...
                 </>
               ) : (
                 <>
                   <Upload className="w-4 h-4 mr-2" />
-                  Yükle
+                  Upload
                 </>
               )}
             </Button>

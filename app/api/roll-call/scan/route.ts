@@ -33,7 +33,7 @@ export const POST = apiHandler(async (request: Request) => {
             throw new Error("Invalid format");
         }
     } catch (e) {
-        return NextResponse.json({ error: "Geçersiz veya eski QR kod formatı. Lütfen yetkiliden QR kodunu yenilemesini isteyin." }, { status: 400 });
+        return NextResponse.json({ error: "This QR code is invalid or expired. Ask an organizer to refresh it." }, { status: 400 });
     }
 
     const { data: rollCall, error: rcError } = await supabase
@@ -43,16 +43,16 @@ export const POST = apiHandler(async (request: Request) => {
         .single();
 
     if (rcError || !rollCall) {
-        return NextResponse.json({ error: "Oturum bulunamadı." }, { status: 404 });
+        return NextResponse.json({ error: "Session not found." }, { status: 404 });
     }
 
     if (!rollCall.secret_key) {
-        return NextResponse.json({ error: "Bu oturum güvenli doğrulamayı desteklemiyor. Lütfen yeni bir oturum oluşturun." }, { status: 400 });
+        return NextResponse.json({ error: "This session does not support secure verification. Create a new session." }, { status: 400 });
     }
 
     const isValid = await verifyTOTP(otp, rollCall.secret_key);
     if (!isValid) {
-        return NextResponse.json({ error: "QR kodun süresi dolmuş. Lütfen ekranı yenileyin ve tekrar okutun." }, { status: 400 });
+        return NextResponse.json({ error: "The QR code has expired. Refresh the screen and scan it again." }, { status: 400 });
     }
 
     const { data: membership } = await supabase
@@ -65,7 +65,7 @@ export const POST = apiHandler(async (request: Request) => {
     const isAdmin = session.user.role === ROLES.SUPERADMIN || session.user.role === ROLES.ADMIN;
 
     if (!membership && !isAdmin) {
-        return NextResponse.json({ error: "Bu yoklama sizin komitenize ait değil." }, { status: 403 });
+        return NextResponse.json({ error: "This attendance session is not for your committee." }, { status: 403 });
     }
 
     const { data: existingLog } = await supabase
@@ -76,7 +76,7 @@ export const POST = apiHandler(async (request: Request) => {
         .maybeSingle();
 
     if (existingLog) {
-        return NextResponse.json({ error: "Bu oturum için zaten yoklama verdiniz." }, { status: 409 });
+        return NextResponse.json({ error: "You have already recorded attendance for this session." }, { status: 409 });
     }
 
     const { error: insertError } = await supabase
@@ -103,6 +103,6 @@ export const POST = apiHandler(async (request: Request) => {
     return NextResponse.json({ 
         success: true, 
         session_name: rollCall.session_name,
-        message: "Yoklama başarıyla alındı."
+        message: "Attendance recorded successfully."
     });
 });

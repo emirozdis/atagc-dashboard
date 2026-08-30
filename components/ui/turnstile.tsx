@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 
 interface TurnstileProps {
@@ -12,15 +12,63 @@ interface TurnstileProps {
 }
 
 declare global {
+  interface TurnstileRenderOptions {
+    sitekey: string;
+    callback: (token: string) => void;
+    "error-callback": () => void;
+    "expired-callback": () => void;
+    theme: "light" | "dark";
+  }
+
+  interface TurnstileApi {
+    render: (container: HTMLElement, options: TurnstileRenderOptions) => string;
+    remove: (widgetId: string) => void;
+  }
+
   interface Window {
-    turnstile: any;
+    turnstile?: TurnstileApi;
   }
 }
 
+// The site key is always supplied by the configured Turnstile widget. This
+// keeps local development and deployed environments on the same real key.
+export const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
+
 export function Turnstile({ siteKey, onVerify, onError, onExpire, theme = "auto" }: TurnstileProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [widgetId, setWidgetId] = useState<string | null>(null);
+  const widgetIdRef = useRef<string | null>(null);
+  const onVerifyRef = useRef(onVerify);
+  const onErrorRef = useRef(onError);
+  const onExpireRef = useRef(onExpire);
   const { theme: systemTheme } = useTheme();
+
+  // Keep the widget mounted when a parent stores the token in state. Parent
+  // callbacks are commonly inline functions, so depending on them here would
+  // tear down and recreate the Cloudflare widget on every token update.
+  useEffect(() => {
+    onVerifyRef.current = onVerify;
+    onErrorRef.current = onError;
+    onExpireRef.current = onExpire;
+  }, [onError, onExpire, onVerify]);
+
+  const renderWidget = useCallback(() => {
+    if (!ref.current || !window.turnstile || widgetIdRef.current) return;
+
+    ref.current.innerHTML = "";
+
+    try {
+      const id = window.turnstile.render(ref.current, {
+        sitekey: siteKey,
+        callback: (token: string) => onVerifyRef.current(token),
+        "error-callback": () => onErrorRef.current?.(),
+        "expired-callback": () => onExpireRef.current?.(),
+        theme: theme === "auto" ? (systemTheme === "dark" ? "dark" : "light") : theme,
+      });
+      widgetIdRef.current = id;
+    } catch (error) {
+      console.warn("Turnstile render error", error);
+    }
+  }, [siteKey, systemTheme, theme]);
 
   useEffect(() => {
     // Check if script is already present
@@ -49,39 +97,16 @@ export function Turnstile({ siteKey, onVerify, onError, onExpire, theme = "auto"
 
     return () => {
       script.removeEventListener("load", renderWidget);
-      if (widgetId && window.turnstile) {
+      if (widgetIdRef.current && window.turnstile) {
         try {
-          window.turnstile.remove(widgetId);
-        } catch (e) {
+          window.turnstile.remove(widgetIdRef.current);
+          widgetIdRef.current = null;
+        } catch (error) {
           // Ignore removal errors if widget already gone
         }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const renderWidget = () => {
-    if (!ref.current || !window.turnstile) return;
-
-    // Avoid double rendering if widget ID already exists
-    if (widgetId) return;
-
-    // Clear content just in case
-    ref.current.innerHTML = "";
-
-    try {
-      const id = window.turnstile.render(ref.current, {
-        sitekey: siteKey,
-        callback: (token: string) => onVerify(token),
-        "error-callback": () => onError?.(),
-        "expired-callback": () => onExpire?.(),
-        theme: theme === "auto" ? (systemTheme === "dark" ? "dark" : "light") : theme,
-      });
-      setWidgetId(id);
-    } catch (e) {
-      console.warn("Turnstile render error", e);
-    }
-  };
+  }, [renderWidget]);
 
   return <div ref={ref} className="min-h-[65px] flex justify-center" />;
 }

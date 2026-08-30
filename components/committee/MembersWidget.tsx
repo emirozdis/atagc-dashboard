@@ -34,12 +34,12 @@ export const MembersWidget = ({ members, isManager, onMemberClick, isLoading }: 
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
           <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Komite Üyeleri
+            Committee members
           </span>
           <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium">--</Badge>
         </div>
         <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border/50 rounded-xl bg-muted/5">
-          Üye listesi görüntülenemiyor
+          The member list is unavailable
         </div>
       </div>
     );
@@ -58,14 +58,14 @@ export const MembersWidget = ({ members, isManager, onMemberClick, isLoading }: 
     }
   };
 
-  const renderMemberRow = (member: CommitteeMember) => {
+  const renderMemberRow = (member: CommitteeMember, index: number) => {
     const role = member.role || member.user?.role || ROLES.APPLICANT;
     const meta = getRoleMeta(role);
     const isExecutive = role === ROLES.CHAIRMAN || role === ROLES.DEPUTY_CHAIR;
 
     return (
       <div
-        key={member.id || Math.random()}
+        key={member.id || member.userId || `member-${index}`}
         className={cn(
           "flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group",
           isManager && "cursor-pointer active:bg-muted/70"
@@ -88,7 +88,7 @@ export const MembersWidget = ({ members, isManager, onMemberClick, isLoading }: 
             </div>
             {isExecutive && (
               <Badge variant="outline" className={cn("text-[9px] h-4 px-1 shadow-none", meta.bgClass, meta.colorClass, meta.borderClass)}>
-                {role === ROLES.CHAIRMAN ? "Başkan" : "Bşk. Yrd."}
+                {role === ROLES.CHAIRMAN ? "Chair" : "Deputy chair"}
               </Badge>
             )}
           </div>
@@ -104,7 +104,7 @@ export const MembersWidget = ({ members, isManager, onMemberClick, isLoading }: 
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
         <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Komite Üyeleri
+          Committee members
         </span>
         <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium">{members.length}</Badge>
       </div>
@@ -130,7 +130,7 @@ export const MembersWidget = ({ members, isManager, onMemberClick, isLoading }: 
               className="h-auto p-0 text-xs text-muted-foreground hover:text-primary w-auto"
               onClick={() => setShowAll(true)}
             >
-              + {sortedMembers.length - 6} diğer üye
+              + {sortedMembers.length - 6} other members
             </Button>
           </div>
         )}
@@ -138,7 +138,7 @@ export const MembersWidget = ({ members, isManager, onMemberClick, isLoading }: 
         <Dialog open={showAll} onOpenChange={setShowAll}>
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
-              <DialogTitle>Tüm Üyeler ({members?.length || 0})</DialogTitle>
+              <DialogTitle>All members ({members?.length || 0})</DialogTitle>
             </DialogHeader>
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-3">

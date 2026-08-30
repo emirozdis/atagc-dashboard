@@ -52,8 +52,8 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   });
 
   const roleTag = (() => {
-    if (effectiveRole && MANAGEMENT_ROLES.includes(effectiveRole as UserRole)) return "Yönetim";
-    if (effectiveRole && COMMITTEE_LEADS.includes(effectiveRole as UserRole)) return "Akademi";
+    if (effectiveRole && MANAGEMENT_ROLES.includes(effectiveRole as UserRole)) return "Administration";
+    if (effectiveRole && COMMITTEE_LEADS.includes(effectiveRole as UserRole)) return "Academic";
     return null;
   })();
 
@@ -77,9 +77,9 @@ export function Sidebar({ className, onClose }: SidebarProps) {
     <div className={cn("flex flex-col h-full bg-sidebar border-r border-border w-64", className)}>
       <div className="p-6 border-b border-border">
         <Link href="/dashboard" prefetch={false} className="flex items-center gap-3" onClick={onClose}>
-          <img src="/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
+          <img src="/ravenmun-logo.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
           <span className="font-display font-bold text-lg text-primary">
-            ATAGÇ
+            RavenMUN
             {roleTag && (
               <span className="text-xs ml-2 bg-primary/20 px-1.5 py-0.5 rounded text-primary-foreground">
                 {roleTag}
@@ -91,7 +91,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
 
       <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto">
         <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Katılımcı Menüsü
+          Participant menu
         </div>
 
         {items.map((item) => (
@@ -127,7 +127,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
           className="flex items-center gap-3 w-full cursor-pointer px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
         >
           <LogOut className="w-4 h-4" />
-          Çıkış Yap
+          Sign out
         </button>
       </div>
     </div>

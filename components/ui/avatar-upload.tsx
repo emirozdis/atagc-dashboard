@@ -28,6 +28,8 @@ export function AvatarUpload({
 
   // Sync state with prop changes
   useEffect(() => {
+    // The preview mirrors the current profile image supplied by the parent.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPreview(currentImageUrl || null);
   }, [currentImageUrl]);
 
@@ -37,11 +39,11 @@ export function AvatarUpload({
 
     // Client-side validation
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Dosya boyutu 5MB'dan küçük olmalıdır.");
+      toast.error("File size must be under 5 MB.");
       return;
     }
     if (!file.type.startsWith("image/")) {
-      toast.error("Lütfen geçerli bir resim dosyası seçiniz.");
+      toast.error("Please select a valid image file.");
       return;
     }
 
@@ -61,15 +63,15 @@ export function AvatarUpload({
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || "Yükleme başarısız");
+        throw new Error(error.error || "Upload failed.");
       }
 
       const data = await res.json();
       onUploadComplete(data.url);
       // Removed setPreview(data.url) to keep the optimistic preview until reload
       // setting a storage path as src would break the image display
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Upload failed.");
       setPreview(currentImageUrl || null); // Revert on error
     } finally {
       setUploading(false);

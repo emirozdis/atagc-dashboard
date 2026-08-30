@@ -5,9 +5,9 @@ import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 
 export const GET = apiHandler(async (request: Request) => {
-  const auth = await getAuthorization({ 
-    requireAuth: true, 
-    allowedRoles: [ROLES.SUPERADMIN] 
+  const auth = await getAuthorization({
+    requireAuth: true,
+    allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN]
   });
   if (!auth.ok) throw new Error("Unauthorized");
 
@@ -34,14 +34,23 @@ export const GET = apiHandler(async (request: Request) => {
 });
 
 export const PUT = apiHandler(async (request: Request) => {
-  const auth = await getAuthorization({ 
-    requireAuth: true, 
-    allowedRoles: [ROLES.SUPERADMIN] 
+  const auth = await getAuthorization({
+    requireAuth: true,
+    allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN]
   });
   if (!auth.ok) throw new Error("Unauthorized");
 
   const body = await request.json();
-  const { id, title, description, fee, steps, is_active } = body;
+  const { id, title, description, fee, steps, questions, is_active } = body;
+
+  const { data: current, error: currentError } = await supabase.from("application_forms").select("version").eq("id", id).maybeSingle();
+  if (currentError || !current) throw new Error("Form not found.");
+
+  const normalizedQuestions = Array.isArray(questions)
+    ? questions
+    : Array.isArray(steps)
+      ? steps.flatMap((step: { fields?: unknown[] }) => Array.isArray(step.fields) ? step.fields : [])
+      : [];
 
   const { error } = await supabase
     .from("application_forms")
@@ -49,8 +58,12 @@ export const PUT = apiHandler(async (request: Request) => {
       title,
       description,
       fee,
-      steps,
+      // Keep the legacy JSON column compatible while exposing one flat form
+      // to both the public application and the admin editor.
+      steps: [{ id: "application", title: "Application questions", fields: normalizedQuestions }],
       is_active,
+      version: Number(current.version || 1) + 1,
+      questions: normalizedQuestions,
     })
     .eq("id", id);
 

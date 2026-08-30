@@ -78,10 +78,10 @@ export function RollCallHistory({ variant = "full" }: RollCallHistoryProps) {
                 <div className="flex items-center justify-between px-1">
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                         <Clock className="w-4 h-4" />
-                        Geçmiş Yoklamalar
+                        Attendance history
                     </span>
                     {data?.meta && (
-                        <span className="text-[10px] text-muted-foreground">{data.meta.totalCount} Adet</span>
+                        <span className="text-[10px] text-muted-foreground">{data.meta.totalCount} entries</span>
                     )}
                 </div>
 
@@ -91,7 +91,7 @@ export function RollCallHistory({ variant = "full" }: RollCallHistoryProps) {
                     </div>
                 ) : rollCalls.length === 0 ? (
                     <div className="text-[11px] text-muted-foreground text-center py-6 border border-dashed border-border/50 rounded-xl bg-muted/5">
-                        Henüz yoklama kaydı bulunmuyor.
+                        No attendance records yet.
                     </div>
                 ) : (
                     <div className="space-y-2">
@@ -107,7 +107,7 @@ export function RollCallHistory({ variant = "full" }: RollCallHistoryProps) {
                                     </div>
                                     <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                                         <Calendar className="w-3 h-3 opacity-50" />
-                                        {new Date(rc.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                                        {new Date(rc.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
@@ -158,13 +158,13 @@ export function RollCallHistory({ variant = "full" }: RollCallHistoryProps) {
         );
     }
 
-    // Full variant (for Yoklama Yönetimi page)
+    // Full variant for the attendance management page.
     return (
         <Card className="bg-card border-border/50 overflow-hidden">
             <CardHeader className="pb-3 border-b border-white/5">
                 <CardTitle className="text-lg font-display font-semibold flex items-center gap-2">
                     <Clock className="w-5 h-5 text-primary" />
-                    Yoklama Geçmişi
+                    Attendance history
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -175,7 +175,7 @@ export function RollCallHistory({ variant = "full" }: RollCallHistoryProps) {
                 ) : rollCalls.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground">
                         <Clock className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p>Henüz bir yoklama kaydı bulunmuyor.</p>
+                        <p>No attendance records yet.</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-white/5">
@@ -193,7 +193,7 @@ export function RollCallHistory({ variant = "full" }: RollCallHistoryProps) {
                                         <h4 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{rc.session_name}</h4>
                                         <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                                             <Calendar className="w-3 h-3" />
-                                            {new Date(rc.created_at).toLocaleString("tr-TR", {
+                                            {new Date(rc.created_at).toLocaleString("en-GB", {
                                                 dateStyle: 'medium',
                                                 timeStyle: 'short'
                                             })}
@@ -203,7 +203,7 @@ export function RollCallHistory({ variant = "full" }: RollCallHistoryProps) {
 
                                 <div className="flex items-center gap-6">
                                     <div className="hidden sm:flex flex-col items-end gap-1.5">
-                                        <span className="text-xs text-muted-foreground font-medium">Katılım</span>
+                                        <span className="text-xs text-muted-foreground font-medium">Attendance</span>
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-mono font-bold text-foreground">
                                                 {rc.attendance_count} / {rc.total_members}
@@ -272,7 +272,7 @@ function AttendanceDetailsDialog({
     isOpen: boolean,
     onOpenChange: (open: boolean) => void,
     isLoading: boolean,
-    rollCall?: any,
+    rollCall?: RollCallDetailsResponse["rollCall"],
     members: AttendanceDetail[],
     stats: { present: number, absent: number },
     search: string,
@@ -284,28 +284,28 @@ function AttendanceDetailsDialog({
                 <DialogHeader className="p-6 pb-2">
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <UserCheck className="w-5 h-5 text-primary" />
-                        Yoklama Detayları
+                        Attendance details
                     </DialogTitle>
                     <DialogDescription>
-                        {rollCall?.session_name} - {rollCall && new Date(rollCall.created_at).toLocaleDateString("tr-TR", { dateStyle: 'long' })}
+                        {rollCall?.session_name} - {rollCall && new Date(rollCall.created_at).toLocaleDateString("en-GB", { dateStyle: 'long' })}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="px-6 py-4 flex items-center justify-between bg-muted/30">
                     <div className="flex gap-4">
                         <div className="flex flex-col">
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Katılan</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Present</span>
                             <span className="text-xl font-bold text-emerald-500">{stats.present}</span>
                         </div>
                         <div className="w-px h-8 bg-border" />
                         <div className="flex flex-col">
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Katılmayan</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Absent</span>
                             <span className="text-xl font-bold text-rose-500">{stats.absent}</span>
                         </div>
                     </div>
                     <div className="text-right">
                         <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 border-none px-3 py-1">
-                            Toplam {stats.present + stats.absent} Üye
+                            {stats.present + stats.absent} members total
                         </Badge>
                     </div>
                 </div>
@@ -314,7 +314,7 @@ function AttendanceDetailsDialog({
                     <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
                         <Input
-                            placeholder="Üye adı veya e-posta..."
+                            placeholder="Member name or email..."
                             className="pl-9 h-9 bg-background/50"
                             value={search}
                             onChange={(e) => onSearchChange(e.target.value)}
@@ -328,12 +328,12 @@ function AttendanceDetailsDialog({
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center py-20 gap-3">
                                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                    <span className="text-sm text-muted-foreground">Liste yükleniyor...</span>
+                                    <span className="text-sm text-muted-foreground">Loading list...</span>
                                 </div>
                             ) : members.length === 0 ? (
                                 <div className="text-center py-20 text-muted-foreground">
                                     <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                    <p>Üye bulunamadı.</p>
+                                    <p>No members found.</p>
                                 </div>
                             ) : (
                                 members.map((member) => (
@@ -357,17 +357,17 @@ function AttendanceDetailsDialog({
                                             {member.present ? (
                                                 <>
                                                     <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20 gap-1 text-[10px] px-2 h-5">
-                                                        <UserCheck className="w-3 h-3" /> Katıldı
+                                                        <UserCheck className="w-3 h-3" /> Present
                                                     </Badge>
                                                     {member.scanned_at && (
                                                         <span className="text-[9px] text-muted-foreground font-mono">
-                                                            {new Date(member.scanned_at).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' })}
+                                                            {new Date(member.scanned_at).toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     )}
                                                 </>
                                             ) : (
                                                 <Badge variant="outline" className="text-rose-500 border-rose-500/20 bg-rose-500/5 gap-1 text-[10px] px-2 h-5">
-                                                    <UserX className="w-3 h-3" /> Katılmadı
+                                                    <UserX className="w-3 h-3" /> Absent
                                                 </Badge>
                                             )}
                                         </div>

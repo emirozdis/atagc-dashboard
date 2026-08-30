@@ -7,6 +7,8 @@ import { MANAGEMENT_ROLES } from "@/lib/roles";
 import { getSignedUrls } from "@/lib/storage-utils";
 import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { assertFileSignature } from "@/lib/upload-validation";
+import crypto from "node:crypto";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -43,7 +45,7 @@ export const GET = apiHandler(async (request: Request, { params }: { params: Pro
     }
 
     // Access Control
-    const isStaff = MANAGEMENT_ROLES.includes(session.user.role as any);
+    const isStaff = MANAGEMENT_ROLES.includes(session.user.role);
     const isOwner = ticket.user_id !== null && session.user.id === ticket.user_id;
     const hasValidTrackingToken = accessToken && accessToken === ticket.access_token;
 
@@ -53,25 +55,26 @@ export const GET = apiHandler(async (request: Request, { params }: { params: Pro
 
     // Attachment Signing
     const allAttachments: string[] = [];
-    ticket.messages?.forEach((msg: any) => {
+    ticket.messages?.forEach((msg: { attachments?: unknown }) => {
         if (msg.attachments && Array.isArray(msg.attachments)) {
-            allAttachments.push(...msg.attachments);
+            allAttachments.push(...msg.attachments.filter((attachment): attachment is string => typeof attachment === "string"));
         }
     });
 
     if (allAttachments.length > 0) {
         const signedData = await getSignedUrls("ticket-attachments", allAttachments);
         const urlMap = new Map(signedData?.map(s => [s.path, s.signedUrl]));
-        ticket.messages.forEach((msg: any) => {
-            if (msg.attachments) {
-                msg.attachments = msg.attachments.map((path: string) => urlMap.get(path) || path);
-            }
+        ticket.messages.forEach((msg: { attachments?: unknown }) => {
+            const attachments = Array.isArray(msg.attachments)
+                ? msg.attachments.filter((path): path is string => typeof path === "string")
+                : [];
+            msg.attachments = attachments.map((path) => urlMap.get(path) || null).filter((path): path is string => typeof path === "string");
         });
     }
 
     if (!isStaff && ticket.is_anonymous) {
-        delete (ticket as any).user;
-        delete (ticket as any).user_id;
+        delete ticket.user;
+        delete ticket.user_id;
     }
 
     return NextResponse.json(ticket);
@@ -88,7 +91,7 @@ export const POST = apiHandler(async (request: Request, { params }: { params: Pr
     const { id } = await params;
     const formData = await request.formData();
 
-    const rawBody: any = {};
+    const rawBody: Record<string, string> = {};
     const files: File[] = [];
     formData.forEach((value, key) => {
         if (value instanceof File) files.push(value);
@@ -97,14 +100,14 @@ export const POST = apiHandler(async (request: Request, { params }: { params: Pr
 
     const { message, accessToken } = replyTicketSchema.parse({ ...rawBody, ticketId: id });
 
-    if (!message?.trim() && files.length === 0) throw new Error("Lütfen bir mesaj yazın veya en az bir dosya ekleyin.");
+    if (!message?.trim() && files.length === 0) throw new Error("Write a message or attach at least one file.");
 
     const { data: ticket } = await supabase.from("tickets").select("status, user_id, access_token, is_anonymous").eq("id", id).single();
-    if (!ticket) throw new Error("Talep bulunamadı.");
-    if (ticket.status === 'closed') throw new Error("Bu talep kapatılmıştır. Yeni yanıt eklenemez.");
+    if (!ticket) throw new Error("Ticket not found.");
+    if (ticket.status === 'closed') throw new Error("This ticket is closed. A new reply cannot be added.");
 
     // Permissions
-    const isStaff = MANAGEMENT_ROLES.includes(session.user.role as any);
+    const isStaff = MANAGEMENT_ROLES.includes(session.user.role);
     const isOwner = ticket.user_id !== null && session.user.id === ticket.user_id;
     const hasValidTrackingToken = accessToken === ticket.access_token;
 
@@ -119,16 +122,17 @@ export const POST = apiHandler(async (request: Request, { params }: { params: Pr
     if (files.length > 0) {
         for (const file of files) {
             if (file.size > MAX_FILE_SIZE) {
-                throw new Error(`Dosya boyutu çok büyük: ${file.name} (Max 20MB)`);
+                throw new Error(`File is too large: ${file.name} (max 20 MB)`);
             }
             if (!ALLOWED_TYPES.includes(file.type)) {
-                throw new Error(`Desteklenmeyen dosya formatı: ${file.name}. Lütfen JPEG, PNG, WEBP veya PDF yükleyiniz.`);
+                throw new Error(`Unsupported file type: ${file.name}. Upload JPEG, PNG, WEBP, or PDF.`);
             }
         }
 
         for (const file of files) {
-            const ext = file.name.split('.').pop();
-            const fileName = `replies/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+            await assertFileSignature(file);
+            const ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+            const fileName = `replies/${crypto.randomUUID()}.${ext}`;
             const arrayBuffer = await file.arrayBuffer();
             
             const { error: uploadError } = await supabase.storage
@@ -138,7 +142,7 @@ export const POST = apiHandler(async (request: Request, { params }: { params: Pr
                     upsert: false 
                 });
 
-            if (uploadError) throw new Error("Dosya yükleme hatası: " + uploadError.message);
+            if (uploadError) throw new Error("File upload failed: " + uploadError.message);
             attachmentPaths.push(fileName);
         }
     }
@@ -147,11 +151,14 @@ export const POST = apiHandler(async (request: Request, { params }: { params: Pr
     const { error } = await supabase.from("ticket_messages").insert({
         ticket_id: id,
         sender_id: senderId,
-        message,
-        attachments: attachmentPaths.length > 0 ? attachmentPaths : null,
+        message: message?.trim() || "",
+        attachments: attachmentPaths,
         is_staff_reply: isStaff
     });
-    if (error) throw error;
+    if (error) {
+        if (attachmentPaths.length) await supabase.storage.from("ticket-attachments").remove(attachmentPaths);
+        throw error;
+    }
 
     // Update Status
     let newStatus = ticket.status;
@@ -179,7 +186,7 @@ export const PUT = apiHandler(async (request: Request, { params }: { params: Pro
 
     const { data: ticket } = await supabase.from("tickets").select("status").eq("id", id).single();
     if (ticket?.status === 'closed') {
-        throw new Error("Kapatılan talepler tekrar açılamaz.");
+        throw new Error("Closed tickets cannot be reopened.");
     }
 
     const { error } = await supabase

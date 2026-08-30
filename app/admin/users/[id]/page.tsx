@@ -32,7 +32,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ManageUserDialog } from "@/components/admin/UserManagementDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { User, UserDetail } from "@/types/user";
 import { WarningManager } from "@/components/admin/WarningManager";
 import { PaymentReviewDialog } from "@/components/admin/PaymentReviewDialog";
@@ -69,10 +68,10 @@ export default function UserDetailPage() {
             if (!res.ok) throw new Error("Failed");
         },
         onSuccess: () => {
-            toast.success("Rol güncellendi");
+            toast.success("Role updated");
             queryClient.invalidateQueries({ queryKey: ['user', id] });
         },
-        onError: () => toast.error("İşlem başarısız")
+        onError: () => toast.error("Action failed")
     });
 
     const suspendMutation = useMutation({
@@ -85,10 +84,10 @@ export default function UserDetailPage() {
             if (!res.ok) throw new Error("Failed");
         },
         onSuccess: (_, variables) => {
-            toast.success(variables.isSuspended ? "Kullanıcı askıya alındı" : "Kullanıcı aktifleştirildi");
+            toast.success(variables.isSuspended ? "User suspended" : "User access restored");
             queryClient.invalidateQueries({ queryKey: ['user', id] });
         },
-        onError: () => toast.error("İşlem başarısız")
+        onError: () => toast.error("Action failed")
     });
 
     const deleteMutation = useMutation({
@@ -97,15 +96,15 @@ export default function UserDetailPage() {
             if (!res.ok) throw new Error("Failed");
         },
         onSuccess: () => {
-            toast.success("Kullanıcı silindi");
+            toast.success("User deleted");
             router.push("/admin/users");
         },
-        onError: () => toast.error("Silme işlemi başarısız")
+        onError: () => toast.error("Delete failed")
     });
 
     if (isLoading) {
         return (
-            <div className="space-y-6 max-w-7xl mx-auto pb-12">
+            <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 sm:p-8">
                 <div className="flex justify-between">
                     <Skeleton className="h-10 w-[200px]" />
                     <Skeleton className="h-10 w-[100px]" />
@@ -121,9 +120,9 @@ export default function UserDetailPage() {
     if (error || !user) {
         return (
             <div className="flex flex-col items-center justify-center h-[50vh]">
-                <p className="text-muted-foreground mb-4">Kullanıcı bulunamadı.</p>
+                <p className="text-muted-foreground mb-4">User not found.</p>
                 <Link href="/admin/users">
-                    <Button variant="outline">Geri Dön</Button>
+                    <Button variant="outline">Go back</Button>
                 </Link>
             </div>
         );
@@ -138,9 +137,9 @@ export default function UserDetailPage() {
     const details = getFirstItem<UserDetail>(user.user_details);
     
     // Resolve School Name from joined table or manual entry in additional_info
-    const schoolName = (details as any)?.high_schools?.school_name || 
+    const schoolName = details?.high_schools?.school_name ||
                        details?.additional_info?.manual_school_name || 
-                       "Belirtilmemiş";
+                       "Not specified";
 
     const managedCommittee = user.managed_committees?.[0];
     const memberCommittee = user.committee_members?.[0]?.committee;
@@ -150,7 +149,7 @@ export default function UserDetailPage() {
     const application = getFirstItem(user.application);
     const paymentStatus = application?.payment_status || "unpaid";
 
-    const appForm = Array.isArray(application?.form) ? application.form[0] : application?.form;
+    const appForm = application?.form;
     const formData = application?.form_data || {};
 
     const handlePaymentClick = () => {
@@ -180,25 +179,25 @@ export default function UserDetailPage() {
             case 'paid':
                 return (
                     <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
-                        <CheckCircle2 className="w-4 h-4" /> Ödendi
+                        <CheckCircle2 className="w-4 h-4" /> Paid
                     </div>
                 );
             case 'processing':
                 return (
                     <div className="flex items-center gap-1.5 text-amber-600 font-medium">
-                        <Clock className="w-4 h-4 animate-pulse" /> İnceleniyor
+                        <Clock className="w-4 h-4 animate-pulse" /> Under review
                     </div>
                 );
             case 'rejected':
                 return (
                     <div className="flex items-center gap-1.5 text-red-600 font-medium">
-                        <XCircle className="w-4 h-4" /> Reddedildi
+                        <XCircle className="w-4 h-4" /> Rejected
                     </div>
                 );
             default:
                 return (
                     <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Wallet className="w-4 h-4" /> Ödenmedi
+                        <Wallet className="w-4 h-4" /> Unpaid
                     </div>
                 );
         }
@@ -208,7 +207,7 @@ export default function UserDetailPage() {
         if (appForm?.steps) {
             for (const step of appForm.steps) {
                 if (step.fields) {
-                    const field = step.fields.find((f: any) => f.id === key);
+                    const field = step.fields.find((f) => f.id === key);
                     if (field) return field.label;
                 }
             }
@@ -225,7 +224,7 @@ export default function UserDetailPage() {
                     <div className="bg-secondary/30 p-4 rounded-full mb-3">
                         <FileText className="w-8 h-8 opacity-50" />
                     </div>
-                    <p>Bu kullanıcı için form verisi bulunamadı.</p>
+                    <p>No form data was found for this user.</p>
                 </div>
             );
         }
@@ -252,8 +251,7 @@ export default function UserDetailPage() {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-12 max-w-7xl mx-auto">
-            <Breadcrumbs items={[{ label: "Kullanıcılar", href: "/admin/users" }, { label: "Kullanıcı Detayı" }]} />
+        <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -267,14 +265,14 @@ export default function UserDetailPage() {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <span>ID: {user.id}</span>
                             <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                            <span>Kayıt: {new Date(user.created_at).toLocaleDateString('tr-TR')}</span>
+                            <span>Registered: {new Date(user.created_at).toLocaleDateString('en-GB')}</span>
                         </div>
                     </div>
                 </div>
                 <div className="flex gap-2">
                     <Button onClick={() => setIsManageOpen(true)}>
                         <MoreVertical className="w-4 h-4 mr-2" />
-                        Yönet
+                        Manage
                     </Button>
                 </div>
             </div>
@@ -295,7 +293,7 @@ export default function UserDetailPage() {
                                 </Avatar>
                                 <div className="mt-4 flex flex-col items-end gap-2">
                                     {getRoleBadge(user.role)}
-                                    {user.is_suspended && <Badge variant="destructive" className="animate-pulse">Askıya Alındı</Badge>}
+                                    {user.is_suspended && <Badge variant="destructive" className="animate-pulse">Suspended</Badge>}
                                 </div>
                             </div>
 
@@ -306,7 +304,7 @@ export default function UserDetailPage() {
                                         <Mail className="w-3.5 h-3.5" /> {user.email}
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <Phone className="w-3.5 h-3.5" /> {details?.phone_number || "Belirtilmemiş"}
+                        <Phone className="w-3.5 h-3.5" /> {details?.phone_number || "Not specified"}
                                     </div>
                                 </div>
 
@@ -314,11 +312,11 @@ export default function UserDetailPage() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Okul</span>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">School</span>
                                         <div className="text-sm font-medium leading-tight line-clamp-2" title={schoolName}>{schoolName}</div>
                                     </div>
                                     <div className="space-y-1">
-                                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Şehir</span>
+                                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">City</span>
                                         <div className="text-sm font-medium leading-tight">{details?.city || "-"}</div>
                                     </div>
                                 </div>
@@ -336,7 +334,7 @@ export default function UserDetailPage() {
                     {/* System Status Card */}
                     <Card className="border-border/50">
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Sistem Durumu</CardTitle>
+                            <CardTitle className="text-base">System status</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -350,9 +348,9 @@ export default function UserDetailPage() {
                                             </div>
                                             <div>
                                                 <div className="text-xs text-muted-foreground">
-                                                    {isCommitteeExecutive ? "Yönettiği Komite" : "Komite"}
+                                                    {isCommitteeExecutive ? "Managed committee" : "Committee"}
                                                 </div>
-                                                <div className="text-sm font-medium">{activeCommittee?.name || "Atanmamış"}</div>
+                                                <div className="text-sm font-medium">{activeCommittee?.name || "Not assigned"}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -364,14 +362,14 @@ export default function UserDetailPage() {
                                             <FileText className="w-4 h-4 text-primary" />
                                         </div>
                                         <div>
-                                            <div className="text-xs text-muted-foreground">Başvuru Durumu</div>
+                                            <div className="text-xs text-muted-foreground">Application status</div>
                                             <div className="text-sm font-medium capitalize">
                                                 {application ? (
                                                     <Link href={`/admin/applications/${application.id}`} className="hover:underline flex items-center gap-1 group">
                                                         {application.status}
                                                         <ArrowUpRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
                                                     </Link>
-                                                ) : "Başvuru Yok"}
+                                                ) : "No application"}
                                             </div>
                                         </div>
                                     </div>
@@ -383,7 +381,7 @@ export default function UserDetailPage() {
                                             <CreditCard className="w-4 h-4 text-primary" />
                                         </div>
                                         <div>
-                                            <div className="text-xs text-muted-foreground">Ödeme Durumu</div>
+                                        <div className="text-xs text-muted-foreground">Payment status</div>
                                             <div
                                                 onClick={handlePaymentClick}
                                                 className={cn(
@@ -401,7 +399,7 @@ export default function UserDetailPage() {
                                     {(paymentStatus === 'unpaid' || paymentStatus === 'rejected') && (
                                         <Button size="sm" variant="outline" className="h-8 text-xs gap-2" onClick={() => setIsUploadReceiptOpen(true)}>
                                             <UploadCloud className="w-3 h-3" />
-                                            Dekont Yükle
+                                            Upload receipt
                                         </Button>
                                     )}
                                 </div>
@@ -411,9 +409,9 @@ export default function UserDetailPage() {
 
                     <Card className="border-border/50 h-full">
                         <CardHeader>
-                            <CardTitle>Detaylı Bilgiler</CardTitle>
+                            <CardTitle>Detailed information</CardTitle>
                             <CardDescription>
-                                {details ? "Kullanıcı tarafından sağlanan detaylı bilgiler." : "Kullanıcıya ait detaylı profil bilgisi bulunmamaktadır."}
+                                {details ? "Detailed information provided by the user." : "No detailed profile information is available for this user."}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-8">
@@ -421,17 +419,17 @@ export default function UserDetailPage() {
                                 <>
                                     <section className="space-y-4">
                                         <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
-                                            <GraduationCap className="w-4 h-4 text-primary" /> Akademik & Kişisel
+                                            <GraduationCap className="w-4 h-4 text-primary" /> Academic & personal
                                         </h4>
                                         <div className="grid sm:grid-cols-2 gap-y-4 gap-x-8">
                                             <div className="space-y-1">
-                                                <span className="text-xs text-muted-foreground">Sınıf</span>
+                                                <span className="text-xs text-muted-foreground">Grade</span>
                                                 <div className="text-sm font-medium">{gradeLabel || "-"}</div>
                                             </div>
                                             <div className="space-y-1">
-                                                <span className="text-xs text-muted-foreground">Doğum Tarihi</span>
+                                                <span className="text-xs text-muted-foreground">Birth date</span>
                                                 <div className="text-sm font-medium">
-                                                    {details.birth_date ? new Date(details.birth_date).toLocaleDateString('tr-TR', { dateStyle: 'long' }) : "-"}
+                                                    {details.birth_date ? new Date(details.birth_date).toLocaleDateString('en-GB', { dateStyle: 'long' }) : "-"}
                                                 </div>
                                             </div>
                                         </div>
@@ -439,7 +437,7 @@ export default function UserDetailPage() {
 
                                     <section className="space-y-4">
                                         <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80 pb-2 border-b border-border/50">
-                                            <FileText className="w-4 h-4 text-primary" /> Başvuru Cevapları
+                                            <FileText className="w-4 h-4 text-primary" /> Application responses
                                         </h4>
                                         {renderDynamicData()}
                                     </section>
@@ -449,8 +447,8 @@ export default function UserDetailPage() {
                                     <div className="bg-secondary/30 p-4 rounded-full mb-3">
                                         <UserIcon className="w-8 h-8 opacity-50" />
                                     </div>
-                                    <p>Bu kullanıcı için detaylı profil bilgisi bulunamadı.</p>
-                                    <p className="text-xs opacity-70 mt-1">Genellikle Yönetici veya Personel hesaplarında bu durum normaldir.</p>
+                                    <p>No detailed profile information was found for this user.</p>
+                                    <p className="text-xs opacity-70 mt-1">This is normal for administrator or staff accounts.</p>
                                 </div>
                             )}
                         </CardContent>

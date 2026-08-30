@@ -27,8 +27,16 @@ export default withAuth(
 
     // Define base paths
     const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
+    const isPortalRoute = req.nextUrl.pathname.startsWith("/portal");
     const isDashboardRoute = req.nextUrl.pathname.startsWith("/dashboard");
     const isOrganisationRoute = req.nextUrl.pathname.startsWith("/organisation");
+
+    if (req.nextUrl.pathname === "/dashboard" || req.nextUrl.pathname === "/organisation") {
+      return NextResponse.redirect(new URL("/portal", req.url));
+    }
+    if (req.nextUrl.pathname === "/dashboard/delegation") {
+      return NextResponse.redirect(new URL("/portal/delegation", req.url));
+    }
 
     // Define Shared/Common routes that any authenticated user can access
     const isSharedRoute = [
@@ -43,10 +51,8 @@ export default withAuth(
         
         if (ADMIN_ROLES.includes(effectiveRole)) {
           return NextResponse.redirect(new URL("/admin", req.url));
-        } else if (ORGANISATION_ROLES.includes(effectiveRole)) {
-          return NextResponse.redirect(new URL("/organisation", req.url));
         } else {
-          return NextResponse.redirect(new URL("/dashboard", req.url));
+          return NextResponse.redirect(new URL("/portal", req.url));
         }
       }
       return null;
@@ -62,6 +68,9 @@ export default withAuth(
       );
     }
 
+    // RavenMUN uses one authenticated, role-aware participant portal.
+    if (isPortalRoute) return null;
+
     // Determine the user's role including their targeted application type
     const effectiveRole = getEffectiveRole(token);
 
@@ -73,23 +82,25 @@ export default withAuth(
     // 2. Protect /admin
     if (isAdminRoute) {
       if (!ADMIN_ROLES.includes(effectiveRole)) {
-        if (ORGANISATION_ROLES.includes(effectiveRole)) return NextResponse.redirect(new URL("/organisation", req.url));
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+        if (ORGANISATION_ROLES.includes(effectiveRole)) return NextResponse.redirect(new URL("/portal", req.url));
+        return NextResponse.redirect(new URL("/portal", req.url));
       }
     }
 
     // 3. Protect /dashboard (Academic specific)
     if (isDashboardRoute) {
       if (!DASHBOARD_ROLES.includes(effectiveRole)) {
+        // Site administrators may inspect committee documents from the admin panel.
+        if (ADMIN_ROLES.includes(effectiveRole) && req.nextUrl.pathname === "/dashboard/editor") return null;
         if (ADMIN_ROLES.includes(effectiveRole)) return NextResponse.redirect(new URL("/admin", req.url));
-        if (ORGANISATION_ROLES.includes(effectiveRole)) return NextResponse.redirect(new URL("/organisation", req.url));
+        if (ORGANISATION_ROLES.includes(effectiveRole)) return NextResponse.redirect(new URL("/portal", req.url));
       }
     }
 
     // 4. Protect /organisation
     if (isOrganisationRoute) {
       if (!ORGANISATION_ROLES.includes(effectiveRole) && !ADMIN_ROLES.includes(effectiveRole)) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+        return NextResponse.redirect(new URL("/portal", req.url));
       }
 
       if (ADMIN_ROLES.includes(effectiveRole)) {
@@ -99,13 +110,13 @@ export default withAuth(
       // Sub-section team enforcement
       const path = req.nextUrl.pathname;
       if (path.startsWith("/organisation/observers") && !OBSERVER_TEAM.includes(effectiveRole)) {
-        return NextResponse.redirect(new URL("/organisation", req.url));
+        return NextResponse.redirect(new URL("/portal", req.url));
       }
       if (path.startsWith("/organisation/press") && !PRESS_TEAM.includes(effectiveRole)) {
-        return NextResponse.redirect(new URL("/organisation", req.url));
+        return NextResponse.redirect(new URL("/portal", req.url));
       }
       if (path.startsWith("/organisation/security") && !SECURITY_TEAM.includes(effectiveRole)) {
-        return NextResponse.redirect(new URL("/organisation", req.url));
+        return NextResponse.redirect(new URL("/portal", req.url));
       }
     }
 
@@ -126,6 +137,7 @@ export default withAuth(
 export const config = {
   matcher: [
       "/dashboard/:path*", 
+      "/portal/:path*",
       "/admin/:path*", 
       "/organisation/:path*", 
       "/login",
