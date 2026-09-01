@@ -232,15 +232,15 @@
 
 .raven-home-raven {
   position: absolute;
-  top: 10%;
-  right: -5%;
-  width: min(64vw, 58rem);
+  top: 51%;
+  left: 50%;
+  width: min(58vw, 54rem);
   aspect-ratio: 464 / 402;
   background: #000;
   opacity: 0.13;
   filter: blur(0.35px) drop-shadow(0 2rem 4rem rgb(0 0 0 / 48%));
   mask: url("/raven-shadow.svg") center / contain no-repeat;
-  transform: rotate(-5deg);
+  transform: translate3d(-50%, -50%, 0) rotate(-5deg);
   transform-origin: center;
   animation: raven-shadow-drift 22s ease-in-out infinite alternate;
 }
@@ -335,9 +335,9 @@
 }
 
 @keyframes raven-shadow-drift {
-  0% { transform: translate3d(-1.5%, 1%, 0) rotate(-5deg) scale(0.98); opacity: 0.1; }
-  50% { transform: translate3d(1%, -1.5%, 0) rotate(-3deg) scale(1.015); opacity: 0.14; }
-  100% { transform: translate3d(2%, 0.5%, 0) rotate(-4deg) scale(1.03); opacity: 0.12; }
+  0% { transform: translate3d(-51.5%, -49%, 0) rotate(-5deg) scale(0.98); opacity: 0.1; }
+  50% { transform: translate3d(-49%, -51.5%, 0) rotate(-3deg) scale(1.015); opacity: 0.14; }
+  100% { transform: translate3d(-48%, -49.5%, 0) rotate(-4deg) scale(1.03); opacity: 0.12; }
 }
 
 @keyframes raven-bird-flight {
@@ -378,9 +378,9 @@
 
 @media (max-width: 767px) {
   .raven-home-raven {
-    top: 19%;
-    right: -36%;
-    width: 125vw;
+    top: 48%;
+    left: 50%;
+    width: 135vw;
     opacity: 0.1;
   }
 }
