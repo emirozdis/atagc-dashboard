@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "collab": "ts-node --compiler-options '{\"module\":\"commonjs\"}' ./collab-server/hocuspocus-server.ts",
+    "collab": "ts-node --project tests/tsconfig.json ./collab-server/hocuspocus-server.ts",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "ts-node --project tests/tsconfig.json tests/run.ts",
+    "test:live": "ts-node --project tests/tsconfig.json tests/live-workflows.ts",
     "email:worker": "ts-node --project tests/tsconfig.json workers/email-outbox.ts",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "postinstall": "prisma generate --schema prisma/schema.prisma"

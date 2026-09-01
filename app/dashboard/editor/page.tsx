@@ -147,12 +147,20 @@ function CollaborativeEditorContent() {
     try {
       const doc = new Y.Doc();
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const websocketUrl = `${protocol}://${window.location.hostname}:${process.env.NEXT_PUBLIC_COLLAB_PORT || 1234}`;
+      const websocketUrl = process.env.NEXT_PUBLIC_COLLAB_URL
+        || `${protocol}://${window.location.hostname}:${process.env.NEXT_PUBLIC_COLLAB_PORT || 1234}`;
+      const collaborationToken = async () => {
+        const response = await fetch('/api/auth/collaboration-token', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Unable to authorize collaboration.');
+        const payload = await response.json() as { token: string };
+        return payload.token;
+      };
 
       const newProvider = new HocuspocusProvider({
         url: websocketUrl,
         name: `committee-${committeeInfo.id}`,
         document: doc,
+        token: collaborationToken,
         onStatus: (data) => setStatus(data.status),
         onClose: () => setStatus('disconnected'),
         onStateless: ({ payload }) => {

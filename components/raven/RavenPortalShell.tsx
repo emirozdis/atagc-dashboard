@@ -30,6 +30,7 @@ import {
 import { getEffectiveRole, STAFF_ROLES } from "@/lib/roles";
 
 type PortalApplication = { application_type: string; status: string };
+type PortalApplicationData = { applications?: PortalApplication[]; delegation?: { id: string } | null };
 type PortalNavItem = { href: string; label: string; icon: typeof Home };
 
 const roleLabels: Record<string, string> = {
@@ -57,7 +58,7 @@ export default function RavenPortalShell({ children }: { children: ReactNode }) 
   const isStaff = STAFF_ROLES.includes(actualRole);
   const isApproved = isStaff || session?.user?.applicationStatus === "approved" || session?.user?.applicationStatus === "accepted";
 
-  const { data: applicationData } = useQuery<{ applications?: PortalApplication[] }>({
+  const { data: applicationData } = useQuery<PortalApplicationData>({
     queryKey: ["portal-nav-applications", session?.user?.id],
     queryFn: async () => {
       const response = await fetch("/api/applications/mine");
@@ -68,12 +69,15 @@ export default function RavenPortalShell({ children }: { children: ReactNode }) 
     staleTime: 60_000,
   });
 
-  const isDelegationApplicant = Boolean(applicationData?.applications?.some((application) => application.application_type === "delegation"));
+  const hasDelegation = Boolean(
+    applicationData?.delegation
+    || applicationData?.applications?.some((application) => application.application_type === "delegation"),
+  );
   const items: PortalNavItem[] = [
     { href: "/portal", label: "Overview", icon: Home },
     { href: "/portal/applications", label: "My applications", icon: FileText },
     { href: "/profile", label: "Profile", icon: UserRound },
-    ...(isDelegationApplicant ? [{ href: "/portal/delegation", label: "My delegation", icon: Users }] : []),
+    ...(hasDelegation ? [{ href: "/portal/delegation", label: "My delegation", icon: Users }] : []),
     ...(isApproved ? getApprovedItems(role) : []),
     { href: "/tickets", label: "Support", icon: MessageSquare },
   ];
@@ -129,7 +133,7 @@ function getApprovedItems(role: string): PortalNavItem[] {
       { href: "/dashboard/editor", label: "Committee workspace", icon: BookOpen },
     );
   }
-  if (["press", "head_press"].includes(role)) items.push({ href: "/organisation/press/gallery", label: "Press gallery", icon: Camera }, { href: "/organisation/press/upload", label: "Upload media", icon: Camera });
+  if (["press", "head_press"].includes(role)) items.push({ href: "/gallery", label: "Press gallery", icon: Camera }, { href: "/organisation/press/upload", label: "Upload media", icon: Camera });
   if (["observer", "head_observer"].includes(role)) items.push({ href: "/organisation/observers/my-tasks", label: "Observer tasks", icon: FileText }, ...(role === "head_observer" ? [{ href: "/organisation/observers/tasks", label: "Manage tasks", icon: Users }] : []));
   if (["security", "head_security"].includes(role)) items.push({ href: "/organisation/security/scan", label: "Scan entry", icon: ScanLine }, ...(role === "head_security" ? [{ href: "/organisation/security/logs", label: "Entry logs", icon: ShieldCheck }] : []));
 

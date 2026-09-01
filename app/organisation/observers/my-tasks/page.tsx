@@ -85,7 +85,7 @@ export default function MyTasksPage() {
             </div>
             <div>
               <div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-7 w-8" /> : assignedCount}</div>
-              <div className="text-xs text-muted-foreground">Atanan</div>
+              <div className="text-xs text-muted-foreground">Assigned</div>
             </div>
           </CardContent>
         </Card>

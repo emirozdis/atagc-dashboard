@@ -1,7 +1,8 @@
 // 0. Load Environment Variables
 import * as dotenv from "dotenv";
-dotenv.config({ path: "../.env.local" });
-dotenv.config();
+import { resolve } from "node:path";
+dotenv.config({ path: resolve(process.cwd(), ".env.local") });
+dotenv.config({ path: resolve(process.cwd(), ".env") });
 
 import {
   Server,
@@ -11,13 +12,15 @@ import {
   onStatelessPayload
 } from "@hocuspocus/server";
 import { decode } from "next-auth/jwt";
+import jwt from "jsonwebtoken";
 import { encodeStateAsUpdate, applyUpdate } from "yjs";
 import { IncomingMessage } from "http";
-import { supabase } from "../lib/SERVER_supabase";
+import { createCollaborationPrisma } from "./prisma";
 
 const CONFIG = {
   port: parseInt(process.env.COLLAB_PORT || process.env.NEXT_PUBLIC_COLLAB_PORT || "1234", 10),
   nextAuthSecret: process.env.NEXTAUTH_SECRET!,
+  authSecret: process.env.COLLAB_AUTH_SECRET || process.env.NEXTAUTH_SECRET!,
   docPrefix: "committee-",
   snapshotInterval: 1000 * 60 * 10, // 10 Minutes
 };
@@ -26,6 +29,8 @@ if (!process.env.DATABASE_URL || !CONFIG.nextAuthSecret) {
   console.error("❌ Critical Error: Missing Environment Variables");
   process.exit(1);
 }
+
+const prisma = createCollaborationPrisma();
 
 
 interface ConnectionContext {
@@ -74,18 +79,13 @@ const handleLoadDocument = async (data: onLoadDocumentPayload) => {
 
   console.log(`[LOAD] Fetching document for Committee ${committeeId}...`);
 
-  const { data: doc, error } = await supabase
-    .from("committee_documents")
-    .select("document_blob")
-    .eq("committee_id", committeeId)
-    .single();
+  const doc = await prisma.committee_documents.findUnique({
+    where: { committee_id: committeeId },
+    select: { document_blob: true },
+  });
 
-  if (error) {
-    if (error.code !== 'PGRST116') {
-      console.error(`[LOAD] Database error for ${committeeId}:`, error);
-    } else {
-      console.log(`[LOAD] No existing document found for ${committeeId}. Creating new.`);
-    }
+  if (!doc) {
+    console.log(`[LOAD] No existing document found for ${committeeId}. Creating new.`);
     return null;
   }
 
@@ -109,35 +109,35 @@ const handleStoreDocument = async (data: onStoreDocumentPayload) => {
 
   // 1. Prepare Binary
   const update = encodeStateAsUpdate(data.document);
-  const blob = Buffer.from(update).toString('hex');
-  const pgBlob = `\\x${blob}`;
   const now = Date.now();
 
   try {
     // 2. Save Head (Current State) - Always
-    const { error } = await supabase.from("committee_documents").upsert(
-      {
+    await prisma.committee_documents.upsert({
+      where: { committee_id: committeeId },
+      create: {
         committee_id: committeeId,
-        document_blob: pgBlob,
-        updated_at: new Date().toISOString()
+        document_blob: Buffer.from(update),
+        updated_at: new Date(),
       },
-      { onConflict: "committee_id" }
-    );
-
-    if (error) console.error(`[SAVE] DB Error for ${committeeId}:`, error);
+      update: {
+        document_blob: Buffer.from(update),
+        updated_at: new Date(),
+      },
+    });
 
     // 3. Auto-Snapshot Logic
     const lastSnap = lastSnapshotTime[committeeId] || 0;
     if (now - lastSnap > CONFIG.snapshotInterval) {
         console.log(`[SNAPSHOT] Creating auto-save for ${committeeId}`);
         
-        await supabase.from("document_versions").insert({
+        await prisma.document_versions.create({ data: {
             committee_id: committeeId,
-            document_blob: pgBlob,
+            document_blob: Buffer.from(update),
             version_name: "Automatic save",
             is_auto_save: true,
-            created_at: new Date().toISOString()
-        });
+            created_at: new Date(),
+        } });
 
         lastSnapshotTime[committeeId] = now;
     }
@@ -162,12 +162,10 @@ const handleStatelessMessage = async (data: onStatelessPayload) => {
         const targetUserId = msg.userId;
         const newCanWrite = msg.canWrite;
 
-        const { data: targetAssignment } = await supabase
-          .from("conference_assignments")
-          .select("user_id")
-          .eq("user_id", targetUserId)
-          .eq("committee_id", context.committeeId)
-          .maybeSingle();
+        const targetAssignment = await prisma.conference_assignments.findFirst({
+          where: { user_id: targetUserId, committee_id: context.committeeId },
+          select: { user_id: true },
+        });
         if (!targetAssignment) return;
 
         document.getConnections().forEach((conn) => {
@@ -208,24 +206,41 @@ const handleStatelessMessage = async (data: onStatelessPayload) => {
 
 const handleAuthentication = async (data: onAuthenticatePayload): Promise<ConnectionContext> => {
   const { request, documentName } = data;
+  let userId = "";
+  let sessionId = "";
 
-  const tokenValue = getSessionToken(request);
-  if (!tokenValue) throw new Error("Unauthorized: No session token found in cookies.");
+  if (data.token) {
+    const claims = jwt.verify(data.token, CONFIG.authSecret, { audience: "ravenmun-collaboration" });
+    if (typeof claims === "string" || !claims.sub || typeof claims.sessionId !== "string") throw new Error("Unauthorized: Invalid collaboration token.");
+    userId = claims.sub;
+    sessionId = claims.sessionId;
+  } else {
+    const tokenValue = getSessionToken(request);
+    if (!tokenValue) throw new Error("Unauthorized: No session token found.");
+    const token = await decode({ token: tokenValue, secret: CONFIG.nextAuthSecret });
+    if (!token?.sub || typeof token.sessionId !== "string") throw new Error("Unauthorized: Invalid session.");
+    userId = token.sub;
+    sessionId = token.sessionId;
+  }
 
-  const token = await decode({ token: tokenValue, secret: CONFIG.nextAuthSecret });
-  if (!token || !token.sub) throw new Error("Unauthorized: Invalid session.");
+  const activeSession = await prisma.active_sessions.findFirst({
+    where: { id: sessionId, user_id: userId, revoked_at: null, expires_at: { gt: new Date() } },
+    select: { id: true },
+  });
+  if (!activeSession) throw new Error("Unauthorized: Session revoked or expired.");
 
-  const userId = token.sub;
   const committeeId = getCommitteeId(documentName);
 
   if (!committeeId) throw new Error("Invalid document name.");
 
-  const { data: user, error } = await supabase.from("users").select("role, account_role, full_name, email").eq("id", userId).single();
-  if (error || !user) throw new Error("User not found.");
+  const user = await prisma.users.findUnique({ where: { id: userId }, select: { role: true, account_role: true, full_name: true, email: true } });
+  if (!user) throw new Error("User not found.");
 
   const role = user.account_role === 'super_admin' ? 'superadmin' : user.account_role === 'site_admin' ? 'admin' : user.role;
-  const { data: assignment } = await supabase.from("conference_assignments").select("role, committee_id").eq("user_id", userId).eq("committee_id", committeeId).maybeSingle();
-  const { data: legacyMembership } = await supabase.from("committee_members").select("committee_id, can_write").eq("user_id", userId).eq("committee_id", committeeId).maybeSingle();
+  const [assignment, legacyMembership] = await Promise.all([
+    prisma.conference_assignments.findFirst({ where: { user_id: userId, committee_id: committeeId }, select: { role: true, committee_id: true } }),
+    prisma.committee_members.findFirst({ where: { user_id: userId, committee_id: committeeId }, select: { committee_id: true, can_write: true } }),
+  ]);
 
   const baseContext = {
     user: {

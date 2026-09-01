@@ -30,8 +30,8 @@ async function findEmailForInvite(invite: InviteRecord) {
   return ((data || []) as unknown as OutboxMessage[]).find((message) => new Date(message.created_at).getTime() >= new Date(invite.created_at).getTime()) || null;
 }
 
-async function deliverEmail(message: OutboxMessage) {
-  if (message.sent_at) return true;
+async function deliverEmail(message: OutboxMessage, force = false) {
+  if (message.sent_at && !force) return true;
   try {
     await sendEmail(message.recipient_email, message.subject, message.html);
     const { error } = await supabase
@@ -51,7 +51,7 @@ async function resendExistingInvite(invite: InviteRecord) {
   if (!invite.expires_at || new Date(invite.expires_at).getTime() <= Date.now()) throw new Error("This invitation has expired. Send a new invitation.");
   const message = await findEmailForInvite(invite);
   if (!message) throw new Error("The original invitation email is unavailable. Send a new invitation after this one expires.");
-  const emailSent = await deliverEmail(message);
+  const emailSent = await deliverEmail(message, true);
   return NextResponse.json({ success: true, emailSent, resent: true, invite });
 }
 

@@ -25,6 +25,16 @@ export type DatabaseResult<T = DatabaseRow> = {
 type Filter = { sql: string; values: unknown[] };
 type NestedSelection = { alias: string; target: string; fields: string; relationName?: string };
 
+function toPostgrestValue(value: unknown): unknown {
+  if (typeof value === "bigint") return value.toString();
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(toPostgrestValue);
+  if (value && typeof value === "object" && !Buffer.isBuffer(value) && !(value instanceof Uint8Array)) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, toPostgrestValue(item)]));
+  }
+  return value;
+}
+
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const RELATIONS: Record<string, { target: string; source: string; targetKey?: string; many?: boolean }> = {
@@ -69,6 +79,8 @@ const RPC_ARGUMENTS: Record<string, string[]> = {
   submit_ravenmun_payment_receipt: ["p_user_id", "p_application_id", "p_storage_path", "p_file_type", "p_actor_id"],
   create_ravenmun_delegation_invite: ["p_owner_id", "p_email", "p_token_hash", "p_expires_at", "p_link", "p_inviter_name"],
 };
+
+const VOID_RPCS = new Set(["assign_ravenmun_conference_role"]);
 
 function identifier(value: string): string {
   if (!IDENTIFIER.test(value)) throw new Error(`Unsafe database identifier: ${value}`);
@@ -260,7 +272,9 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
   maybeSingle(): PrismaQuery<any> { this.requireSingle = true; this.allowMissing = true; return this as PrismaQuery<any>; }
 
   then<TResult1 = DatabaseResult<T>, TResult2 = never>(onfulfilled?: ((value: DatabaseResult<T>) => TResult1 | PromiseLike<TResult1>) | null, onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null): Promise<TResult1 | TResult2> {
-    return this.execute().then(onfulfilled, onrejected);
+    return this.execute()
+      .then((result) => ({ ...result, data: toPostgrestValue(result.data) as T }))
+      .then(onfulfilled, onrejected);
   }
 
   private filterParameterCount(): number { return this.filters.reduce((total, filter) => total + filter.values.length, 0) + 1; }
@@ -315,10 +329,18 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
         const offset = values.length;
         const shiftedWhere = where.sql.replace(/\$(\d+)/g, (_, index: string) => `$${Number(index) + offset}`);
         const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`UPDATE ${tableName(this.table)} SET ${assignments}${shiftedWhere}${returning}`, ...values, ...where.values);
-        return { data: (this.returnRows ? rows : null) as T, error: null };
+        if (!this.returnRows) return { data: null as T, error: null };
+        if (!this.requireSingle) return { data: rows as T, error: null };
+        if (rows.length === 0) return { data: null as T, error: this.allowMissing ? null : { message: "No rows found", code: "PGRST116" } };
+        if (rows.length > 1) return { data: null as T, error: { message: "Multiple rows found", code: "PGRST116" } };
+        return { data: rows[0] as T, error: null };
       }
       const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`DELETE FROM ${tableName(this.table)}${where.sql}${returning}`, ...where.values);
-      return { data: (this.returnRows ? rows : null) as T, error: null };
+      if (!this.returnRows) return { data: null as T, error: null };
+      if (!this.requireSingle) return { data: rows as T, error: null };
+      if (rows.length === 0) return { data: null as T, error: this.allowMissing ? null : { message: "No rows found", code: "PGRST116" } };
+      if (rows.length > 1) return { data: null as T, error: { message: "Multiple rows found", code: "PGRST116" } };
+      return { data: rows[0] as T, error: null };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { data: null as T, error: { message } };
@@ -356,9 +378,13 @@ export async function rpcPrisma<T = DatabaseData>(name: string, args: Record<str
     const argumentNames = RPC_ARGUMENTS[name] ?? Object.keys(args);
     const values = argumentNames.map((argument) => args[argument] ?? null);
     const placeholders = values.map((_, index) => `$${index + 1}`).join(", ");
+    if (VOID_RPCS.has(name)) {
+      await prisma.$queryRawUnsafe<DatabaseRow[]>(`SELECT "public".${identifier(name)}(${placeholders})::text AS result`, ...values);
+      return { data: null as T, error: null };
+    }
     const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`SELECT * FROM "public".${identifier(name)}(${placeholders})`, ...values);
     if (!rows.length) return { data: null as T, error: null };
-    const value = Object.keys(rows[0]).length === 1 ? Object.values(rows[0])[0] : rows;
+    const value = toPostgrestValue(Object.keys(rows[0]).length === 1 ? Object.values(rows[0])[0] : rows);
     return { data: value as T, error: null };
   } catch (error) {
     return { data: null as T, error: { message: error instanceof Error ? error.message : String(error) } };

@@ -19,7 +19,11 @@ const defaults = {
   bank_iban: "TR00 0000 0000 0000 0000 0000 00",
 };
 
-const toDateString = (value: string | null) => (value ? value.substring(0, 10) : "");
+const toDateString = (value: unknown) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+};
 const settingsSchema = z.object({
   applications_open: z.preprocess((value) => value === undefined ? true : value === true || value === "true", z.boolean()),
   maintenance_mode: z.preprocess((value) => value === true || value === "true", z.boolean()),

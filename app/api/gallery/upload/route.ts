@@ -64,7 +64,6 @@ export const POST = apiHandler(async (request: Request) => {
     .insert({
       area_id: areaId,
       storage_path: filePath,
-      file_type: ext,
       uploaded_by: session.user.id,
       created_at: new Date().toISOString(),
     })

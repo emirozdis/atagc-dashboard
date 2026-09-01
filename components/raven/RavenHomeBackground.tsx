@@ -1,6 +1,7 @@
 export default function RavenHomeBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+      <span className="raven-home-raven" />
       <span className="raven-home-glow raven-home-glow-one" />
       <span className="raven-home-glow raven-home-glow-two" />
       <span className="raven-home-glow raven-home-glow-three" />

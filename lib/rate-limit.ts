@@ -17,8 +17,9 @@ export function rateLimit(options?: Options) {
       const redisUrl = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/$/, "");
       const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
       const production = process.env.NODE_ENV === "production";
+      const allowMemoryFallback = process.env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK === "true";
 
-      if (production && (!redisUrl || !redisToken)) {
+      if (production && !allowMemoryFallback && (!redisUrl || !redisToken)) {
         throw new Error("Shared rate limiting is not configured.");
       }
 
@@ -38,7 +39,7 @@ export function rateLimit(options?: Options) {
           return;
         } catch (error) {
           if (error instanceof Error && error.message === "Rate limit exceeded") throw error;
-          if (production) throw new Error("Rate limit service unavailable.");
+          if (production && !allowMemoryFallback) throw new Error("Rate limit service unavailable.");
         }
       }
       await new Promise<void>((resolve, reject) => {

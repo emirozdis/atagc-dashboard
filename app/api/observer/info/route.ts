@@ -4,6 +4,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
 import { getSignedUrl } from "@/lib/storage-utils";
+import { OBSERVER_TEAM } from "@/lib/roles";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
@@ -11,13 +12,12 @@ export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
   await limiter.check(60, ip);
 
-  const auth = await getAuthorization({ requireAuth: true });
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: OBSERVER_TEAM });
   if (!auth.ok || !auth.session) throw new Error(auth.message || 'Unauthorized');
 
   const session = auth.session;
   const userId = session.user.id;
 
-  // TODO: Verify user has observer role
   const { data: user, error: userError } = await supabase
     .from("users")
     .select("id, full_name, email, role, created_at")
@@ -27,19 +27,12 @@ export const GET = apiHandler(async (request: Request) => {
   if (userError) throw userError;
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  // Verify observer role
-  if (user.role !== 'observer') {
-    return NextResponse.json({ error: "Access denied. Observer role required." }, { status: 403 });
-  }
-
-  // TODO: Fetch observer-specific data
-  // Example: assigned committees, observation schedules, access permissions, etc.
   const { data: observerData, error: observerError } = await supabase
     .from("users")
     .select(`
         id, full_name, email, role, created_at,
         user_details (
-            id, phone_number, school_name, birth_date, profile_picture_url,
+            id, phone_number, school, city, grade, birth_date, profile_picture_url,
             is_profile_picture_hidden, allow_connections, notification_preferences, additional_info,
             high_schools(school_name)
         )
