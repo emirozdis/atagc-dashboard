@@ -245,6 +245,34 @@
   animation: raven-shadow-drift 22s ease-in-out infinite alternate;
 }
 
+.raven-home-flight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.raven-home-bird {
+  --bird-scale: 0.34;
+  --bird-lift: 0vh;
+  position: absolute;
+  left: -18vw;
+  top: 0;
+  width: clamp(7rem, 11vw, 11rem);
+  aspect-ratio: 464 / 402;
+  background: #020107;
+  opacity: 0.34;
+  filter: blur(0.2px) drop-shadow(0 0.5rem 1rem rgb(0 0 0 / 35%));
+  mask: url("/raven-shadow.svg") center / contain no-repeat;
+  animation: raven-bird-flight var(--bird-duration, 34s) linear infinite;
+  animation-delay: var(--bird-delay, 0s);
+}
+
+.raven-home-bird-one { --bird-duration: 34s; --bird-delay: -21s; --bird-scale: 0.34; --bird-lift: 6vh; top: 23%; opacity: 0.38; }
+.raven-home-bird-two { --bird-duration: 43s; --bird-delay: -8s; --bird-scale: 0.24; --bird-lift: -3vh; top: 38%; opacity: 0.28; }
+.raven-home-bird-three { --bird-duration: 39s; --bird-delay: -31s; --bird-scale: 0.44; --bird-lift: 9vh; top: 58%; opacity: 0.32; }
+.raven-home-bird-four { --bird-duration: 49s; --bird-delay: -14s; --bird-scale: 0.2; --bird-lift: -7vh; top: 72%; opacity: 0.22; }
+
 .raven-home-glow-one { top: 9%; left: 8%; width: 28rem; height: 28rem; background: rgb(124 58 237 / 18%); }
 .raven-home-glow-two { top: 35%; right: 4%; width: 22rem; height: 22rem; background: rgb(196 181 253 / 15%); animation-delay: -4s; }
 .raven-home-glow-three { bottom: -12%; left: 35%; width: 34rem; height: 22rem; background: rgb(76 29 149 / 20%); animation-delay: -8s; }
@@ -312,6 +340,14 @@
   100% { transform: translate3d(2%, 0.5%, 0) rotate(-4deg) scale(1.03); opacity: 0.12; }
 }
 
+@keyframes raven-bird-flight {
+  0% { transform: translate3d(-18vw, 4vh, 0) rotate(5deg) scale(var(--bird-scale)); }
+  25% { transform: translate3d(25vw, calc(var(--bird-lift) * -0.35), 0) rotate(-3deg) scale(var(--bird-scale)); }
+  52% { transform: translate3d(59vw, var(--bird-lift), 0) rotate(4deg) scale(var(--bird-scale)); }
+  78% { transform: translate3d(94vw, calc(var(--bird-lift) * -0.55), 0) rotate(-4deg) scale(var(--bird-scale)); }
+  100% { transform: translate3d(130vw, 2vh, 0) rotate(5deg) scale(var(--bird-scale)); }
+}
+
 @keyframes raven-title-shine {
   0%, 35% { background-position: 0% center; }
   60%, 100% { background-position: 100% center; }
@@ -335,7 +371,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .raven-home-raven, .raven-home-glow, .raven-home-speck, .raven-home-stars, .raven-template-brand, .raven-template-title { animation: none; }
+  .raven-home-raven, .raven-home-bird, .raven-home-glow, .raven-home-speck, .raven-home-stars, .raven-template-brand, .raven-template-title { animation: none; }
+  .raven-home-flight { display: none; }
   .raven-reveal { animation: none; opacity: 1; }
 }
 
