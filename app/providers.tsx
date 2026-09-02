@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { SessionExpiredDialog } from "@/components/auth/SessionExpiredDialog";
+import BrowserNoiseGuard from "@/components/BrowserNoiseGuard";
 import { Megaphone, X, Info } from "lucide-react";
 import {
   Dialog,
@@ -111,6 +112,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} enableColorScheme>
           <AnnouncementBar />
+          <BrowserNoiseGuard />
           {children}
           <SessionExpiredDialog />
         </ThemeProvider>

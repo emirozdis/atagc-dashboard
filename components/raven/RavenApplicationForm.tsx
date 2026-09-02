@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TURNSTILE_SITE_KEY, Turnstile } from "@/components/ui/turnstile";
 import { RAVENMUN_APPLICATION_CARDS, RavenApplicationType } from "@/config/ravenmun";
-import RavenPublicNav from "@/components/raven/RavenPublicNav";
+import RavenPublicShell from "@/components/raven/RavenPublicShell";
+import { countWords, essayMinWords, essayWordCountError, isEssayQuestion } from "@/lib/application-essays";
 
 export type RavenApplicationQuestion = {
   id: string;
@@ -19,6 +20,7 @@ export type RavenApplicationQuestion = {
   required?: boolean;
   placeholder?: string;
   options?: Array<{ value: string; label: string }>;
+  minWords?: number;
 };
 
 type RavenApplicationOption = { value: string; label: string };
@@ -225,6 +227,13 @@ export default function RavenApplicationForm({ applicationType, initialForm }: {
       setMessage("Please enter a valid email address.");
       return false;
     }
+    for (const question of questions) {
+      const error = essayWordCountError(question, formData[question.id]);
+      if (error) {
+        setMessage(error);
+        return false;
+      }
+    }
     return true;
   }
 
@@ -239,9 +248,7 @@ export default function RavenApplicationForm({ applicationType, initialForm }: {
     if (!response.ok) throw new Error(result.message || result.error || "Unable to send verification code.");
     setChallengeId(result.challengeId);
     setVerificationCode("");
-    setMessage(result.developmentCode
-      ? `Development code: ${result.developmentCode}. Enter it in the verification box below.`
-      : "A verification code has been sent to your email. Enter it in the verification box below.");
+    setMessage("A verification code has been sent to your email. Enter it in the verification box below.");
   }
 
   async function completeSubmission() {
@@ -292,28 +299,26 @@ export default function RavenApplicationForm({ applicationType, initialForm }: {
   }
 
   return (
-    <main className="min-h-screen bg-[#08070D] text-[#F5F3FF]">
-      <RavenPublicNav />
-      <div className="mx-auto max-w-4xl">
-        <div className="px-4 py-10 sm:px-8">
-        <Link href="/apply" className="mb-8 inline-flex items-center text-sm text-[#9CA3AF] hover:text-white"><ArrowLeft className="mr-2 h-4 w-4" /> All applications</Link>
+    <RavenPublicShell>
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-8">
+        <Link href="/apply" className="mb-8 inline-flex items-center text-sm text-white/70 hover:text-white"><ArrowLeft className="mr-2 h-4 w-4" /> All applications</Link>
         <div className="mb-10 max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#C4B5FD]">RavenMUN {new Date().getFullYear()}</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight">{initialForm.title || titleFor(applicationType)}</h1>
-          <p className="mt-3 text-[#9CA3AF]">Your information is saved on this device while you complete the application.</p>
+          <h1 className="raven-template-title mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{initialForm.title || titleFor(applicationType)}</h1>
+          <p className="mt-3 text-white/75">Your information is saved on this device while you complete the application.</p>
         </div>
 
         <form onSubmit={submit} className="space-y-6">
-          <section className="rounded-3xl border border-white/10 bg-[#12101A] p-6 sm:p-8">
-            <div className="mb-7 flex items-center gap-3"><div className="rounded-xl bg-[#7C3AED]/15 p-2 text-[#C4B5FD]"><ShieldCheck className="h-5 w-5" /></div><div><h2 className="font-semibold">Your information</h2><p className="text-sm text-[#9CA3AF]">Your email is verified before the application is submitted.</p></div></div>
+          <section className="raven-public-card rounded-3xl p-6 sm:p-8">
+            <div className="mb-7 flex items-center gap-3"><div className="rounded-xl bg-[#7C3AED]/15 p-2 text-[#C4B5FD]"><ShieldCheck className="h-5 w-5" /></div><div><h2 className="font-semibold">Your information</h2><p className="text-sm text-white/70">Your email is verified before the application is submitted.</p></div></div>
             <div className="grid gap-6 sm:grid-cols-2">
               {questions.map((question) => {
                 const value = formData[question.id];
                 const fullWidth = question.type === "textarea" || /^choice[123]$/.test(question.id);
                 return <div key={question.id} className={fullWidth ? "sm:col-span-2" : ""}>
                   <Label htmlFor={question.id} className="mb-2 block text-[#C3C7D1]">{question.label}{question.required && <span className="ml-1 text-[#C4B5FD]">*</span>}</Label>
-                  {question.type === "textarea" ? <><textarea id={question.id} required={question.required} value={String(value || "")} onChange={(event) => updateField(question.id, event.target.value)} placeholder={question.placeholder} className="min-h-32 w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-[#7C3AED] placeholder:text-[#6B7280] focus:ring-2" /><p className="mt-1 text-right text-xs text-[#6B7280]">{String(value || "").length} characters</p></>
-                    : question.type === "select" ? <select id={question.id} required={question.required} value={String(value || "")} onChange={(event) => updateField(question.id, event.target.value)} className="h-10 w-full rounded-md border border-white/10 bg-[#1B1727] px-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#7C3AED]"><option value="">Select an option</option>{question.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+                  {question.type === "textarea" ? <><textarea id={question.id} required={question.required} value={String(value || "")} onChange={(event) => updateField(question.id, event.target.value)} placeholder={question.placeholder} className="min-h-32 w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-[#7C3AED] placeholder:text-[#6B7280] focus:ring-2" /><p className={`mt-1 text-right text-xs ${isEssayQuestion(question) && countWords(String(value || "")) < essayMinWords(question) ? "text-[#C4B5FD]" : "text-[#6B7280]"}`}>{isEssayQuestion(question) ? `${countWords(String(value || ""))} / ${essayMinWords(question)} words` : `${String(value || "").length} characters`}</p></>
+                    : question.type === "select" ? <select id={question.id} required={question.required} value={String(value || "")} onChange={(event) => updateField(question.id, event.target.value)} className="h-10 w-full rounded-md border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#7C3AED]"><option value="">Select an option</option>{question.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
                     : question.type === "checkbox" ? <label className="flex items-center gap-3 text-sm text-[#C3C7D1]"><input id={question.id} type="checkbox" checked={Boolean(value)} onChange={(event) => updateField(question.id, event.target.checked)} className="h-4 w-4 accent-[#7C3AED]" /> I confirm this information is accurate.</label>
                     : <Input id={question.id} type={question.type} required={question.required} value={String(value || "")} onChange={(event) => updateField(question.id, event.target.value)} placeholder={question.placeholder} disabled={question.id === emailFieldId && sessionStatus === "authenticated"} className="border-white/10 bg-black/20 text-white placeholder:text-[#6B7280]" />}
                 </div>;
@@ -321,15 +326,14 @@ export default function RavenApplicationForm({ applicationType, initialForm }: {
             </div>
           </section>
 
-          {sessionStatus !== "authenticated" && <section className="rounded-3xl border border-white/10 bg-[#12101A] p-6 sm:p-8"><div className="mb-4"><h2 className="font-semibold">Security check</h2><p className="mt-1 text-sm text-[#9CA3AF]">Complete the verification before requesting an email code.</p></div>{TURNSTILE_SITE_KEY ? <Turnstile siteKey={TURNSTILE_SITE_KEY} onVerify={setTurnstileToken} onError={() => setTurnstileToken("")} onExpire={() => setTurnstileToken("")} /> : <p className="text-sm text-rose-300">Security verification is not configured.</p>}</section>}
+          {sessionStatus !== "authenticated" && <section className="raven-public-card rounded-3xl p-6 sm:p-8"><div className="mb-4"><h2 className="font-semibold">Security check</h2><p className="mt-1 text-sm text-white/70">Complete the verification before requesting an email code.</p></div>{TURNSTILE_SITE_KEY ? <Turnstile siteKey={TURNSTILE_SITE_KEY} onVerify={setTurnstileToken} onError={() => setTurnstileToken("")} onExpire={() => setTurnstileToken("")} /> : <p className="text-sm text-rose-300">Security verification is not configured.</p>}</section>}
 
-          {challengeId && <section className="rounded-3xl border border-[#7C3AED]/40 bg-[#7C3AED]/10 p-6 sm:p-8"><div className="mb-5 flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-[#C4B5FD]" /><div><h2 className="font-semibold">Verify your email</h2><p className="text-sm text-[#C3C7D1]">Enter the six-digit code sent to {String(formData[emailFieldId])}.</p></div></div>{message && <p role="status" className="mb-4 rounded-xl border border-[#C4B5FD]/20 bg-[#C4B5FD]/10 p-3 text-sm text-[#C4B5FD]">{message}</p>}<Label htmlFor="verification-code" className="mb-2 block text-sm text-[#C3C7D1]">Verification code</Label><Input id="verification-code" name="verificationCode" autoFocus inputMode="numeric" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, ""))} placeholder="000000" className="max-w-xs border-white/10 bg-black/20 text-center font-mono tracking-[0.4em] text-white" /><p className="mt-3 text-xs text-[#9CA3AF]">The code expires in 10 minutes.</p></section>}
+          {challengeId && <section className="raven-public-card rounded-3xl border-[#7C3AED]/40 p-6 sm:p-8"><div className="mb-5 flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-[#C4B5FD]" /><div><h2 className="font-semibold">Verify your email</h2><p className="text-sm text-white/75">Enter the six-digit code sent to {String(formData[emailFieldId])}.</p></div></div>{message && <p role="status" className="mb-4 rounded-xl border border-[#C4B5FD]/20 bg-[#C4B5FD]/10 p-3 text-sm text-[#C4B5FD]">{message}</p>}<Label htmlFor="verification-code" className="mb-2 block text-sm text-[#C3C7D1]">Verification code</Label><Input id="verification-code" name="verificationCode" autoFocus inputMode="numeric" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, ""))} placeholder="000000" className="max-w-xs border-white/10 bg-black/20 text-center font-mono tracking-[0.4em] text-white" /><p className="mt-3 text-xs text-white/60">The code expires in 10 minutes.</p></section>}
 
           {message && !challengeId && <p role="status" className="rounded-xl border border-[#C4B5FD]/20 bg-[#C4B5FD]/10 p-4 text-sm text-[#C4B5FD]">{message}</p>}
           <div className="flex justify-end"><Button type="submit" disabled={submitting || (sessionStatus !== "authenticated" && !turnstileToken) || (Boolean(challengeId) && sessionStatus !== "authenticated" && verificationCode.length !== 6)} className="bg-[#7C3AED] px-6 text-white hover:bg-[#6D28D9]">{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{challengeId && sessionStatus !== "authenticated" ? "Verify and submit application" : sessionStatus === "authenticated" ? "Submit application" : "Send verification code"}</Button></div>
         </form>
-        </div>
       </div>
-    </main>
+    </RavenPublicShell>
   );
 }

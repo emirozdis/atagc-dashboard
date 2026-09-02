@@ -74,6 +74,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: { signIn: "/login", error: "/login" },
   session: { strategy: "jwt" },
+  useSecureCookies: Boolean(process.env.NEXTAUTH_URL?.startsWith("https://")),
   jwt: {
     // A browser can retain a token issued by an older deployment. Treat an
     // undecryptable token as an expired session so the user can sign in again.

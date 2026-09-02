@@ -76,6 +76,7 @@ export interface FormField {
   placeholder?: string;
   options?: FormFieldOption[];
   system_map?: string;
+  minWords?: number;
 }
 
 export interface FormStep {

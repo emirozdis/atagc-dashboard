@@ -191,18 +191,18 @@ export const ROLE_METADATA: Record<UserRole, {
   },
   // Organisation Roles
   [ROLES.HEAD_OBSERVER]: {
-    label: "Head Observer",
+    label: "Head of Administrative Staff",
     rank: 45,
-    description: "Leads the observer team.",
+    description: "Leads the administrative staff.",
     icon: Crown,
     colorClass: "text-teal-600",
     bgClass: "bg-teal-500/10",
     borderClass: "border-teal-500/20"
   },
   [ROLES.OBSERVER]: {
-    label: "Observer",
+    label: "Administrative Staff",
     rank: 10,
-    description: "A member of the academic observer team.",
+    description: "A member of the administrative staff.",
     icon: Eye,
     colorClass: "text-cyan-600",
     bgClass: "bg-cyan-500/10",

@@ -14,7 +14,7 @@ type Stats = {
   recentApplications: Array<{ id: string; application_type: string; status: string; submitted_at: string; user?: { full_name?: string; email?: string } | null }>;
 };
 
-const labels: Record<string, string> = { delegate: "Delegate", chairboard: "Chairboard", delegation: "Delegation", press: "Press", observer: "Observer" };
+const labels: Record<string, string> = { delegate: "Delegate", chairboard: "Chairboard", delegation: "Delegation", press: "Press", observer: "Administrative Staff" };
 const COLORS = ["#C4B5FD", "#A78BFA", "#7C3AED", "#6D28D9", "#4C1D95"];
 
 export default function RavenAdminDashboard() {

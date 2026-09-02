@@ -97,15 +97,11 @@ export async function createEmailChallenge(input: {
   try {
     await sendEmail(email, `${input.purpose === "application" ? "RavenMUN application" : "RavenMUN sign-in"} code`, verificationEmail(code, input.purpose));
   } catch (error) {
-    if (process.env.NODE_ENV === "production" || process.env.EMAIL_DEV_MODE !== "true") throw error;
-    console.warn("Email delivery failed in development; returning the development code instead.", error instanceof Error ? error.message : error);
+    await supabase.from("auth_challenges").delete().eq("id", data.id);
+    throw new Error(error instanceof Error ? error.message : "Unable to send verification email.");
   }
 
-  return {
-    challengeId: data.id as string,
-    // Useful for local development when SMTP is intentionally not configured.
-    developmentCode: process.env.NODE_ENV === "development" ? code : undefined,
-  };
+  return { challengeId: data.id as string };
 }
 
 async function getOrCreateUser(email: string, displayName?: string) {

@@ -36,8 +36,8 @@ export function DigitalIdCard({ user, className, uniqueId = "default", defaultOp
     chair: "Chairboard",
     press: "Press",
     head_press: "Head of press",
-    observer: "Observer",
-    head_observer: "Head observer",
+    observer: "Administrative Staff",
+    head_observer: "Head of administrative staff",
     security: "Security",
     head_security: "Head of security",
   }[user?.role || "applicant"] || user?.role || "Applicant").toUpperCase();

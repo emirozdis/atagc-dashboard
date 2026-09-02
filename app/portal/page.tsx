@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type PortalData = { applications: Array<{ id: string; application_type: string; status: string; payment_status: string; submitted_at: string }>; assignment: { role: string; committee_id: string | null; committee?: { name?: string } | null } | null; delegation: { name: string; delegation_members?: Array<{ accepted: boolean }> } | null };
 
-const labels: Record<string, string> = { delegate: "Delegate", chairboard: "Chairboard", delegation: "Delegation", press: "Press", observer: "Observer" };
+const labels: Record<string, string> = { delegate: "Delegate", chairboard: "Chairboard", delegation: "Delegation", press: "Press", observer: "Administrative Staff" };
 const statusLabels: Record<string, string> = { pending: "Under review", under_review: "Under review", accepted: "Accepted", approved: "Accepted", rejected: "Not accepted", withdrawn: "Withdrawn" };
 
 export default function PortalPage() {

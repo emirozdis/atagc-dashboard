@@ -187,19 +187,34 @@
   box-shadow: 0 10px 36px rgb(0 0 0 / 24%), inset 0 1px rgb(255 255 255 / 28%);
 }
 
+.raven-public-card {
+  border: 1px solid rgb(196 181 253 / 18%);
+  background: linear-gradient(180deg, rgb(28 18 48 / 78%), rgb(12 8 22 / 84%));
+  box-shadow: 0 18px 48px rgb(0 0 0 / 30%), inset 0 1px rgb(255 255 255 / 10%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+a.raven-public-card:hover {
+  border-color: rgb(196 181 253 / 48%);
+  background: linear-gradient(180deg, rgb(40 24 68 / 84%), rgb(16 10 30 / 88%));
+}
+
 .raven-template-home {
   isolation: isolate;
   background:
-    radial-gradient(circle at 12% 12%, rgb(124 58 237 / 30%), transparent 34%),
-    radial-gradient(circle at 88% 20%, rgb(196 181 253 / 16%), transparent 28%),
-    linear-gradient(180deg, #0a0710 0%, #181023 45%, #3b2450 100%);
+    radial-gradient(circle at 12% 12%, rgb(124 58 237 / 22%), transparent 34%),
+    radial-gradient(circle at 88% 20%, rgb(196 181 253 / 12%), transparent 28%),
+    linear-gradient(180deg, #07050c 0%, #120d1c 42%, #2a1838 100%);
 }
 
 .raven-template-home::before {
   position: fixed;
   inset: 0;
-  z-index: 0;
-  background: linear-gradient(180deg, rgb(4 3 7 / 18%), transparent 44%, rgb(76 29 149 / 16%));
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at center, transparent 18%, rgb(4 3 7 / 42%) 100%),
+    linear-gradient(180deg, rgb(4 3 7 / 28%), transparent 38%, rgb(8 5 14 / 36%));
   content: "";
   pointer-events: none;
 }
@@ -232,46 +247,28 @@
 
 .raven-home-raven {
   position: absolute;
-  top: 51%;
+  top: 48%;
   left: 50%;
-  width: min(58vw, 54rem);
-  aspect-ratio: 535.22 / 678.72;
-  background: #000;
-  opacity: 0.13;
-  filter: blur(0.35px) drop-shadow(0 2rem 4rem rgb(0 0 0 / 48%));
-  mask: url("/raven-shadow.svg") center / contain no-repeat;
-  transform: translate3d(-50%, -50%, 0) rotate(-5deg);
+  width: min(175vw, 124rem);
+  aspect-ratio: 16 / 9;
+  background: url("/raven-hero.webp") center 40% / cover no-repeat;
+  opacity: 0.92;
+  filter: contrast(1.12) saturate(1.06);
+  transform: translate3d(-50%, -50%, 0);
   transform-origin: center;
   animation: raven-shadow-drift 22s ease-in-out infinite alternate;
 }
 
-.raven-home-flight {
+.raven-home-grain {
   position: absolute;
-  inset: 0;
-  overflow: hidden;
+  inset: -8%;
   z-index: 1;
+  opacity: 0.22;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
 }
-
-.raven-home-bird {
-  --bird-scale: 0.34;
-  --bird-lift: 0vh;
-  position: absolute;
-  left: -18vw;
-  top: 0;
-  width: clamp(7rem, 11vw, 11rem);
-  aspect-ratio: 535.22 / 678.72;
-  background: #020107;
-  opacity: 0.34;
-  filter: blur(0.2px) drop-shadow(0 0.5rem 1rem rgb(0 0 0 / 35%));
-  mask: url("/raven-shadow.svg") center / contain no-repeat;
-  animation: raven-bird-flight var(--bird-duration, 34s) linear infinite;
-  animation-delay: var(--bird-delay, 0s);
-}
-
-.raven-home-bird-one { --bird-duration: 34s; --bird-delay: -21s; --bird-scale: 0.34; --bird-lift: 6vh; top: 23%; opacity: 0.38; }
-.raven-home-bird-two { --bird-duration: 43s; --bird-delay: -8s; --bird-scale: 0.24; --bird-lift: -3vh; top: 38%; opacity: 0.28; }
-.raven-home-bird-three { --bird-duration: 39s; --bird-delay: -31s; --bird-scale: 0.44; --bird-lift: 9vh; top: 58%; opacity: 0.32; }
-.raven-home-bird-four { --bird-duration: 49s; --bird-delay: -14s; --bird-scale: 0.2; --bird-lift: -7vh; top: 72%; opacity: 0.22; }
 
 .raven-home-glow-one { top: 9%; left: 8%; width: 28rem; height: 28rem; background: rgb(124 58 237 / 18%); }
 .raven-home-glow-two { top: 35%; right: 4%; width: 22rem; height: 22rem; background: rgb(196 181 253 / 15%); animation-delay: -4s; }
@@ -335,17 +332,9 @@
 }
 
 @keyframes raven-shadow-drift {
-  0% { transform: translate3d(-51.5%, -49%, 0) rotate(-5deg) scale(0.98); opacity: 0.1; }
-  50% { transform: translate3d(-49%, -51.5%, 0) rotate(-3deg) scale(1.015); opacity: 0.14; }
-  100% { transform: translate3d(-48%, -49.5%, 0) rotate(-4deg) scale(1.03); opacity: 0.12; }
-}
-
-@keyframes raven-bird-flight {
-  0% { transform: translate3d(-18vw, 4vh, 0) rotate(5deg) scale(var(--bird-scale)); }
-  25% { transform: translate3d(25vw, calc(var(--bird-lift) * -0.35), 0) rotate(-3deg) scale(var(--bird-scale)); }
-  52% { transform: translate3d(59vw, var(--bird-lift), 0) rotate(4deg) scale(var(--bird-scale)); }
-  78% { transform: translate3d(94vw, calc(var(--bird-lift) * -0.55), 0) rotate(-4deg) scale(var(--bird-scale)); }
-  100% { transform: translate3d(130vw, 2vh, 0) rotate(5deg) scale(var(--bird-scale)); }
+  0% { transform: translate3d(-51%, -49.5%, 0) scale(1.02); }
+  50% { transform: translate3d(-49.5%, -51%, 0) scale(1.06); }
+  100% { transform: translate3d(-48.5%, -49%, 0) scale(1.04); }
 }
 
 @keyframes raven-title-shine {
@@ -371,16 +360,27 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .raven-home-raven, .raven-home-bird, .raven-home-glow, .raven-home-speck, .raven-home-stars, .raven-template-brand, .raven-template-title { animation: none; }
-  .raven-home-flight { display: none; }
+  .raven-home-raven, .raven-home-glow, .raven-home-speck, .raven-home-stars, .raven-template-brand, .raven-template-title { animation: none; }
   .raven-reveal { animation: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) and (max-width: 767px) {
+  .raven-home-raven {
+    transform: none;
+  }
 }
 
 @media (max-width: 767px) {
   .raven-home-raven {
-    top: 48%;
-    left: 50%;
-    width: 135vw;
-    opacity: 0.1;
+    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    transform: none;
+    animation: none;
+    opacity: 0.92;
+    background: url("/raven-hero-mobile.webp") center center / cover no-repeat;
   }
 }

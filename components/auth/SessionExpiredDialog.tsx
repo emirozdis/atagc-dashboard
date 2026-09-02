@@ -20,10 +20,11 @@ export function SessionExpiredDialog() {
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        const isProtectedRoute = 
-            pathname?.startsWith("/dashboard") || 
-            pathname?.startsWith("/admin") || 
+        const isProtectedRoute =
+            pathname?.startsWith("/dashboard") ||
+            pathname?.startsWith("/admin") ||
             pathname?.startsWith("/organisation") ||
+            pathname?.startsWith("/portal") ||
             pathname?.startsWith("/profile");
 
         // If status is unauthenticated but we are on a protected route, it implies session died mid-usage
@@ -68,7 +69,7 @@ export function SessionExpiredDialog() {
                             <div className="flex items-start gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0" />
                                 <p className="text-sm text-foreground/80 leading-relaxed">
-                                    Your password was changed
+                                    Your session was revoked
                                 </p>
                             </div>
                             <div className="flex items-start gap-3">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { RAVENMUN_CONFERENCE } from "@/config/ravenmun";
 import { supabase } from "@/lib/SERVER_supabase";
 import { rateLimit } from "@/lib/rate-limit";
 import getAuthorization from "@/lib/getAuthorization";
@@ -24,8 +25,8 @@ export async function GET(request: Request) {
 
   const defaults = {
     term_name: "RavenMUN 2026",
-    contact_email: "info@ravenmun.org",
-    location: "RavenMUN Conference Venue",
+    contact_email: RAVENMUN_CONFERENCE.email,
+    location: RAVENMUN_CONFERENCE.venue,
     event_start_date: null,
     event_end_date: null,
     bank_name: "Conference payment account",

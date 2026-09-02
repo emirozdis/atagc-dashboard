@@ -81,7 +81,7 @@ export default function AssignObserversPage() {
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      toast.success("Observer assigned successfully.");
+      toast.success("Staff assigned successfully.");
       setSavedIds((prev) => new Set(prev).add(variables.user_id));
       setTimeout(() => setSavedIds((prev) => {
         const next = new Set(prev);
@@ -180,17 +180,17 @@ export default function AssignObserversPage() {
       <Breadcrumbs
         items={[
           { label: "Organisation", href: "/organisation" },
-          { label: "Assign observers" },
+          { label: "Assign staff" },
         ]}
       />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
-            Assign observers
+            Assign staff
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Assign observers to committees or field duties.
+            Assign administrative staff to committees or field duties.
           </p>
         </div>
       </div>
@@ -208,7 +208,7 @@ export default function AssignObserversPage() {
         </div>
         <Badge variant="secondary" className="w-fit self-center px-3 py-1.5">
           <Users className="w-3 h-3 mr-1" />
-          {filtered?.length ?? 0} observers
+          {filtered?.length ?? 0} staff
         </Badge>
       </div>
 
@@ -216,7 +216,7 @@ export default function AssignObserversPage() {
       <Card className="border-border/50 shadow-sm bg-card overflow-hidden">
         <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <Eye className="w-4 h-4 text-primary" /> Observer list
+            <Eye className="w-4 h-4 text-primary" /> Staff list
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -242,7 +242,7 @@ export default function AssignObserversPage() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>Observer</TableHead>
+                      <TableHead>Staff</TableHead>
                       <TableHead>Current assignment</TableHead>
                       <TableHead className="text-right">Assignment</TableHead>
                       <TableHead className="w-[60px]"></TableHead>
@@ -274,7 +274,7 @@ export default function AssignObserversPage() {
                             ) : observer.allocation ? (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
                                 <MapPin className="w-3 h-3 mr-1" />
-                                {observer.allocation.allocated_field || "Field observer"}
+                                {observer.allocation.allocated_field || "Field staff"}
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="bg-gray-500/10 text-gray-400 border-gray-500/20">
@@ -301,7 +301,7 @@ export default function AssignObserversPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value={FIELD_OBSERVER_VALUE}>
-                                    Field observer
+                                    Field staff
                                   </SelectItem>
                                   {committees?.map((c) => (
                                     <SelectItem key={c.id} value={c.id}>
@@ -386,7 +386,7 @@ export default function AssignObserversPage() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value={FIELD_OBSERVER_VALUE}>
-                              Field observer
+                              Field staff
                             </SelectItem>
                             {committees?.map((c) => (
                               <SelectItem key={c.id} value={c.id}>
@@ -421,10 +421,10 @@ export default function AssignObserversPage() {
                 <Eye className="w-7 h-7 text-muted-foreground" />
               </div>
               <h4 className="font-semibold text-xl text-foreground mb-2">
-                No observers found
+                No staff found
               </h4>
               <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                {search ? "No observers match your search." : "There are no users with an observer role yet."}
+                {search ? "No staff match your search." : "There are no users with an administrative staff role yet."}
               </p>
             </div>
           )}

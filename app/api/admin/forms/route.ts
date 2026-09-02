@@ -57,7 +57,7 @@ export const PUT = apiHandler(async (request: Request) => {
     .update({
       title,
       description,
-      fee,
+      fee: Number.isFinite(Number(fee)) && Number(fee) >= 0 ? Number(fee) : 0,
       // Keep the legacy JSON column compatible while exposing one flat form
       // to both the public application and the admin editor.
       steps: [{ id: "application", title: "Application questions", fields: normalizedQuestions }],

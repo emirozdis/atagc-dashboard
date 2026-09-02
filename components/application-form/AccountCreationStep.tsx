@@ -69,8 +69,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         const isEmailFormatValid = await trigger("email");
         if (!isEmailFormatValid) return;
 
-        const isDev = process.env.NODE_ENV === "development";
-        if (!turnstileToken && !isDev) {
+        if (!turnstileToken) {
             toast.error("Please complete verification.");
             return;
         }
@@ -105,8 +104,10 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
     };
 
     const sendVerificationCode = async () => {
-        const isDev = process.env.NODE_ENV === "development";
-        const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
+        if (!turnstileToken) {
+            toast.error("Please complete verification.");
+            return;
+        }
 
         setLoading(true);
         try {
@@ -115,7 +116,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     email: getValues("email"),
-                    token: effectiveToken
+                    token: turnstileToken
                 }),
             });
 
@@ -171,8 +172,7 @@ export function AccountCreationStep({ form, isEmailVerified, onVerify, onModeCha
         setTurnstileKey(prev => prev + 1);
     };
 
-    const isDev = process.env.NODE_ENV === "development";
-    const isEmailButtonDisabled = emailCheckLoading || !email || (!turnstileToken && !isDev);
+    const isEmailButtonDisabled = emailCheckLoading || !email || !turnstileToken;
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

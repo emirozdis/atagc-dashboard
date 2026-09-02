@@ -518,7 +518,7 @@ model system_settings {
   applications_open   Boolean?  @default(true)
   maintenance_mode    Boolean?  @default(false)
   term_name           String?   @default("RavenMUN 2026")
-  contact_email       String?   @default("info@ravenmun.org")
+  contact_email       String?   @default("ravenmun26@gmail.com")
   event_start_date    DateTime? @db.Timestamptz(6)
   event_end_date      DateTime? @db.Timestamptz(6)
   location            String?

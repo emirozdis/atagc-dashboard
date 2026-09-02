@@ -1,8 +1,7 @@
 import { supabase } from "@/lib/SERVER_supabase";
 import { sendEmail } from "@/lib/email";
 import { NotificationType, generateEmailHtml } from "@/lib/email-templates";
-
-const BASE_URL = process.env.NEXTAUTH_URL || "https://ravenmun.org";
+import { getSiteUrl } from "@/lib/site-url";
 
 export async function sendSystemNotification(
   userId: string,
@@ -66,11 +65,10 @@ export async function sendSystemNotification(
 
     if (!shouldSend) return;
 
-    const html = generateEmailHtml(type, name, BASE_URL);
+    const html = generateEmailHtml(type, name, getSiteUrl());
     const subject = extractSubject(html); 
 
     await sendEmail(email, subject, html);
-    console.log(`[Notification] Sent ${type} to ${email}`);
 
   } catch (error) {
     console.error("[Notification] Failed to send:", error);

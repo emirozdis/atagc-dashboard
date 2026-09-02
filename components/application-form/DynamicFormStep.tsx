@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { countWords, essayMinWords, isEssayQuestion } from "@/lib/application-essays";
 
 interface DynamicFormStepProps {
     step: FormStep;
@@ -39,16 +40,25 @@ export function DynamicFormStep({ step, answers, onAnswerChange }: DynamicFormSt
 function renderField(field: FormField, value: unknown, onChange: (val: unknown) => void) {
     const stringValue = typeof value === "string" || typeof value === "number" ? String(value) : "";
     switch (field.type) {
-        case "textarea":
+        case "textarea": {
+            const words = countWords(stringValue);
+            const showWordLimit = isEssayQuestion(field);
+            const minimum = essayMinWords(field);
             return (
-                <Textarea
-                    id={field.id}
-                    placeholder={field.placeholder}
-                    value={stringValue}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="min-h-[100px]"
-                />
+                <div className="space-y-1">
+                    <Textarea
+                        id={field.id}
+                        placeholder={field.placeholder}
+                        value={stringValue}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="min-h-[100px]"
+                    />
+                    <p className={`text-right text-xs ${showWordLimit && words < minimum ? "text-primary" : "text-muted-foreground"}`}>
+                        {showWordLimit ? `${words} / ${minimum} words` : `${stringValue.length} characters`}
+                    </p>
+                </div>
             );
+        }
         case "select":
             return (
                 <Select value={stringValue} onValueChange={onChange}>

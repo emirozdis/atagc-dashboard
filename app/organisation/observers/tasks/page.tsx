@@ -117,7 +117,7 @@ export default function TasksPage() {
             Create task
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Assign and track tasks for observers.
+            Assign and track tasks for administrative staff.
           </p>
         </div>
       </div>
@@ -176,12 +176,12 @@ export default function TasksPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Leave blank to list field observers.
+                      Leave blank to list field staff.
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="assignee">Observer</Label>
+                    <Label htmlFor="assignee">Staff member</Label>
                     <Select value={assignee} onValueChange={setAssignee}>
                       <SelectTrigger>
                         <SelectValue placeholder="Otomatik ata..." />
@@ -196,12 +196,12 @@ export default function TasksPage() {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="none" disabled>No observers found</SelectItem>
+                          <SelectItem value="none" disabled>No staff found</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Leave blank to assign it to the observer with the fewest tasks.
+                      Leave blank to assign it to the staff member with the fewest tasks.
                     </p>
                   </div>
                 </div>
@@ -262,7 +262,7 @@ export default function TasksPage() {
           </div>
           <h4 className="font-semibold text-xl text-foreground mb-2">No tasks yet</h4>
           <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-            Use the form above to assign tasks to observers.
+            Use the form above to assign tasks to administrative staff.
           </p>
         </CardContent>
       </Card>

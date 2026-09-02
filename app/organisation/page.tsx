@@ -106,7 +106,7 @@ export default function OrganisationPage() {
   const isPress = PRESS_TEAM.includes(effectiveRole);
   const isSecurity = SECURITY_TEAM.includes(effectiveRole);
 
-  const teamLabel = isObserver ? "Observer team"
+  const teamLabel = isObserver ? "Administrative staff"
     : isPress ? "Press team"
       : isSecurity ? "Security team"
         : "Organisation";
@@ -163,7 +163,7 @@ export default function OrganisationPage() {
       const hasAllocation = observerData?.allocatedCommittee || observerData?.allocatedArea;
       steps.push({
         id: 'allocation',
-        label: "Observer assignment",
+        label: "Staff assignment",
         status: hasAllocation ? 'done' : 'waiting',
         text: hasAllocation
           ? (observerData?.allocatedCommitteeName || observerData?.allocatedArea || "Assigned")
@@ -392,7 +392,7 @@ export default function OrganisationPage() {
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/50" />
-            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Observer information</h3>
+            <h3 className="text-lg font-display font-semibold text-muted-foreground uppercase tracking-widest text-sm">Staff information</h3>
             <div className="h-px flex-1 bg-border/50" />
           </div>
 
@@ -419,7 +419,7 @@ export default function OrganisationPage() {
                     {observerData.allocatedCommitteeName || observerData.allocatedCommittee}
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    You have been assigned as a committee observer.
+                    You have been assigned as committee administrative staff.
                   </p>
                 </div>
               </CardContent>
@@ -438,7 +438,7 @@ export default function OrganisationPage() {
                 <div>
                   <div className="text-xl font-bold mb-3 text-foreground">{observerData.allocatedArea}</div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    You have been assigned as a field observer.
+                    You have been assigned as field administrative staff.
                   </p>
                 </div>
               </CardContent>

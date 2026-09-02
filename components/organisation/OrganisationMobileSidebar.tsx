@@ -31,7 +31,7 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
 
     const getTeamLabel = () => {
         if (!effectiveRole) return "Organisation";
-        if (OBSERVER_TEAM.includes(effectiveRole as UserRole)) return "Observer team";
+        if (OBSERVER_TEAM.includes(effectiveRole as UserRole)) return "Administrative staff";
         if (PRESS_TEAM.includes(effectiveRole as UserRole)) return "Press team";
         if (SECURITY_TEAM.includes(effectiveRole as UserRole)) return "Security team";
         return "Organisation";

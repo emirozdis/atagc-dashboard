@@ -8,6 +8,7 @@ import { hashOpaqueToken } from "@/lib/passwordless";
 import { normalizeEmail } from "@/lib/crypto-utils";
 import { sendEmail } from "@/lib/email";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { getSiteUrl } from "@/lib/site-url";
 
 const inviteRequestSchema = z.object({
   email: z.string().email().max(200).optional(),
@@ -116,7 +117,7 @@ export const POST = apiHandler(async (request: Request) => {
 
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl = getSiteUrl();
   const link = `${baseUrl}/delegations/invite?token=${encodeURIComponent(token)}`;
   const createdAfter = new Date().toISOString();
   const { data: invite, error } = await supabase.rpc("create_ravenmun_delegation_invite", {

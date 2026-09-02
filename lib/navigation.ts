@@ -195,7 +195,7 @@ export const organisationItems: NavigationItem[] = [
         requiresApproved: true,
     },
     {
-        title: "Assign observers",
+        title: "Assign staff",
         href: "/organisation/observers/assign",
         icon: Users,
         roles: ["head_observer"],

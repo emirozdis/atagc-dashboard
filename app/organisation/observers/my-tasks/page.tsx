@@ -134,7 +134,7 @@ export default function MyTasksPage() {
             </div>
             <h4 className="font-semibold text-xl text-foreground mb-2">No tasks assigned yet</h4>
             <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Tasks assigned by the head observer will appear here.
+              Tasks assigned by the head of administrative staff will appear here.
             </p>
           </CardContent>
         </Card>

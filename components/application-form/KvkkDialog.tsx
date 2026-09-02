@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { RAVENMUN_CONFERENCE } from "@/config/ravenmun";
 import { CheckCircle2, Loader2, Printer, ShieldCheck, X } from "lucide-react";
 
 interface KvkkDialogProps {
@@ -15,7 +16,7 @@ const PRIVACY_SECTIONS = [
   { title: "Collection method and legal basis", text: "Your personal data is collected electronically through the application form on this website. Processing is based on the legitimate interests of the data controller and on steps necessary to establish or perform an agreement, while respecting your fundamental rights and freedoms." },
   { title: "Data security and limitation of liability", text: "BAL Student Association takes reasonable technical and administrative measures to protect your personal data. However, it cannot be held responsible for a breach caused by an unforeseeable cyberattack or unauthorized access despite these measures." },
   { title: "Your rights", text: "You may ask whether your personal data is being processed, request information about its use, learn the purposes of processing and the recipients of transfers, request correction of incomplete or inaccurate data, and request deletion where permitted by law." },
-  { title: "Contact", text: "You can send requests about your privacy rights to info@ravenmun.org." },
+  { title: "Contact", text: `You can send requests about your privacy rights to ${RAVENMUN_CONFERENCE.email}.` },
 ] as const;
 
 export function KvkkDialog({ open, onOpenChange }: KvkkDialogProps) {

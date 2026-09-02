@@ -24,6 +24,11 @@ type EditableForm = {
   questions: FormField[];
 };
 
+function parseFee(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
 function fieldsFromForm(form: ApplicationFormTemplate): FormField[] {
   if (Array.isArray(form.questions) && form.questions.length) return form.questions;
   return Array.isArray(form.steps) ? form.steps.flatMap((step) => Array.isArray(step.fields) ? step.fields : []) : [];
@@ -53,7 +58,7 @@ export default function EditFormPage() {
       id: initialData.id,
       title: initialData.title,
       description: initialData.description || "",
-      fee: Number(initialData.fee || 0),
+      fee: parseFee(initialData.fee),
       is_active: (initialData as ApplicationFormTemplate & { is_active?: boolean }).is_active,
       questions: fieldsFromForm(initialData),
     });
@@ -65,7 +70,7 @@ export default function EditFormPage() {
       const response = await fetch("/api/admin/forms", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formConfig),
+        body: JSON.stringify({ ...formConfig, fee: parseFee(formConfig.fee) }),
       });
       if (!response.ok) {
         const result = await response.json().catch(() => null);
@@ -106,7 +111,7 @@ export default function EditFormPage() {
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <Card className="h-fit"><CardHeader><CardTitle className="text-base">General settings</CardTitle></CardHeader><CardContent className="space-y-4">
           <div className="space-y-2"><Label>Title</Label><Input value={formConfig.title} onChange={(event) => setFormConfig({ ...formConfig, title: event.target.value })} /></div>
-          <div className="space-y-2"><Label>Fee</Label><Input type="number" min="0" value={formConfig.fee} onChange={(event) => setFormConfig({ ...formConfig, fee: Number(event.target.value) })} /></div>
+          <div className="space-y-2"><Label>Fee</Label><Input type="number" min="0" step="1" inputMode="numeric" value={Number.isFinite(formConfig.fee) ? formConfig.fee : 0} onChange={(event) => setFormConfig({ ...formConfig, fee: parseFee(event.target.value) })} /></div>
           <div className="space-y-2"><Label>Description</Label><Textarea value={formConfig.description} onChange={(event) => setFormConfig({ ...formConfig, description: event.target.value })} /></div>
           <div className="flex items-center justify-between rounded-lg border border-border/50 p-3"><Label htmlFor="form-active">Available to applicants</Label><Switch id="form-active" checked={formConfig.is_active !== false} onCheckedChange={(checked) => setFormConfig({ ...formConfig, is_active: checked })} /></div>
         </CardContent></Card>

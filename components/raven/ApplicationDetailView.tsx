@@ -21,7 +21,7 @@ export type RavenApplicationDetail = {
   form?: { title?: string; questions?: RavenApplicationQuestion[] } | null;
 };
 
-const applicationLabels: Record<string, string> = { delegate: "Delegate", chairboard: "Chairboard", delegation: "Delegation", press: "Press", observer: "Observer" };
+const applicationLabels: Record<string, string> = { delegate: "Delegate", chairboard: "Chairboard", delegation: "Delegation", press: "Press", observer: "Administrative Staff" };
 const statusLabels: Record<string, string> = { pending: "Under review", under_review: "Under review", accepted: "Accepted", approved: "Accepted", rejected: "Not accepted", withdrawn: "Withdrawn" };
 
 export function ApplicationDetailView({ application, backHref = "/portal/applications" }: { application: RavenApplicationDetail; backHref?: string }) {

@@ -31,6 +31,7 @@ import {
     personalDetailsSchema,
     PersonalDetailsData
 } from "@/types/application";
+import { essayWordCountError, isEssayQuestion } from "@/lib/application-essays";
 
 interface ApplicationFormProps {
   initialForms?: ApplicationFormTemplate[];
@@ -180,8 +181,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
 
     // Step 2: Account
     if (currentStep === 2) {
-        const isDev = process.env.NODE_ENV === "development";
-        if (!turnstileToken && !isDev) return true;
+        if (!turnstileToken) return true;
 
         if (authMode === 'login') {
             return !accountValues.email || !accountValues.password;
@@ -204,11 +204,12 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     // Step 4+: Dynamic
     if (currentStep >= 4 && currentDynamicStep) {
         return !currentDynamicStep.fields.every(field => {
-            if (!field.required) return true;
             const val = formAnswers[field.id];
-            
+            if (isEssayQuestion(field)) {
+                return !essayWordCountError(field, val);
+            }
+            if (!field.required) return true;
             if (field.type === 'checkbox') return val === true;
-            
             return val !== "" && val !== null && val !== undefined;
         });
     }
@@ -222,10 +223,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
     // --- STEP 2: Account Creation/Login ---
     if (currentStep === 2) {
         const values = accountForm.getValues();
-        const isDev = process.env.NODE_ENV === "development";
-        const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
-
-        if (!effectiveToken) {
+        if (!turnstileToken) {
       toast.error("Verification is incomplete.");
             return;
         }
@@ -247,7 +245,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                         email: values.email,
                         password: values.password,
                         fullName: values.adSoyad,
-                        token: effectiveToken
+                        token: turnstileToken
                     })
                 });
 
@@ -261,7 +259,7 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
                 redirect: false,
                 email: values.email,
                 password: values.password,
-                token: authMode === 'login' ? effectiveToken : "SKIPPED_AUTO_LOGIN"
+                token: authMode === 'login' ? turnstileToken : "SKIPPED_AUTO_LOGIN"
             });
 
             if (loginRes?.error) throw new Error("Sign-in failed");
@@ -323,6 +321,16 @@ export function ApplicationForm({ initialForms = [], hasExistingApplication = fa
 
     setIsSubmitting(true);
     try {
+        if (selectedForm) {
+            const fields = Array.isArray(selectedForm.questions) && selectedForm.questions.length
+              ? selectedForm.questions
+              : (selectedForm.steps || []).flatMap((step) => step.fields || []);
+            for (const field of fields) {
+                const error = essayWordCountError(field, formAnswers[field.id]);
+                if (error) throw new Error(error);
+            }
+        }
+
         const payload: FullApplicationSubmission = {
             account: accountData,
             personalDetails: personalForm.getValues(),

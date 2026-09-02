@@ -70,7 +70,7 @@ export default function NewAnnouncementPage() {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const roleOptions = [
     { value: "delegate", label: "Delegates" }, { value: "committee_chairman", label: "Chairboard" }, { value: "press", label: "Press" },
-    { value: "observer", label: "Observers" }, { value: "security", label: "Security" }, { value: "admin", label: "Site admins" },
+    { value: "observer", label: "Administrative staff" }, { value: "security", label: "Security" }, { value: "admin", label: "Site admins" },
   ];
 
   const [selectedCommitteeIds, setSelectedCommitteeIds] = useState<string[]>([]);

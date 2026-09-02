@@ -32,7 +32,9 @@ export function RoleSyncer() {
   // Handle immediate logout on 401
   useEffect(() => {
     if (error?.message === "Unauthorized") {
-        console.log("[RoleSyncer] Session invalid (401), invalidating session...");
+        if (process.env.NODE_ENV === "development") {
+          console.log("[RoleSyncer] Session invalid (401), invalidating session...");
+        }
         signOut({ redirect: false });
     }
   }, [error]);

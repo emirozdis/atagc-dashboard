@@ -156,7 +156,7 @@ export default function SettingsPage() {
                                     <Input
                                         value={localSettings.contact_email}
                                         onChange={(e) => updateSetting('contact_email', e.target.value)}
-                                        placeholder="info@ravenmun.org"
+                                        placeholder="ravenmun26@gmail.com"
                                         type="email"
                                         className="bg-background/50 h-11"
                                     />
@@ -181,7 +181,7 @@ export default function SettingsPage() {
                                 <Input
                                     value={localSettings.location}
                                     onChange={(e) => updateSetting('location', e.target.value)}
-                                        placeholder="For example: Conference venue"
+                                        placeholder="Narlıdere Uğur Okulları Kampüsü"
                                     className="bg-background/50 h-11"
                                 />
                             </div>

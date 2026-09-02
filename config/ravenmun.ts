@@ -23,7 +23,9 @@ export const RAVENMUN_CONFERENCE = {
   year: 2026,
   city: "\u0130zmir",
   country: "T\u00fcrkiye",
-  siteUrl: "https://ravenmun.example",
+  venue: "Narlıdere Uğur Okulları Kampüsü",
+  email: "ravenmun26@gmail.com",
+  siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || "https://ravenmun.org").replace(/\/$/, ""),
   instagramHandle: "@ravenmun26",
   instagramUrl: "https://www.instagram.com/ravenmun26/",
   sessionDurationDays: 365,
@@ -56,8 +58,8 @@ export const RAVENMUN_APPLICATION_CARDS = [
   },
   {
     type: "observer",
-    title: "Observer",
-    description: "Support committee operations, monitor the conference, and help participants on site.",
+    title: "Administrative Staff",
+    description: "Support conference operations, assist the organisation team, and help participants on site.",
     icon: "eye",
   },
 ] as const;

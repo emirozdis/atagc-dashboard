@@ -14,8 +14,7 @@ if (
   process.env.NODE_ENV !== "production" &&
   process.env.SMTP_USER &&
   process.env.SMTP_PASS &&
-  !process.env.RESEND_API_KEY &&
-  process.env.EMAIL_DEV_MODE !== "true"
+  !process.env.RESEND_API_KEY
 ) {
   transporter.verify((error) => {
     if (error) {
@@ -27,6 +26,9 @@ if (
 }
 
 export async function sendEmail(to: string, subject: string, html: string) {
+  if (process.env.NODE_ENV === "production" && process.env.EMAIL_DEV_MODE === "true") {
+    throw new Error("EMAIL_DEV_MODE cannot be enabled in production.");
+  }
   const from = process.env.EMAIL_FROM || process.env.SMTP_FROM || '\"RavenMUN\" <no-reply@ravenmun.org>';
   const safeSubject = /atag/i.test(subject) ? "RavenMUN notification" : subject;
 
@@ -57,11 +59,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
   }
 
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("Email delivery is not configured.");
-    }
-    console.warn("SMTP credentials missing. Email not sent:", { to, subject });
-    return;
+    throw new Error("Email delivery is not configured.");
   }
 
   try {

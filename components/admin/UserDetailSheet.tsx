@@ -64,6 +64,8 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
       case 'chair': return 'Deputy chair';
       case 'admin': return 'Site admin';
       case 'superadmin': return 'Super admin';
+      case 'observer': return 'Administrative Staff';
+      case 'head_observer': return 'Head of Administrative Staff';
       default: return role;
     }
   };

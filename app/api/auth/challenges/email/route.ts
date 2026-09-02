@@ -27,7 +27,5 @@ export const POST = apiHandler(async (request: Request) => {
   return NextResponse.json({
     success: true,
     challengeId: result.challengeId,
-    // This is deliberately omitted outside local development.
-    ...(result.developmentCode ? { developmentCode: result.developmentCode } : {}),
   });
 });

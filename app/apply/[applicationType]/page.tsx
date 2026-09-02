@@ -3,7 +3,7 @@ import RavenApplicationForm from "@/components/raven/RavenApplicationForm";
 import { PUBLIC_APPLICATION_TYPES, ApplicationType } from "@/lib/roles";
 import { supabase } from "@/lib/SERVER_supabase";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 export const dynamicParams = false;
 
 const NO_PREFERENCE_OPTION = { value: "no-preference", label: "No preference - assign me where needed" };

@@ -116,8 +116,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
 
         // Step 1: Account
         if (currentStep === 1) {
-            const isDev = process.env.NODE_ENV === "development";
-            if (!turnstileToken && !isDev) return true;
+            if (!turnstileToken) return true;
 
             if (authMode === 'login') {
                 return !accountValues.email || !accountValues.password;
@@ -160,10 +159,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                 return;
             }
 
-            const isDev = process.env.NODE_ENV === "development";
-            const effectiveToken = turnstileToken || (isDev ? "DEV_BYPASS" : "");
-
-            if (!effectiveToken) {
+            if (!turnstileToken) {
                 toast.error("Verification is incomplete.");
                 return;
             }
@@ -185,7 +181,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                             email: values.email,
                             password: values.password,
                             fullName: values.adSoyad,
-                            token: effectiveToken,
+                            token: turnstileToken,
                         }),
                     });
 
@@ -199,7 +195,7 @@ export function DelegationForm({ magiclinkId, magiclinkEmail }: DelegationFormPr
                     redirect: false,
                     email: values.email,
                     password: values.password,
-                    token: authMode === "login" ? effectiveToken : "SKIPPED_AUTO_LOGIN",
+                    token: authMode === "login" ? turnstileToken : "SKIPPED_AUTO_LOGIN",
                 });
 
                 if (loginRes?.error) throw new Error("Sign-in failed");

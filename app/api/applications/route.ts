@@ -12,6 +12,7 @@ import { z } from "zod";
 import { PUBLIC_APPLICATION_TYPES, ROLES } from "@/lib/roles";
 import { searchParamsSchema, updateApplicationSchema } from "@/lib/schemas";
 import { hashOpaqueToken } from "@/lib/passwordless";
+import { essayWordCountError } from "@/lib/application-essays";
 
 interface JoinedForm {
     title: string;
@@ -228,7 +229,7 @@ async function processRavenApplicationSubmission(
         .maybeSingle();
     if (formError || !form) throw new Error("This application is not currently available.");
 
-    const questions = Array.isArray(form.questions) ? form.questions as Array<{ id: string; label: string; type?: string; required?: boolean; options?: Array<{ value: string }> }> : [];
+    const questions = Array.isArray(form.questions) ? form.questions as Array<{ id: string; label: string; type?: string; required?: boolean; minWords?: number; options?: Array<{ value: string }> }> : [];
     if (!questions.length || !questions.some((question) => question.type === "email")) throw new Error("This application form is missing an email field.");
     const sessionEmail = sessionUser.email?.trim().toLowerCase();
     const formEmailField = questions.find((question) => question.type === "email")?.id;
@@ -252,6 +253,8 @@ async function processRavenApplicationSubmission(
         const stringValue = typeof value === "string" ? value.trim() : String(value);
         if (["text", "email", "tel", "date", "url"].includes(question.type || "") && stringValue.length > 500) throw new Error(`${question.label} is too long.`);
         if (["textarea"].includes(question.type || "") && stringValue.length > 20000) throw new Error(`${question.label} is too long.`);
+        const essayError = essayWordCountError(question, stringValue);
+        if (essayError) throw new Error(essayError);
         if (question.type === "email" && !/^\S+@\S+\.\S+$/.test(stringValue)) throw new Error(`${question.label} must be a valid email address.`);
         if (question.type === "date" && Number.isNaN(Date.parse(stringValue))) throw new Error(`${question.label} must be a valid date.`);
         if (question.type === "url") { try { new URL(stringValue); } catch { throw new Error(`${question.label} must be a valid URL.`); } }
