@@ -41,7 +41,7 @@ export function OrganisationSidebar({ className, onClose }: OrganisationSidebarP
     <div className={cn("flex flex-col h-full bg-sidebar border-r border-border w-64", className)}>
       <div className="p-6 border-b border-border">
         <Link href="/organisation" prefetch={false} className="flex items-center gap-3" onClick={onClose}>
-          <img src="/ravenmun-logo.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
+          <img src="/ravenmun-logo-optimized.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
           <span className="font-display font-bold text-lg text-primary flex flex-col leading-none">
             RavenMUN
             <span className="text-[10px] font-normal text-muted-foreground mt-1 uppercase tracking-wider">

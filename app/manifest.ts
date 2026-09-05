@@ -14,7 +14,7 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "en",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
-      { src: "/ravenmun-og.jpg", sizes: "640x640", type: "image/jpeg", purpose: "any" },
+      { src: "/ravenmun-logo-optimized.jpg", sizes: "256x256", type: "image/jpeg", purpose: "any" },
     ],
   };
 }

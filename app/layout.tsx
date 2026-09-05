@@ -42,10 +42,10 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/ravenmun-og.jpg", type: "image/jpeg", sizes: "640x640" },
+      { url: "/ravenmun-logo-optimized.jpg", type: "image/jpeg", sizes: "256x256" },
     ],
     shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/ravenmun-og.jpg", type: "image/jpeg", sizes: "180x180" }],
+    apple: [{ url: "/ravenmun-logo-optimized.jpg", type: "image/jpeg", sizes: "256x256" }],
   },
   openGraph: {
     type: "website",

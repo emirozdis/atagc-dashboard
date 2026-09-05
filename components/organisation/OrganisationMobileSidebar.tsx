@@ -41,7 +41,7 @@ export function OrganisationMobileSidebar({ onClose }: OrganisationMobileSidebar
         <div className="flex flex-col h-full bg-background border-r border-border">
             <div className="p-6 border-b border-border">
                 <Link href="/organisation" prefetch={false} className="flex items-center gap-3" onClick={onClose}>
-                    <img src="/ravenmun-logo.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
+                    <img src="/ravenmun-logo-optimized.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
                     <span className="font-display font-bold text-lg text-primary flex flex-col leading-none">
                         RavenMUN
                         <span className="text-[10px] font-normal text-muted-foreground mt-1 uppercase tracking-wider">

@@ -77,7 +77,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
     <div className={cn("flex flex-col h-full bg-sidebar border-r border-border w-64", className)}>
       <div className="p-6 border-b border-border">
         <Link href="/dashboard" prefetch={false} className="flex items-center gap-3" onClick={onClose}>
-          <img src="/ravenmun-logo.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
+          <img src="/ravenmun-logo-optimized.jpg" alt="RavenMUN logo" className="w-8 h-8 rounded-full object-cover" />
           <span className="font-display font-bold text-lg text-primary">
             RavenMUN
             {roleTag && (

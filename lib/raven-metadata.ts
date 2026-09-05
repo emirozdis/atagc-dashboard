@@ -1,5 +1,5 @@
 export const RAVENMUN_OG_IMAGE = {
-  path: "/ravenmun-og.jpg",
+  path: "/ravenmun-og-optimized.jpg",
   width: 640,
   height: 640,
   alt: "RAVENMUN'26 logo",

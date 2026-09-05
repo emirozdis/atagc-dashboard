@@ -35,7 +35,7 @@ export default function RavenPublicNav() {
       <div className="relative flex items-center justify-between px-4 py-3 md:hidden">
         <Link href="/" className="relative z-10 shrink-0" aria-label="RavenMUN home">
           <Image
-            src="/ravenmun-logo.jpg"
+            src="/ravenmun-logo-optimized.jpg"
             width={40}
             height={40}
             alt=""
@@ -86,7 +86,7 @@ export default function RavenPublicNav() {
       <div className="raven-public-nav-desktop hidden items-center justify-between md:flex">
         <Link href="/" className="raven-public-nav-brand flex min-w-0 items-center">
           <Image
-            src="/ravenmun-logo.jpg"
+            src="/ravenmun-logo-optimized.jpg"
             width={48}
             height={48}
             alt="RavenMUN logo"

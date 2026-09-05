@@ -86,7 +86,7 @@ export default function RavenPortalShell({ children }: { children: ReactNode }) 
     <div className="min-h-screen bg-[#08070D] text-[#F5F3FF] lg:flex">
       {sidebarVisible && <aside className="border-b border-white/10 bg-[#12101A] lg:min-h-screen lg:w-80 lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-3.5 px-5 py-5 lg:px-6 lg:py-8">
-          <Image src="/ravenmun-logo.jpg" width={42} height={42} alt="RavenMUN logo" className="h-[42px] w-[42px] rounded-full object-cover" />
+      <Image src="/ravenmun-logo-optimized.jpg" width={42} height={42} alt="RavenMUN logo" className="h-[42px] w-[42px] rounded-full object-cover" />
           <div>
             <Link href="/portal" className="raven-template-brand text-xl font-bold tracking-wide">RAVENMUN</Link>
             <p className="mt-0.5 text-sm text-[#9CA3AF]">Participant portal</p>
