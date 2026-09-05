@@ -4,7 +4,7 @@ import RavenApplicationForm from "@/components/raven/RavenApplicationForm";
 import { PUBLIC_APPLICATION_TYPES, ApplicationType } from "@/lib/roles";
 import { supabase } from "@/lib/SERVER_supabase";
 import { RAVENMUN_APPLICATION_CARDS } from "@/config/ravenmun";
-import { getRavenmunOgImageUrl, RAVENMUN_OG_IMAGE } from "@/lib/raven-metadata";
+import { getRavenmunOgImageUrl, RAVENMUN_APPLY_DESCRIPTION, RAVENMUN_OG_IMAGE } from "@/lib/raven-metadata";
 import { getSiteUrl } from "@/lib/site-url";
 
 // The form definition and published committee list are public conference data.
@@ -24,21 +24,22 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ applicationType: string }> }): Promise<Metadata> {
   const { applicationType } = await params;
   const card = RAVENMUN_APPLICATION_CARDS.find((item) => item.type === applicationType);
-  const title = card ? `${card.title} application` : "Application";
+  const title = card ? `Apply - ${card.title}` : "Apply";
+  const socialTitle = card ? `Apply ${card.title}` : "Apply";
   const description = card
-    ? `${card.description} Apply to RavenMUN 2026 in İzmir, Türkiye.`
-    : "Apply to RavenMUN 2026.";
+    ? `Apply as a ${card.title.toLowerCase()} to be a part of RAVENMUN'26.`
+    : RAVENMUN_APPLY_DESCRIPTION;
   return {
     title,
     description,
     alternates: { canonical: `/apply/${applicationType}` },
     openGraph: {
-      title: `${title} | RAVENMUN'26`,
+      title: `${socialTitle} | RAVENMUN'26`,
       description,
       url: `/apply/${applicationType}`,
       images: [{ url: ogImageUrl, width: RAVENMUN_OG_IMAGE.width, height: RAVENMUN_OG_IMAGE.height, alt: RAVENMUN_OG_IMAGE.alt }],
     },
-    twitter: { card: "summary_large_image", title: `${title} | RAVENMUN'26`, description, images: [ogImageUrl] },
+    twitter: { card: "summary_large_image", title: `${socialTitle} | RAVENMUN'26`, description, images: [ogImageUrl] },
   };
 }
 

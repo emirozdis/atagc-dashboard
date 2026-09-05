@@ -42,14 +42,14 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/ravenmun-logo.jpg", type: "image/jpeg", sizes: "100x100" },
+      { url: "/ravenmun-logo.jpg", type: "image/jpeg", sizes: "640x640" },
     ],
     shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/ravenmun-logo.jpg", type: "image/jpeg", sizes: "100x100" }],
+    apple: [{ url: "/ravenmun-logo.jpg", type: "image/jpeg", sizes: "180x180" }],
   },
   openGraph: {
     type: "website",
-    locale: "en_TR",
+    locale: "en_US",
     url: siteUrl,
     siteName: "RAVENMUN'26",
     title: "RAVENMUN'26 | Raven Model United Nations Conference",
