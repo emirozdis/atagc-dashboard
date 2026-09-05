@@ -3,13 +3,22 @@ import type { Metadata } from "next";
 import { Mail, MapPin } from "lucide-react";
 import RavenPublicShell from "@/components/raven/RavenPublicShell";
 import { RAVENMUN_CONFERENCE } from "@/config/ravenmun";
+import { getRavenmunOgImageUrl, RAVENMUN_OG_IMAGE } from "@/lib/raven-metadata";
+import { getSiteUrl } from "@/lib/site-url";
+
+const ogImageUrl = getRavenmunOgImageUrl(getSiteUrl());
 
 export const metadata: Metadata = {
   title: "Contact",
   description: "Contact the RavenMUN organizing committee about applications, committees, accessibility, and conference information.",
   alternates: { canonical: "/contact" },
-  openGraph: { title: "Contact | RAVENMUN'26", description: "Contact the RavenMUN organizing committee.", url: "/contact" },
-  twitter: { card: "summary_large_image", title: "Contact | RAVENMUN'26", description: "Contact the RavenMUN organizing committee." },
+  openGraph: {
+    title: "Contact | RAVENMUN'26",
+    description: "Contact the RavenMUN organizing committee.",
+    url: "/contact",
+    images: [{ url: ogImageUrl, width: RAVENMUN_OG_IMAGE.width, height: RAVENMUN_OG_IMAGE.height, alt: RAVENMUN_OG_IMAGE.alt }],
+  },
+  twitter: { card: "summary_large_image", title: "Contact | RAVENMUN'26", description: "Contact the RavenMUN organizing committee.", images: [ogImageUrl] },
 };
 
 export default function ContactPage() {

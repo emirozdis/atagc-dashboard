@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 import { ArrowRight, Camera, Eye, Star, User, Users } from "lucide-react";
 import RavenPublicShell from "@/components/raven/RavenPublicShell";
 import { RAVENMUN_APPLICATION_CARDS } from "@/config/ravenmun";
+import { getRavenmunOgImageUrl, RAVENMUN_OG_IMAGE } from "@/lib/raven-metadata";
+import { getSiteUrl } from "@/lib/site-url";
+
+const ogImageUrl = getRavenmunOgImageUrl(getSiteUrl());
 
 const icons = { user: User, star: Star, users: Users, camera: Camera, eye: Eye } as const;
 
@@ -10,8 +14,13 @@ export const metadata: Metadata = {
   title: "Applications",
   description: "Choose a RavenMUN 2026 application for delegate, chairboard, delegation, press, or administrative staff participation.",
   alternates: { canonical: "/apply" },
-  openGraph: { title: "Applications | RAVENMUN'26", description: "Choose your path at RavenMUN 2026.", url: "/apply" },
-  twitter: { card: "summary_large_image", title: "Applications | RAVENMUN'26", description: "Choose your path at RavenMUN 2026." },
+  openGraph: {
+    title: "Applications | RAVENMUN'26",
+    description: "Choose your path at RavenMUN 2026.",
+    url: "/apply",
+    images: [{ url: ogImageUrl, width: RAVENMUN_OG_IMAGE.width, height: RAVENMUN_OG_IMAGE.height, alt: RAVENMUN_OG_IMAGE.alt }],
+  },
+  twitter: { card: "summary_large_image", title: "Applications | RAVENMUN'26", description: "Choose your path at RavenMUN 2026.", images: [ogImageUrl] },
 };
 
 export default function ApplyPage() {

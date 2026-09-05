@@ -5,11 +5,13 @@ import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "./providers";
 import { getSiteUrl } from "@/lib/site-url";
 import RavenStructuredData from "@/components/raven/RavenStructuredData";
+import { getRavenmunOgImageUrl, RAVENMUN_OG_IMAGE } from "@/lib/raven-metadata";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], preload: false });
 const ravenDisplay = Tinos({ variable: "--font-raven-display", subsets: ["latin"], weight: ["400", "700"], display: "swap" });
 const siteUrl = getSiteUrl();
+const ogImageUrl = getRavenmunOgImageUrl(siteUrl);
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -52,13 +54,13 @@ export const metadata: Metadata = {
     siteName: "RAVENMUN'26",
     title: "RAVENMUN'26 | Raven Model United Nations Conference",
     description: "Join RavenMUN in İzmir, Türkiye, from 20-22 November 2026.",
-    images: [{ url: "/raven-hero.webp", width: 1536, height: 1024, alt: "A raven flying across a purple night sky" }],
+    images: [{ url: ogImageUrl, width: RAVENMUN_OG_IMAGE.width, height: RAVENMUN_OG_IMAGE.height, alt: RAVENMUN_OG_IMAGE.alt }],
   },
   twitter: {
     card: "summary_large_image",
     title: "RAVENMUN'26 | Raven Model United Nations Conference",
     description: "Join RavenMUN in İzmir, Türkiye, from 20-22 November 2026.",
-    images: ["/raven-hero.webp"],
+    images: [ogImageUrl],
   },
 };
 

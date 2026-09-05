@@ -4,6 +4,8 @@ import RavenApplicationForm from "@/components/raven/RavenApplicationForm";
 import { PUBLIC_APPLICATION_TYPES, ApplicationType } from "@/lib/roles";
 import { supabase } from "@/lib/SERVER_supabase";
 import { RAVENMUN_APPLICATION_CARDS } from "@/config/ravenmun";
+import { getRavenmunOgImageUrl, RAVENMUN_OG_IMAGE } from "@/lib/raven-metadata";
+import { getSiteUrl } from "@/lib/site-url";
 
 // The form definition and published committee list are public conference data.
 // Pre-render each application type and refresh it periodically when admins edit
@@ -13,6 +15,7 @@ export const revalidate = 300;
 export const dynamicParams = false;
 
 const NO_PREFERENCE_OPTION = { value: "no-preference", label: "No preference - assign me where needed" };
+const ogImageUrl = getRavenmunOgImageUrl(getSiteUrl());
 
 export function generateStaticParams() {
   return PUBLIC_APPLICATION_TYPES.map((applicationType) => ({ applicationType }));
@@ -29,8 +32,13 @@ export async function generateMetadata({ params }: { params: Promise<{ applicati
     title,
     description,
     alternates: { canonical: `/apply/${applicationType}` },
-    openGraph: { title: `${title} | RAVENMUN'26`, description, url: `/apply/${applicationType}` },
-    twitter: { card: "summary_large_image", title: `${title} | RAVENMUN'26`, description },
+    openGraph: {
+      title: `${title} | RAVENMUN'26`,
+      description,
+      url: `/apply/${applicationType}`,
+      images: [{ url: ogImageUrl, width: RAVENMUN_OG_IMAGE.width, height: RAVENMUN_OG_IMAGE.height, alt: RAVENMUN_OG_IMAGE.alt }],
+    },
+    twitter: { card: "summary_large_image", title: `${title} | RAVENMUN'26`, description, images: [ogImageUrl] },
   };
 }
 
