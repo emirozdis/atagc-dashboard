@@ -86,26 +86,26 @@ export default async function HomePage({
           <RavenPublicNav />
         </div>
 
-        <main className="flex h-full w-full min-w-0 flex-col items-center justify-center gap-6 px-5 py-24 text-center sm:gap-10 sm:px-8">
+        <main className="raven-home-content flex h-full w-full min-w-0 flex-col items-center justify-center text-center">
           <div className="w-full max-w-3xl px-1">
-            <h1 className="raven-template-title raven-reveal raven-reveal-1 mb-3 text-[clamp(2.4rem,12vw,4.5rem)] font-bold leading-none sm:mb-4">
+            <h1 className="raven-home-heading raven-template-title raven-reveal raven-reveal-1 font-bold leading-none">
               RAVENMUN&apos;26
             </h1>
-            <p className="raven-reveal raven-reveal-2 mb-2 text-lg text-white sm:text-2xl">
+            <p className="raven-home-date raven-reveal raven-reveal-2 text-white">
               {timing.dates}
             </p>
-            <p className="raven-reveal raven-reveal-3 mx-auto max-w-2xl text-sm leading-6 text-white/85 sm:text-lg sm:leading-8">
+            <p className="raven-home-description raven-reveal raven-reveal-3 mx-auto max-w-2xl text-white/85">
               {RAVENMUN_CONFERENCE.fullName}
             </p>
           </div>
 
-          <div className="raven-reveal raven-reveal-5 w-full min-w-0 origin-center">
+          <div className="raven-home-countdown raven-reveal raven-reveal-5 w-full min-w-0 origin-center">
             <RavenCountdown startDateIso={timing.startDateIso} />
           </div>
 
           <Link
             href="/apply"
-            className="glassmorphism raven-reveal raven-reveal-6 group inline-flex w-full max-w-xs items-center justify-center gap-3 rounded-full px-6 py-3.5 text-lg shadow-lg transition-all duration-300 sm:w-fit sm:gap-4 sm:px-8 sm:py-4 sm:text-xl"
+            className="raven-home-cta glassmorphism raven-reveal raven-reveal-6 group inline-flex w-full max-w-xs items-center justify-center rounded-full shadow-lg transition-all duration-300 sm:w-fit"
           >
             Apply Now
             <svg width="24" height="19" viewBox="0 0 24 19" fill="none" aria-hidden="true" className="w-4 shrink-0 transition-transform duration-300 group-hover:translate-x-2 sm:w-6">
@@ -114,7 +114,7 @@ export default async function HomePage({
           </Link>
         </main>
 
-        <footer className="absolute inset-x-0 bottom-0 z-40 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 text-center text-sm leading-6 text-white/85">
+        <footer className="raven-home-footer absolute inset-x-0 bottom-0 z-40 text-center text-white/85">
           <p>&copy; {RAVENMUN_CONFERENCE.year} RAVENMUN, All Rights Reserved.</p>
         </footer>
       </div>

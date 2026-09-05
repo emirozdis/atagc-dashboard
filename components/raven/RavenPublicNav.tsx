@@ -83,22 +83,22 @@ export default function RavenPublicNav() {
         </Sheet>
       </div>
 
-      <div className="hidden items-center justify-between px-8 py-5 md:flex">
-        <Link href="/" className="flex min-w-0 items-center gap-4">
+      <div className="raven-public-nav-desktop hidden items-center justify-between md:flex">
+        <Link href="/" className="raven-public-nav-brand flex min-w-0 items-center">
           <Image
             src="/ravenmun-logo.jpg"
             width={48}
             height={48}
             alt="RavenMUN logo"
-            className="h-12 w-12 shrink-0 rounded-full object-cover shadow-lg shadow-black/25"
+            className="raven-public-nav-logo shrink-0 rounded-full object-cover shadow-lg shadow-black/25"
           />
-          <span className="raven-template-brand truncate text-[2.15rem] font-bold">RAVENMUN</span>
+          <span className="raven-public-nav-title raven-template-brand truncate font-bold">RAVENMUN</span>
         </Link>
 
-        <nav className="flex items-center gap-4">
+        <nav className="raven-public-nav-links flex items-center">
           <Link
             href="/apply"
-            className="glassmorphism inline-flex h-[3.25rem] items-center justify-center gap-2.5 rounded-full border border-[#C4B5FD]/25 bg-[#7C3AED]/15 px-7 text-base font-medium text-white transition hover:border-[#C4B5FD]/60 hover:bg-[#7C3AED]/25 hover:text-[#C4B5FD]"
+            className="raven-public-nav-action glassmorphism inline-flex items-center justify-center rounded-full border border-[#C4B5FD]/25 bg-[#7C3AED]/15 font-medium text-white transition hover:border-[#C4B5FD]/60 hover:bg-[#7C3AED]/25 hover:text-[#C4B5FD]"
           >
             <Check className="h-5 w-5" />
             Apply
@@ -106,7 +106,7 @@ export default function RavenPublicNav() {
           {isAuthenticated ? (
             <Link
               href="/portal"
-              className="inline-flex h-[3.25rem] items-center justify-center gap-2.5 rounded-full border border-white/20 bg-white/[0.04] px-7 text-base font-medium text-white transition hover:border-[#C4B5FD]/60 hover:bg-white/[0.08] hover:text-[#C4B5FD]"
+              className="raven-public-nav-action inline-flex items-center justify-center rounded-full border border-white/20 bg-white/[0.04] font-medium text-white transition hover:border-[#C4B5FD]/60 hover:bg-white/[0.08] hover:text-[#C4B5FD]"
             >
               <LayoutDashboard className="h-5 w-5" />
               Portal
@@ -114,7 +114,7 @@ export default function RavenPublicNav() {
           ) : (
             <Link
               href="/login"
-              className="inline-flex h-[3.25rem] items-center justify-center gap-2.5 rounded-full border border-white/20 bg-white/[0.04] px-7 text-base font-medium text-white transition hover:border-[#C4B5FD]/60 hover:bg-white/[0.08] hover:text-[#C4B5FD]"
+              className="raven-public-nav-action inline-flex items-center justify-center rounded-full border border-white/20 bg-white/[0.04] font-medium text-white transition hover:border-[#C4B5FD]/60 hover:bg-white/[0.08] hover:text-[#C4B5FD]"
             >
               <LogIn className="h-5 w-5" />
               Sign in

@@ -28,13 +28,13 @@ function calculateTimeLeft(targetDate: number | null): TimeLeft {
 
 function TimeUnit({ value, label, mounted }: { value: number; label: string; mounted: boolean }) {
   return (
-    <div className="flex min-w-0 flex-col items-center">
-      <div className="raven-countdown-box flex w-full min-w-0 items-center justify-center rounded-xl px-1 py-2.5 sm:min-w-[100px] sm:rounded-lg sm:px-6 sm:py-4">
-        <span className="text-center text-[1.65rem] font-bold tabular-nums sm:text-5xl">
+    <div className="raven-countdown-unit flex min-w-0 flex-col items-center">
+      <div className="raven-countdown-box flex w-full min-w-0 items-center justify-center rounded-xl px-1 py-2.5">
+        <span className="raven-countdown-value text-center text-[1.65rem] font-bold tabular-nums">
           {mounted ? value.toString().padStart(2, "0") : "00"}
         </span>
       </div>
-      <span className="mt-2 text-[10px] uppercase tracking-[0.12em] text-white sm:text-lg sm:tracking-wider">{label}</span>
+      <span className="raven-countdown-label mt-2 text-[10px] uppercase tracking-[0.12em] text-white">{label}</span>
     </div>
   );
 }
@@ -58,7 +58,7 @@ export default function RavenCountdown({ startDateIso }: { startDateIso: string 
   }, [targetDate]);
 
   return (
-    <div className="mx-auto grid w-full max-w-lg grid-cols-4 gap-2 px-1 sm:flex sm:max-w-none sm:justify-center sm:gap-4" aria-label={targetDate ? "Time until RavenMUN" : "Conference date to be announced"}>
+    <div className="raven-countdown mx-auto grid w-full max-w-lg grid-cols-4 gap-2 px-1 md:flex md:max-w-none md:justify-center" aria-label={targetDate ? "Time until RavenMUN" : "Conference date to be announced"}>
       <TimeUnit value={timeLeft.days} label="Days" mounted={mounted} />
       <TimeUnit value={timeLeft.hours} label="Hours" mounted={mounted} />
       <TimeUnit value={timeLeft.minutes} label="Minutes" mounted={mounted} />

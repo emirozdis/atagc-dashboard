@@ -237,6 +237,44 @@ a.raven-public-card:hover {
   box-shadow: 0 12px 34px rgb(8 4 15 / 28%), inset 0 1px rgb(255 255 255 / 80%);
 }
 
+.raven-countdown-unit {
+  width: 100%;
+}
+
+.raven-countdown-value {
+  line-height: 1;
+}
+
+.raven-countdown-label {
+  line-height: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .raven-countdown {
+    gap: clamp(1rem, 2.2vmin, 2.5rem);
+  }
+
+  .raven-countdown-unit {
+    width: clamp(6.25rem, 10vmin, 10rem);
+  }
+
+  .raven-countdown-box {
+    min-height: clamp(5.5rem, 11vmin, 10rem);
+    border-radius: clamp(0.5rem, 1vmin, 1rem);
+    padding: clamp(1rem, 2vmin, 2rem) clamp(1.5rem, 3vmin, 3rem);
+  }
+
+  .raven-countdown-value {
+    font-size: clamp(3rem, 6.5vmin, 6rem);
+  }
+
+  .raven-countdown-label {
+    margin-top: clamp(0.5rem, 1vmin, 1rem);
+    font-size: clamp(1rem, 1.8vmin, 1.5rem);
+    letter-spacing: 0.08em;
+  }
+}
+
 .raven-home-glow {
   position: absolute;
   border-radius: 999px;
@@ -247,16 +285,123 @@ a.raven-public-card:hover {
 
 .raven-home-raven {
   position: absolute;
-  top: 48%;
-  left: 50%;
-  width: min(175vw, 124rem);
-  aspect-ratio: 16 / 9;
+  inset: -1.5%;
+  width: 103%;
+  height: 103%;
   background: url("/raven-hero.webp") center 40% / cover no-repeat;
   opacity: 0.92;
   filter: contrast(1.12) saturate(1.06);
-  transform: translate3d(-50%, -50%, 0);
+  transform: scale(1.02);
   transform-origin: center;
   animation: raven-shadow-drift 22s ease-in-out infinite alternate;
+}
+
+.raven-home-content {
+  gap: 1.5rem;
+  padding: 6rem 1.25rem;
+}
+
+.raven-home-heading {
+  margin-bottom: 0.75rem;
+  font-size: clamp(2.4rem, 12vw, 4.5rem);
+}
+
+.raven-home-date {
+  margin-bottom: 0.5rem;
+  font-size: 1.125rem;
+}
+
+.raven-home-description {
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.raven-home-cta {
+  gap: 0.75rem;
+  padding: 0.875rem 1.5rem;
+  font-size: 1.125rem;
+}
+
+.raven-home-cta svg {
+  width: 1rem;
+  flex-shrink: 0;
+}
+
+.raven-home-footer {
+  padding: 1rem 1.25rem max(1.25rem, env(safe-area-inset-bottom));
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .raven-home-content {
+    gap: clamp(1.5rem, 4.2vmin, 4.5rem);
+    padding: clamp(6rem, 12vmin, 10rem) clamp(2rem, 5vw, 6rem);
+  }
+
+  .raven-home-heading {
+    margin-bottom: clamp(0.75rem, 1.4vmin, 1.5rem);
+    font-size: clamp(4.5rem, 8vmin, 8rem);
+  }
+
+  .raven-home-date {
+    margin-bottom: clamp(0.5rem, 1vmin, 1rem);
+    font-size: clamp(1.5rem, 2.5vmin, 2.5rem);
+  }
+
+  .raven-home-description {
+    font-size: clamp(1rem, 1.8vmin, 1.75rem);
+    line-height: clamp(1.5rem, 3vmin, 2.75rem);
+  }
+
+  .raven-home-cta {
+    gap: clamp(0.75rem, 1.8vmin, 1.5rem);
+    padding: clamp(1rem, 2vmin, 1.5rem) clamp(2rem, 4vmin, 3.5rem);
+    font-size: clamp(1.25rem, 2.3vmin, 1.875rem);
+  }
+
+  .raven-home-cta svg {
+    width: clamp(1rem, 2.4vmin, 1.75rem);
+  }
+
+  .raven-home-footer {
+    padding: clamp(1rem, 2vmin, 1.5rem) clamp(2rem, 5vw, 6rem) max(clamp(1.25rem, 2.5vmin, 2rem), env(safe-area-inset-bottom));
+    font-size: clamp(0.875rem, 1.5vmin, 1.25rem);
+    line-height: clamp(1.5rem, 2.5vmin, 2rem);
+  }
+
+  .raven-public-nav-desktop {
+    padding: clamp(1.25rem, 2.4vmin, 2rem) clamp(2rem, 5vmin, 6rem);
+  }
+
+  .raven-public-nav-brand {
+    gap: clamp(1rem, 2vmin, 2rem);
+  }
+
+  .raven-public-nav-logo {
+    width: clamp(3rem, 5.6vmin, 5rem);
+    height: clamp(3rem, 5.6vmin, 5rem);
+  }
+
+  .raven-public-nav-title {
+    font-size: clamp(2.15rem, 4.2vmin, 4rem);
+  }
+
+  .raven-public-nav-links {
+    gap: clamp(1rem, 2vmin, 2rem);
+  }
+
+  .raven-public-nav-action {
+    height: clamp(3.25rem, 6.5vmin, 5rem);
+    gap: clamp(0.625rem, 1.3vmin, 1.25rem);
+    padding-inline: clamp(1.75rem, 3.5vmin, 3.5rem);
+    font-size: clamp(1rem, 2vmin, 1.5rem);
+  }
+
+  .raven-public-nav-action svg {
+    width: clamp(1.25rem, 2.4vmin, 1.75rem);
+    height: clamp(1.25rem, 2.4vmin, 1.75rem);
+  }
 }
 
 .raven-home-grain {
@@ -332,9 +477,9 @@ a.raven-public-card:hover {
 }
 
 @keyframes raven-shadow-drift {
-  0% { transform: translate3d(-51%, -49.5%, 0) scale(1.02); }
-  50% { transform: translate3d(-49.5%, -51%, 0) scale(1.06); }
-  100% { transform: translate3d(-48.5%, -49%, 0) scale(1.04); }
+  0% { transform: translate3d(-0.5%, -0.5%, 0) scale(1.02); }
+  50% { transform: translate3d(0.5%, -1%, 0) scale(1.06); }
+  100% { transform: translate3d(1%, 0.5%, 0) scale(1.04); }
 }
 
 @keyframes raven-title-shine {
