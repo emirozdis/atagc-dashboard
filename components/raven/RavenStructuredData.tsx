@@ -1,5 +1,6 @@
 import { RAVENMUN_CONFERENCE } from "@/config/ravenmun";
 import { getSiteUrl } from "@/lib/site-url";
+import { RAVENMUN_META_DESCRIPTION, RAVENMUN_OG_IMAGE } from "@/lib/raven-metadata";
 
 export default function RavenStructuredData() {
   const siteUrl = getSiteUrl();
@@ -8,9 +9,9 @@ export default function RavenStructuredData() {
     "@type": "Event",
     name: RAVENMUN_CONFERENCE.fullName,
     alternateName: RAVENMUN_CONFERENCE.displayName,
-    description: "A Model United Nations conference in İzmir, Türkiye, bringing students together for research, debate, and diplomacy.",
+    description: RAVENMUN_META_DESCRIPTION,
     url: siteUrl,
-    image: [`${siteUrl}/raven-hero.webp`],
+    image: [`${siteUrl}${RAVENMUN_OG_IMAGE.path}`],
     startDate: RAVENMUN_CONFERENCE.startDateIso,
     endDate: RAVENMUN_CONFERENCE.endDateIso,
     eventStatus: "https://schema.org/EventScheduled",
