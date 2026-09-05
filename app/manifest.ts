@@ -12,6 +12,9 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#08070D",
     theme_color: "#08070D",
     lang: "en",
-    icons: [{ src: "/ravenmun-logo.jpg", sizes: "any", type: "image/jpeg" }],
+    icons: [
+      { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/ravenmun-logo.jpg", sizes: "100x100", type: "image/jpeg", purpose: "any" },
+    ],
   };
 }

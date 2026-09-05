@@ -38,8 +38,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   robots: { index: true, follow: true, nocache: false, googleBot: { index: true, follow: true, noimageindex: false } },
   icons: {
-    icon: [{ url: "/ravenmun-logo.jpg", type: "image/jpeg" }],
-    apple: [{ url: "/ravenmun-logo.jpg", type: "image/jpeg" }],
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/ravenmun-logo.jpg", type: "image/jpeg", sizes: "100x100" },
+    ],
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/ravenmun-logo.jpg", type: "image/jpeg", sizes: "100x100" }],
   },
   openGraph: {
     type: "website",
