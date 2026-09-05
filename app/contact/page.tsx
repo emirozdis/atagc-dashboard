@@ -1,9 +1,16 @@
-"use client";
-
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Mail, MapPin } from "lucide-react";
 import RavenPublicShell from "@/components/raven/RavenPublicShell";
 import { RAVENMUN_CONFERENCE } from "@/config/ravenmun";
+
+export const metadata: Metadata = {
+  title: "Contact",
+  description: "Contact the RavenMUN organizing committee about applications, committees, accessibility, and conference information.",
+  alternates: { canonical: "/contact" },
+  openGraph: { title: "Contact | RAVENMUN'26", description: "Contact the RavenMUN organizing committee.", url: "/contact" },
+  twitter: { card: "summary_large_image", title: "Contact | RAVENMUN'26", description: "Contact the RavenMUN organizing committee." },
+};
 
 export default function ContactPage() {
   return (

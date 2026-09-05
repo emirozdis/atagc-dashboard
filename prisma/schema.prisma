@@ -337,6 +337,7 @@ model email_outbox {
   subject                 String
   html                    String
   related_announcement_id String?        @db.Uuid
+  related_invite_id       String?        @db.Uuid
   attempts                Int            @default(0)
   available_at            DateTime       @default(now()) @db.Timestamptz(6)
   sent_at                 DateTime?      @db.Timestamptz(6)
@@ -345,6 +346,45 @@ model email_outbox {
   locked_at               DateTime?      @db.Timestamptz(6)
   locked_by               String?
   announcements           announcements? @relation(fields: [related_announcement_id], references: [id], onUpdate: NoAction)
+}
+
+model email_templates {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  notification_type  String    @unique
+  subject            String
+  heading            String
+  body_html          String
+  button_text        String?
+  button_path        String?
+  accent_color       String?
+  is_enabled         Boolean   @default(true)
+  updated_by         String?   @db.Uuid
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model received_emails {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resend_email_id     String    @unique
+  webhook_event_id    String?   @unique
+  from_address        String
+  to_addresses        Json      @default("[]")
+  cc_addresses        Json      @default("[]")
+  bcc_addresses       Json      @default("[]")
+  reply_to_addresses  Json      @default("[]")
+  subject             String
+  text_body           String?
+  html_body           String?
+  headers             Json      @default("{}")
+  attachments         Json      @default("[]")
+  message_id          String?
+  received_at         DateTime  @db.Timestamptz(6)
+  is_read             Boolean   @default(false)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([received_at(sort: Desc)], map: "received_emails_received_at_idx")
+  @@index([is_read, received_at(sort: Desc)], map: "received_emails_unread_idx")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.

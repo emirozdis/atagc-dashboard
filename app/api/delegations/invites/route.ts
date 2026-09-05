@@ -9,6 +9,8 @@ import { normalizeEmail } from "@/lib/crypto-utils";
 import { sendEmail } from "@/lib/email";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { getSiteUrl } from "@/lib/site-url";
+import { getStoredEmailTemplate } from "@/lib/email-template-service";
+import { renderEmailTemplate } from "@/lib/email-templates";
 
 const inviteRequestSchema = z.object({
   email: z.string().email().max(200).optional(),
@@ -17,16 +19,15 @@ const inviteRequestSchema = z.object({
 }).refine((value) => Boolean(value.email || value.inviteId), "An email or invitation ID is required.");
 
 type InviteRecord = { id: string; email: string; delegation_id: string; expires_at: string; used_at: string | null; created_at: string };
-type OutboxMessage = { id: string; recipient_email: string; subject: string; html: string; sent_at: string | null; created_at: string };
+type OutboxMessage = { id: string; recipient_email: string; subject: string; html: string; sent_at: string | null; created_at: string; related_invite_id?: string | null };
 
 async function findEmailForInvite(invite: InviteRecord) {
   const { data, error } = await supabase
     .from("email_outbox")
-    .select("id, recipient_email, subject, html, sent_at, created_at")
-    .eq("recipient_email", invite.email)
-    .eq("subject", "RavenMUN delegation invitation")
+    .select("id, recipient_email, subject, html, sent_at, created_at, related_invite_id")
+    .eq("related_invite_id", invite.id)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(5);
   if (error) throw error;
   return ((data || []) as unknown as OutboxMessage[]).find((message) => new Date(message.created_at).getTime() >= new Date(invite.created_at).getTime()) || null;
 }
@@ -76,12 +77,15 @@ export const GET = apiHandler(async () => {
   ]);
   if (inviteError || memberError) throw new Error("Unable to load delegation members.");
   const invites = (rawInvites || []) as unknown as InviteRecord[];
-  const outboxResult = await supabase.from("email_outbox").select("recipient_email, subject, sent_at, created_at").eq("subject", "RavenMUN delegation invitation").order("created_at", { ascending: false }).limit(1000);
+  const outboxResult = await supabase.from("email_outbox").select("recipient_email, subject, sent_at, created_at, related_invite_id").order("created_at", { ascending: false }).limit(1000);
   if (outboxResult.error) throw outboxResult.error;
-  const messages = (outboxResult.data || []) as unknown as Array<Pick<OutboxMessage, "recipient_email" | "subject" | "sent_at" | "created_at">>;
+  const messages = (outboxResult.data || []) as unknown as Array<Pick<OutboxMessage, "recipient_email" | "subject" | "sent_at" | "created_at" | "related_invite_id">>;
   const enrichedInvites = invites.map((invite) => ({
     ...invite,
-    emailSent: messages.some((message) => message.recipient_email === invite.email && new Date(message.created_at).getTime() >= new Date(invite.created_at).getTime() && Boolean(message.sent_at)),
+    emailSent: messages.some((message) => (
+      message.related_invite_id === invite.id ||
+      (!message.related_invite_id && message.recipient_email === invite.email && message.subject === "RavenMUN delegation invitation" && new Date(message.created_at).getTime() >= new Date(invite.created_at).getTime())
+    ) && Boolean(message.sent_at)),
   }));
   return NextResponse.json({ delegation, invites: owned ? enrichedInvites : [], members: members || [], canManage: Boolean(owned) });
 });
@@ -120,6 +124,14 @@ export const POST = apiHandler(async (request: Request) => {
   const baseUrl = getSiteUrl();
   const link = `${baseUrl}/delegations/invite?token=${encodeURIComponent(token)}`;
   const createdAfter = new Date().toISOString();
+  const invitationTemplate = await getStoredEmailTemplate("magic_link_invite");
+  const renderedInvitation = renderEmailTemplate(
+    "magic_link_invite",
+    auth.session.user.name || "Your delegation owner",
+    baseUrl,
+    { link },
+    invitationTemplate?.is_enabled === false ? null : invitationTemplate,
+  );
   const { data: invite, error } = await supabase.rpc("create_ravenmun_delegation_invite", {
     p_owner_id: auth.session.user.id,
     p_email: normalizedEmail,
@@ -127,6 +139,8 @@ export const POST = apiHandler(async (request: Request) => {
     p_expires_at: expiresAt,
     p_link: link,
     p_inviter_name: auth.session.user.name || "Your delegation owner",
+    p_subject: renderedInvitation.subject,
+    p_html: renderedInvitation.html,
   });
   if (error || !invite) {
     if (error?.message?.includes("active invitation")) {
@@ -136,7 +150,8 @@ export const POST = apiHandler(async (request: Request) => {
     throw error || new Error("Unable to create invitation.");
   }
 
-  const { data: message } = await supabase.from("email_outbox").select("id, recipient_email, subject, html, sent_at, created_at").eq("recipient_email", normalizedEmail).eq("subject", "RavenMUN delegation invitation").gte("created_at", createdAfter).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const inviteId = typeof invite.id === "string" ? invite.id : null;
+  const { data: message } = await supabase.from("email_outbox").select("id, recipient_email, subject, html, sent_at, created_at, related_invite_id").eq("recipient_email", normalizedEmail).eq("related_invite_id", inviteId).gte("created_at", createdAfter).order("created_at", { ascending: false }).limit(1).maybeSingle();
   const emailSent = message ? await deliverEmail(message as unknown as OutboxMessage) : false;
   return NextResponse.json({ success: true, emailSent, invite });
 });

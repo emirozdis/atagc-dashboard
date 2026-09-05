@@ -346,7 +346,10 @@ async function processRavenApplicationSubmission(
     }
 
     try {
-        await sendSystemNotification(sessionUser.id, "application_received");
+        await sendSystemNotification(sessionUser.id, "application_received", {
+            applicationType,
+            applicationId: typeof application.id === "string" ? application.id : undefined,
+        });
     } catch (notificationError) {
         console.error("Application notification failed:", notificationError);
     }
@@ -469,7 +472,13 @@ async function updateApplicationStatus(
     );
 
     if (currentApp.status !== status) {
-        await sendSystemNotification(currentApp.user_id, "application_status");
+        await sendSystemNotification(currentApp.user_id, "application_status", {
+            applicationId: id,
+            applicationType: currentApp.application_type,
+            previousStatus: currentApp.status,
+            status,
+            reviewNotes: review_notes,
+        });
     }
 }
 

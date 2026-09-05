@@ -1,3 +1,5 @@
+import { sanitizeHtml } from "./sanitize";
+
 export type NotificationType =
   | "application_received"
   | "application_status"
@@ -14,6 +16,45 @@ export type NotificationType =
   | "password_reset_request"
   | "two_factor_code";
 
+export const CUSTOMIZABLE_NOTIFICATION_TYPES = [
+  "application_received",
+  "application_status",
+  "committee_assignment",
+  "connection_request",
+  "connection_accepted",
+  "warning_issued",
+  "account_suspended",
+  "password_changed",
+  "payment_approved",
+  "payment_rejected",
+  "magic_link_invite",
+  "email_verification",
+] as const satisfies readonly NotificationType[];
+
+export type CustomizableNotificationType = (typeof CUSTOMIZABLE_NOTIFICATION_TYPES)[number];
+
+export interface EmailData {
+  code?: string;
+  link?: string;
+  applicationType?: string;
+  previousStatus?: string;
+  status?: string;
+  reviewNotes?: string;
+  applicationId?: string;
+  purpose?: string;
+}
+
+export interface StoredEmailTemplate {
+  notification_type: string;
+  subject: string;
+  heading: string;
+  body_html: string;
+  button_text?: string | null;
+  button_path?: string | null;
+  accent_color?: string | null;
+  is_enabled?: boolean | null;
+}
+
 interface EmailContent {
   subject: string;
   heading: string;
@@ -21,11 +62,6 @@ interface EmailContent {
   buttonText?: string;
   buttonPath?: string;
   accentColor?: string;
-}
-
-interface EmailData {
-  code?: string;
-  link?: string;
 }
 
 const COLORS = {
@@ -41,25 +77,56 @@ const COLORS = {
 };
 
 const escapeHtml = (value: string) =>
-  value.replace(/[&<>'\"]/g, (character) => ({
+  value.replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     "'": "&#39;",
-    '\"': "&quot;",
+    '"': "&quot;",
   })[character] || character);
+
+const statusLabel = (value?: string) => {
+  const labels: Record<string, string> = {
+    pending: "Under review",
+    under_review: "Under review",
+    accepted: "Accepted",
+    approved: "Accepted",
+    rejected: "Not accepted",
+    withdrawn: "Withdrawn",
+  };
+  return labels[value || ""] || value || "Not specified";
+};
+
+const applicationTypeLabel = (value?: string) => {
+  const labels: Record<string, string> = {
+    delegate: "Delegate",
+    chairboard: "Chairboard",
+    delegation: "Delegation",
+    press: "Press",
+    observer: "Administrative staff",
+  };
+  return labels[value || ""] || value || "application";
+};
 
 const getContent = (type: NotificationType, userName: string, data: EmailData = {}): EmailContent => {
   const name = escapeHtml(userName || "Participant");
   const code = escapeHtml(data.code || "");
+  const application = escapeHtml(applicationTypeLabel(data.applicationType));
+  const currentStatus = escapeHtml(statusLabel(data.status));
+  const previousStatus = escapeHtml(statusLabel(data.previousStatus));
+  const reviewNotes = data.reviewNotes?.trim()
+    ? `<p><strong>Review note:</strong> ${escapeHtml(data.reviewNotes.trim())}</p>`
+    : "";
 
   switch (type) {
     case "email_verification":
     case "two_factor_code":
       return {
-        subject: `Sign-in verification code | RavenMUN 2026`,
+        subject: data.purpose === "application"
+          ? "Application verification code | RavenMUN 2026"
+          : "Sign-in verification code | RavenMUN 2026",
         heading: "Your verification code",
-        message: `Hello <strong>${name}</strong>,<br/><br/>Use the one-time code below to continue signing in. It expires shortly and can only be used once.<br/><br/><div style=\"background:#211b30;border:1px solid ${COLORS.border};border-radius:10px;padding:16px;font-size:28px;font-weight:700;letter-spacing:5px;text-align:center;color:${COLORS.accent};margin:24px 0;\">${code}</div>`,
+        message: `Hello <strong>${name}</strong>,<br/><br/>Use the one-time code below to continue signing in. It expires shortly and can only be used once.<br/><br/><div style="background:#211b30;border:1px solid ${COLORS.border};border-radius:10px;padding:16px;font-size:28px;font-weight:700;letter-spacing:5px;text-align:center;color:${COLORS.accent};margin:24px 0;">${code}</div>`,
         accentColor: COLORS.primary,
       };
     case "magic_link_invite":
@@ -102,7 +169,7 @@ const getContent = (type: NotificationType, userName: string, data: EmailData = 
       return {
         subject: "Application received | RavenMUN 2026",
         heading: "Your application has been received",
-        message: `Hello <strong>${name}</strong>,<br/><br/>Thank you for applying to RavenMUN 2026. Your application is now in the review queue, and you can follow its progress from the participant portal.`,
+        message: `Hello <strong>${name}</strong>,<br/><br/>Thank you for applying as a ${application}. Your application is now in the review queue, and you can follow its progress from the participant portal.`,
         buttonText: "Open my applications",
         buttonPath: "/portal/applications",
       };
@@ -110,9 +177,9 @@ const getContent = (type: NotificationType, userName: string, data: EmailData = 
       return {
         subject: "Application update | RavenMUN 2026",
         heading: "Your application status changed",
-        message: `Hello <strong>${name}</strong>,<br/><br/>There is an update to your RavenMUN application. Sign in to view the latest status and any next steps.`,
+        message: `Hello <strong>${name}</strong>,<br/><br/>Your ${application} application changed from <strong>${previousStatus}</strong> to <strong>${currentStatus}</strong>. Sign in to view the latest status and any next steps.${reviewNotes}`,
         buttonText: "View application",
-        buttonPath: "/portal/applications",
+        buttonPath: data.applicationId ? `/my-applications/${encodeURIComponent(data.applicationType || "delegate")}?applicationId=${encodeURIComponent(data.applicationId)}` : "/portal/applications",
         accentColor: COLORS.primary,
       };
     case "committee_assignment":
@@ -177,25 +244,102 @@ const getContent = (type: NotificationType, userName: string, data: EmailData = 
   }
 };
 
-export const generateEmailHtml = (
+function templateValues(userName: string, baseUrl: string, data: EmailData) {
+  return {
+    name: userName || "Participant",
+    application_type: applicationTypeLabel(data.applicationType),
+    application_type_slug: data.applicationType || "delegate",
+    status: statusLabel(data.status),
+    old_status: statusLabel(data.previousStatus),
+    review_notes: data.reviewNotes || "",
+    application_id: data.applicationId || "",
+    code: data.code || "",
+    purpose: data.purpose || "sign in",
+    portal_url: `${baseUrl.replace(/\/$/, "")}/portal`,
+    link: data.link || "",
+  };
+}
+
+function interpolateText(value: string, values: Record<string, string>) {
+  return value.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (_, key: string) => values[key.toLowerCase()] ?? "");
+}
+
+function interpolateHtml(value: string, values: Record<string, string>) {
+  return value.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (_, key: string) => escapeHtml(values[key.toLowerCase()] ?? ""));
+}
+
+function safeColor(value: string | null | undefined, fallback: string) {
+  return value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+}
+
+function safeButtonPath(value: string | undefined, fallback: string | undefined) {
+  const path = value ?? fallback;
+  if (!path) return undefined;
+  if (path.startsWith("/") || /^https?:\/\//i.test(path)) return path;
+  return fallback;
+}
+
+export function getDefaultEmailTemplate(type: CustomizableNotificationType): StoredEmailTemplate {
+  const data: EmailData = {
+    applicationType: "{{application_type}}",
+    previousStatus: "{{old_status}}",
+    status: "{{status}}",
+    reviewNotes: "{{review_notes}}",
+    applicationId: "{{application_id}}",
+    link: "{{link}}",
+    code: "{{code}}",
+    purpose: "{{purpose}}",
+  };
+  const content = getContent(type, "{{name}}", data);
+  return {
+    notification_type: type,
+    subject: content.subject,
+    heading: content.heading,
+    body_html: content.message,
+    button_text: content.buttonText || null,
+    button_path: type === "application_status"
+      ? "/my-applications/{{application_type_slug}}?applicationId={{application_id}}"
+      : content.buttonPath || null,
+    accent_color: content.accentColor || null,
+    is_enabled: true,
+  };
+}
+
+export function renderEmailTemplate(
   type: NotificationType,
   userName: string,
   baseUrl: string,
-  data?: EmailData,
-) => {
-  const content = getContent(type, userName, data);
+  data: EmailData = {},
+  override?: StoredEmailTemplate | null,
+) {
+  const defaults = getContent(type, userName, data);
+  const values = templateValues(userName, baseUrl, data);
+  const custom = override && override.is_enabled !== false;
+  const content: EmailContent = custom
+    ? {
+        subject: interpolateText(override.subject || defaults.subject, values),
+        heading: interpolateText(override.heading || defaults.heading, values),
+        message: sanitizeHtml(interpolateHtml(override.body_html || defaults.message, values)),
+        buttonText: override.button_text === null ? undefined : interpolateText(override.button_text || "", values) || undefined,
+        buttonPath: safeButtonPath(interpolateText(override.button_path || "", values), defaults.buttonPath),
+        accentColor: safeColor(override.accent_color, defaults.accentColor || COLORS.primary),
+      }
+    : defaults;
+
   const cleanBaseUrl = baseUrl.replace(/\/$/, "");
   const targetUrl = content.buttonPath?.startsWith("http")
     ? content.buttonPath
     : `${cleanBaseUrl}${content.buttonPath || "/portal"}`;
-  const headingColor = content.accentColor || COLORS.textPrimary;
-  const buttonColor = content.accentColor || COLORS.primary;
+  const headingColor = safeColor(content.accentColor, COLORS.textPrimary);
+  const buttonColor = safeColor(content.accentColor, COLORS.primary);
   const sentAt = new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
-  return `
+  return {
+    subject: content.subject,
+    html: `
     <!DOCTYPE html>
     <html lang="en">
-      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${content.subject}</title></head>
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(content.subject)}</title></head>
       <body style="font-family:Arial,sans-serif;line-height:1.6;color:${COLORS.textPrimary};background:${COLORS.background};margin:0;padding:0;">
         <div style="width:100%;padding:40px 0;background:${COLORS.background};">
           <div style="max-width:600px;margin:0 auto;background:${COLORS.container};border:1px solid ${COLORS.border};border-radius:14px;overflow:hidden;">
@@ -204,18 +348,27 @@ export const generateEmailHtml = (
               <div style="font-size:12px;color:${COLORS.textSecondary};margin-top:8px;letter-spacing:2px;text-transform:uppercase;">Conference participant services</div>
             </div>
             <div style="padding:40px;">
-              <h2 style="margin:0 0 20px;font-size:22px;color:${headingColor};">${content.heading}</h2>
+              <h2 style="margin:0 0 20px;font-size:22px;color:${headingColor};">${escapeHtml(content.heading)}</h2>
               <div style="margin-bottom:24px;font-size:15px;color:${COLORS.textSecondary};">${content.message}</div>
-              ${content.buttonText ? `<div style="text-align:center;margin:32px 0 16px;"><a href="${targetUrl}" target="_blank" style="display:inline-block;background:${buttonColor};color:#100b18;text-decoration:none;padding:14px 28px;border-radius:9px;font-weight:700;font-size:14px;">${content.buttonText}</a></div>` : ""}
+              ${content.buttonText ? `<div style="text-align:center;margin:32px 0 16px;"><a href="${escapeHtml(targetUrl)}" target="_blank" rel="noreferrer" style="display:inline-block;background:${buttonColor};color:#100b18;text-decoration:none;padding:14px 28px;border-radius:9px;font-weight:700;font-size:14px;">${escapeHtml(content.buttonText)}</a></div>` : ""}
               <div style="margin-top:40px;border-top:1px solid ${COLORS.border};padding-top:20px;font-size:13px;color:${COLORS.textSecondary};">Questions? Contact the RavenMUN organizing team or use the support area in your portal.</div>
             </div>
             <div style="background:#120f1a;padding:26px 40px;text-align:center;border-top:1px solid ${COLORS.border};">
               <p style="margin:0;font-size:12px;color:${COLORS.textSecondary};">© 2026 RavenMUN. All rights reserved.</p>
-              <p style="margin:10px 0 0;font-size:11px;color:${COLORS.textSecondary};opacity:.7;">Sent: ${sentAt}</p>
+              <p style="margin:10px 0 0;font-size:11px;color:${COLORS.textSecondary};opacity:.7;">Sent: ${escapeHtml(sentAt)}</p>
             </div>
           </div>
         </div>
       </body>
     </html>
-  `;
-};
+  `,
+  };
+}
+
+export const generateEmailHtml = (
+  type: NotificationType,
+  userName: string,
+  baseUrl: string,
+  data?: EmailData,
+  override?: StoredEmailTemplate | null,
+) => renderEmailTemplate(type, userName, baseUrl, data, override).html;

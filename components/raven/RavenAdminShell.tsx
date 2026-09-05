@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Bell, ClipboardList, FileCog, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Shield, Users, UsersRound, PenLine, CreditCard, Utensils, BookOpen, MessageSquare, ScrollText } from "lucide-react";
+import { Bell, ClipboardList, FileCog, LayoutDashboard, LogOut, Mail, PanelLeftClose, PanelLeftOpen, Settings, Shield, Users, UsersRound, PenLine, CreditCard, Utensils, BookOpen, MessageSquare, ScrollText, Send } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 
@@ -15,6 +15,9 @@ const links = [
   { href: "/admin/committees", label: "Committees", icon: UsersRound },
   { href: "/admin/forms", label: "Application forms", icon: FileCog },
   { href: "/admin/announcements", label: "Announcements", icon: Bell },
+  { href: "/admin/email-templates", label: "Email templates", icon: Mail },
+  { href: "/admin/received-emails", label: "Received email", icon: Mail },
+  { href: "/admin/send-email", label: "Send an email", icon: Send },
   { href: "/admin/content", label: "Public content", icon: PenLine },
   { href: "/admin/payments", label: "Payments", icon: CreditCard },
   { href: "/admin/catering", label: "Catering", icon: Utensils },

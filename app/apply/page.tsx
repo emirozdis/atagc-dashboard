@@ -1,9 +1,18 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ArrowRight, Camera, Eye, Star, User, Users } from "lucide-react";
 import RavenPublicShell from "@/components/raven/RavenPublicShell";
 import { RAVENMUN_APPLICATION_CARDS } from "@/config/ravenmun";
 
 const icons = { user: User, star: Star, users: Users, camera: Camera, eye: Eye } as const;
+
+export const metadata: Metadata = {
+  title: "Applications",
+  description: "Choose a RavenMUN 2026 application for delegate, chairboard, delegation, press, or administrative staff participation.",
+  alternates: { canonical: "/apply" },
+  openGraph: { title: "Applications | RAVENMUN'26", description: "Choose your path at RavenMUN 2026.", url: "/apply" },
+  twitter: { card: "summary_large_image", title: "Applications | RAVENMUN'26", description: "Choose your path at RavenMUN 2026." },
+};
 
 export default function ApplyPage() {
   return (

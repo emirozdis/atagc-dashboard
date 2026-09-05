@@ -11,8 +11,18 @@ import { supabase } from "@/lib/SERVER_supabase";
 
 export const metadata: Metadata = {
   title: { absolute: "RAVENMUN'26" },
-  description: RAVENMUN_CONFERENCE.fullName,
+  description: "RAVENMUN'26 is a Model United Nations conference in İzmir, Türkiye, held on 20-22 November 2026.",
   alternates: { canonical: "/" },
+  openGraph: {
+    title: "RAVENMUN'26 | Raven Model United Nations Conference",
+    description: "Join RavenMUN in İzmir, Türkiye, from 20-22 November 2026.",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RAVENMUN'26 | Raven Model United Nations Conference",
+    description: "Join RavenMUN in İzmir, Türkiye, from 20-22 November 2026.",
+  },
 };
 
 function formatConferenceDates(startDateIso: string | null, endDateIso: string | null) {

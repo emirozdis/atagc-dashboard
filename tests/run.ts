@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import {
   createOpaqueToken,
   createOtp,
@@ -16,6 +17,9 @@ import {
   ROLES,
   SITE_ADMIN_ROLES,
 } from "../lib/roles";
+import { verifyResendWebhook } from "../lib/resend-webhook";
+import { renderEmailTemplate } from "../lib/email-templates";
+import { isRavenmunEmailAddress } from "../lib/email";
 
 const secret = "ravenmun-test-secret";
 
@@ -48,5 +52,55 @@ assert.ok(!SITE_ADMIN_ROLES.includes(ROLES.DELEGATE));
 assert.ok(CONFERENCE_ASSIGNMENT_ROLES.includes(ROLES.OBSERVER));
 assert.equal(getEffectiveRole({ role: ROLES.APPLICANT, applicantType: ROLES.PRESS }), ROLES.APPLICANT);
 assert.equal(getEffectiveRole({ role: ROLES.APPLICANT }), ROLES.APPLICANT);
+assert.equal(isRavenmunEmailAddress("team@ravenmun.com"), true);
+assert.equal(isRavenmunEmailAddress("TEAM@RAVENMUN.COM"), true);
+assert.equal(isRavenmunEmailAddress("team@example.com"), false);
+assert.equal(isRavenmunEmailAddress("team@ravenmun.com.evil.example"), false);
+
+const previousWebhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+const webhookSecretBytes = Buffer.from("ravenmun-webhook-test-secret");
+const webhookPayload = JSON.stringify({ type: "email.received", data: { email_id: "re_test" } });
+const webhookId = "msg_test";
+const webhookTimestamp = Math.floor(Date.now() / 1000).toString();
+const webhookSignature = createHmac("sha256", webhookSecretBytes)
+  .update(`${webhookId}.${webhookTimestamp}.${webhookPayload}`)
+  .digest("base64");
+process.env.RESEND_WEBHOOK_SECRET = `whsec_${webhookSecretBytes.toString("base64")}`;
+const webhookHeaders = new Headers({
+  "svix-id": webhookId,
+  "svix-timestamp": webhookTimestamp,
+  "svix-signature": `v1,${webhookSignature}`,
+});
+assert.equal(verifyResendWebhook(webhookPayload, webhookHeaders), true);
+assert.equal(verifyResendWebhook(`${webhookPayload} `, webhookHeaders), false);
+if (previousWebhookSecret === undefined) delete process.env.RESEND_WEBHOOK_SECRET;
+else process.env.RESEND_WEBHOOK_SECRET = previousWebhookSecret;
+
+const customizedStatusEmail = renderEmailTemplate(
+  "application_status",
+  "Raven Applicant",
+  "https://ravenmun.example",
+  {
+    applicationId: "app-123",
+    applicationType: "delegate",
+    previousStatus: "pending",
+    status: "accepted",
+    reviewNotes: "Welcome to the conference.",
+  },
+  {
+    notification_type: "application_status",
+    subject: "Decision for {{name}}: {{status}}",
+    heading: "{{application_type}} decision",
+    body_html: "<p>{{review_notes}}</p><script>alert('blocked')</script>",
+    button_text: "Open application",
+    button_path: "/my-applications/{{application_type_slug}}?applicationId={{application_id}}",
+    accent_color: "#9b7bda",
+    is_enabled: true,
+  },
+);
+assert.equal(customizedStatusEmail.subject, "Decision for Raven Applicant: Accepted");
+assert.match(customizedStatusEmail.html, /Welcome to the conference\./);
+assert.doesNotMatch(customizedStatusEmail.html, /<script/i);
+assert.match(customizedStatusEmail.html, /\/my-applications\/delegate\?applicationId=app-123/);
 
 console.log("RavenMUN security and role tests passed.");

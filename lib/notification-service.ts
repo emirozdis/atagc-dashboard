@@ -1,11 +1,13 @@
 import { supabase } from "@/lib/SERVER_supabase";
 import { sendEmail } from "@/lib/email";
-import { NotificationType, generateEmailHtml } from "@/lib/email-templates";
+import { EmailData, NotificationType, renderEmailTemplate } from "@/lib/email-templates";
+import { getStoredEmailTemplate } from "@/lib/email-template-service";
 import { getSiteUrl } from "@/lib/site-url";
 
 export async function sendSystemNotification(
   userId: string,
-  type: NotificationType
+  type: NotificationType,
+  data: EmailData = {},
 ) {
   try {
     const { data: user, error } = await supabase
@@ -38,10 +40,15 @@ export async function sendSystemNotification(
 
     switch (type) {
       case "application_received":
-      case "application_status":
       case "payment_approved": // Payments fall under application updates
       case "payment_rejected":
         shouldSend = prefs.application !== false;
+        break;
+
+      case "application_status":
+        // Application decisions are essential account communication and are
+        // sent even when optional application notifications are disabled.
+        shouldSend = true;
         break;
       
       case "committee_assignment":
@@ -65,19 +72,29 @@ export async function sendSystemNotification(
 
     if (!shouldSend) return;
 
-    const html = generateEmailHtml(type, name, getSiteUrl());
-    const subject = extractSubject(html); 
+    const template = await getStoredEmailTemplate(type);
+    if (template?.is_enabled === false && type !== "application_status") return;
 
-    await sendEmail(email, subject, html);
+    const rendered = renderEmailTemplate(type, name, getSiteUrl(), data, template);
+
+    try {
+      await sendEmail(email, rendered.subject, rendered.html);
+    } catch (deliveryError) {
+      // Status changes and other critical notifications must not disappear if
+      // Resend is temporarily unavailable. The worker can retry this record.
+      const { error: queueError } = await supabase.from("email_outbox").insert({
+        recipient_email: email,
+        recipient_name: name,
+        subject: rendered.subject,
+        html: rendered.html,
+      });
+      if (queueError) console.error("[Notification] Failed to queue retry:", queueError);
+      console.error("[Notification] Email delivery failed; queued for retry:", deliveryError);
+    }
 
   } catch (error) {
     console.error("[Notification] Failed to send:", error);
   }
-}
-
-function extractSubject(html: string): string {
-  const match = html.match(/<title>(.*?)<\/title>/);
-  return match ? match[1] : "RavenMUN notification";
 }
 
 // Change Log:

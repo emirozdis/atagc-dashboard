@@ -4,6 +4,9 @@ import { sendEmail } from "@/lib/email";
 import { supabase } from "@/lib/SERVER_supabase";
 import { ApplicationStatusEnum } from "@/types/application";
 import { ROLES, UserRole } from "@/lib/roles";
+import { getStoredEmailTemplate } from "@/lib/email-template-service";
+import { renderEmailTemplate } from "@/lib/email-templates";
+import { getSiteUrl } from "@/lib/site-url";
 import {
   createOpaqueToken,
   createOtp,
@@ -47,30 +50,6 @@ export function verifyEmailVerificationCode(email: string, code: string, expecte
   return timingSafeEqualStrings(expectedHash, hashEmailVerificationCode(email, code));
 }
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  })[character] || character);
-}
-
-function verificationEmail(code: string, purpose: PasswordlessPurpose) {
-  const title = purpose === "application" ? "RavenMUN application code" : "RavenMUN sign-in code";
-  return `<!doctype html>
-<html lang="en"><body style="margin:0;background:#08070d;color:#f5f3ff;font-family:Arial,sans-serif;padding:32px">
-  <div style="max-width:560px;margin:auto;background:#12101a;border:1px solid #2c263b;border-radius:18px;padding:32px">
-    <p style="color:#c4b5fd;letter-spacing:.18em;text-transform:uppercase;font-size:12px">RavenMUN</p>
-    <h1 style="font-size:26px;margin:0 0 14px">${title}</h1>
-    <p style="color:#c3c7d1;line-height:1.6">Use this one-time code to continue. It expires in 10 minutes.</p>
-    <div style="margin:28px 0;padding:18px;text-align:center;background:#08070d;border:1px solid #7c3aed;border-radius:12px;font-size:34px;letter-spacing:.28em;font-weight:700">${escapeHtml(code)}</div>
-    <p style="color:#9ca3af;font-size:13px;line-height:1.6">If you did not request this code, you can safely ignore this email.</p>
-  </div>
-</body></html>`;
-}
-
 export async function createEmailChallenge(input: {
   email: string;
   purpose: PasswordlessPurpose;
@@ -95,7 +74,15 @@ export async function createEmailChallenge(input: {
   if (error || !data) throw new Error("Unable to create verification challenge.");
 
   try {
-    await sendEmail(email, `${input.purpose === "application" ? "RavenMUN application" : "RavenMUN sign-in"} code`, verificationEmail(code, input.purpose));
+    const template = await getStoredEmailTemplate("email_verification");
+    const rendered = renderEmailTemplate(
+      "email_verification",
+      input.displayName?.trim() || email.split("@")[0],
+      getSiteUrl(),
+      { code, purpose: input.purpose === "application" ? "application" : "sign in" },
+      template?.is_enabled === false ? null : template,
+    );
+    await sendEmail(email, rendered.subject, rendered.html);
   } catch (error) {
     await supabase.from("auth_challenges").delete().eq("id", data.id);
     throw new Error(error instanceof Error ? error.message : "Unable to send verification email.");
