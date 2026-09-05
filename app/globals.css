@@ -251,26 +251,26 @@ a.raven-public-card:hover {
 
 @media (min-width: 768px) {
   .raven-countdown {
-    gap: clamp(1rem, 2.2vmin, 2.5rem);
+    gap: 2.2vmin;
   }
 
   .raven-countdown-unit {
-    width: clamp(6.25rem, 10vmin, 10rem);
+    width: 13.9vmin;
   }
 
   .raven-countdown-box {
-    min-height: clamp(5.5rem, 11vmin, 10rem);
-    border-radius: clamp(0.5rem, 1vmin, 1rem);
-    padding: clamp(1rem, 2vmin, 2rem) clamp(1.5rem, 3vmin, 3rem);
+    min-height: 12.2vmin;
+    border-radius: 1vmin;
+    padding: 2.2vmin 3.3vmin;
   }
 
   .raven-countdown-value {
-    font-size: clamp(3rem, 6.5vmin, 6rem);
+    font-size: 6.7vmin;
   }
 
   .raven-countdown-label {
-    margin-top: clamp(0.5rem, 1vmin, 1rem);
-    font-size: clamp(1rem, 1.8vmin, 1.5rem);
+    margin-top: 1.1vmin;
+    font-size: 2.2vmin;
     letter-spacing: 0.08em;
   }
 }
@@ -334,73 +334,84 @@ a.raven-public-card:hover {
 }
 
 @media (min-width: 768px) {
+  .raven-template-home .raven-template-title,
+  .raven-template-home .raven-template-brand {
+    text-shadow: 0 0.9vmin 4.6vmin rgb(76 29 149 / 42%);
+  }
+
+  .raven-template-home .glassmorphism {
+    backdrop-filter: blur(1.1vmin);
+    -webkit-backdrop-filter: blur(1.1vmin);
+  }
+
   .raven-home-content {
-    gap: clamp(1.5rem, 4.2vmin, 4.5rem);
-    padding: clamp(6rem, 12vmin, 10rem) clamp(2rem, 5vw, 6rem);
+    gap: 4.2vmin;
+    padding: 10vmin 5vw;
   }
 
   .raven-home-heading {
-    margin-bottom: clamp(0.75rem, 1.4vmin, 1.5rem);
-    font-size: clamp(4.5rem, 8vmin, 8rem);
+    margin-bottom: 1.4vmin;
+    font-size: 10vmin;
   }
 
   .raven-home-date {
-    margin-bottom: clamp(0.5rem, 1vmin, 1rem);
-    font-size: clamp(1.5rem, 2.5vmin, 2.5rem);
+    margin-bottom: 1vmin;
+    font-size: 3.3vmin;
   }
 
   .raven-home-description {
-    font-size: clamp(1rem, 1.8vmin, 1.75rem);
-    line-height: clamp(1.5rem, 3vmin, 2.75rem);
+    font-size: 2.2vmin;
+    line-height: 3.6vmin;
   }
 
   .raven-home-cta {
-    gap: clamp(0.75rem, 1.8vmin, 1.5rem);
-    padding: clamp(1rem, 2vmin, 1.5rem) clamp(2rem, 4vmin, 3.5rem);
-    font-size: clamp(1.25rem, 2.3vmin, 1.875rem);
+    gap: 1.8vmin;
+    max-width: none;
+    padding: 2.2vmin 4.45vmin;
+    font-size: 2.8vmin;
   }
 
   .raven-home-cta svg {
-    width: clamp(1rem, 2.4vmin, 1.75rem);
+    width: 3vmin;
   }
 
   .raven-home-footer {
-    padding: clamp(1rem, 2vmin, 1.5rem) clamp(2rem, 5vw, 6rem) max(clamp(1.25rem, 2.5vmin, 2rem), env(safe-area-inset-bottom));
-    font-size: clamp(0.875rem, 1.5vmin, 1.25rem);
-    line-height: clamp(1.5rem, 2.5vmin, 2rem);
+    padding: 2vmin 5vw max(2.5vmin, env(safe-area-inset-bottom));
+    font-size: 1.95vmin;
+    line-height: 3vmin;
   }
 
   .raven-public-nav-desktop {
-    padding: clamp(1.25rem, 2.4vmin, 2rem) clamp(2rem, 5vmin, 6rem);
+    padding: 2.8vmin 5vmin;
   }
 
   .raven-public-nav-brand {
-    gap: clamp(1rem, 2vmin, 2rem);
+    gap: 2vmin;
   }
 
   .raven-public-nav-logo {
-    width: clamp(3rem, 5.6vmin, 5rem);
-    height: clamp(3rem, 5.6vmin, 5rem);
+    width: 6.7vmin;
+    height: 6.7vmin;
   }
 
   .raven-public-nav-title {
-    font-size: clamp(2.15rem, 4.2vmin, 4rem);
+    font-size: 4.8vmin;
   }
 
   .raven-public-nav-links {
-    gap: clamp(1rem, 2vmin, 2rem);
+    gap: 2.2vmin;
   }
 
   .raven-public-nav-action {
-    height: clamp(3.25rem, 6.5vmin, 5rem);
-    gap: clamp(0.625rem, 1.3vmin, 1.25rem);
-    padding-inline: clamp(1.75rem, 3.5vmin, 3.5rem);
-    font-size: clamp(1rem, 2vmin, 1.5rem);
+    height: 7.2vmin;
+    gap: 1.3vmin;
+    padding-inline: 3.9vmin;
+    font-size: 2.2vmin;
   }
 
   .raven-public-nav-action svg {
-    width: clamp(1.25rem, 2.4vmin, 1.75rem);
-    height: clamp(1.25rem, 2.4vmin, 1.75rem);
+    width: 2.7vmin;
+    height: 2.7vmin;
   }
 }
 
@@ -458,6 +469,37 @@ a.raven-public-card:hover {
 .raven-home-speck-22 { left: 95%; top: 18%; animation-delay: -4.8s; }
 .raven-home-speck-23 { left: 4%; top: 84%; animation-delay: -1.8s; }
 .raven-home-speck-24 { left: 97%; top: 43%; animation-delay: -3.8s; }
+
+@media (min-width: 768px) {
+  .raven-home-glow {
+    filter: blur(2.5vmin);
+  }
+
+  .raven-home-glow-one {
+    width: 62vmin;
+    height: 62vmin;
+  }
+
+  .raven-home-glow-two {
+    width: 49vmin;
+    height: 49vmin;
+  }
+
+  .raven-home-glow-three {
+    width: 75vmin;
+    height: 49vmin;
+  }
+
+  .raven-home-grain {
+    background-size: 27.7vmin 27.7vmin;
+  }
+
+  .raven-home-speck {
+    width: 0.46vmin;
+    height: 0.46vmin;
+    box-shadow: 0 0 1.85vmin rgb(216 203 255 / 75%);
+  }
+}
 
 @keyframes raven-glow-pulse {
   from { transform: translate3d(-3%, -2%, 0) scale(0.92); opacity: 0.34; }
