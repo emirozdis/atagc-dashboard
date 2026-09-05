@@ -41,11 +41,11 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true, nocache: false, googleBot: { index: true, follow: true, noimageindex: false } },
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/ravenmun-logo-optimized.jpg", type: "image/jpeg", sizes: "256x256" },
+      { url: "/favicon.ico", type: "image/x-icon", sizes: "64x64" },
+      { url: "/icon.png", type: "image/png", sizes: "640x640" },
     ],
-    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/ravenmun-logo-optimized.jpg", type: "image/jpeg", sizes: "256x256" }],
+    shortcut: [{ url: "/favicon.ico", type: "image/x-icon", sizes: "64x64" }],
+    apple: [{ url: "/icon.png", type: "image/png", sizes: "640x640" }],
   },
   openGraph: {
     type: "website",

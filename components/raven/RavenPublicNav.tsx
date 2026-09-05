@@ -32,34 +32,34 @@ export default function RavenPublicNav() {
 
   return (
     <header className="relative z-40 w-full border-b border-white/15 bg-black/30">
-      <div className="relative flex items-center justify-between px-4 py-3 md:hidden">
-        <Link href="/" className="relative z-10 shrink-0" aria-label="RavenMUN home">
+      <div className="relative flex items-center justify-between px-0 py-2 md:hidden">
+        <Link href="/" className="relative z-10 ml-4 shrink-0" aria-label="RavenMUN home">
           <Image
             src="/ravenmun-logo-optimized.jpg"
-            width={40}
-            height={40}
+            width={50}
+            height={50}
             alt=""
-            className="h-10 w-10 rounded-full object-cover shadow-lg shadow-black/25"
+            className="h-[50px] w-[50px] rounded-full object-cover shadow-lg shadow-black/25"
           />
         </Link>
 
-        <span className="raven-template-brand pointer-events-none absolute inset-x-14 truncate text-center text-[1.7rem] font-bold leading-none">
+        <span className="raven-template-brand pointer-events-none absolute inset-x-14 truncate text-center text-2xl font-bold leading-none">
           RAVENMUN
         </span>
 
         <Sheet>
           <SheetTrigger
-            className="relative z-10 inline-flex h-11 w-11 items-center justify-center rounded-md text-white"
+            className="relative z-10 mr-4 inline-flex h-9 w-9 items-center justify-center rounded-md text-white"
             aria-label="Open menu"
           >
-            <Menu className="h-7 w-7" strokeWidth={2} />
+            <Menu className="h-9 w-9" strokeWidth={2} />
           </SheetTrigger>
           <SheetContent
             side="right"
-            className="w-[70%] max-w-none gap-0 border-l border-[#C4B5FD]/20 bg-gradient-to-b from-[#120d1c] to-[#2a1838] p-0 shadow-[-16px_0_40px_rgb(0_0_0_/_45%)] sm:max-w-none [&>button]:hidden"
+            className="w-64 max-w-none gap-0 border-l border-[#C4B5FD]/20 bg-[var(--background)] p-0 shadow-[-16px_0_40px_rgb(0_0_0_/_45%)] sm:max-w-none [&>button]:hidden"
           >
             <SheetTitle className="sr-only">Site menu</SheetTitle>
-            <nav className="flex flex-col pt-10" aria-label="Mobile">
+            <nav className="flex flex-col gap-0 px-6 pt-20" aria-label="Mobile">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -68,11 +68,11 @@ export default function RavenPublicNav() {
                     <Link
                       href={item.href}
                       className={cn(
-                        "flex items-center gap-4 border-b border-white/35 px-7 py-[1.15rem] font-[family-name:var(--font-raven-display)] text-[1.35rem] text-white transition-colors",
+                        "flex items-center gap-1.5 border-b border-white/35 py-4 font-[family-name:var(--font-raven-display)] text-2xl text-white transition-colors",
                         isActive ? "text-[#C4B5FD]" : "hover:text-[#C4B5FD]",
                       )}
                     >
-                      <Icon className="h-[1.35rem] w-[1.35rem] shrink-0" strokeWidth={1.75} />
+                      <Icon className="h-6 w-6 shrink-0" strokeWidth={1.75} />
                       {item.label}
                     </Link>
                   </SheetClose>

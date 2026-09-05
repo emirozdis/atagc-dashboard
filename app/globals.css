@@ -230,6 +230,11 @@ a.raven-public-card:hover {
   animation: raven-title-shine 7s ease-in-out infinite;
 }
 
+.raven-template-brand {
+  animation: none;
+  background-position: 0 center;
+}
+
 .raven-countdown-box {
   border: 1px solid rgb(255 255 255 / 46%);
   background: linear-gradient(145deg, #f7f4ff, #d8cbff);
@@ -558,6 +563,59 @@ a.raven-public-card:hover {
 }
 
 @media (max-width: 767px) {
+  .raven-home-content {
+    gap: 2rem;
+    padding: 2rem 1rem;
+  }
+
+  .raven-home-heading {
+    margin-bottom: 1rem;
+    font-size: 2.5rem;
+  }
+
+  .raven-home-cta {
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .raven-home-cta svg {
+    width: 15px;
+  }
+
+  .raven-home-countdown {
+    width: max-content;
+    max-width: 100%;
+    transform: scale(0.9);
+  }
+
+  .raven-countdown {
+    display: flex;
+    width: max-content;
+    max-width: 100%;
+    gap: 0.5rem;
+    padding-inline: 0;
+  }
+
+  .raven-countdown-unit {
+    width: 5rem;
+  }
+
+  .raven-countdown-box {
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .raven-countdown-value {
+    font-size: 2.25rem;
+  }
+
+  .raven-countdown-label {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+  }
+
   .raven-home-raven {
     inset: 0;
     top: 0;
