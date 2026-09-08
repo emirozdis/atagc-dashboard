@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Tinos } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "./providers";
@@ -76,6 +77,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" translate="no" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} ${ravenDisplay.variable} overflow-x-hidden antialiased`} suppressHydrationWarning>
         <Providers><RavenStructuredData />{children}<Toaster /></Providers>
+        <Analytics />
       </body>
     </html>
   );
