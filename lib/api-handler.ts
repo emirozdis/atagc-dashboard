@@ -4,6 +4,7 @@ import { Logger } from "@/lib/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "./auth";
 import { randomUUID } from "node:crypto";
+import { HttpError } from "@/lib/http-error";
 
 type ApiHandlerFunction<TContext = unknown> = (
   req: Request,
@@ -34,6 +35,13 @@ export function apiHandler<TContext>(handler: ApiHandlerFunction<TContext>): Api
         return NextResponse.json(
           { error: "Validation Error", details: err.format() },
           { status: 400 }
+        );
+      }
+
+      if (err instanceof HttpError) {
+        return NextResponse.json(
+          { error: err.message, message: err.message },
+          { status: err.status }
         );
       }
 

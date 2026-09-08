@@ -158,14 +158,17 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, role }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const result = await res.json().catch(() => null) as { message?: string; error?: string } | null;
+        throw new Error(result?.message || result?.error || "Unable to update the selected roles.");
+      }
     },
     onSuccess: () => {
       toast.success("Roles updated");
       handleSelectionChange([]);
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
-    onError: () => toast.error("Unable to update roles.")
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to update roles.")
   });
 
   const toggleUser = (id: string) => {

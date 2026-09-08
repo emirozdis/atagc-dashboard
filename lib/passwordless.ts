@@ -7,6 +7,7 @@ import { ROLES, UserRole } from "@/lib/roles";
 import { getStoredEmailTemplate } from "@/lib/email-template-service";
 import { renderEmailTemplate } from "@/lib/email-templates";
 import { getSiteUrl } from "@/lib/site-url";
+import { HttpError } from "@/lib/http-error";
 import {
   createOpaqueToken,
   createOtp,
@@ -56,6 +57,17 @@ export async function createEmailChallenge(input: {
   displayName?: string;
 }) {
   const email = normalizeEmail(input.email);
+  if (input.purpose === "login") {
+    const { data: user, error: lookupError } = await supabase
+      .from("users")
+      .select("id, is_suspended")
+      .eq("email", email)
+      .maybeSingle();
+    if (lookupError) throw new Error("Unable to check account.");
+    if (!user) throw new HttpError(404, "No account exists for this email. Submit an application first.");
+    if (user.is_suspended) throw new HttpError(403, "This account is suspended. Contact the RavenMUN team for help.");
+  }
+
   const code = createOtp();
   const expiresAt = new Date(Date.now() + CHALLENGE_LIFETIME_MS).toISOString();
 
@@ -120,6 +132,19 @@ async function getOrCreateUser(email: string, displayName?: string) {
 
   if (error || !created) throw new Error("Unable to create account.");
   return created;
+}
+
+async function getExistingUser(email: string) {
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("id, email, full_name, role, account_role, is_suspended")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (error) throw new Error("Unable to load account.");
+  if (!user) throw new HttpError(404, "No account exists for this email. Submit an application first.");
+  if (user.is_suspended) throw new HttpError(403, "This account is suspended. Contact the RavenMUN team for help.");
+  return user;
 }
 
 type PasswordlessUser = {
@@ -211,7 +236,9 @@ export async function verifyEmailChallenge(input: {
   if (!consumed) throw new Error("Invalid or expired verification code.");
 
   const metadataName = (challenge.metadata as { displayName?: string } | null)?.displayName;
-  const user = await getOrCreateUser(email, input.displayName || metadataName);
+  const user = input.purpose === "login"
+    ? await getExistingUser(email)
+    : await getOrCreateUser(email, input.displayName || metadataName);
   return { exchangeToken: await issueLoginExchange(user.id), user: await userSessionPayload(user) };
 }
 

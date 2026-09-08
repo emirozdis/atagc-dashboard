@@ -4,6 +4,7 @@ import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { CONFERENCE_ASSIGNMENT_ROLES, ROLES, UserRole } from "@/lib/roles";
 import { Logger } from "@/lib/logger";
+import { HttpError } from "@/lib/http-error";
 
 interface UserParams {
   page: number;
@@ -165,15 +166,19 @@ const isSiteRole = (role: unknown): role is string => role === ROLES.ADMIN || ro
 const isUnassigned = (role: unknown): role is string => role === ROLES.APPLICANT;
 
 async function assignRole(userIds: string[], role: string, actorId: string, actorRole: string) {
-  if (!isConferenceRole(role) && !isSiteRole(role) && !isUnassigned(role)) throw new Error("Invalid role assignment.");
-  if (isSiteRole(role) && actorRole !== ROLES.SUPERADMIN) {
-    throw new Error("Only a super admin can grant site administrator privileges.");
+  if (!isConferenceRole(role) && !isSiteRole(role) && !isUnassigned(role)) throw new HttpError(400, "Select a valid role.");
+  if (role === ROLES.SUPERADMIN && actorRole !== ROLES.SUPERADMIN) {
+    throw new HttpError(403, "Only a super admin can grant super admin access.");
   }
 
   const { data: targets, error: targetError } = await supabase.from("users").select("id, account_role").in("id", userIds);
-  if (targetError || !targets || targets.length !== userIds.length) throw new Error("One or more users could not be found.");
+  if (targetError) throw targetError;
+  if (!targets || targets.length !== userIds.length) throw new HttpError(404, "One or more selected users no longer exist.");
+  if (actorRole !== ROLES.SUPERADMIN && targets.some((target) => target.account_role === "super_admin")) {
+    throw new HttpError(403, "Only a super admin can modify another super admin account.");
+  }
   if ((isConferenceRole(role) || isUnassigned(role)) && targets.some((target) => target.account_role && target.account_role !== "member")) {
-    throw new Error("Site administrator accounts cannot receive conference assignments.");
+    throw new HttpError(409, "Remove site administrator access before assigning a conference role.");
   }
 
   if (isSiteRole(role)) {
@@ -247,8 +252,8 @@ export const PUT = apiHandler(async (request: Request) => {
 
   const body = await request.json();
 
-  // Role assignment is explicit and validated. Site privileges cannot be
-  // granted by ordinary admins, and conference assignments are not account roles.
+  // Site admins may grant site-admin access. Super-admin access remains
+  // restricted to existing super admins, and conference roles stay separate.
   if (body.ids && body.role) {
     if (!Array.isArray(body.ids) || body.ids.some((id: unknown) => typeof id !== "string")) throw new Error("Invalid user IDs.");
     await assignRole(body.ids, body.role, adminId, auth.session.user.role);
