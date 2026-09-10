@@ -19,8 +19,15 @@ export function apiHandler<TContext>(handler: ApiHandlerFunction<TContext>): Api
       // Get session for logging if available
       const session = await getServerSession(authOptions);
       const userId = session?.user?.id;
-      const errorMessage = err instanceof Error ? err.message : "Unknown API error";
-      const errorCode = typeof err === "object" && err !== null && "code" in err ? String(err.code) : "";
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+            ? String((err as { message: unknown }).message)
+            : typeof err === "string"
+              ? err
+              : "Unknown API error";
+      const errorCode = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : "";
 
       // New Logger system
       const requestId = randomUUID();
