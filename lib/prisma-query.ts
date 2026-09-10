@@ -35,6 +35,19 @@ function toPostgrestValue(value: unknown): unknown {
   return value;
 }
 
+function toQueryParameter(value: unknown): unknown {
+  if (value === null || value === undefined || typeof value !== "object") return value;
+  if (value instanceof Date || Buffer.isBuffer(value) || value instanceof Uint8Array) return value;
+
+  // Prisma's raw query adapter does not encode plain objects or arrays of
+  // objects as PostgreSQL JSON values. Serialize those values explicitly so
+  // json/jsonb columns receive valid JSON instead of "[object Object]".
+  if (Array.isArray(value)) {
+    return value.some((item) => item !== null && typeof item === "object") ? JSON.stringify(value) : value;
+  }
+  return JSON.stringify(value);
+}
+
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const RELATIONS: Record<string, { target: string; source: string; targetKey?: string; many?: boolean }> = {
@@ -301,7 +314,7 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
         const columns = Object.keys(payloadRows[0]);
         columns.forEach(identifier);
         const params: unknown[] = [];
-        const values = payloadRows.map((row) => `(${columns.map((column) => { params.push(row[column]); return `$${params.length}`; }).join(", ")})`).join(", ");
+        const values = payloadRows.map((row) => `(${columns.map((column) => { params.push(toQueryParameter(row[column])); return `$${params.length}`; }).join(", ")})`).join(", ");
         const rows = this.returnRows
           ? await prisma.$queryRawUnsafe<DatabaseRow[]>(`INSERT INTO ${tableName(this.table)} (${columns.map(identifier).join(", ")}) VALUES ${values}${returning}`, ...params)
           : await prisma.$executeRawUnsafe(`INSERT INTO ${tableName(this.table)} (${columns.map(identifier).join(", ")}) VALUES ${values}`, ...params).then(() => null);
@@ -314,7 +327,7 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
         const columns = Object.keys(payloadRows[0]);
         columns.forEach(identifier);
         const params: unknown[] = [];
-        const values = payloadRows.map((row) => `(${columns.map((column) => { params.push(row[column]); return `$${params.length}`; }).join(", ")})`).join(", ");
+        const values = payloadRows.map((row) => `(${columns.map((column) => { params.push(toQueryParameter(row[column])); return `$${params.length}`; }).join(", ")})`).join(", ");
         const updates = columns.map((column) => `${identifier(column)} = EXCLUDED.${identifier(column)}`).join(", ");
         const conflict = this.conflictTarget ? ` (${this.conflictTarget.split(",").map(identifier).join(", ")})` : "";
         const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`INSERT INTO ${tableName(this.table)} (${columns.map(identifier).join(", ")}) VALUES ${values} ON CONFLICT${conflict} DO UPDATE SET ${updates} RETURNING *`, ...params);
@@ -325,17 +338,17 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
       }
       if (this.operation === "update") {
         const values: unknown[] = [];
-        const assignments = Object.keys(this.payload ?? {}).map((column) => { identifier(column); values.push((this.payload as DatabaseRow)[column]); return `${identifier(column)} = $${values.length}`; }).join(", ");
+        const assignments = Object.keys(this.payload ?? {}).map((column) => { identifier(column); values.push(toQueryParameter((this.payload as DatabaseRow)[column])); return `${identifier(column)} = $${values.length}`; }).join(", ");
         const offset = values.length;
         const shiftedWhere = where.sql.replace(/\$(\d+)/g, (_, index: string) => `$${Number(index) + offset}`);
-        const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`UPDATE ${tableName(this.table)} SET ${assignments}${shiftedWhere}${returning}`, ...values, ...where.values);
+        const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`UPDATE ${tableName(this.table)} SET ${assignments}${shiftedWhere}${returning}`, ...values, ...where.values.map(toQueryParameter));
         if (!this.returnRows) return { data: null as T, error: null };
         if (!this.requireSingle) return { data: rows as T, error: null };
         if (rows.length === 0) return { data: null as T, error: this.allowMissing ? null : { message: "No rows found", code: "PGRST116" } };
         if (rows.length > 1) return { data: null as T, error: { message: "Multiple rows found", code: "PGRST116" } };
         return { data: rows[0] as T, error: null };
       }
-      const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`DELETE FROM ${tableName(this.table)}${where.sql}${returning}`, ...where.values);
+      const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`DELETE FROM ${tableName(this.table)}${where.sql}${returning}`, ...where.values.map(toQueryParameter));
       if (!this.returnRows) return { data: null as T, error: null };
       if (!this.requireSingle) return { data: rows as T, error: null };
       if (rows.length === 0) return { data: null as T, error: this.allowMissing ? null : { message: "No rows found", code: "PGRST116" } };
@@ -352,11 +365,11 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
     const where = this.whereClause();
     const order = this.orderBy.length ? ` ORDER BY ${this.orderBy.map((item) => `${identifier(item.column)} ${item.ascending ? "ASC" : "DESC"}`).join(", ")}` : "";
     const pagination = this.limitValue === undefined ? "" : ` LIMIT ${this.limitValue}${this.offsetValue === undefined ? "" : ` OFFSET ${this.offsetValue}`}`;
-    const rows = this.selectionOptions.head ? [] : await prisma.$queryRawUnsafe<DatabaseRow[]>(`SELECT ${parsed.columns} FROM ${tableName(this.table)}${where.sql}${order}${pagination}`, ...where.values);
+    const rows = this.selectionOptions.head ? [] : await prisma.$queryRawUnsafe<DatabaseRow[]>(`SELECT ${parsed.columns} FROM ${tableName(this.table)}${where.sql}${order}${pagination}`, ...where.values.map(toQueryParameter));
     if (!this.selectionOptions.head) await hydrateRelations(this.table, rows, parsed.nested);
     let count: number | null | undefined;
     if (this.selectionOptions.count === "exact") {
-      const countRows = await prisma.$queryRawUnsafe<{ count: bigint }[]>(`SELECT COUNT(*)::bigint AS count FROM ${tableName(this.table)}${where.sql}`, ...where.values);
+      const countRows = await prisma.$queryRawUnsafe<{ count: bigint }[]>(`SELECT COUNT(*)::bigint AS count FROM ${tableName(this.table)}${where.sql}`, ...where.values.map(toQueryParameter));
       count = Number(countRows[0]?.count ?? 0);
     }
     if (this.requireSingle) {
@@ -376,7 +389,7 @@ export async function rpcPrisma<T = DatabaseData>(name: string, args: Record<str
   try {
     identifier(name);
     const argumentNames = RPC_ARGUMENTS[name] ?? Object.keys(args);
-    const values = argumentNames.map((argument) => args[argument] ?? null);
+    const values = argumentNames.map((argument) => toQueryParameter(args[argument] ?? null));
     const placeholders = values.map((_, index) => `$${index + 1}`).join(", ");
     if (VOID_RPCS.has(name)) {
       await prisma.$queryRawUnsafe<DatabaseRow[]>(`SELECT "public".${identifier(name)}(${placeholders})::text AS result`, ...values);
