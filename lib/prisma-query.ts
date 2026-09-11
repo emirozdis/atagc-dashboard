@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "./prisma";
+import { toPostgrestValue } from "./prisma-values";
 
 /*
  * Compatibility data layer for the existing API surface. It deliberately
@@ -24,16 +25,6 @@ export type DatabaseResult<T = DatabaseRow> = {
 
 type Filter = { sql: string; values: unknown[] };
 type NestedSelection = { alias: string; target: string; fields: string; relationName?: string };
-
-function toPostgrestValue(value: unknown): unknown {
-  if (typeof value === "bigint") return value.toString();
-  if (value instanceof Date) return value.toISOString();
-  if (Array.isArray(value)) return value.map(toPostgrestValue);
-  if (value && typeof value === "object" && !Buffer.isBuffer(value) && !(value instanceof Uint8Array)) {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, toPostgrestValue(item)]));
-  }
-  return value;
-}
 
 function toQueryParameter(value: unknown): unknown {
   if (value === null || value === undefined || typeof value !== "object") return value;

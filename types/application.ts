@@ -94,6 +94,7 @@ export interface ApplicationFormTemplate {
   fee: number;
   steps: FormStep[];
   questions?: FormField[];
+  is_active?: boolean;
 }
 
 export type DynamicFormData = Record<string, unknown>;

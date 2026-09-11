@@ -20,6 +20,8 @@ import {
 import { verifyResendWebhook } from "../lib/resend-webhook";
 import { renderEmailTemplate } from "../lib/email-templates";
 import { isRavenmunEmailAddress } from "../lib/email";
+import { toPostgrestValue } from "../lib/prisma-values";
+import { Prisma } from "@prisma/client";
 
 const secret = "ravenmun-test-secret";
 
@@ -56,6 +58,9 @@ assert.equal(isRavenmunEmailAddress("team@ravenmun.com"), true);
 assert.equal(isRavenmunEmailAddress("TEAM@RAVENMUN.COM"), true);
 assert.equal(isRavenmunEmailAddress("team@example.com"), false);
 assert.equal(isRavenmunEmailAddress("team@ravenmun.com.evil.example"), false);
+
+assert.equal(toPostgrestValue(new Prisma.Decimal("800")), 800);
+assert.deepEqual(toPostgrestValue({ fee: new Prisma.Decimal("1250.50") }), { fee: 1250.5 });
 
 const previousWebhookSecret = process.env.RESEND_WEBHOOK_SECRET;
 const webhookSecretBytes = Buffer.from("ravenmun-webhook-test-secret");

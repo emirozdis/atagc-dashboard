@@ -5,6 +5,7 @@ import RavenPublicShell from "@/components/raven/RavenPublicShell";
 import { RAVENMUN_APPLICATION_CARDS } from "@/config/ravenmun";
 import { getRavenmunOgImageUrl, RAVENMUN_APPLY_DESCRIPTION, RAVENMUN_OG_IMAGE } from "@/lib/raven-metadata";
 import { getSiteUrl } from "@/lib/site-url";
+import { supabase } from "@/lib/SERVER_supabase";
 
 const ogImageUrl = getRavenmunOgImageUrl(getSiteUrl());
 
@@ -23,7 +24,22 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: "Apply | RAVENMUN'26", description: RAVENMUN_APPLY_DESCRIPTION, images: [ogImageUrl] },
 };
 
-export default function ApplyPage() {
+export const revalidate = 300;
+
+async function getActiveApplicationTypes() {
+  const { data, error } = await supabase
+    .from("application_forms")
+    .select("application_type")
+    .eq("is_active", true);
+
+  if (error || !Array.isArray(data)) return new Set<string>();
+  return new Set(data.map((form) => form?.application_type).filter((type): type is string => typeof type === "string"));
+}
+
+export default async function ApplyPage() {
+  const activeApplicationTypes = await getActiveApplicationTypes();
+  const availableCards = RAVENMUN_APPLICATION_CARDS.filter((card) => activeApplicationTypes.has(card.type));
+
   return (
     <RavenPublicShell>
       <div className="px-4 py-10 sm:px-8 sm:py-14">
@@ -34,8 +50,8 @@ export default function ApplyPage() {
             <h1 className="raven-template-title mt-4 text-3xl font-bold tracking-tight sm:text-5xl">Choose your path.</h1>
             <p className="mt-5 text-base leading-7 text-white/80 sm:text-lg sm:leading-8">Submit more than one application if you have more than one interest. Each application is reviewed separately.</p>
           </div>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {RAVENMUN_APPLICATION_CARDS.map((card) => {
+          {availableCards.length > 0 ? <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {availableCards.map((card) => {
               const Icon = icons[card.icon as keyof typeof icons];
               return (
                 <Link key={card.type} href={`/apply/${card.type}`} className="raven-public-card group rounded-3xl p-6 transition hover:-translate-y-1">
@@ -49,7 +65,7 @@ export default function ApplyPage() {
                 </Link>
               );
             })}
-          </div>
+          </div> : <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/70">Applications are currently closed. Please check back later.</div>}
           <p className="mt-10 text-sm text-white/70">Already applied? <Link href="/login" className="text-[#C4B5FD] hover:text-white">Sign in to your portal</Link></p>
         </div>
       </div>

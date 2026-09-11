@@ -73,7 +73,7 @@ export default function EditFormPage() {
       title: initialData.title,
       description: initialData.description || "",
       fee: parseFee(initialData.fee),
-      is_active: (initialData as ApplicationFormTemplate & { is_active?: boolean }).is_active,
+      is_active: initialData.is_active !== false,
       questions: fieldsFromForm(initialData),
     });
   }, [initialData]);
