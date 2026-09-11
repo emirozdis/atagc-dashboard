@@ -5,7 +5,7 @@ import { consumeDevicePairingCode } from "@/lib/passwordless";
 import { rateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({ code: z.string().min(8).max(32) });
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/auth/device-codes/exchange:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const POST = apiHandler(async (request: Request) => {
   const { code } = schema.parse(await request.json());

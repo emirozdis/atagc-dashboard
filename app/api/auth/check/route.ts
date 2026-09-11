@@ -4,7 +4,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
 import { supabase } from "@/lib/SERVER_supabase";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/auth/check:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";

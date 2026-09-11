@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/crypto-utils";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/auth/challenges/email:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const requestSchema = z.object({
   email: z.string().email().max(200),
   purpose: z.enum(["application", "login"]),

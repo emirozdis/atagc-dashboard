@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import getAuthorization from "@/lib/getAuthorization";
 import { STAFF_ROLES } from "@/lib/roles";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/settings:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export async function GET(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";

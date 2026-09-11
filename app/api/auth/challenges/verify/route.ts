@@ -5,7 +5,7 @@ import { verifyEmailChallenge } from "@/lib/passwordless";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/crypto-utils";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/auth/challenges/verify:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const verifySchema = z.object({
   challengeId: z.string().uuid(),
   email: z.string().email().max(200),

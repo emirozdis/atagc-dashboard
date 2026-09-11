@@ -4,7 +4,7 @@ import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
 
-const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const readLimiter = rateLimit({ namespace: "api/catering/status:readLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";

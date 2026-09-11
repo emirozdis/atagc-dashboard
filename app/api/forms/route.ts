@@ -3,7 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/forms:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";

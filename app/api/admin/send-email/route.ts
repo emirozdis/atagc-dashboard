@@ -7,7 +7,7 @@ import { Logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { ROLES } from "@/lib/roles";
 
-const sendLimit = rateLimit({ interval: 60_000, uniqueTokenPerInterval: 500 });
+const sendLimit = rateLimit({ namespace: "api/admin/send-email:sendLimit", interval: 60_000, uniqueTokenPerInterval: 500 });
 const emailAddressSchema = z.string().trim().email().max(320);
 const sendEmailSchema = z.object({
   from: emailAddressSchema.refine(isRavenmunEmailAddress, "The sender must use a ravenmun.com address."),

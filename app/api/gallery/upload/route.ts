@@ -8,7 +8,7 @@ import { PRESS_TEAM } from "@/lib/roles";
 import { assertFileSignature } from "@/lib/upload-validation";
 import crypto from "node:crypto";
 
-const uploadLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
+const uploadLimiter = rateLimit({ namespace: "api/gallery/upload:uploadLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 100 });
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB

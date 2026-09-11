@@ -7,7 +7,7 @@ import { getSignedUrl } from "@/lib/storage-utils";
 import { sendSystemNotification } from "@/lib/notification-service";
 import { apiHandler } from "@/lib/api-handler";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/connections:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 type ConnectionUser = { user_details?: { profile_picture_url?: string | null } | Array<{ profile_picture_url?: string | null }> | null };
 type ConnectionRow = Record<string, unknown>;
 

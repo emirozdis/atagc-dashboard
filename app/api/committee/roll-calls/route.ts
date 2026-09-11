@@ -6,7 +6,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 import { parsePagination } from "@/lib/pagination";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/committee/roll-calls:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const GET = apiHandler(async (request: Request) => {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";

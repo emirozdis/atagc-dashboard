@@ -88,6 +88,7 @@ const RPC_ARGUMENTS: Record<string, string[]> = {
   increment_ravenmun_auth_attempt: ["p_challenge_id"],
   submit_ravenmun_payment_receipt: ["p_user_id", "p_application_id", "p_storage_path", "p_file_type", "p_actor_id"],
   create_ravenmun_delegation_invite: ["p_owner_id", "p_email", "p_token_hash", "p_expires_at", "p_link", "p_inviter_name", "p_subject", "p_html"],
+  consume_ravenmun_rate_limit: ["p_key", "p_limit", "p_window_seconds"],
 };
 
 const VOID_RPCS = new Set(["assign_ravenmun_conference_role"]);

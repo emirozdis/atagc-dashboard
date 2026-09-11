@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
 import { canAccessCommittee } from "@/lib/committee-access";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/votes/cast:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const POST = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true });

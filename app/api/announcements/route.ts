@@ -8,8 +8,8 @@ import { ROLES } from "@/lib/roles";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 
-const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
-const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
+const readLimiter = rateLimit({ namespace: "api/announcements:readLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const writeLimiter = rateLimit({ namespace: "api/announcements:writeLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 100 });
 const announcementSchema = z.object({
   title: z.string().trim().min(2).max(180),
   content: z.string().trim().min(2).max(20000),

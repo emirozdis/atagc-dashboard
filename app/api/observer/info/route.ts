@@ -6,7 +6,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { getSignedUrl } from "@/lib/storage-utils";
 import { OBSERVER_TEAM } from "@/lib/roles";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/observer/info:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";

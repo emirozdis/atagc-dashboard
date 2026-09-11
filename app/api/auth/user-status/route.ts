@@ -3,7 +3,7 @@ import { z } from "zod";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/rate-limit";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/auth/user-status:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const schema = z.object({ email: z.string().email().max(200) });
 
 // This endpoint is retained for legacy clients. It deliberately returns one

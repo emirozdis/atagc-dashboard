@@ -5,7 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/committee/roll-calls/[id]/details:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const GET = apiHandler(async (
     request: Request,

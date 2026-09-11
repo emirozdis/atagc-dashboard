@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { Logger } from "@/lib/logger";
 import { ROLES } from "@/lib/roles";
 
-const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
+const writeLimiter = rateLimit({ namespace: "api/catering/update_status:writeLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 100 });
 
 // Placeholder: specific user IDs allowed to log catering beyond superadmin/admin
 const ALLOWED_USER_IDS: string[] = [

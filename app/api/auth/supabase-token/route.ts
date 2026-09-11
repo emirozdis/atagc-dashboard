@@ -5,7 +5,7 @@ import { generateSupabaseToken } from "@/lib/supabase-token";
 import { rateLimit } from "@/lib/rate-limit";
 
 // Moderate limit: 30 requests per minute (Token refresh/init logic)
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/auth/supabase-token:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export async function GET(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";

@@ -11,8 +11,8 @@ import { canAccessCommittee } from "@/lib/committee-access";
 import { assertFileSignature } from "@/lib/upload-validation";
 import crypto from "node:crypto";
 
-const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
-const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 100 });
+const readLimiter = rateLimit({ namespace: "api/resources:readLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const writeLimiter = rateLimit({ namespace: "api/resources:writeLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 100 });
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',

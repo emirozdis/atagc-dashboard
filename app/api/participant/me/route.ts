@@ -6,7 +6,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { deleteFile, getSignedUrl } from "@/lib/storage-utils";
 import { updateProfileSchema } from "@/lib/schemas";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/participant/me:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 type Relation<T> = T | T[] | null | undefined;
 type ParticipantDetails = { profile_picture_url?: string | null; is_profile_picture_hidden?: boolean; [key: string]: unknown };

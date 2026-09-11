@@ -6,7 +6,7 @@ import { getSignedUrls } from "@/lib/storage-utils";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES, COMMITTEE_LEADS } from "@/lib/roles";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/committee/my-committee:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 type DashboardMember = {
   user_id: string;
   userId?: string;

@@ -10,7 +10,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { assertFileSignature } from "@/lib/upload-validation";
 import crypto from "node:crypto";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/tickets/[id]:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const MAX_FILES = 3;
 const MAX_TOTAL_FILE_SIZE = 40 * 1024 * 1024;

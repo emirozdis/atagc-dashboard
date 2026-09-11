@@ -7,7 +7,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 import { canAccessCommittee } from "@/lib/committee-access";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/committee/members:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 type CommitteeUser = { id: string; full_name: string; email: string; role: string; user_details?: { profile_picture_url?: string | null; is_profile_picture_hidden?: boolean } | Array<{ profile_picture_url?: string | null; is_profile_picture_hidden?: boolean }> | null };
 type CommitteeMemberRow = { id: string; can_write?: boolean; user?: CommitteeUser | CommitteeUser[] | null };

@@ -6,8 +6,8 @@ import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 import { canAccessCommittee } from "@/lib/committee-access";
 
-const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
-const writeLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 200 });
+const readLimiter = rateLimit({ namespace: "api/votes:readLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const writeLimiter = rateLimit({ namespace: "api/votes:writeLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 200 });
 
 export const POST = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";

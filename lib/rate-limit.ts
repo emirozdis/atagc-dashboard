@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 type Options = {
   uniqueTokenPerInterval?: number;
   interval?: number;
+  namespace?: string;
 };
 
 export function rateLimit(options?: Options) {
@@ -14,34 +15,28 @@ export function rateLimit(options?: Options) {
 
   return {
     check: async (limit: number, token: string) => {
-      const redisUrl = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/$/, "");
-      const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
       const production = process.env.NODE_ENV === "production";
       const allowMemoryFallback = process.env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK === "true";
+      const intervalSeconds = Math.max(1, Math.ceil((options?.interval || 60000) / 1000));
+      const tokenKey = `${options?.namespace || "default"}:${token}`;
+      const key = `ravenmun:rate:${crypto.createHash("sha256").update(tokenKey).digest("hex")}`;
 
-      if (production && !allowMemoryFallback && (!redisUrl || !redisToken)) {
-        throw new Error("Shared rate limiting is not configured.");
+      try {
+        const { supabase } = await import("@/lib/SERVER_supabase");
+        const { data, error } = await supabase.rpc<boolean>("consume_ravenmun_rate_limit", {
+          p_key: key,
+          p_limit: limit,
+          p_window_seconds: intervalSeconds,
+        });
+
+        if (!error && data === false) throw new Error("Rate limit exceeded");
+        if (!error && data === true) return;
+        if (production && !allowMemoryFallback) throw new Error("Rate limit service unavailable.");
+      } catch (error) {
+        if (error instanceof Error && error.message === "Rate limit exceeded") throw error;
+        if (production && !allowMemoryFallback) throw new Error("Rate limit service unavailable.");
       }
 
-      if (redisUrl && redisToken) {
-        try {
-          const key = `ravenmun:rate:${crypto.createHash("sha256").update(token).digest("hex")}`;
-          const headers = { Authorization: `Bearer ${redisToken}` };
-          const requestOptions = { headers, signal: AbortSignal.timeout(2500) };
-          const response = await fetch(`${redisUrl}/incr/${encodeURIComponent(key)}`, requestOptions);
-          if (!response.ok) throw new Error("Rate limit service unavailable.");
-          const result = await response.json() as { result?: number };
-          if (result.result === 1) {
-            const expiry = await fetch(`${redisUrl}/expire/${encodeURIComponent(key)}/${Math.max(1, Math.ceil((options?.interval || 60000) / 1000))}`, requestOptions);
-            if (!expiry.ok) throw new Error("Rate limit service unavailable.");
-          }
-          if (Number(result.result || 0) > limit) throw new Error("Rate limit exceeded");
-          return;
-        } catch (error) {
-          if (error instanceof Error && error.message === "Rate limit exceeded") throw error;
-          if (production && !allowMemoryFallback) throw new Error("Rate limit service unavailable.");
-        }
-      }
       await new Promise<void>((resolve, reject) => {
         const tokenCount = (tokenCache.get(token) as number[]) || [0];
         if (tokenCount[0] === 0) {

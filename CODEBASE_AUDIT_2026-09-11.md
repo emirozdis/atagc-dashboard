@@ -12,6 +12,7 @@
 - Paginated admin, ticket, gallery, roll-call, delegation, log, payment, and user endpoints now enforce positive bounded page and limit values.
 - Ticket uploads enforce request-wide file count and size limits, validate signatures, and remove partial uploads on failure. Private storage signing no longer returns raw storage paths when signing fails.
 - Passwordless challenge creation no longer performs an account lookup before sending a challenge. Payment review rolls back the receipt update if the linked application cannot be updated.
+- Rate-limited routes use an atomic Postgres counter RPC with a separate stable namespace per endpoint, so production instances share limits without making unrelated endpoints consume each other's quota.
 
 ## Verification
 
@@ -21,4 +22,4 @@
 - `pnpm build` passed and generated all application and API routes successfully.
 - `pnpm test:live` passed with the disposable live workflow, including role routing, protected API access, collaboration persistence/reload, security scanning, and gallery upload/delete. The test used `LIVE_TEST_SKIP_INVITES=true` because invitation delivery requires external Turnstile/email services.
 
-Production requires shared Upstash rate-limit credentials. The live test used `RATE_LIMIT_ALLOW_MEMORY_FALLBACK=true` only for the local test server; that fallback must remain disabled in production.
+Production requires the Postgres rate-limit migration to be applied. The live test used `RATE_LIMIT_ALLOW_MEMORY_FALLBACK=false` and exercised the database-backed limiter; the memory fallback remains disabled in production.

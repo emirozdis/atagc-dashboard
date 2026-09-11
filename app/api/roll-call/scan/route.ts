@@ -7,7 +7,7 @@ import { verifyTOTP } from "@/lib/otp";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
 
-const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/roll-call/scan:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const POST = apiHandler(async (request: Request) => {
     const auth = await getAuthorization({ requireAuth: true, requireApproved: true });

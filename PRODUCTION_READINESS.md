@@ -6,7 +6,7 @@ This repository contains the RavenMUN implementation and its PostgreSQL migratio
 
 - Next.js 16 application with `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, and server-side Prisma access through `DATABASE_URL`.
 - Supabase URL/keys are still required only for the optional Storage and browser realtime integrations; they are not database credentials.
-- Upstash Redis via `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Rate-limited routes fail closed in production when shared rate limiting is unavailable.
+- PostgreSQL via `DATABASE_URL`, including the shared rate-limit counter migration. Rate-limited routes fail closed in production when the database-backed limiter is unavailable.
 - Resend (`RESEND_API_KEY`) or SMTP credentials, plus `EMAIL_FROM`.
 - A continuously running email-outbox worker: `pnpm run email:worker`.
 - A separately deployed Hocuspocus process for collaborative committee documents, with the collaboration variables from `env.example`.
@@ -15,9 +15,11 @@ This repository contains the RavenMUN implementation and its PostgreSQL migratio
 
 Apply `supabase/migrations` in filename order, from `0001_ravenmun_foundation.sql` through the latest migration. The migrations create the RavenMUN schema, private storage buckets, RLS lockdown, atomic application/assignment/announcement/auth/payment/invitation workflows, and passwordless cleanup.
 
-The database configured in the local `.env` has now been initialized and checked. All 16 migrations were applied, the Supabase migration ledger was recorded, all 46 public tables have RLS enabled, the five application forms are present, and a rollback smoke test passed for applications, assignments, committee synchronization, announcements, email outbox jobs, payment receipts, and delegation invitations. The smoke test left no rows behind.
+The database configured in the local `.env` has been initialized and checked. The public schema, five application forms, email tables, and Postgres rate-limit counter are present; the rate-limit RPC was verified to enforce an atomic window. A rollback smoke test passed for applications, assignments, committee synchronization, announcements, email outbox jobs, payment receipts, and delegation invitations, leaving no rows behind.
 
 Migration `0016_ravenmun_rpc_privilege_lockdown.sql` additionally removes accidental `anon`/`authenticated` execution grants from the server-only `SECURITY DEFINER` workflows. The live privilege check confirms these RPCs are executable by `service_role` only.
+
+Migration `0018_ravenmun_postgres_rate_limits.sql` adds the shared rate-limit counter and grants its server-only RPC to `service_role`.
 
 `DATABASE_URL` is the running application's server-only Prisma database connection. `SUPABASE_PROJECT_PASSWORD` remains an operations credential. The running application does not use Supabase API keys for database access; the URL/anon key/service-role key are only needed if Storage or browser realtime remains enabled.
 

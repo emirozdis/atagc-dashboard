@@ -4,7 +4,7 @@ import getAuthorization from "@/lib/getAuthorization";
 import { createCollaborationToken, COLLABORATION_TOKEN_LIFETIME_SECONDS } from "@/lib/collaboration-token";
 import { rateLimit } from "@/lib/rate-limit";
 
-const limiter = rateLimit({ interval: 60_000, uniqueTokenPerInterval: 500 });
+const limiter = rateLimit({ namespace: "api/auth/collaboration-token:limiter", interval: 60_000, uniqueTokenPerInterval: 500 });
 
 export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true });

@@ -9,7 +9,7 @@ import { MANAGEMENT_ROLES, PRESS_TEAM } from "@/lib/roles";
 import { Logger } from "@/lib/logger";
 import { parsePagination } from "@/lib/pagination";
 
-const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
+const readLimiter = rateLimit({ namespace: "api/gallery:readLimiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
 export const GET = apiHandler(async (request: Request) => {
   const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
