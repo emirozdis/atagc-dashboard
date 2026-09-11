@@ -61,8 +61,8 @@ export const updateProfileSchema = z.object({
 
 // Applications
 export const searchParamsSchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(10),
+  page: z.coerce.number().int().min(1).max(100_000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().optional().default(""),
   status: z.string().optional().default("all"),
   // Added "school_name" to the enum to match frontend options and API logic

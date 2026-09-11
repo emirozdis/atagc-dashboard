@@ -203,11 +203,15 @@ function CollaborativeEditorContent() {
 
   const handleToggleMemberPermission = async (memberId: string, targetUserId: string, currentStatus: boolean) => {
     try {
-      await fetch('/api/committee/members', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId, canEdit: !currentStatus })
-      });
+       const response = await fetch('/api/committee/members', {
+         method: 'PUT',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ memberId, canEdit: !currentStatus })
+       });
+       if (!response.ok) {
+         const result = await response.json().catch(() => null) as { error?: string; message?: string } | null;
+         throw new Error(result?.message || result?.error || "Permission update failed.");
+       }
       setMembers(prev => prev.map(m => m.id === memberId ? { ...m, can_edit: !currentStatus } : m));
       if (provider) {
         provider.sendStateless(JSON.stringify({
@@ -217,7 +221,9 @@ function CollaborativeEditorContent() {
         }));
       }
       toast.success("Permission updated");
-    } catch (error) { toast.error("Something went wrong"); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Permission update failed.");
+    }
   };
 
   if (!hasJoined) {
@@ -232,7 +238,11 @@ function CollaborativeEditorContent() {
     );
   }
 
-  const isChair = session?.user?.role === ROLES.CHAIRMAN || session?.user?.role === ROLES.SUPERADMIN;
+  const isDocumentManager = session?.user?.role === ROLES.CHAIRMAN
+    || session?.user?.role === ROLES.DEPUTY_CHAIR
+    || session?.user?.role === ROLES.ADMIN
+    || session?.user?.role === ROLES.SUPERADMIN;
+  const canManageMembers = session?.user?.role === ROLES.CHAIRMAN || session?.user?.role === ROLES.DEPUTY_CHAIR;
 
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-120px)] animate-fade-in relative overflow-hidden">
@@ -264,7 +274,7 @@ function CollaborativeEditorContent() {
                 History
               </Button>
 
-              {session?.user?.role === ROLES.CHAIRMAN && (
+               {canManageMembers && (
                 <Button
                   variant={showChairmanPanel ? "secondary" : "outline"}
                   size="sm"
@@ -296,7 +306,7 @@ function CollaborativeEditorContent() {
         </div>
 
         {/* Panels */}
-        {session?.user?.role === ROLES.CHAIRMAN && (
+         {canManageMembers && (
           <ChairmanPanel
             isOpen={showChairmanPanel}
             members={members.filter(m => m.userId !== session?.user?.id)}
@@ -309,7 +319,7 @@ function CollaborativeEditorContent() {
             committeeId={committeeInfo.id}
             isOpen={showHistory}
             onClose={() => setShowHistory(false)}
-            canManage={isChair}
+             canManage={isDocumentManager}
             onRestoreTrigger={handleForceRefresh}
           />
         )}

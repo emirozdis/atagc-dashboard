@@ -8,9 +8,12 @@ import { Logger } from "@/lib/logger";
 import { MANAGEMENT_ROLES } from "@/lib/roles";
 import { assertFileSignature } from "@/lib/upload-validation";
 import crypto from "node:crypto";
+import { parsePagination } from "@/lib/pagination";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILES = 3;
+const MAX_TOTAL_FILE_SIZE = 40 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 export const GET = apiHandler(async (request: Request) => {
@@ -45,14 +48,10 @@ export const GET = apiHandler(async (request: Request) => {
         return NextResponse.json(data);
     }
 
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const { page, limit, from, to } = parsePagination(searchParams, { defaultLimit: 10, maxLimit: 50 });
     const status = searchParams.get("status") || "all";
     const category = searchParams.get("category") || "all";
     const search = searchParams.get("search") || "";
-
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
 
     let query = supabase
         .from("tickets")
@@ -116,23 +115,29 @@ export const POST = apiHandler(async (request: Request) => {
 
     const attachmentPaths: string[] = [];
     if (files.length > 0) {
-        if (files.length > 3) throw new Error("You can upload a maximum of three files.");
+        if (files.length > MAX_FILES) throw new Error(`You can upload a maximum of ${MAX_FILES} files.`);
+        if (files.reduce((total, file) => total + file.size, 0) > MAX_TOTAL_FILE_SIZE) throw new Error("The combined attachment size is too large.");
 
-        for (const file of files) {
-            if (file.size > MAX_FILE_SIZE) throw new Error(`${file.name} is too large (max 20 MB).`);
-            if (!ALLOWED_TYPES.includes(file.type)) throw new Error(`${file.name} has an unsupported file type.`);
+        try {
+            for (const file of files) {
+                if (file.size > MAX_FILE_SIZE) throw new Error(`${file.name} is too large (max 20 MB).`);
+                if (!ALLOWED_TYPES.includes(file.type)) throw new Error(`${file.name} has an unsupported file type.`);
 
-            await assertFileSignature(file);
-            const ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-            const fileName = `tickets/${crypto.randomUUID()}.${ext}`;
-            const arrayBuffer = await file.arrayBuffer();
-            
-            const { error: uploadError } = await supabase.storage
-                .from("ticket-attachments")
-                .upload(fileName, Buffer.from(arrayBuffer), { contentType: file.type });
+                await assertFileSignature(file);
+                const ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+                const fileName = `tickets/${crypto.randomUUID()}.${ext}`;
+                const arrayBuffer = await file.arrayBuffer();
 
-            if (uploadError) throw new Error("File upload failed.");
-            attachmentPaths.push(fileName);
+                const { error: uploadError } = await supabase.storage
+                    .from("ticket-attachments")
+                    .upload(fileName, Buffer.from(arrayBuffer), { contentType: file.type });
+
+                if (uploadError) throw new Error("File upload failed.");
+                attachmentPaths.push(fileName);
+            }
+        } catch (error) {
+            if (attachmentPaths.length) await supabase.storage.from("ticket-attachments").remove(attachmentPaths);
+            throw error;
         }
     }
 

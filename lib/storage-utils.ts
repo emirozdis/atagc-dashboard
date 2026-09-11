@@ -37,8 +37,8 @@ export async function getSignedUrl(bucket: string, path: string | null | undefin
 
   if (error) {
     console.error(`Error signing URL for ${bucket}/${cleanPath}:`, error);
-    // If it was already a public URL and signing failed, return as is as fallback
-    if (path.startsWith("http")) return path;
+    // A signing failure must not turn a private storage path into a client
+    // visible fallback URL. Callers can render the item without an image.
     return null;
   }
 

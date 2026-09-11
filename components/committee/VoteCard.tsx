@@ -15,7 +15,7 @@ export interface VoteOption {
 
 export interface VoteResponse {
   option_id: string;
-  user_id: string;
+  user_id?: string;
 }
 
 export interface Vote {
@@ -25,6 +25,9 @@ export interface Vote {
   created_at: string;
   options: VoteOption[];
   responses: VoteResponse[];
+  response_counts?: Record<string, number>;
+  total_responses?: number;
+  my_response?: { option_id: string } | null;
 }
 
 interface VoteCardProps {
@@ -36,9 +39,9 @@ interface VoteCardProps {
 }
 
 export function VoteCard({ vote, userId, isChairman, onCloseVote, onOpenVoteModal }: VoteCardProps) {
-  const totalVotes = vote.responses?.length || 0;
+  const totalVotes = vote.total_responses ?? vote.responses?.length ?? 0;
   const isOpen = vote.status === "open";
-  const hasUserVoted = vote.responses.some(r => r.user_id === userId);
+  const hasUserVoted = Boolean(vote.my_response) || vote.responses.some(r => r.user_id === userId);
 
   return (
     <Card className={cn(

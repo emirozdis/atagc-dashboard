@@ -89,5 +89,24 @@ export const GET = apiHandler(async (request: Request) => {
 
   if (error) throw error;
 
-  return NextResponse.json(data);
+  // Voter identity is private. Clients only need aggregate results and the
+  // current user's own choice to render the vote state.
+  const sanitizedVotes = ((data || []) as Array<{
+    responses?: Array<{ option_id: string; user_id: string }>;
+    [key: string]: unknown;
+  }>).map((vote) => {
+    const responses = Array.isArray(vote.responses) ? vote.responses : [];
+    const responseCounts: Record<string, number> = {};
+    for (const response of responses) responseCounts[response.option_id] = (responseCounts[response.option_id] || 0) + 1;
+    const ownResponse = responses.find((response) => response.user_id === session.user.id);
+    return {
+      ...vote,
+      responses: [],
+      response_counts: responseCounts,
+      total_responses: responses.length,
+      my_response: ownResponse ? { option_id: ownResponse.option_id } : null,
+    };
+  });
+
+  return NextResponse.json(sanitizedVotes);
 });

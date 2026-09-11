@@ -57,16 +57,6 @@ export async function createEmailChallenge(input: {
   displayName?: string;
 }) {
   const email = normalizeEmail(input.email);
-  if (input.purpose === "login") {
-    const { data: user, error: lookupError } = await supabase
-      .from("users")
-      .select("id, is_suspended")
-      .eq("email", email)
-      .maybeSingle();
-    if (lookupError) throw new Error("Unable to check account.");
-    if (!user) throw new HttpError(404, "No account exists for this email. Submit an application first.");
-    if (user.is_suspended) throw new HttpError(403, "This account is suspended. Contact the RavenMUN team for help.");
-  }
 
   const code = createOtp();
   const expiresAt = new Date(Date.now() + CHALLENGE_LIFETIME_MS).toISOString();

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { applicationFieldSchema, applicationQuestionsSchema } from "@/lib/application-form-schema";
 
 const feeSchema = z.union([z.number(), z.string().trim().min(1)])
   .transform((value) => typeof value === "number" ? value : Number(value))
@@ -15,8 +16,8 @@ const formUpdateSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().max(5000),
   fee: feeSchema,
-  steps: z.array(z.object({ fields: z.array(z.unknown()).optional() }).passthrough()).optional(),
-  questions: z.array(z.unknown()).optional(),
+  steps: z.array(z.object({ fields: z.array(applicationFieldSchema).optional() }).passthrough()).optional(),
+  questions: applicationQuestionsSchema.optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -61,11 +62,16 @@ export const PUT = apiHandler(async (request: Request) => {
   const { data: current, error: currentError } = await supabase.from("application_forms").select("version, application_type, is_active, questions").eq("id", id).maybeSingle();
   if (currentError || !current) throw new Error("Form not found.");
 
+  const currentQuestions = applicationQuestionsSchema.safeParse(current.questions);
+  if (!currentQuestions.success && questions === undefined && steps === undefined) {
+    throw new Error("The stored form questions are invalid. Edit the questions before saving.");
+  }
+
   const normalizedQuestions = Array.isArray(questions)
     ? questions
     : Array.isArray(steps)
       ? steps.flatMap((step: { fields?: unknown[] }) => Array.isArray(step.fields) ? step.fields : [])
-      : Array.isArray(current.questions) ? current.questions : [];
+      : currentQuestions.success ? currentQuestions.data : [];
 
   const { error } = await supabase
     .from("application_forms")

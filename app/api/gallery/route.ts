@@ -7,6 +7,7 @@ import { getSignedUrls } from "@/lib/storage-utils";
 import { deleteFile } from "@/lib/storage-utils";
 import { MANAGEMENT_ROLES, PRESS_TEAM } from "@/lib/roles";
 import { Logger } from "@/lib/logger";
+import { parsePagination } from "@/lib/pagination";
 
 const readLimiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
@@ -30,9 +31,7 @@ export const GET = apiHandler(async (request: Request) => {
 
   const { searchParams } = new URL(request.url);
   const areaId = searchParams.get("area_id");
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = Math.min(parseInt(searchParams.get("limit") || "24"), 50);
-  const offset = (page - 1) * limit;
+  const { page, limit, offset } = parsePagination(searchParams, { defaultLimit: 24, maxLimit: 50 });
 
   let query = supabase
     .from("press_photos")

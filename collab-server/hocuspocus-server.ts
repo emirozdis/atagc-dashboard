@@ -44,6 +44,7 @@ interface ConnectionContext {
   userId: string; // UUID
   role: string;
   committeeId: string;
+  sessionId: string;
 }
 
 // Memory store for debounce timers per document
@@ -52,6 +53,45 @@ const lastSnapshotTime: Record<string, number> = {};
 const getCommitteeId = (documentName: string): string | null => {
   const id = documentName.replace(CONFIG.docPrefix, "");
   return id.length > 0 ? id : null;
+};
+
+const canStoreDocument = async (context: Partial<ConnectionContext> | undefined, committeeId: string) => {
+  if (!context?.userId || !context.sessionId || context.committeeId !== committeeId || context.readOnly) return false;
+
+  const [activeSession, user, assignment, legacyMembership] = await Promise.all([
+    prisma.active_sessions.findFirst({
+      where: { id: context.sessionId, user_id: context.userId, revoked_at: null, expires_at: { gt: new Date() } },
+      select: { id: true },
+    }),
+    prisma.users.findUnique({
+      where: { id: context.userId },
+      select: { role: true, account_role: true, is_suspended: true },
+    }),
+    prisma.conference_assignments.findFirst({
+      where: { user_id: context.userId, committee_id: committeeId },
+      select: { role: true, committee_id: true },
+    }),
+    prisma.committee_members.findFirst({
+      where: { user_id: context.userId, committee_id: committeeId },
+      select: { committee_id: true, can_write: true },
+    }),
+  ]);
+
+  if (!activeSession || !user || user.is_suspended) return false;
+
+  const role = user.account_role === "super_admin"
+    ? "superadmin"
+    : user.account_role === "site_admin"
+      ? "admin"
+      : user.role;
+
+  if (role === "superadmin" || role === "admin") return false;
+  if (role === "committee_chairman") return assignment?.role === "committee_chairman";
+  if (role === "chair" || assignment?.role === "chair") {
+    return Boolean(assignment || legacyMembership);
+  }
+
+  return legacyMembership?.can_write === true;
 };
 
 const getSessionToken = (request: IncomingMessage): string | undefined => {
@@ -106,6 +146,12 @@ const handleLoadDocument = async (data: onLoadDocumentPayload) => {
 const handleStoreDocument = async (data: onStoreDocumentPayload) => {
   const committeeId = getCommitteeId(data.documentName);
   if (!committeeId) return;
+
+  const context = data.context as Partial<ConnectionContext> | undefined;
+  if (!(await canStoreDocument(context, committeeId))) {
+    console.warn(`[SAVE] Ignoring unauthorized document save for ${committeeId}.`);
+    return;
+  }
 
   // 1. Prepare Binary
   const update = encodeStateAsUpdate(data.document);
@@ -250,7 +296,8 @@ const handleAuthentication = async (data: onAuthenticatePayload): Promise<Connec
     },
     userId: userId,
     role: role,
-    committeeId
+    committeeId,
+    sessionId,
   };
 
   // 1. Superadmin: Read-Only

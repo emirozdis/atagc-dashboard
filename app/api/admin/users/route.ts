@@ -5,6 +5,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { CONFERENCE_ASSIGNMENT_ROLES, ROLES, UserRole } from "@/lib/roles";
 import { Logger } from "@/lib/logger";
 import { HttpError } from "@/lib/http-error";
+import { parsePagination } from "@/lib/pagination";
 
 interface UserParams {
   page: number;
@@ -226,9 +227,10 @@ export const GET = apiHandler(async (request: Request) => {
     return NextResponse.json({ data });
   }
   
+  const pagination = parsePagination(searchParams, { defaultLimit: 10, maxLimit: 100 });
   const params: UserParams = {
-    page: parseInt(searchParams.get("page") || "1"),
-    limit: parseInt(searchParams.get("limit") || "10"),
+    page: pagination.page,
+    limit: pagination.limit,
     search: searchParams.get("search") || "",
     role: searchParams.get("role")?.split(",").filter(Boolean),
     status: searchParams.get("status")?.split(",").filter(Boolean),
@@ -255,7 +257,8 @@ export const PUT = apiHandler(async (request: Request) => {
   // Site admins may grant site-admin access. Super-admin access remains
   // restricted to existing super admins, and conference roles stay separate.
   if (body.ids && body.role) {
-    if (!Array.isArray(body.ids) || body.ids.some((id: unknown) => typeof id !== "string")) throw new Error("Invalid user IDs.");
+    if (!Array.isArray(body.ids) || body.ids.length === 0 || body.ids.length > 100 || body.ids.some((id: unknown) => typeof id !== "string") || new Set(body.ids).size !== body.ids.length) throw new Error("Invalid user IDs.");
+    if (typeof body.role !== "string") throw new Error("Invalid role.");
     await assignRole(body.ids, body.role, adminId, auth.session.user.role);
     return NextResponse.json({ success: true });
   }
@@ -307,8 +310,11 @@ export const DELETE = apiHandler(async (request: Request) => {
   const id = searchParams.get("id");
 
   if (!id) throw new Error("Missing ID");
+  if (id === auth.session.user.id) throw new HttpError(400, "You cannot delete your own account.");
 
-  const { data: userToDelete } = await supabase.from("users").select("email, full_name").eq("id", id).single();
+  const { data: userToDelete, error: lookupError } = await supabase.from("users").select("email, full_name").eq("id", id).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!userToDelete) throw new HttpError(404, "User not found.");
 
   const { error } = await supabase.from("users").delete().eq("id", id);
   if (error) throw error;

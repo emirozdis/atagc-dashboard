@@ -13,19 +13,21 @@ interface VoteResultsProps {
 }
 
 export function VoteResults({ vote, userId, isCompact = false }: VoteResultsProps) {
-  const totalVotes = vote.responses?.length || 0;
+  const totalVotes = vote.total_responses ?? vote.responses?.length ?? 0;
+  const responseCounts = vote.response_counts;
+  const myResponseOptionId = vote.my_response?.option_id;
   // If we are in summary mode (passed manually as closed) or actual closed status
   const isOpen = vote.status === "open";
 
   const results = useMemo(() => {
     return vote.options.map(opt => {
-      const count = vote.responses.filter(r => r.option_id === opt.id).length;
+      const count = responseCounts?.[opt.id] ?? vote.responses.filter(r => r.option_id === opt.id).length;
       const percentage = totalVotes === 0 ? 0 : Math.round((count / totalVotes) * 100);
-      const isUserChoice = vote.responses.some(r => r.user_id === userId && r.option_id === opt.id);
+      const isUserChoice = myResponseOptionId === opt.id || vote.responses.some(r => r.user_id === userId && r.option_id === opt.id);
       
       return { ...opt, count, percentage, isUserChoice };
     });
-  }, [vote.options, vote.responses, totalVotes, userId]);
+  }, [vote.options, vote.responses, responseCounts, myResponseOptionId, totalVotes, userId]);
 
   return (
     <div className={cn("space-y-3", isCompact ? "text-xs" : "text-sm")}>

@@ -4,6 +4,7 @@ import getAuthorization from "@/lib/getAuthorization";
 import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { parsePagination } from "@/lib/pagination";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
@@ -19,9 +20,7 @@ export const GET = apiHandler(async (request: Request) => {
     const session = auth.session;
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = parsePagination(searchParams, { defaultLimit: 10, maxLimit: 100 });
 
     let committeeId: string | null = null;
 

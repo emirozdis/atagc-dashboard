@@ -2,19 +2,16 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
+import { parsePagination } from "@/lib/pagination";
 
 export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ requireAuth: true, allowedRoles: ["superadmin", "admin"] });
   if (!auth.ok) throw new Error("Unauthorized");
 
   const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = 20;
+  const { page, limit, from, to } = parsePagination(searchParams, { defaultLimit: 20, maxLimit: 20 });
   const status = searchParams.get("status") || "pending";
   const search = searchParams.get("search") || "";
-
-  const from = (page - 1) * limit;
-  const to = from + limit - 1;
 
   let query = supabase
     .from("payment_receipts")

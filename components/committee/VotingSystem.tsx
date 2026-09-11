@@ -94,7 +94,7 @@ export function VotingSystem({ committeeId, isChairman, userId, variant = "full"
 
   // --- 3. Active Vote Popup Logic ---
   const autoActiveVoteId = !canManage
-    ? votes.find((vote) => vote.status === "open" && !vote.responses?.some((response) => response.user_id === userId))?.id ?? null
+    ? votes.find((vote) => vote.status === "open" && !vote.my_response && !vote.responses?.some((response) => response.user_id === userId))?.id ?? null
     : null;
   const activeVoteId = manualActiveVoteId === undefined ? autoActiveVoteId : manualActiveVoteId;
 
@@ -308,7 +308,7 @@ export function VotingSystem({ committeeId, isChairman, userId, variant = "full"
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant="secondary" className="text-[10px] font-normal">{vote.responses.length} votes</Badge>
+                    <Badge variant="secondary" className="text-[10px] font-normal">{vote.total_responses ?? vote.responses.length} votes</Badge>
                     <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
                       <PieChart className="w-4 h-4 text-muted-foreground" />
                     </Button>
@@ -427,7 +427,7 @@ export function VotingSystem({ committeeId, isChairman, userId, variant = "full"
             {summaryVote && <VoteResults vote={summaryVote} userId={userId} />}
           </div>
           <div className="text-center text-xs text-muted-foreground border-t border-border pt-3">
-            {summaryVote?.responses.length} votes were cast in total.
+            {summaryVote?.total_responses ?? summaryVote?.responses.length} votes were cast in total.
           </div>
         </DialogContent>
       </Dialog>

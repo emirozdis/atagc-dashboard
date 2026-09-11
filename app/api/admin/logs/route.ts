@@ -3,6 +3,7 @@ import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
 import { ROLES } from "@/lib/roles";
+import { parsePagination } from "@/lib/pagination";
 
 export const GET = apiHandler(async (request: Request) => {
   const auth = await getAuthorization({ 
@@ -12,8 +13,7 @@ export const GET = apiHandler(async (request: Request) => {
   if (!auth.ok) throw new Error(auth.message);
 
   const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "20");
+  const { page, limit, from, to } = parsePagination(searchParams, { defaultLimit: 20, maxLimit: 100 });
   const search = searchParams.get("search") || "";
   
   // Filters
@@ -28,9 +28,6 @@ export const GET = apiHandler(async (request: Request) => {
   // Sorting
   const sortBy = searchParams.get("sort_by") || "created_at";
   const sortOrder = searchParams.get("sort_order") || "desc";
-
-  const from = (page - 1) * limit;
-  const to = from + limit - 1;
 
   let query = supabase
     .from("logs")

@@ -12,6 +12,8 @@ import crypto from "node:crypto";
 
 const limiter = rateLimit({ interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILES = 3;
+const MAX_TOTAL_FILE_SIZE = 40 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 export const GET = apiHandler(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
@@ -120,30 +122,38 @@ export const POST = apiHandler(async (request: Request, { params }: { params: Pr
     // File Validation & Uploads
     const attachmentPaths: string[] = [];
     if (files.length > 0) {
-        for (const file of files) {
-            if (file.size > MAX_FILE_SIZE) {
-                throw new Error(`File is too large: ${file.name} (max 20 MB)`);
-            }
-            if (!ALLOWED_TYPES.includes(file.type)) {
-                throw new Error(`Unsupported file type: ${file.name}. Upload JPEG, PNG, WEBP, or PDF.`);
-            }
-        }
+        if (files.length > MAX_FILES) throw new Error(`You can upload a maximum of ${MAX_FILES} files.`);
+        if (files.reduce((total, file) => total + file.size, 0) > MAX_TOTAL_FILE_SIZE) throw new Error("The combined attachment size is too large.");
 
-        for (const file of files) {
-            await assertFileSignature(file);
-            const ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-            const fileName = `replies/${crypto.randomUUID()}.${ext}`;
-            const arrayBuffer = await file.arrayBuffer();
-            
-            const { error: uploadError } = await supabase.storage
-                .from("ticket-attachments")
-                .upload(fileName, Buffer.from(arrayBuffer), { 
-                    contentType: file.type,
-                    upsert: false 
-                });
+        try {
+            for (const file of files) {
+                if (file.size > MAX_FILE_SIZE) {
+                    throw new Error(`File is too large: ${file.name} (max 20 MB)`);
+                }
+                if (!ALLOWED_TYPES.includes(file.type)) {
+                    throw new Error(`Unsupported file type: ${file.name}. Upload JPEG, PNG, WEBP, or PDF.`);
+                }
+            }
 
-            if (uploadError) throw new Error("File upload failed: " + uploadError.message);
-            attachmentPaths.push(fileName);
+            for (const file of files) {
+                await assertFileSignature(file);
+                const ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+                const fileName = `replies/${crypto.randomUUID()}.${ext}`;
+                const arrayBuffer = await file.arrayBuffer();
+
+                const { error: uploadError } = await supabase.storage
+                    .from("ticket-attachments")
+                    .upload(fileName, Buffer.from(arrayBuffer), {
+                        contentType: file.type,
+                        upsert: false
+                    });
+
+                if (uploadError) throw new Error("File upload failed: " + uploadError.message);
+                attachmentPaths.push(fileName);
+            }
+        } catch (error) {
+            if (attachmentPaths.length) await supabase.storage.from("ticket-attachments").remove(attachmentPaths);
+            throw error;
         }
     }
 

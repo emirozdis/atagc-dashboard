@@ -22,6 +22,8 @@ import { renderEmailTemplate } from "../lib/email-templates";
 import { isRavenmunEmailAddress } from "../lib/email";
 import { toPostgrestValue } from "../lib/prisma-values";
 import { Prisma } from "@prisma/client";
+import { applicationQuestionsSchema } from "../lib/application-form-schema";
+import { parsePagination } from "../lib/pagination";
 
 const secret = "ravenmun-test-secret";
 
@@ -61,6 +63,24 @@ assert.equal(isRavenmunEmailAddress("team@ravenmun.com.evil.example"), false);
 
 assert.equal(toPostgrestValue(new Prisma.Decimal("800")), 800);
 assert.deepEqual(toPostgrestValue({ fee: new Prisma.Decimal("1250.50") }), { fee: 1250.5 });
+
+const validFormQuestions = [
+  { id: "email", label: "Email", type: "email", required: true },
+  { id: "choice1", label: "Committee choice", type: "select", required: true, options: [] },
+];
+assert.equal(applicationQuestionsSchema.safeParse(validFormQuestions).success, true);
+assert.equal(applicationQuestionsSchema.safeParse([
+  ...validFormQuestions,
+  { id: "email", label: "Duplicate", type: "text" },
+]).success, false);
+assert.equal(applicationQuestionsSchema.safeParse([
+  { id: "role", label: "Role", type: "select", options: [] },
+]).success, false);
+
+const boundedPagination = parsePagination(new URLSearchParams("page=-4&limit=999999"), { defaultLimit: 10, maxLimit: 50 });
+assert.deepEqual(boundedPagination, { page: 1, limit: 50, offset: 0, from: 0, to: 49 });
+const validPagination = parsePagination(new URLSearchParams("page=3&limit=20"), { defaultLimit: 10, maxLimit: 50 });
+assert.deepEqual(validPagination, { page: 3, limit: 20, offset: 40, from: 40, to: 59 });
 
 const previousWebhookSecret = process.env.RESEND_WEBHOOK_SECRET;
 const webhookSecretBytes = Buffer.from("ravenmun-webhook-test-secret");

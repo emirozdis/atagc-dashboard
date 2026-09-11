@@ -13,6 +13,7 @@ import { PUBLIC_APPLICATION_TYPES, ROLES } from "@/lib/roles";
 import { searchParamsSchema, updateApplicationSchema } from "@/lib/schemas";
 import { hashOpaqueToken } from "@/lib/passwordless";
 import { essayWordCountError } from "@/lib/application-essays";
+import { applicationQuestionsSchema } from "@/lib/application-form-schema";
 
 interface JoinedForm {
     title: string;
@@ -229,8 +230,11 @@ async function processRavenApplicationSubmission(
         .maybeSingle();
     if (formError || !form) throw new Error("This application is not currently available.");
 
-    const questions = Array.isArray(form.questions) ? form.questions as Array<{ id: string; label: string; type?: string; required?: boolean; minWords?: number; options?: Array<{ value: string }> }> : [];
+    const parsedQuestions = applicationQuestionsSchema.safeParse(form.questions);
+    if (!parsedQuestions.success) throw new Error("This application form is temporarily unavailable.");
+    const questions = parsedQuestions.data;
     if (!questions.length || !questions.some((question) => question.type === "email")) throw new Error("This application form is missing an email field.");
+    if (questions.filter((question) => question.type === "email").length !== 1) throw new Error("This application form must have exactly one email field.");
     const sessionEmail = sessionUser.email?.trim().toLowerCase();
     const formEmailField = questions.find((question) => question.type === "email")?.id;
     const submittedEmailValue = formData[formEmailField || "email"];
@@ -241,7 +245,10 @@ async function processRavenApplicationSubmission(
     const questionIds = new Set(questions.map((question) => question.id));
     const unknownFields = Object.keys(formData).filter((fieldId) => !questionIds.has(fieldId));
     if (unknownFields.length) throw new Error("The application contains unsupported fields.");
-    const missing = questions.filter((question) => question.required && (formData[question.id] === undefined || formData[question.id] === null || formData[question.id] === "" || formData[question.id] === false));
+    const missing = questions.filter((question) => {
+        const value = formData[question.id];
+        return question.required && (value === undefined || value === null || value === false || (typeof value === "string" && value.trim() === ""));
+    });
     if (missing.length) throw new Error(`Please complete: ${missing.map((question) => question.label).join(", ")}`);
     for (const question of questions) {
         const value = formData[question.id];

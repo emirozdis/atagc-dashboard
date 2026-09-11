@@ -81,19 +81,38 @@ export const POST = apiHandler(async (request: Request) => {
         reviewed_at: now
     };
 
-    const { error: rError } = await supabase
+    const { data: updatedReceipt, error: rError } = await supabase
         .from("payment_receipts")
         .update(updatePayload)
-        .eq("id", receiptId);
+        .eq("id", receiptId)
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle();
 
     if (rError) throw rError;
+    if (!updatedReceipt) throw new Error("Receipt has already been processed.");
 
-    const { error: aError } = await supabase
+    const { data: updatedApplication, error: aError } = await supabase
         .from("applications")
         .update({ payment_status: appPaymentStatus })
-        .eq("id", receipt.application_id);
+        .eq("id", receipt.application_id)
+        .select("id")
+        .maybeSingle();
 
-    if (aError) console.error("Failed to update application status", aError);
+    if (aError || !updatedApplication) {
+        const { error: rollbackError } = await supabase
+            .from("payment_receipts")
+            .update({
+                status: receipt.status,
+                admin_note: receipt.admin_note,
+                reviewed_by: null,
+                reviewed_at: null,
+            })
+            .eq("id", receiptId)
+            .eq("status", newStatus);
+        if (rollbackError) console.error("Failed to roll back payment receipt review", rollbackError);
+        throw aError || new Error("The receipt's application could not be updated.");
+    }
 
     const prevState = {
         status: receipt.status,

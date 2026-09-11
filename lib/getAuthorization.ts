@@ -2,6 +2,8 @@ import { getServerSession, Session } from "next-auth";
 import { authOptions } from "./auth";
 import { supabase } from "./SERVER_supabase";
 import "server-only";
+import { getCurrentAuthorizationState } from "@/lib/authorization-state";
+import { ApplicationStatusEnum } from "@/types/application";
 
 type AuthOptions = {
   /** If true, require a logged in user (default true) */
@@ -36,21 +38,38 @@ export async function getAuthorization(opts: AuthOptions = {}) {
     const sessionId = session.user.sessionId;
     
     if (sessionId) {
-      const [{ data: activeSession, error: sessionError }, { data: account, error: accountError }] = await Promise.all([
-        supabase
-          .from("active_sessions")
-          .select("id")
-          .eq("id", sessionId)
-          .is("revoked_at", null)
-          .gt("expires_at", new Date().toISOString())
-          .maybeSingle(),
-        supabase.from("users").select("id, is_suspended").eq("id", session.user.id).maybeSingle(),
-      ]);
-
-      if (sessionError || accountError || !activeSession || !account) {
+      let activeSession: { id: string } | null = null;
+      let sessionError: { message?: string } | null = null;
+      let authorizationState: Awaited<ReturnType<typeof getCurrentAuthorizationState>> | null = null;
+      try {
+        const [activeSessionResult, currentAuthorizationState] = await Promise.all([
+          supabase
+            .from("active_sessions")
+            .select("id")
+            .eq("id", sessionId)
+            .is("revoked_at", null)
+            .gt("expires_at", new Date().toISOString())
+            .maybeSingle(),
+          getCurrentAuthorizationState(session.user.id),
+        ]);
+        activeSession = activeSessionResult.data;
+        sessionError = activeSessionResult.error;
+        authorizationState = currentAuthorizationState;
+      } catch {
         return { ok: false, status: 401, message: "Session revoked or expired" };
       }
-      if (account.is_suspended) return { ok: false, status: 403, message: "Account suspended" };
+
+      if (sessionError || !activeSession || !authorizationState) {
+        return { ok: false, status: 401, message: "Session revoked or expired" };
+      }
+      if (authorizationState.isSuspended) return { ok: false, status: 403, message: "Account suspended" };
+
+      // A JWT can outlive an admin role change. Always authorize with the
+      // current database role so demotions take effect immediately.
+      session.user.role = authorizationState.role;
+      session.user.applicantType = authorizationState.applicantType;
+      session.user.committeeId = authorizationState.committeeId;
+      session.user.applicationStatus = authorizationState.applicationStatus;
     } else {
        return { ok: false, status: 401, message: "Invalid session token structure" };
     }
@@ -69,7 +88,7 @@ export async function getAuthorization(opts: AuthOptions = {}) {
 
     // Approval Check (Pending State Restriction)
     if (requireApproved && session.user.role === 'applicant') {
-      if (session.user.applicationStatus !== 'approved') {
+      if (![ApplicationStatusEnum.APPROVED, ApplicationStatusEnum.ACCEPTED].includes(session.user.applicationStatus as ApplicationStatusEnum)) {
         return { ok: false, status: 403, message: "Forbidden: Your application is not approved yet." };
       }
     }
