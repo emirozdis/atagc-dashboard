@@ -21,17 +21,31 @@ type EditableForm = {
   description: string;
   fee: number;
   is_active?: boolean;
-  questions: FormField[];
+  questions: EditableField[];
 };
+
+type EditableField = FormField & { editorKey: string };
+
+function createEditorKey() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `editor-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function toPersistedField({ editorKey, ...field }: EditableField): FormField {
+  void editorKey;
+  return field;
+}
 
 function parseFee(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
-function fieldsFromForm(form: ApplicationFormTemplate): FormField[] {
-  if (Array.isArray(form.questions) && form.questions.length) return form.questions;
-  return Array.isArray(form.steps) ? form.steps.flatMap((step) => Array.isArray(step.fields) ? step.fields : []) : [];
+function fieldsFromForm(form: ApplicationFormTemplate): EditableField[] {
+  const fields = Array.isArray(form.questions) && form.questions.length
+    ? form.questions
+    : Array.isArray(form.steps) ? form.steps.flatMap((step) => Array.isArray(step.fields) ? step.fields : []) : [];
+  return fields.map((field) => ({ ...field, editorKey: createEditorKey() }));
 }
 
 export default function EditFormPage() {
@@ -70,7 +84,11 @@ export default function EditFormPage() {
       const response = await fetch("/api/admin/forms", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formConfig, fee: parseFee(formConfig.fee) }),
+        body: JSON.stringify({
+          ...formConfig,
+          fee: parseFee(formConfig.fee),
+          questions: formConfig.questions.map(toPersistedField),
+        }),
       });
       if (!response.ok) {
         const result = await response.json().catch(() => null);
@@ -90,11 +108,11 @@ export default function EditFormPage() {
   };
 
   const addField = () => {
-    setFormConfig((current) => current ? { ...current, questions: [...current.questions, { id: `field-${Date.now()}`, label: "New question", type: "text", required: false }] } : current);
+    setFormConfig((current) => current ? { ...current, questions: [...current.questions, { id: `field-${Date.now()}`, label: "New question", type: "text", required: false, editorKey: createEditorKey() }] } : current);
   };
 
-  const removeField = (index: number) => {
-    setFormConfig((current) => current ? { ...current, questions: current.questions.filter((_, fieldIndex) => fieldIndex !== index) } : current);
+  const removeField = (editorKey: string) => {
+    setFormConfig((current) => current ? { ...current, questions: current.questions.filter((field) => field.editorKey !== editorKey) } : current);
   };
 
   if (isLoading || !formConfig) {
@@ -117,13 +135,13 @@ export default function EditFormPage() {
         </CardContent></Card>
 
         <Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle className="text-base">Application questions</CardTitle><p className="mt-1 text-sm text-muted-foreground">Questions appear in this order on the public form.</p></div><Button variant="outline" size="sm" onClick={addField}><Plus className="mr-2 h-4 w-4" />Add question</Button></CardHeader><CardContent className="space-y-4">
-          {formConfig.questions.map((field, index) => <div key={field.id} className="relative space-y-4 rounded-xl border border-border/50 bg-card p-4">
-            <Button variant="ghost" size="icon" aria-label={`Remove question ${index + 1}`} className="absolute right-2 top-2 text-destructive hover:bg-destructive/10" onClick={() => removeField(index)}><Trash2 className="h-4 w-4" /></Button>
+          {formConfig.questions.map((field, index) => <div key={field.editorKey} className="relative space-y-4 rounded-xl border border-border/50 bg-card p-4">
+            <Button variant="ghost" size="icon" aria-label={`Remove question ${index + 1}`} className="absolute right-2 top-2 text-destructive hover:bg-destructive/10" onClick={() => removeField(field.editorKey)}><Trash2 className="h-4 w-4" /></Button>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Question {index + 1}</p>
             <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Label</Label><Input value={field.label} onChange={(event) => updateField(index, "label", event.target.value)} /></div><div className="space-y-2"><Label>Field ID</Label><Input value={field.id} onChange={(event) => updateField(index, "id", event.target.value)} className="font-mono text-xs" /></div></div>
             <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Type</Label><Select value={field.type} onValueChange={(value) => updateField(index, "type", value as FormField["type"])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="text">Short text</SelectItem><SelectItem value="textarea">Long text</SelectItem><SelectItem value="select">Dropdown</SelectItem><SelectItem value="number">Number</SelectItem><SelectItem value="date">Date</SelectItem><SelectItem value="tel">Phone</SelectItem><SelectItem value="email">Email</SelectItem><SelectItem value="url">URL</SelectItem><SelectItem value="checkbox">Checkbox</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Placeholder</Label><Input value={field.placeholder || ""} onChange={(event) => updateField(index, "placeholder", event.target.value)} /></div></div>
-            <div className="flex items-center justify-between rounded-lg border border-border/50 p-3"><Label htmlFor={`required-${field.id}`}>Required</Label><Switch id={`required-${field.id}`} checked={field.required === true} onCheckedChange={(checked) => updateField(index, "required", checked)} /></div>
-            {field.type === "select" && <div className="space-y-3 border-t border-border/50 pt-4"><div className="flex items-center justify-between"><Label>Options</Label><Button variant="outline" size="sm" onClick={() => updateField(index, "options", [...(field.options || []), { label: "", value: "" }])}><Plus className="mr-2 h-3 w-3" />Add option</Button></div>{(field.options || []).map((option, optionIndex) => <div key={`${field.id}-option-${optionIndex}`} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><Input aria-label={`Option ${optionIndex + 1} label`} placeholder="Label" value={option.label} onChange={(event) => updateField(index, "options", (field.options || []).map((current, currentIndex) => currentIndex === optionIndex ? { ...current, label: event.target.value } : current))} /><Input aria-label={`Option ${optionIndex + 1} value`} placeholder="Value" value={option.value} onChange={(event) => updateField(index, "options", (field.options || []).map((current, currentIndex) => currentIndex === optionIndex ? { ...current, value: event.target.value } : current))} /><Button variant="ghost" size="icon" aria-label={`Remove option ${optionIndex + 1}`} onClick={() => updateField(index, "options", (field.options || []).filter((_, currentIndex) => currentIndex !== optionIndex))}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>)}</div>}
+            <div className="flex items-center justify-between rounded-lg border border-border/50 p-3"><Label htmlFor={`required-${field.editorKey}`}>Required</Label><Switch id={`required-${field.editorKey}`} checked={field.required === true} onCheckedChange={(checked) => updateField(index, "required", checked)} /></div>
+            {field.type === "select" && <div className="space-y-3 border-t border-border/50 pt-4"><div className="flex items-center justify-between"><Label>Options</Label><Button variant="outline" size="sm" onClick={() => updateField(index, "options", [...(field.options || []), { label: "", value: "" }])}><Plus className="mr-2 h-3 w-3" />Add option</Button></div>{(field.options || []).map((option, optionIndex) => <div key={`${field.editorKey}-option-${optionIndex}`} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><Input aria-label={`Option ${optionIndex + 1} label`} placeholder="Label" value={option.label} onChange={(event) => updateField(index, "options", (field.options || []).map((current, currentIndex) => currentIndex === optionIndex ? { ...current, label: event.target.value } : current))} /><Input aria-label={`Option ${optionIndex + 1} value`} placeholder="Value" value={option.value} onChange={(event) => updateField(index, "options", (field.options || []).map((current, currentIndex) => currentIndex === optionIndex ? { ...current, value: event.target.value } : current))} /><Button variant="ghost" size="icon" aria-label={`Remove option ${optionIndex + 1}`} onClick={() => updateField(index, "options", (field.options || []).filter((_, currentIndex) => currentIndex !== optionIndex))}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>)}</div>}
           </div>)}
           {!formConfig.questions.length && <div className="rounded-xl border border-dashed border-border/50 p-10 text-center text-sm text-muted-foreground">No questions yet. Add the first question to this form.</div>}
         </CardContent></Card>
