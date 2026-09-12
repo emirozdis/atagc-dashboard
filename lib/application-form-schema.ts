@@ -12,9 +12,11 @@ export const applicationFieldTypeSchema = z.enum([
   "checkbox",
 ]);
 
+export const APPLICATION_FIELD_LABEL_MAX_LENGTH = 2000;
+
 export const applicationFieldSchema = z.object({
   id: z.string().trim().min(1).max(100).regex(/^[A-Za-z][A-Za-z0-9_-]*$/, "Field IDs may contain letters, numbers, underscores, and hyphens."),
-  label: z.string().trim().min(1).max(300),
+  label: z.string().trim().min(1, "Question labels cannot be empty.").max(APPLICATION_FIELD_LABEL_MAX_LENGTH, `Question labels must be ${APPLICATION_FIELD_LABEL_MAX_LENGTH.toLocaleString()} characters or fewer.`),
   type: applicationFieldTypeSchema,
   required: z.boolean().optional(),
   placeholder: z.string().max(500).optional(),

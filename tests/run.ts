@@ -22,7 +22,7 @@ import { renderEmailTemplate } from "../lib/email-templates";
 import { isRavenmunEmailAddress } from "../lib/email";
 import { toPostgrestValue } from "../lib/prisma-values";
 import { Prisma } from "@prisma/client";
-import { applicationQuestionsSchema } from "../lib/application-form-schema";
+import { APPLICATION_FIELD_LABEL_MAX_LENGTH, applicationQuestionsSchema } from "../lib/application-form-schema";
 import { parsePagination } from "../lib/pagination";
 
 const secret = "ravenmun-test-secret";
@@ -69,6 +69,12 @@ const validFormQuestions = [
   { id: "choice1", label: "Committee choice", type: "select", required: true, options: [] },
 ];
 assert.equal(applicationQuestionsSchema.safeParse(validFormQuestions).success, true);
+assert.equal(applicationQuestionsSchema.safeParse([
+  { id: "longPrompt", label: "x".repeat(301), type: "textarea" },
+]).success, true);
+assert.equal(applicationQuestionsSchema.safeParse([
+  { id: "tooLongPrompt", label: "x".repeat(APPLICATION_FIELD_LABEL_MAX_LENGTH + 1), type: "textarea" },
+]).success, false);
 assert.equal(applicationQuestionsSchema.safeParse([
   ...validFormQuestions,
   { id: "email", label: "Duplicate", type: "text" },

@@ -11,6 +11,34 @@ type ApiHandlerFunction<TContext = unknown> = (
   context: TContext
 ) => Promise<NextResponse | Response>;
 
+function formatValidationPath(path: PropertyKey[]): string {
+  const parts: string[] = [];
+  for (let index = 0; index < path.length; index += 1) {
+    const segment = path[index];
+    if (typeof segment === "number") {
+      const parent = path[index - 1];
+      if (parent === "questions" || parent === "fields") parts.push(`Question ${segment + 1}`);
+      else if (parent === "options") parts.push(`option ${segment + 1}`);
+      else parts.push(String(segment + 1));
+      continue;
+    }
+    if (typeof segment !== "string") {
+      parts.push(String(segment));
+      continue;
+    }
+    if (segment === "questions" || segment === "fields" || segment === "options") continue;
+    parts.push(segment.replaceAll("_", " "));
+  }
+  return parts.join(" ");
+}
+
+function formatValidationMessage(error: ZodError): string {
+  const issue = error.issues[0];
+  if (!issue) return "The submitted data is invalid.";
+  const path = formatValidationPath(issue.path);
+  return path ? `${path}: ${issue.message}` : issue.message;
+}
+
 export function apiHandler<TContext>(handler: ApiHandlerFunction<TContext>): ApiHandlerFunction<TContext> {
   return async (req: Request, context: TContext) => {
     try {
@@ -40,7 +68,7 @@ export function apiHandler<TContext>(handler: ApiHandlerFunction<TContext>): Api
       // Zod Validation Errors
       if (err instanceof ZodError) {
         return NextResponse.json(
-          { error: "Validation Error", details: err.format() },
+          { error: "Validation Error", message: formatValidationMessage(err), details: err.format() },
           { status: 400 }
         );
       }
