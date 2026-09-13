@@ -68,7 +68,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await getAuthorization({ requireAuth: true, allowedRoles: ROLES.SUPERADMIN });
+  const auth = await getAuthorization({ requireAuth: true, allowedRoles: [ROLES.SUPERADMIN, ROLES.ADMIN] });
   if (!auth.ok) return NextResponse.json({ error: auth.message || "Unauthorized" }, { status: auth.status || 401 });
 
   try {
