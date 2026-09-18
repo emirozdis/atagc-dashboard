@@ -112,29 +112,40 @@ function normalizeDraft(draft: Record<string, unknown>) {
 
 function normalizeQuestions(rawQuestions: unknown[], committeeOptions: RavenApplicationOption[]) {
   const questions: RavenApplicationQuestion[] = [];
+  const seenIds = new Set<string>();
   for (const raw of rawQuestions) {
     if (!raw || typeof raw !== "object") continue;
     const question = raw as RavenApplicationQuestion;
-    if (question.id === "committeePreferences") {
-      [1, 2, 3].forEach((position) => questions.push({
-        ...question,
-        id: `choice${position}`,
-        label: `${position}. Committee Choice`,
-        type: "select",
-        required: position === 1,
-        options: committeeOptions,
-      }));
+    const id = typeof question.id === "string" ? question.id.trim() : "";
+    const label = typeof question.label === "string" ? question.label.trim() : "";
+    if (!id) continue;
+    if (id === "committeePreferences") {
+      [1, 2, 3].forEach((position) => {
+        const choiceId = `choice${position}`;
+        if (seenIds.has(choiceId)) return;
+        seenIds.add(choiceId);
+        questions.push({
+          ...question,
+          id: choiceId,
+          label: `${position}. Committee Choice`,
+          type: "select",
+          required: position === 1,
+          options: committeeOptions,
+        });
+      });
       continue;
     }
-    if (question.id === "grade") {
-      questions.push({ ...question, label: "Grade", type: "select", options: GRADE_OPTIONS });
+    if (!id || !label || seenIds.has(id)) continue;
+    seenIds.add(id);
+    if (id === "grade") {
+      questions.push({ ...question, id, label: "Grade", type: "select", options: GRADE_OPTIONS });
       continue;
     }
-    if (/^choice[123]$/.test(question.id)) {
-      questions.push({ ...question, type: "select", options: committeeOptions });
+    if (/^choice[123]$/.test(id)) {
+      questions.push({ ...question, id, label, type: "select", options: committeeOptions });
       continue;
     }
-    questions.push({ ...question, label: String(question.label || "").replace(/organisation/gi, "organization") });
+    questions.push({ ...question, id, label: label.replace(/organisation/gi, "organization") });
   }
   return questions;
 }
@@ -143,7 +154,7 @@ export default function RavenApplicationForm({ applicationType, initialForm }: {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const initialQuestions = useMemo(() => normalizeQuestions(initialForm.questions, initialForm.committeeOptions), [initialForm]);
-  const [questions] = useState<RavenApplicationQuestion[]>(initialQuestions);
+  const questions = initialQuestions;
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
@@ -171,28 +182,48 @@ export default function RavenApplicationForm({ applicationType, initialForm }: {
       }
 
       let priorApplications: PriorApplication[] = [];
+      let profileDetails: Record<string, unknown> = {};
       if (sessionStatus === "authenticated") {
         try {
-          const response = await fetch("/api/applications/mine");
-          if (response.ok) {
-            const result = await response.json() as { applications?: PriorApplication[] };
+          const [applicationsResponse, profileResponse] = await Promise.all([
+            fetch("/api/applications/mine"),
+            fetch("/api/participant/me"),
+          ]);
+          if (applicationsResponse.ok) {
+            const result = await applicationsResponse.json() as { applications?: PriorApplication[] };
             priorApplications = Array.isArray(result.applications) ? result.applications : [];
           }
+          if (profileResponse.ok) {
+            const result = await profileResponse.json() as { profile?: { details?: unknown } };
+            if (result.profile?.details && typeof result.profile.details === "object" && !Array.isArray(result.profile.details)) {
+              profileDetails = result.profile.details as Record<string, unknown>;
+            }
+          }
         } catch {
-          // A prior application is an enhancement; the local draft remains usable if it cannot be loaded.
+          // Existing applications and profile data are enhancements; the local draft remains usable if they cannot be loaded.
         }
       }
       if (cancelled) return;
 
       const normalizedDraft = normalizeDraft(draft);
       const priorValues = buildPriorValues(priorApplications);
+      const profileAdditionalInfo = profileDetails.additional_info;
+      const profileSchool = profileDetails.school
+        || profileDetails.school_name
+        || (profileDetails.high_schools && typeof profileDetails.high_schools === "object" && !Array.isArray(profileDetails.high_schools)
+          ? (profileDetails.high_schools as { school_name?: unknown }).school_name
+          : undefined)
+        || (profileAdditionalInfo && typeof profileAdditionalInfo === "object" && !Array.isArray(profileAdditionalInfo)
+          ? (profileAdditionalInfo as { manual_school_name?: unknown }).manual_school_name
+          : undefined);
+      const profileValues = { ...profileDetails, school: profileSchool };
       const restored: Record<string, unknown> = {};
       for (const question of questions) {
-        if (Object.prototype.hasOwnProperty.call(normalizedDraft, question.id)) {
+        if (Object.prototype.hasOwnProperty.call(normalizedDraft, question.id) && hasValue(normalizedDraft[question.id])) {
           restored[question.id] = normalizedDraft[question.id];
           continue;
         }
-        const priorValue = findPriorValue(question.id, priorValues);
+        const priorValue = findPriorValue(question.id, profileValues) ?? findPriorValue(question.id, priorValues);
         if (priorValue !== undefined) restored[question.id] = priorValue;
       }
 

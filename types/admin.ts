@@ -82,6 +82,7 @@ export interface Application {
         role: string;
         user_details: {
             phone_number: string;
+            school?: string;
             school_name: string;
             birth_date: string;
             city: string;
@@ -91,6 +92,7 @@ export interface Application {
             high_schools?: { school_name: string };
         } | {
             phone_number: string;
+            school?: string;
             school_name: string;
             birth_date: string;
             city: string;

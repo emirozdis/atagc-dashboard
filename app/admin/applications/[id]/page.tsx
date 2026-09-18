@@ -175,7 +175,13 @@ export default function ApplicationDetailPage() {
   const formData = application.form_data || {};
   const formDef = Array.isArray(application.form) ? application.form[0] : application.form;
 
-  const schoolName = details?.high_schools?.school_name || details?.additional_info?.manual_school_name || "Not specified";
+  const schoolName = details?.high_schools?.school_name
+    || details?.school_name
+    || details?.school
+    || details?.additional_info?.manual_school_name
+    || (typeof formData.school === "string" ? formData.school : null)
+    || (typeof formData.schoolName === "string" ? formData.schoolName : null)
+    || "Not specified";
 
   const getFieldLabel = (key: string) => {
     if (formDef?.steps) {
@@ -329,13 +335,13 @@ export default function ApplicationDetailPage() {
                 <MapPin className="w-4 h-4 shrink-0" />
                 <span className="text-foreground">{details?.city || "-"}</span>
               </div>
-              <Separator />
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Calendar className="w-4 h-4 shrink-0" />
-                <span className="text-foreground">
-                  {details?.birth_date ? new Date(details.birth_date).toLocaleDateString('en-GB') : "-"}
-                </span>
-              </div>
+              {details?.birth_date && <>
+                <Separator />
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Calendar className="w-4 h-4 shrink-0" />
+                  <span className="text-foreground">{new Date(details.birth_date).toLocaleDateString('en-GB')}</span>
+                </div>
+              </>}
               <Separator />
               <div className="flex items-start gap-3 text-muted-foreground">
                 <Users className="w-4 h-4 shrink-0 mt-0.5" />

@@ -15,7 +15,7 @@ export const GET = apiHandler(async (_request: Request, context: { params: Promi
   if (error || !application) return NextResponse.json({ error: "Application not found." }, { status: 404 });
   const [{ data: user }, { data: details }, { data: assignment }, { data: ownedDelegation }, { data: membership }] = await Promise.all([
     supabase.from("users").select("id, full_name, email, role, created_at, is_suspended").eq("id", application.user_id).maybeSingle(),
-    supabase.from("user_details").select("*").eq("user_id", application.user_id).maybeSingle(),
+    supabase.from("user_details").select("*, high_schools(school_name)").eq("user_id", application.user_id).maybeSingle(),
     supabase.from("conference_assignments").select("role, committee_id, committee:committees(id, name, description, slug)").eq("user_id", application.user_id).maybeSingle(),
     supabase.from("delegations").select("id, name, owner_id, application_id").eq("owner_id", application.user_id).maybeSingle(),
     supabase.from("delegation_members").select("delegation_id, accepted").eq("user_id", application.user_id).maybeSingle(),
