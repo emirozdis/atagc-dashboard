@@ -29,9 +29,19 @@ export const GET = apiHandler(async (_request: Request, context: { params: Promi
     const { data: delegation } = await supabase.from("delegations").select("id, name, owner_id").eq("id", delegationId).maybeSingle();
     if (delegation) {
       const { data: leader } = await supabase.from("users").select("id, full_name, email").eq("id", delegation.owner_id).maybeSingle();
+      const { data: leaderApplication } = await supabase
+        .from("applications")
+        .select("id, status")
+        .eq("user_id", delegation.owner_id)
+        .order("submitted_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       const { data: members } = await supabase.from("delegation_members").select("user_id, accepted, joined_at, user:users(id, full_name, email)").eq("delegation_id", delegation.id);
       delegationMembers = members || [];
-      delegationMembersForUser = { delegation: { ...delegation, leader }, accepted: membership?.accepted ?? true };
+      delegationMembersForUser = {
+        delegation: { ...delegation, leader: leader ? { ...leader, application: leaderApplication ? [leaderApplication] : [] } : null },
+        accepted: membership?.accepted ?? true,
+      };
     }
   }
 

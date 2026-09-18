@@ -22,8 +22,8 @@ export const POST = apiHandler(async (req) => {
     const { data: delegation, error: delegationError } = await supabase
         .from("delegations")
         .select("id")
-        .eq("created_by", userId)
-        .single();
+        .or(`owner_id.eq.${userId},created_by.eq.${userId}`)
+        .maybeSingle();
 
     if (delegationError || !delegation) {
         return NextResponse.json(
@@ -38,7 +38,7 @@ export const POST = apiHandler(async (req) => {
         .from("delegation_members")
         .select("user_id")
         .eq("user_id", target_user_id)
-        .eq("delegation", delegation.id)
+        .or(`delegation_id.eq.${delegation.id},delegation.eq.${delegation.id}`)
         .maybeSingle();
 
     if (!member) {
@@ -53,7 +53,7 @@ export const POST = apiHandler(async (req) => {
             .from("delegation_members")
             .delete()
             .eq("user_id", target_user_id)
-            .eq("delegation", delegation.id);
+            .or(`delegation_id.eq.${delegation.id},delegation.eq.${delegation.id}`);
 
         if (error) throw new Error(error.message);
     } else {
@@ -61,7 +61,7 @@ export const POST = apiHandler(async (req) => {
             .from("delegation_members")
             .update({ accepted: action === "accept" })
             .eq("user_id", target_user_id)
-            .eq("delegation", delegation.id);
+            .or(`delegation_id.eq.${delegation.id},delegation.eq.${delegation.id}`);
 
         if (error) throw new Error(error.message);
     }

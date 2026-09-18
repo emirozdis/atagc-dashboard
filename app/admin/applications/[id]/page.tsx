@@ -244,7 +244,7 @@ export default function ApplicationDetailPage() {
 
   const isDelegationMember = !!delegationMember;
   const isAcceptedToDelegation = delegationMember?.accepted === true;
-  const isLeaderApproved = leaderStatus === 'approved';
+  const isLeaderApproved = leaderStatus === 'approved' || leaderStatus === 'accepted';
   
   // A member can be approved ONLY IF they are accepted to the delegation AND their leader is approved.
   const canReviewApplication = !isDelegationMember || (isAcceptedToDelegation && isLeaderApproved);
@@ -281,9 +281,16 @@ export default function ApplicationDetailPage() {
           )}
 
           {application.status === 'pending' && isDelegationMember && !canReviewApplication && (
-            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 whitespace-nowrap">
-              {!isAcceptedToDelegation ? "Waiting for delegation leader approval" : "Waiting for leader approval of the application"}
-            </Badge>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 whitespace-nowrap">
+                {!isAcceptedToDelegation ? "Waiting for delegation leader approval" : "Waiting for leader approval of the application"}
+              </Badge>
+              {isAcceptedToDelegation && leaderAppId && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/admin/applications/${leaderAppId}`}>Review leader application</Link>
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>

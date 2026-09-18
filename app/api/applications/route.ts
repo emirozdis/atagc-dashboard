@@ -382,18 +382,18 @@ async function updateApplicationStatus(
     const currentApp = currentAppData as unknown as ApplicationData;
     const formObj = unwrapRelation(currentApp.form);
 
-    if ((status === ApplicationStatusEnum.APPROVED || status === ApplicationStatusEnum.ACCEPTED) && !currentApp.form_snapshot?.title) {
+    if (status === ApplicationStatusEnum.APPROVED || status === ApplicationStatusEnum.ACCEPTED) {
         const { data: member } = await supabase
             .from("delegation_members")
-            .select("delegation")
+            .select("delegation_id")
             .eq("user_id", currentApp.user_id)
             .maybeSingle();
 
         if (member) {
-            const { data: del } = await supabase.from("delegations").select("created_by").eq("id", member.delegation).single();
+            const { data: del } = await supabase.from("delegations").select("owner_id").eq("id", member.delegation_id).single();
             if (del) {
-                const { data: leaderApp } = await supabase.from("applications").select("status").eq("user_id", del.created_by).order("submitted_at", { ascending: false }).limit(1).maybeSingle();
-                if (leaderApp?.status !== 'approved') {
+                const { data: leaderApp } = await supabase.from("applications").select("status").eq("user_id", del.owner_id).order("submitted_at", { ascending: false }).limit(1).maybeSingle();
+                if (!leaderApp || !["approved", "accepted"].includes(leaderApp.status)) {
                     throw new Error("The leader of this user's delegation has not been approved yet. Members cannot be approved before the leader.");
                 }
             }
