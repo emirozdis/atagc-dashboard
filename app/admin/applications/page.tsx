@@ -14,7 +14,7 @@ import {
   Calendar,
   GraduationCap,
   ArrowUpDown,
-  MoreHorizontal
+  Briefcase
 } from "lucide-react";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
@@ -31,16 +31,11 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { TableSkeleton } from "@/components/ui/skeleton-loader";
 
 interface ApplicationDetails {
   profile_picture_url?: string | null;
+  school?: string | null;
   additional_info?: { manual_school_name?: string } | null;
   high_schools?: { school_name?: string } | null;
 }
@@ -49,6 +44,8 @@ interface ApplicationRow {
   id: string;
   status: string;
   submitted_at: string;
+  application_type?: string;
+  form_data?: Record<string, unknown>;
   form?: { slug?: string; title?: string } | null;
   user?: {
     full_name: string;
@@ -60,6 +57,20 @@ interface ApplicationRow {
 
 function applicationUser(app: ApplicationRow) {
   return app.user || { full_name: "Unknown applicant", email: "", user_details: null, committee_members: [] };
+}
+
+function applicationSchool(app: ApplicationRow) {
+  const detailsValue = applicationUser(app).user_details;
+  const details = Array.isArray(detailsValue) ? detailsValue[0] : detailsValue;
+  const formData = app.form_data || {};
+  const formSchool = ["school", "schoolName", "school_name", "schoolOrOrganization", "school_or_organization", "manual_school_name"]
+    .map((key) => formData[key])
+    .find((value) => typeof value === "string" && value.trim());
+  return (typeof formSchool === "string" ? formSchool : "")
+    || details?.high_schools?.school_name
+    || details?.school
+    || details?.additional_info?.manual_school_name
+    || "-";
 }
 
 interface ApplicationsResponse {
@@ -75,6 +86,7 @@ export default function ApplicationsPage() {
   const [sortValue, setSortValue] = useState("newest");
 
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterRole, setFilterRole] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -98,13 +110,14 @@ export default function ApplicationsPage() {
   };
 
   const { data, isLoading } = useQuery<ApplicationsResponse>({
-    queryKey: ['applications', page, limit, filterStatus, debouncedSearch, sortValue],
+    queryKey: ['applications', page, limit, filterStatus, filterRole, debouncedSearch, sortValue],
     queryFn: async () => {
       const { key, dir } = getSortConfig(sortValue);
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         status: filterStatus,
+        role: filterRole,
         search: debouncedSearch,
         sort_by: key,
         sort_order: dir
@@ -140,6 +153,12 @@ export default function ApplicationsPage() {
             <XCircle className="w-3 h-3" /> Rejected
           </Badge>
         );
+      case "under_review":
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1.5 whitespace-nowrap">
+            <Eye className="w-3 h-3" /> Under review
+          </Badge>
+        );
       default:
         return (
           <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20 gap-1.5 whitespace-nowrap">
@@ -154,7 +173,8 @@ export default function ApplicationsPage() {
     const details = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
     const assignedCommittee = user.committee_members?.[0]?.committee;
 
-    const formSlug = app.form?.slug || 'delegate';
+    const formSlug = app.form?.slug || app.application_type || 'delegate';
+    const roleLabel = app.form?.title || formSlug;
     const isAcademic = formSlug === 'delegate';
 
     return (
@@ -172,6 +192,10 @@ export default function ApplicationsPage() {
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-sm truncate pr-2">{user.full_name}</div>
                 <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                <Badge variant="secondary" className="mt-2 max-w-full text-[10px] font-medium">
+                  <Briefcase className="mr-1 h-3 w-3 shrink-0" />
+                  <span className="truncate">{roleLabel}</span>
+                </Badge>
               </div>
             </div>
             <div className="shrink-0">
@@ -182,7 +206,7 @@ export default function ApplicationsPage() {
           <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground bg-secondary/10 p-3 rounded-lg border border-border/50">
             <div className="flex items-center gap-2 overflow-hidden">
               <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{details?.high_schools?.school_name || details?.additional_info?.manual_school_name || "No school"}</span>
+              <span className="truncate">{applicationSchool(app)}</span>
             </div>
             <div className="flex items-center gap-2 overflow-hidden">
               <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -248,6 +272,23 @@ export default function ApplicationsPage() {
             </SelectContent>
           </Select>
 
+          <Select value={filterRole} onValueChange={(val) => { setFilterRole(val); setPage(1); }}>
+            <SelectTrigger className="w-full sm:w-[180px] h-10 bg-background border-border/50">
+              <div className="flex items-center gap-2 truncate">
+                <Briefcase className="w-4 h-4 shrink-0" />
+                <SelectValue placeholder="Role" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="delegate">Delegate</SelectItem>
+              <SelectItem value="chairboard">Chairboard</SelectItem>
+              <SelectItem value="delegation">Delegation leader</SelectItem>
+              <SelectItem value="press">Press</SelectItem>
+              <SelectItem value="observer">Observer</SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* Sort Selector */}
           <Select value={sortValue} onValueChange={(val) => { setSortValue(val); setPage(1); }}>
             <SelectTrigger className="w-full sm:w-[180px] h-10 bg-background border-border/50">
@@ -296,8 +337,8 @@ export default function ApplicationsPage() {
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border-2 border-dashed border-border/50 rounded-xl bg-muted/5">
           <Search className="w-12 h-12 mb-3 opacity-20" />
           <p>No applications match the selected filters.</p>
-          {(filterStatus !== 'all' || searchQuery) && (
-            <Button variant="link" onClick={() => { setFilterStatus('all'); setSearchQuery(''); }} className="mt-2">
+          {(filterStatus !== 'all' || filterRole !== 'all' || searchQuery) && (
+            <Button variant="link" onClick={() => { setFilterStatus('all'); setFilterRole('all'); setSearchQuery(''); }} className="mt-2">
               Clear filters
             </Button>
           )}
@@ -324,7 +365,7 @@ export default function ApplicationsPage() {
                   const details = Array.isArray(user.user_details) ? user.user_details[0] : user.user_details;
                   const assignedCommittee = user.committee_members?.[0]?.committee;
 
-                  const formSlug = app.form?.slug || 'delegate';
+                  const formSlug = app.form?.slug || app.application_type || 'delegate';
                   const isAcademic = formSlug === 'delegate' || formSlug === 'committee_chairman' || formSlug === 'chair' || formSlug === 'deputy_chair';
 
                   return (
@@ -350,8 +391,8 @@ export default function ApplicationsPage() {
                           {app.form?.title || formSlug}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate" title={details?.high_schools?.school_name || details?.additional_info?.manual_school_name}>
-                        {details?.high_schools?.school_name || details?.additional_info?.manual_school_name || "-"}
+                      <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate" title={applicationSchool(app)}>
+                        {applicationSchool(app)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {new Date(app.submitted_at).toLocaleDateString("en-GB")}
@@ -378,18 +419,17 @@ export default function ApplicationsPage() {
                       </TableCell>
                       <TableCell>{getStatusBadge(app.status)}</TableCell>
                       <TableCell className="text-right pr-6">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => router.push(`/admin/applications/${app.id}`)}>
-                              <Eye className="w-4 h-4 mr-2" /> Review
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            router.push(`/admin/applications/${app.id}`);
+                          }}
+                        >
+                          <Eye className="w-4 h-4 mr-2" /> Review
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );

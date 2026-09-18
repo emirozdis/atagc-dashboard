@@ -26,6 +26,7 @@ export const GET = apiHandler(async (
         .select(`
             id,
             name,
+            application_id,
             created_at,
             leader:users!delegations_created_by_fkey (
                 id,
@@ -34,6 +35,7 @@ export const GET = apiHandler(async (
                 application:applications(id, status),
                 user_details (
                     phone_number,
+                    school,
                     high_schools(school_name),
                     additional_info
                 )
@@ -58,7 +60,14 @@ export const GET = apiHandler(async (
 
     const leaderRaw = d.leader as unknown as DelegationLeader;
     const leader = Array.isArray(leaderRaw) ? leaderRaw[0] : leaderRaw;
-    const leaderApp = Array.isArray(leader?.application) ? leader.application[0] : leader?.application;
+    const leaderApplicationQuery = supabase.from("applications").select("id, status");
+    const { data: linkedLeaderApp } = d.application_id
+        ? await leaderApplicationQuery.eq("id", d.application_id).maybeSingle()
+        : leader?.id
+            ? await leaderApplicationQuery.eq("user_id", leader.id).eq("application_type", "delegation").order("submitted_at", { ascending: false }).limit(1).maybeSingle()
+            : { data: null };
+    const fallbackLeaderApp = Array.isArray(leader?.application) ? leader.application[0] : leader?.application;
+    const leaderApp = linkedLeaderApp || fallbackLeaderApp;
 
     const formattedData = {
         id: d.id,

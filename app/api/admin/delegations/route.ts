@@ -8,6 +8,7 @@ import { parsePagination } from "@/lib/pagination";
 type DelegationListRow = {
     id: string;
     name: string;
+    application_id?: string | null;
     created_at: string;
     leader?: { full_name?: string; email?: string; application?: Array<{ status?: string }> } | Array<{ full_name?: string; email?: string; application?: Array<{ status?: string }> }> | null;
     members?: Array<{ count?: number }>;
@@ -29,6 +30,7 @@ export const GET = apiHandler(async (request: Request) => {
         .select(`
             id,
             name,
+            application_id,
             created_at,
             leader:users!delegations_created_by_fkey (
                 full_name,
@@ -48,13 +50,23 @@ export const GET = apiHandler(async (request: Request) => {
 
     if (error) throw error;
 
-    const formattedData = (data as unknown as DelegationListRow[]).map((d) => ({
+    const rows = data as unknown as DelegationListRow[];
+    const applicationIds = rows.map((delegation) => delegation.application_id).filter((id): id is string => !!id);
+    const { data: linkedApplications, error: linkedApplicationsError } = applicationIds.length
+        ? await supabase.from("applications").select("id, status").in("id", applicationIds)
+        : { data: [], error: null };
+    if (linkedApplicationsError) throw linkedApplicationsError;
+    const statusesByApplicationId = new Map((linkedApplications || []).map((application) => [application.id, application.status]));
+
+    const formattedData = rows.map((d) => ({
         id: d.id,
         name: d.name,
         created_at: d.created_at,
         leader: d.leader,
         member_count: d.members?.[0]?.count || 0,
-        status: (Array.isArray(d.leader) ? d.leader[0]?.application?.[0]?.status : d.leader?.application?.[0]?.status) || 'pending'
+        status: (d.application_id ? statusesByApplicationId.get(d.application_id) : null)
+            || (Array.isArray(d.leader) ? d.leader[0]?.application?.[0]?.status : d.leader?.application?.[0]?.status)
+            || 'pending'
     }));
 
     return NextResponse.json({

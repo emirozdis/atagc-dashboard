@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { 
     Search, 
     Users, 
-    Calendar,
     Crown,
     ChevronRight,
     CheckCircle2,
@@ -43,7 +42,7 @@ interface Delegation {
 export default function AdminDelegationsPage() {
     const router = useRouter();
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
+    const limit = 10;
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -76,6 +75,7 @@ export default function AdminDelegationsPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "approved":
+            case "accepted":
                 return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Approved</Badge>;
             case "rejected":
                 return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 gap-1.5"><XCircle className="w-3.5 h-3.5" /> Rejected</Badge>;

@@ -1,24 +1,23 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { 
     ArrowLeft, 
     Users, 
     Crown, 
-    Mail, 
     Phone, 
     School, 
     Calendar,
-    CheckCircle2,
     XCircle,
     Clock,
     UserCheck,
     UserMinus,
-    ArrowUpRight,
     ShieldCheck,
     User,
-    FileText
+    FileText,
+    Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,6 +37,7 @@ import { cn } from "@/lib/utils";
 
 interface DelegationUserDetails {
     phone_number?: string | null;
+    school?: string | null;
     additional_info?: { manual_school_name?: string } | null;
     high_schools?: { school_name?: string } | null;
 }
@@ -70,6 +70,7 @@ interface DelegationDetail {
 export default function DelegationDetailPage() {
     const { id } = useParams();
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     const { data: delegation, isLoading, error } = useQuery<DelegationDetail>({
         queryKey: ['admin-delegation-detail', id],
@@ -80,12 +81,33 @@ export default function DelegationDetailPage() {
         }
     });
 
+    const statusMutation = useMutation({
+        mutationFn: async (status: "accepted" | "rejected") => {
+            if (!delegation?.leader_application_id) throw new Error("This delegation has no linked leader application.");
+            const res = await fetch("/api/applications", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: delegation.leader_application_id, status }),
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || "The delegation status could not be updated.");
+        },
+        onSuccess: (_data, status) => {
+            toast.success(status === "accepted" ? "Delegation approved" : "Delegation rejected");
+            queryClient.invalidateQueries({ queryKey: ['admin-delegation-detail', id] });
+            queryClient.invalidateQueries({ queryKey: ['admin-delegations'] });
+            queryClient.invalidateQueries({ queryKey: ['applications'] });
+        },
+        onError: (mutationError: Error) => toast.error(mutationError.message),
+    });
+
     if (isLoading) return <LoadingSkeleton />;
     if (error || !delegation) return <ErrorState />;
 
     const getStatusConfig = (status: string) => {
         switch (status) {
-            case 'approved': return { 
+            case 'approved':
+            case 'accepted': return {
                 label: "APPROVED DELEGATION",
                 icon: ShieldCheck, 
                 color: "text-emerald-600", 
@@ -114,7 +136,8 @@ export default function DelegationDetailPage() {
 
     const getAppStatusBadge = (status: string) => {
         switch (status) {
-            case 'approved': return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] h-5">Approved</Badge>;
+            case 'approved':
+            case 'accepted': return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] h-5">Approved</Badge>;
             case 'rejected': return <Badge className="bg-red-500/10 text-red-600 border-red-500/20 text-[10px] h-5">Rejected</Badge>;
             case 'pending': return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] h-5">Pending</Badge>;
             default: return <Badge variant="outline" className="text-[10px] h-5 opacity-50">No record</Badge>;
@@ -139,9 +162,43 @@ export default function DelegationDetailPage() {
                     </div>
                 </div>
                 
-                <div className={cn("flex items-center gap-3 px-4 py-2 rounded-xl border-2 transition-all", statusCfg.bg, statusCfg.border, statusCfg.color)}>
-                    <StatusIcon className="w-5 h-5" />
-                    <span className="text-xs font-bold uppercase tracking-widest">{statusCfg.label}</span>
+                <div className="flex w-full flex-col items-stretch gap-3 md:w-auto md:items-end">
+                    <div className={cn("flex items-center gap-3 px-4 py-2 rounded-xl border-2 transition-all", statusCfg.bg, statusCfg.border, statusCfg.color)}>
+                        <StatusIcon className="w-5 h-5" />
+                        <span className="text-xs font-bold uppercase tracking-widest">{statusCfg.label}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {delegation.leader_application_id && (
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={`/admin/applications/${delegation.leader_application_id}`}>
+                                    <FileText className="mr-2 h-4 w-4" /> Review application
+                                </Link>
+                            </Button>
+                        )}
+                        {!['approved', 'accepted'].includes(delegation.status) && (
+                            <Button
+                                size="sm"
+                                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                disabled={statusMutation.isPending || !delegation.leader_application_id}
+                                onClick={() => statusMutation.mutate("accepted")}
+                            >
+                                {statusMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Approve delegation
+                            </Button>
+                        )}
+                        {delegation.status !== 'rejected' && (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={statusMutation.isPending || !delegation.leader_application_id}
+                                onClick={() => {
+                                    if (window.confirm("Reject this delegation application?")) statusMutation.mutate("rejected");
+                                }}
+                            >
+                                Reject
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -176,7 +233,7 @@ export default function DelegationDetailPage() {
                                 <div className="flex items-start gap-3 text-muted-foreground">
                                     <div className="p-2 rounded-lg bg-secondary/50 mt-0.5"><School className="w-4 h-4 text-primary" /></div>
                                     <span className="text-foreground font-semibold leading-tight line-clamp-2">
-                                        {delegation.leader.user_details?.[0]?.high_schools?.school_name || delegation.leader.user_details?.[0]?.additional_info?.manual_school_name || "No school specified"}
+                                        {delegation.leader.user_details?.[0]?.high_schools?.school_name || delegation.leader.user_details?.[0]?.school || delegation.leader.user_details?.[0]?.additional_info?.manual_school_name || "No school specified"}
                                     </span>
                                 </div>
                             </div>

@@ -45,7 +45,7 @@ function unwrapRelation<T>(data: T | T[] | null): T | null {
 }
 
 async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
-    const { page, limit, search, status, sort_by, sort_order } = params;
+    const { page, limit, search, status, role, sort_by, sort_order } = params;
 
     let query = supabase
         .from("applications")
@@ -67,6 +67,7 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
                 user_details (
                     id,
                     phone_number,
+                    school,
                     high_school_id,
                     city,
                     grade,
@@ -94,21 +95,7 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
         }
     }
 
-    if (search) {
-        const { data: matchingUsers, error: userSearchError } = await supabase
-            .from("users")
-            .select("id")
-            .or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
-        if (userSearchError) throw new Error(userSearchError.message);
-        const matchingUserIds = (matchingUsers || []).map((user) => user.id);
-        if (matchingUserIds.length === 0) {
-            return {
-                data: [],
-                meta: { total: 0, page, limit, totalPages: 0 },
-            };
-        }
-        query = query.in("user_id", matchingUserIds);
-    }
+    if (role !== "all") query = query.eq("application_type", role);
 
     const { data, error, count } = await query;
 
@@ -123,13 +110,20 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
     };
     const getApplicant = (application: unknown) => firstRecord(asRecord(application)?.user);
     const getSchoolName = (application: unknown) => {
+        const formData = asRecord(asRecord(application)?.form_data);
+        for (const key of ["school", "schoolName", "school_name", "schoolOrOrganization", "school_or_organization", "manual_school_name"]) {
+            const value = formData?.[key];
+            if (typeof value === "string" && value.trim()) return value.trim();
+        }
         const user = getApplicant(application);
         const details = firstRecord(user?.user_details);
         const highSchool = firstRecord(details?.high_schools);
         const school = typeof highSchool?.school_name === "string" ? highSchool.school_name : "";
         if (school) return school;
+        if (typeof details?.school === "string" && details.school.trim()) return details.school.trim();
         const additional = asRecord(details?.additional_info);
-        return typeof additional?.manual_school_name === "string" ? additional.manual_school_name : "";
+        if (typeof additional?.manual_school_name === "string" && additional.manual_school_name.trim()) return additional.manual_school_name.trim();
+        return "";
     };
 
     let rows = (data || []) as unknown as Array<Record<string, unknown>>;
@@ -146,6 +140,7 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
                 user_details (
                     id,
                     phone_number,
+                    school,
                     high_school_id,
                     city,
                     grade,
@@ -175,6 +170,14 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
             return form?.slug === "delegate" && (!Array.isArray(committeeMembers) || committeeMembers.length === 0);
         });
     }
+    if (search.trim()) {
+        const normalizedSearch = search.trim().toLocaleLowerCase("en");
+        rows = rows.filter((application) => {
+            const user = getApplicant(application);
+            return [user?.full_name, user?.email, getSchoolName(application)]
+                .some((value) => typeof value === "string" && value.toLocaleLowerCase("en").includes(normalizedSearch));
+        });
+    }
 
     rows.sort((left, right) => {
         const leftUser = getApplicant(left);
@@ -195,7 +198,7 @@ async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
 
     const from = (page - 1) * limit;
     const paginatedRows = rows.slice(from, from + limit);
-    const total = status === "unassigned" ? rows.length : count || rows.length;
+    const total = search.trim() || status === "unassigned" ? rows.length : count || rows.length;
 
     return {
         data: paginatedRows,
@@ -390,9 +393,12 @@ async function updateApplicationStatus(
             .maybeSingle();
 
         if (member) {
-            const { data: del } = await supabase.from("delegations").select("owner_id").eq("id", member.delegation_id).single();
+            const { data: del } = await supabase.from("delegations").select("owner_id, application_id").eq("id", member.delegation_id).single();
             if (del) {
-                const { data: leaderApp } = await supabase.from("applications").select("status").eq("user_id", del.owner_id).order("submitted_at", { ascending: false }).limit(1).maybeSingle();
+                const leaderApplicationQuery = supabase.from("applications").select("status");
+                const { data: leaderApp } = del.application_id
+                    ? await leaderApplicationQuery.eq("id", del.application_id).maybeSingle()
+                    : await leaderApplicationQuery.eq("user_id", del.owner_id).eq("application_type", "delegation").order("submitted_at", { ascending: false }).limit(1).maybeSingle();
                 if (!leaderApp || !["approved", "accepted"].includes(leaderApp.status)) {
                     throw new Error("The leader of this user's delegation has not been approved yet. Members cannot be approved before the leader.");
                 }

@@ -65,6 +65,7 @@ export const searchParamsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().optional().default(""),
   status: z.string().optional().default("all"),
+  role: z.enum(["all", "delegate", "chairboard", "delegation", "press", "observer"]).default("all"),
   // Added "school_name" to the enum to match frontend options and API logic
   sort_by: z.enum(["submitted_at", "status", "full_name", "school_name"]).default("submitted_at"),
   sort_order: z.enum(["asc", "desc"]).default("desc"),
