@@ -114,6 +114,20 @@ export interface User {
         };
     }[] | null;
 
+    delegation?: {
+        id: number;
+        name: string;
+        leader_name?: string;
+        accepted?: boolean | null;
+    } | null;
+
+    delegations?: {
+        id: number;
+        name: string;
+        leader_name?: string;
+        accepted?: boolean | null;
+    }[];
+
     payment_receipts?: {
         id: string;
     }[];

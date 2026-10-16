@@ -30,7 +30,7 @@ import {
 import { getEffectiveRole, STAFF_ROLES } from "@/lib/roles";
 
 type PortalApplication = { application_type: string; status: string };
-type PortalApplicationData = { applications?: PortalApplication[]; delegation?: { id: string } | null };
+type PortalApplicationData = { applications?: PortalApplication[]; delegation?: { id: string } | null; delegations?: { id: string; name?: string }[] };
 type PortalNavItem = { href: string; label: string; icon: typeof Home };
 
 const roleLabels: Record<string, string> = {
@@ -71,6 +71,7 @@ export default function RavenPortalShell({ children }: { children: ReactNode }) 
 
   const hasDelegation = Boolean(
     applicationData?.delegation
+    || applicationData?.delegations?.length
     || applicationData?.applications?.some((application) => application.application_type === "delegation"),
   );
   const items: PortalNavItem[] = [

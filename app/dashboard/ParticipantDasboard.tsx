@@ -50,6 +50,9 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
   });
 
   const { profile: userProfile, application, committee } = profile || {};
+  // a participant can belong to several delegations, so the legacy single
+  // profile field may now arrive as a list. The card below shows the first.
+  const primaryDelegation = Array.isArray(userProfile?.delegation) ? userProfile?.delegation[0] : userProfile?.delegation;
   const appStatus = application?.status || "pending";
 
   const { data: paymentData, isLoading: paymentLoading } = useQuery({
@@ -326,7 +329,7 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
           )}
 
           {/* Delegation Membership Status (For Non-Leaders or Members) */}
-          {userProfile?.delegation && !isDelegationLeader && (
+          {primaryDelegation && !isDelegationLeader && (
             <Card className="border-border/50 shadow-sm bg-card overflow-hidden hover:border-primary/20 transition-all">
               <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
                 <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -337,13 +340,13 @@ export function ParticipantDashboard({ user }: ParticipantDashboardProps) {
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Delegation:</span>
-                    <span className="font-medium">{userProfile.delegation.name}</span>
+                    <span className="font-medium">{primaryDelegation.name}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Participation status:</span>
-                    {userProfile.delegation.accepted === true ? (
+                    {primaryDelegation.accepted === true ? (
                       <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Approved</Badge>
-                    ) : userProfile.delegation.accepted === false ? (
+                    ) : primaryDelegation.accepted === false ? (
                       <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Rejected</Badge>
                     ) : (
                       <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Pending</Badge>

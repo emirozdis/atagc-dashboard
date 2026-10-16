@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { apiHandler } from "@/lib/api-handler";
 import { deleteFile, getSignedUrl } from "@/lib/storage-utils";
 import { updateProfileSchema } from "@/lib/schemas";
+import { HttpError } from "@/lib/http-error";
 
 const limiter = rateLimit({ namespace: "api/participant/me:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 
@@ -16,6 +17,7 @@ type ParticipantCommittee = { id?: string; name?: string; description?: string; 
 type ParticipantAdmin = { full_name?: string; user_details?: Relation<ParticipantDetails>; profile_picture_url?: string | null };
 type ParticipantMember = { committee?: Relation<ParticipantCommittee>; can_write?: boolean };
 type ParticipantDelegation = { id: string; name: string; leader?: Relation<{ full_name?: string }> };
+type DelegationRow = { id: string; name: string; owner_id?: string | null };
 type ParticipantUser = {
   id: string;
   full_name: string;
@@ -27,7 +29,7 @@ type ParticipantUser = {
   application?: Relation<ParticipantApplication>;
   committee_members?: ParticipantMember[];
   managed_committees?: ParticipantCommittee[];
-  delegation_members?: { delegation?: Relation<ParticipantDelegation>; accepted?: boolean } | null;
+  delegation_members?: { delegation?: Relation<ParticipantDelegation>; accepted?: boolean | null } | null;
   user_warnings?: Array<{ id: string; reason: string; category: string; created_at: string }>;
   [key: string]: unknown;
 };
@@ -59,26 +61,39 @@ export const GET = apiHandler(async (request: Request) => {
   const session = auth.session;
   const userId = session.user.id;
 
-  const [{ data: directUser, error: directUserError }, { data: directDetails }, { data: directApplication }, { data: profileApplications }, { data: assignment }, { data: managedCommittees }, { data: delegationMember }, { data: warnings }] = await Promise.all([
+  const [{ data: directUser, error: directUserError }, { data: directDetails }, { data: directApplication }, { data: profileApplications }, { data: assignment }, { data: managedCommittees }, { data: rawDelegationMembers, error: delegationMembersError }, { data: warnings }] = await Promise.all([
       supabase.from("users").select("id, full_name, email, role, created_at, is_suspended").eq("id", userId).maybeSingle(),
       supabase.from("user_details").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("applications").select("id, application_type, status, payment_status, submitted_at, form_data, form_snapshot, form:application_forms(id, slug, title, fee, questions)").eq("user_id", userId).order("submitted_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("applications").select("form_data, submitted_at").eq("user_id", userId).order("submitted_at", { ascending: false }),
       supabase.from("conference_assignments").select("role, committee_id, committee:committees(id, name, description, slug, admin_id)").eq("user_id", userId).maybeSingle(),
       supabase.from("committees").select("id, name, description, slug, admin_id").eq("admin_id", userId),
-      supabase.from("delegation_members").select("delegation_id, accepted").eq("user_id", userId).maybeSingle(),
+      supabase.from("delegation_members").select("delegation_id, delegation, accepted, joined_at").eq("user_id", userId).order("joined_at", { ascending: false }),
       supabase.from("user_warnings").select("id, reason, category, created_at").eq("user_id", userId).order("created_at", { ascending: false }),
     ]);
   if (directUserError || !directUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
   const participantUser = directUser as unknown as ParticipantUser;
-  let delegationRecord: ParticipantDelegation | null = null;
-    if (delegationMember?.delegation_id) {
-      const { data: delegation } = await supabase.from("delegations").select("id, name, owner_id").eq("id", delegationMember.delegation_id).maybeSingle();
-      if (delegation) {
-        const { data: owner } = await supabase.from("users").select("full_name").eq("id", delegation.owner_id).maybeSingle();
-        delegationRecord = { id: delegation.id, name: delegation.name, leader: owner };
-      }
-    }
+  if (delegationMembersError) throw new HttpError(500, "Unable to load your delegations.");
+  const memberships = (rawDelegationMembers || []) as unknown as Array<{ delegation_id?: string | null; delegation?: string | null; accepted?: boolean | null }>;
+  const delegationMember = memberships[0] || null;
+
+  // a participant may lead several delegations and may also belong to several,
+  // so resolve every row they own or have joined rather than an arbitrary one.
+  const ownedDelegationQuery = await supabase.from("delegations").select("id, name, owner_id").eq("owner_id", userId).order("created_at", { ascending: false });
+  if (ownedDelegationQuery.error) throw new HttpError(500, "Unable to load your delegations.");
+  const ownedDelegations = ownedDelegationQuery.data as unknown as DelegationRow[];
+  const joinedIds = [...new Set(memberships.map((entry) => entry.delegation_id || entry.delegation).filter((id): id is string => Boolean(id) && !ownedDelegations.some((row) => row.id === id)))];
+  const joinedDelegationQuery = joinedIds.length
+    ? await supabase.from("delegations").select("id, name, owner_id").in("id", joinedIds)
+    : { data: [], error: null };
+  const allDelegations = [...ownedDelegations, ...((joinedDelegationQuery.data || []) as unknown as DelegationRow[])];
+  const leaderIds = [...new Set(allDelegations.map((row) => row.owner_id).filter((id): id is string => Boolean(id)))];
+  const leaderQuery = leaderIds.length
+    ? await supabase.from("users").select("id, full_name").in("id", leaderIds)
+    : { data: [], error: null };
+  const leaderNames = new Map(((leaderQuery.data || []) as unknown as Array<{ id: string; full_name: string }>).map((row) => [row.id, row.full_name]));
+  const delegationSummaries: ParticipantDelegation[] = allDelegations.map((row) => ({ id: row.id, name: row.name, leader: { full_name: leaderNames.get(row.owner_id || "") || "" } }));
+  const delegationRecord: ParticipantDelegation | null = delegationSummaries[0] || null;
   const user: ParticipantUser = {
     ...participantUser,
     user_details: directDetails as unknown as ParticipantDetails | null,
@@ -147,7 +162,7 @@ export const GET = apiHandler(async (request: Request) => {
   }
 
   const delegationMembership = user.delegation_members;
-  let delegationData: { id: string; name: string; leader_name: string; accepted?: boolean } | null = null;
+  let delegationData: { id: string; name: string; leader_name: string; accepted?: boolean | null } | null = null;
   if (delegationMembership?.delegation) {
     const del = firstRelation(delegationMembership.delegation);
     if (!del) return NextResponse.json({ error: "Delegation not found" }, { status: 404 });
@@ -192,6 +207,7 @@ export const GET = apiHandler(async (request: Request) => {
       application: undefined
     },
     application: application || null,
+    delegations: delegationSummaries,
     committee: committeeData
   };
 

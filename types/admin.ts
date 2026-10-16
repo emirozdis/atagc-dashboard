@@ -14,19 +14,22 @@ export interface Committee {
     }[];
 }
 
+type DelegationLeaderData = {
+    full_name?: string;
+    application?: { id: string; status: string }[] | { id: string; status: string } | null;
+};
+
+type DelegationLike = {
+    id: number;
+    name: string;
+    /** Authoritative link to the leader's application (new backend field). */
+    application_id?: string | null;
+    leader?: DelegationLeaderData | DelegationLeaderData[] | null;
+};
+
 type DelegationMemberData = {
     accepted: boolean | null;
-    delegation: {
-        id: number;
-        name: string;
-        leader: {
-            full_name: string;
-            application?: { id: string; status: string }[] | { id: string; status: string };
-        } | {
-            full_name: string;
-            application?: { id: string; status: string }[] | { id: string; status: string };
-        }[];
-    };
+    delegation: DelegationLike | DelegationLike[] | null;
 };
 
 type AdminAdditionalInfo = {
@@ -115,6 +118,8 @@ export interface Application {
             }
         } | null;
         delegation_members?: DelegationMemberData[] | DelegationMemberData | null;
-        owned_delegation?: { id: number; name: string }[] | { id: number; name: string } | null;
+        owned_delegation?: DelegationLike[] | DelegationLike | null;
+        /** Newest-first array of delegations owned by the applicant. */
+        owned_delegations?: DelegationLike[] | null;
     };
 }

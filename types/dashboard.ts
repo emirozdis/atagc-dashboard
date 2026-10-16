@@ -64,7 +64,18 @@ export interface ProfileData {
             name: string;
             leader_name: string;
             accepted: boolean | null;
-        } | null;
+        } | {
+            id: number;
+            name: string;
+            leader_name?: string;
+            accepted?: boolean | null;
+        }[] | null;
+        delegations?: {
+            id: number;
+            name: string;
+            leader_name?: string;
+            accepted?: boolean | null;
+        }[];
         consents?: UserConsent[];
     };
     application: {

@@ -45,6 +45,9 @@ import Link from "next/link";
 import { Committee, Application } from "@/types/admin";
 import { GRADE_OPTIONS } from "@/lib/constants";
 
+/** Shape of a delegation record returned by /api/applications/[id] (owned_delegation / owned_delegations / delegation_members[].delegation). */
+type ReviewDelegation = NonNullable<NonNullable<Application["user"]["owned_delegations"]>[number]>;
+
 export default function ApplicationDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -57,6 +60,9 @@ export default function ApplicationDetailPage() {
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
   const [showAssignConfirm, setShowAssignConfirm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  // Lets the admin pick which delegation to review against when the applicant owns/members several
+  // and none of them is linked to this application.
+  const [selectedDelegationKey, setSelectedDelegationKey] = useState<string | null>(null);
 
   const { data: application, isLoading: appLoading, error } = useQuery<Application>({
     queryKey: ['application', id],
@@ -235,21 +241,48 @@ export default function ApplicationDetailPage() {
     );
   };
 
-  const delegationMember = Array.isArray(user.delegation_members) ? user.delegation_members[0] : user.delegation_members;
-  const delegationInfo = delegationMember?.delegation;
-  const actualDelegation = Array.isArray(delegationInfo) ? delegationInfo[0] : delegationInfo;
-  const actualLeader = Array.isArray(actualDelegation?.leader) ? actualDelegation.leader[0] : actualDelegation?.leader;
-  
-  const leaderApp = Array.isArray(actualLeader?.application) ? actualLeader.application[0] : actualLeader?.application;
+  const toArray = <T,>(value: T | T[] | null | undefined): T[] => (value == null ? [] : Array.isArray(value) ? value : [value]);
+
+  const delegationMembers = toArray(user.delegation_members);
+  const delegationMember = delegationMembers[0] ?? null;
+  // Prefer the new newest-first `owned_delegations` array, fall back to the legacy singular key.
+  const ownedDelegations: ReviewDelegation[] = user.owned_delegations?.length ? user.owned_delegations : toArray<ReviewDelegation>(user.owned_delegation);
+
+  const isDelegationMember = delegationMembers.length > 0;
+  const isAcceptedToDelegation = delegationMembers.some((member) => member?.accepted === true);
+
+  // Delegations this application should be reviewed against: memberships first, then owned ones.
+  const delegationCandidates: ReviewDelegation[] = isDelegationMember
+    ? delegationMembers.flatMap((member) => toArray<ReviewDelegation>(member?.delegation))
+    : ownedDelegations;
+
+  // AUTHORITATIVE link: the delegation whose leader application is the one under review.
+  const matchedDelegations = delegationCandidates.filter(
+    (delegation) => !!delegation?.application_id && delegation.application_id === application.id
+  );
+  const autoResolvedDelegation = matchedDelegations.length === 1
+    ? matchedDelegations[0]
+    : delegationCandidates.length === 1
+      ? delegationCandidates[0]
+      : null;
+  const chosenDelegation = delegationCandidates.find((delegation) => String(delegation?.id) === selectedDelegationKey) ?? null;
+
+  // Genuinely ambiguous: several delegations and no authoritative match — ask, never guess.
+  const needsDelegationChoice = delegationCandidates.length > 1 && !autoResolvedDelegation;
+
+  const actualDelegation: ReviewDelegation | null = autoResolvedDelegation ?? chosenDelegation;
+  const actualLeader = actualDelegation?.leader ? toArray(actualDelegation.leader)[0] : null;
+
+  const leaderApplications = toArray<{ id: string; status: string }>(actualLeader?.application);
+  const leaderApp = leaderApplications.find((leaderApplication) => leaderApplication?.id === actualDelegation?.application_id)
+    ?? leaderApplications[0]
+    ?? null;
   const leaderStatus = leaderApp?.status;
-  const leaderAppId = leaderApp?.id;
+  const leaderAppId = actualDelegation?.application_id || leaderApp?.id;
   const delegationName = actualDelegation?.name || "Unknown delegation";
 
-  const ownedDel = Array.isArray(user.owned_delegation) ? user.owned_delegation[0] : user.owned_delegation;
-  const isLeader = !!ownedDel;
-
-  const isDelegationMember = !!delegationMember;
-  const isAcceptedToDelegation = delegationMember?.accepted === true;
+  const ownedDel = actualDelegation;
+  const isLeader = !isDelegationMember && ownedDelegations.length > 0;
   const isLeaderApproved = leaderStatus === 'approved' || leaderStatus === 'accepted';
   
   // A member can be approved ONLY IF they are accepted to the delegation AND their leader is approved.
@@ -301,6 +334,26 @@ export default function ApplicationDetailPage() {
         </div>
       </div>
 
+      {needsDelegationChoice && (
+        <div className="bg-card border border-amber-500/30 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
+          <div className="flex items-start gap-2 text-sm text-amber-600">
+            <Users className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              This applicant is linked to {delegationCandidates.length} delegations and none of them points at this application.
+              Choose the delegation to review against — nothing else on this page changes.
+            </span>
+          </div>
+          <Select value={selectedDelegationKey ?? ""} onValueChange={setSelectedDelegationKey}>
+            <SelectTrigger className="bg-background h-11 lg:w-64"><SelectValue placeholder="Select a delegation" /></SelectTrigger>
+            <SelectContent>
+              {delegationCandidates.map((delegation) => (
+                <SelectItem key={String(delegation.id)} value={String(delegation.id)}>{delegation.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="w-full lg:w-[350px] space-y-6">
           <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
@@ -348,7 +401,7 @@ export default function ApplicationDetailPage() {
                 <span className="text-foreground">
                   {isLeader ? (
                     <div className="flex flex-col">
-                      <span className="font-medium text-primary">{ownedDel?.name}</span>
+                      <span className="font-medium text-primary">{ownedDel?.name || "Unnamed delegation"}</span>
                       <span className="text-[10px] font-medium mt-0.5">Delegation leader</span>
                     </div>
                   ) : delegationMember ? (
@@ -361,7 +414,7 @@ export default function ApplicationDetailPage() {
                          <span className="font-medium text-primary">Delegation: {delegationName}</span>
                       )}
                       <span className="text-[10px] text-muted-foreground mt-0.5">
-                        Leader status: {leaderStatus === 'approved' ? 'Approved' : leaderStatus === 'rejected' ? 'Rejected' : 'Pending'}
+                        Leader status: {!actualDelegation ? 'Select a delegation above' : leaderStatus === 'approved' ? 'Approved' : leaderStatus === 'rejected' ? 'Rejected' : 'Pending'}
                       </span>
                     </div>
                   ) : "Individual participant"}

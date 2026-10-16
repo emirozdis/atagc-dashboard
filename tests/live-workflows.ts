@@ -292,21 +292,25 @@ async function run() {
     formData: await formDataFor("delegation", delegationOwner.email),
   });
   assert.equal(ownerSubmission.response.status, 200, `delegation application failed: ${JSON.stringify(ownerSubmission.payload)}`);
-  const delegation = await prisma.delegations.findUnique({ where: { owner_id: delegationOwner.id } });
+  // an owner may hold several delegations, so the lookup is no longer unique per owner
+  const delegation = await prisma.delegations.findFirst({
+    where: { owner_id: delegationOwner.id },
+    orderBy: { created_at: "asc" },
+  });
   assert.ok(delegation, "delegation application did not create a delegation");
 
   const deliveryEmail = process.env.LIVE_TEST_DELIVERY_EMAIL;
   if (deliveryEmail) {
     testEmails.push(deliveryEmail.toLowerCase());
-    const sent = await postJson(delegationOwner, "/api/delegations/invites", { email: deliveryEmail, turnstileToken: "XXXX.DUMMY.TOKEN.XXXX" });
+    const sent = await postJson(delegationOwner, "/api/delegations/invites", { email: deliveryEmail, delegationId: delegation.id, turnstileToken: "XXXX.DUMMY.TOKEN.XXXX" });
     assert.equal(sent.response.status, 200, `delivery invitation failed: ${JSON.stringify(sent.payload)}`);
     assert.equal(sent.payload.emailSent, true, "Resend did not deliver the delegation invitation");
-    const resent = await postJson(delegationOwner, "/api/delegations/invites", { inviteId: sent.payload.invite.id, turnstileToken: "XXXX.DUMMY.TOKEN.XXXX" });
+    const resent = await postJson(delegationOwner, "/api/delegations/invites", { inviteId: sent.payload.invite.id, delegationId: delegation.id, turnstileToken: "XXXX.DUMMY.TOKEN.XXXX" });
     assert.equal(resent.response.status, 200, `invitation resend failed: ${JSON.stringify(resent.payload)}`);
     assert.equal(resent.payload.emailSent, true, "Resend did not re-deliver the delegation invitation");
   }
 
-  const inviteResult = await postJson(delegationOwner, "/api/delegations/invites", { email: invitedMember.email, turnstileToken: "XXXX.DUMMY.TOKEN.XXXX" });
+  const inviteResult = await postJson(delegationOwner, "/api/delegations/invites", { email: invitedMember.email, delegationId: delegation.id, turnstileToken: "XXXX.DUMMY.TOKEN.XXXX" });
   assert.equal(inviteResult.response.status, 200, `member invitation failed: ${JSON.stringify(inviteResult.payload)}`);
   const outbox = await prisma.email_outbox.findFirst({ where: { recipient_email: invitedMember.email }, orderBy: { created_at: "desc" } });
   assert.ok(outbox, "invitation did not create a durable email job");
@@ -333,15 +337,46 @@ async function run() {
   assert.equal(await prisma.applications.count({ where: { user_id: invitedMember.id } }), 2, "multiple application types were not retained");
   assert.equal((await prisma.user_details.findUnique({ where: { user_id: invitedMember.id } }))?.grade, gradeBefore, "a later application erased the saved grade");
 
-  const ownerPortal = await request(delegationOwner, "/api/delegations/invites");
+  // every type except delegation is still limited to one application per account
+  const duplicateDelegate = await postJson(invitedMember, "/api/applications", {
+    applicationType: "delegate",
+    formData: await formDataFor("delegate", invitedMember.email),
+  });
+  assert.equal(duplicateDelegate.response.status, 409, `a repeated delegate application was not rejected with a conflict: ${JSON.stringify(duplicateDelegate.payload)}`);
+  const duplicateMessage = String(duplicateDelegate.payload.error || duplicateDelegate.payload.message || "");
+  assert.ok(duplicateMessage && !/internal server error/i.test(duplicateMessage), `duplicate rejection did not return a readable message: ${JSON.stringify(duplicateDelegate.payload)}`);
+  assert.match(duplicateMessage, /already/i, "duplicate rejection message does not explain the conflict");
+  assert.equal(await prisma.applications.count({ where: { user_id: invitedMember.id, application_type: "delegate" } }), 1, "a rejected duplicate delegate application was still stored");
+
+  const ownerPortal = await request(delegationOwner, `/api/delegations/invites?delegationId=${encodeURIComponent(delegation.id)}`);
   const ownerPortalPayload = await ownerPortal.json() as { canManage?: boolean; members?: unknown[] };
   assert.equal(ownerPortal.status, 200);
   assert.equal(ownerPortalPayload.canManage, true);
   assert.ok((ownerPortalPayload.members || []).length >= 1, "delegation owner cannot see accepted members");
-  const memberPortal = await request(invitedMember, "/api/delegations/invites");
+  const memberPortal = await request(invitedMember, `/api/delegations/invites?delegationId=${encodeURIComponent(delegation.id)}`);
   const memberPortalPayload = await memberPortal.json() as { canManage?: boolean };
   assert.equal(memberPortal.status, 200);
   assert.equal(memberPortalPayload.canManage, false);
+
+  // owning a second delegation must be allowed and must not overwrite the first one
+  const secondOwnerSubmission = await postJson(delegationOwner, "/api/applications", {
+    applicationType: "delegation",
+    formData: await formDataFor("delegation", delegationOwner.email),
+  });
+  assert.equal(secondOwnerSubmission.response.status, 200, `second delegation application failed: ${JSON.stringify(secondOwnerSubmission.payload)}`);
+  const secondApplicationId = String(secondOwnerSubmission.payload?.application?.id || "");
+  const firstApplicationId = String(ownerSubmission.payload?.application?.id || "");
+  assert.ok(secondApplicationId && firstApplicationId, "delegation submissions did not report their application ids");
+  assert.notEqual(secondApplicationId, firstApplicationId, "the second delegation application reused the first application row");
+  const ownerApplications = await prisma.applications.findMany({
+    where: { user_id: delegationOwner.id, application_type: "delegation" },
+    orderBy: { submitted_at: "asc" },
+  });
+  assert.equal(ownerApplications.length, 2, "the second delegation application was not persisted as its own row");
+  assert.equal(new Set(ownerApplications.map((application) => application.id)).size, 2, "the two delegation applications did not receive distinct ids");
+  const ownedDelegations = await prisma.delegations.findMany({ where: { owner_id: delegationOwner.id }, orderBy: { created_at: "asc" } });
+  assert.equal(ownedDelegations.length, 2, "the second delegation application did not create a second delegation");
+  assert.notEqual(ownedDelegations[1].id, delegation.id, "the second delegation application reused the first delegation");
   }
 
   console.log("Live roles, collaboration, multi-application, delegation invitation, and membership workflows passed.");

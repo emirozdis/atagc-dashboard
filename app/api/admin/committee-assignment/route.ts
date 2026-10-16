@@ -16,7 +16,7 @@ export const POST = apiHandler(async (request: Request) => {
   const [{ data: target }, { data: currentAssignment }, { data: delegateApplication }] = await Promise.all([
     supabase.from("users").select("id, role, account_role").eq("id", input.userId).maybeSingle(),
     supabase.from("conference_assignments").select("role, committee_id").eq("user_id", input.userId).maybeSingle(),
-    supabase.from("applications").select("application_type, status").eq("user_id", input.userId).eq("application_type", "delegate").maybeSingle(),
+    supabase.from("applications").select("application_type, status").eq("user_id", input.userId).eq("application_type", "delegate").order("submitted_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!target) throw new Error("User not found.");
   if (target.account_role && target.account_role !== "member") throw new Error("Site administrators cannot be assigned to committees.");

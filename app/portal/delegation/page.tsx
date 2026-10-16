@@ -9,10 +9,14 @@ import { TURNSTILE_SITE_KEY, Turnstile } from "@/components/ui/turnstile";
 
 type Invite = { id: string; email: string; expires_at: string; used_at: string | null; created_at: string; emailSent?: boolean };
 type Member = { user_id: string; accepted: boolean; joined_at: string | null; user?: { email?: string; full_name?: string } | null };
-type DelegationData = { delegation: { id: string; name: string; owner_id?: string } | null; invites: Invite[]; members: Member[]; canManage: boolean };
+type Delegation = { id: string; name: string; owner_id?: string };
+type DelegationData = { delegation: Delegation | null; delegations?: Delegation[] | null; invites: Invite[]; members: Member[]; canManage: boolean };
 
 export default function DelegationPortalPage() {
   const [data, setData] = useState<DelegationData | null>(null);
+  const [delegations, setDelegations] = useState<Delegation[]>([]);
+  const [selectedDelegationId, setSelectedDelegationId] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,11 +25,34 @@ export default function DelegationPortalPage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileKey, setTurnstileKey] = useState(0);
 
-  const load = async () => {
-    const response = await fetch("/api/delegations/invites");
+  const load = async (delegationId?: string | null) => {
+    const response = await fetch(`/api/delegations/invites${delegationId ? `?delegationId=${encodeURIComponent(delegationId)}` : ""}`);
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || result.error || "Unable to load delegation.");
+    const list: Delegation[] = Array.isArray(result.delegations) && result.delegations.length > 0
+      ? result.delegations
+      : result.delegation
+        ? [result.delegation]
+        : [];
+    setDelegations(list);
+    setSelectedDelegationId((current) => {
+      if (delegationId && list.some((item) => item.id === delegationId)) return delegationId;
+      if (current && list.some((item) => item.id === current)) return current;
+      return list[0]?.id ?? null;
+    });
     setData(result);
+  };
+
+  // Switching delegations must never show the previously selected delegation's members.
+  const selectDelegation = (nextId: string) => {
+    if (nextId === selectedDelegationId) return;
+    setSelectedDelegationId(nextId);
+    setSwitching(true);
+    setMessage("");
+    setData((current) => (current ? { ...current, delegation: null, members: [], invites: [], canManage: false } : current));
+    load(nextId)
+      .catch((error) => setMessage(error instanceof Error ? error.message : "Unable to load delegation."))
+      .finally(() => setSwitching(false));
   };
 
   useEffect(() => {
@@ -46,7 +73,7 @@ export default function DelegationPortalPage() {
       const response = await fetch("/api/delegations/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, turnstileToken }),
+        body: JSON.stringify({ email, turnstileToken, ...(selectedDelegationId ? { delegationId: selectedDelegationId } : {}) }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || result.error || "Unable to send invitation.");
@@ -108,7 +135,7 @@ export default function DelegationPortalPage() {
     }
   }
 
-  if (!data) return <div className="mx-auto max-w-4xl space-y-6 p-5 sm:p-8"><Skeleton className="h-12 w-64 rounded-2xl bg-white/10" /><Skeleton className="h-64 w-full rounded-3xl bg-white/10" /><Skeleton className="h-48 w-full rounded-3xl bg-white/10" /></div>;
+  if (!data || switching) return <div className="mx-auto max-w-4xl space-y-6 p-5 sm:p-8"><Skeleton className="h-12 w-64 rounded-2xl bg-white/10" /><Skeleton className="h-64 w-full rounded-3xl bg-white/10" /><Skeleton className="h-48 w-full rounded-3xl bg-white/10" /></div>;
 
   return (
     <div className="mx-auto max-w-4xl p-5 sm:p-8">
@@ -116,6 +143,22 @@ export default function DelegationPortalPage() {
         <div className="rounded-2xl bg-[#7C3AED]/15 p-3 text-[#C4B5FD]"><Users className="h-6 w-6" /></div>
         <div><p className="text-sm text-[#C4B5FD]">Delegation workspace</p><h1 className="mt-1 text-3xl font-semibold">{data.delegation?.name || "My delegation"}</h1></div>
       </div>
+
+      {delegations.length > 1 && (
+        <div className="mb-6">
+          <label htmlFor="delegation-switcher" className="block text-sm text-[#C3C7D1]">Delegation</label>
+          <select
+            id="delegation-switcher"
+            value={selectedDelegationId || ""}
+            onChange={(event) => selectDelegation(event.target.value)}
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-[#12101A] px-4 py-3 text-sm text-white outline-none focus:border-[#7C3AED]"
+          >
+            {delegations.map((item) => (
+              <option key={item.id} value={item.id}>{item.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {!data.delegation ? (
         <div className="rounded-3xl border border-dashed border-white/10 bg-[#12101A] p-10 text-center"><p className="text-[#C3C7D1]">Submit a Delegation application to invite members.</p></div>

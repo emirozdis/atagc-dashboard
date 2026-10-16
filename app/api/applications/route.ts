@@ -14,6 +14,7 @@ import { searchParamsSchema, updateApplicationSchema } from "@/lib/schemas";
 import { hashOpaqueToken } from "@/lib/passwordless";
 import { essayWordCountError } from "@/lib/application-essays";
 import { applicationQuestionsSchema } from "@/lib/application-form-schema";
+import { HttpError } from "@/lib/http-error";
 
 interface JoinedForm {
     title: string;
@@ -42,6 +43,23 @@ function unwrapRelation<T>(data: T | T[] | null): T | null {
     if (!data) return null;
     if (Array.isArray(data)) return data[0] || null;
     return data;
+}
+
+// postgres reports unique-constraint violations with code 23505, but the
+// submission rpc also surfaces rule failures as plain message text.
+const DUPLICATE_APPLICATION_ERROR = /duplicate key|unique constraint|already exists|\b23505\b/i;
+const INVALID_APPLICATION_ERROR = /already submitted|invitation is invalid|applications are closed/i;
+
+// the rpc enforces the conference rules itself, so its error message is the
+// only description the applicant gets. map it onto a real http error instead
+// of letting an opaque database error surface as a 500.
+function applicationSubmissionError(applicationError: { message: string; code?: string }) {
+    const message = applicationError.message || "Unable to submit application.";
+    const conflict = applicationError.code === "23505" || DUPLICATE_APPLICATION_ERROR.test(message);
+    if (conflict && !INVALID_APPLICATION_ERROR.test(message)) {
+        return new HttpError(409, "This application conflicts with an existing submission.");
+    }
+    return new HttpError(400, message);
 }
 
 async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
@@ -272,13 +290,22 @@ async function processRavenApplicationSubmission(
         if (question.type === "select" && question.options?.length && !question.options.some((option) => option.value === stringValue)) throw new Error(`${question.label} contains an invalid selection.`);
     }
 
-    const { data: duplicate } = await supabase
-        .from("applications")
-        .select("id")
-        .eq("user_id", sessionUser.id)
-        .eq("application_type", applicationType)
-        .maybeSingle();
-    if (duplicate) throw new Error("You have already submitted this application type.");
+    // delegation applications are repeatable - a leader may lead several of
+    // them - so only the single-application types are guarded here. the
+    // existence check is a limited list query because maybeSingle() resolves
+    // to null plus a "Multiple rows found" error once a user has more than
+    // one application of the same type.
+    if (applicationType !== "delegation") {
+        const { data: duplicates, error: duplicateError } = await supabase
+            .from("applications")
+            .select("id")
+            .eq("user_id", sessionUser.id)
+            .eq("application_type", applicationType)
+            .limit(1);
+        if (!duplicateError && duplicates && duplicates.length > 0) {
+            throw new HttpError(409, "You have already submitted this application type.");
+        }
+    }
 
     const now = new Date().toISOString();
     let invite: { id: string; delegation_id: string; email: string | null } | null = null;
@@ -328,7 +355,15 @@ async function processRavenApplicationSubmission(
         p_magiclink_id: legacyMagiclink?.id || null,
         p_delegation_name: typeof formData.delegationName === "string" ? formData.delegationName : null,
     });
-    if (applicationError || !application) throw applicationError || new Error("Unable to submit application.");
+    if (applicationError || !application) {
+        // keep the raw database failure in the logs, but never let it reach the
+        // applicant as an opaque 500.
+        if (applicationError) {
+            await Logger.error({ userId: sessionUser.id }, "RavenMUN application submission failed", new Error(applicationError.message));
+            throw applicationSubmissionError(applicationError);
+        }
+        throw new HttpError(400, "Unable to submit application.");
+    }
 
     if (existingDetails) {
         const submittedValue = (keys: string[]) => {
@@ -386,22 +421,29 @@ async function updateApplicationStatus(
     const formObj = unwrapRelation(currentApp.form);
 
     if (status === ApplicationStatusEnum.APPROVED || status === ApplicationStatusEnum.ACCEPTED) {
-        const { data: member } = await supabase
+        const { data: memberships, error: membershipError } = await supabase
             .from("delegation_members")
             .select("delegation_id")
-            .eq("user_id", currentApp.user_id)
-            .maybeSingle();
+            .eq("user_id", currentApp.user_id);
 
-        if (member) {
-            const { data: del } = await supabase.from("delegations").select("owner_id, application_id").eq("id", member.delegation_id).single();
-            if (del) {
-                const leaderApplicationQuery = supabase.from("applications").select("status");
-                const { data: leaderApp } = del.application_id
-                    ? await leaderApplicationQuery.eq("id", del.application_id).maybeSingle()
-                    : await leaderApplicationQuery.eq("user_id", del.owner_id).eq("application_type", "delegation").order("submitted_at", { ascending: false }).limit(1).maybeSingle();
-                if (!leaderApp || !["approved", "accepted"].includes(leaderApp.status)) {
-                    throw new Error("The leader of this user's delegation has not been approved yet. Members cannot be approved before the leader.");
-                }
+        // a user may belong to several delegations, so the leader check below
+        // has to run for each of them. maybeSingle() resolves to null plus a
+        // "Multiple rows found" error once that becomes possible, which would
+        // silently skip the check entirely.
+        for (const membership of membershipError || !memberships ? [] : memberships) {
+            const delegationId = membership.delegation_id || (membership as { delegation?: string | null }).delegation;
+            if (!delegationId) continue;
+            const { data: del } = await supabase.from("delegations").select("owner_id, application_id").eq("id", delegationId).single();
+            if (!del) continue;
+            // the delegation's own application_id identifies the leader's own
+            // application. the newest-application fallback is only correct for
+            // legacy rows that predate that link.
+            const leaderApplicationQuery = supabase.from("applications").select("status");
+            const { data: leaderApp } = del.application_id
+                ? await leaderApplicationQuery.eq("id", del.application_id).maybeSingle()
+                : await leaderApplicationQuery.eq("user_id", del.owner_id).eq("application_type", "delegation").order("submitted_at", { ascending: false }).limit(1).maybeSingle();
+            if (!leaderApp || !["approved", "accepted"].includes(leaderApp.status)) {
+                throw new Error("The leader of this user's delegation has not been approved yet. Members cannot be approved before the leader.");
             }
         }
     }

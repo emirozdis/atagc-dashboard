@@ -96,7 +96,7 @@ model applications {
   delegations_delegations_application_idToapplications delegations?       @relation("delegations_application_idToapplications")
   payment_receipts                                     payment_receipts[]
 
-  @@unique([user_id, application_type])
+  @@index([user_id, application_type, submitted_at(sort: Desc)], map: "applications_user_id_application_type_idx")
   @@index([status, application_type, submitted_at(sort: Desc)], map: "applications_status_type_idx")
 }
 
@@ -286,12 +286,12 @@ model delegation_members {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model delegations {
   id                                                               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  owner_id                                                         String?                 @unique @db.Uuid
+  owner_id                                                         String?                 @db.Uuid
   name                                                             String
   application_id                                                   String?                 @unique @db.Uuid
   created_at                                                       DateTime                @default(now()) @db.Timestamptz(6)
   updated_at                                                       DateTime                @default(now()) @db.Timestamptz(6)
-  created_by                                                       String?                 @unique(map: "delegations_created_by_unique_idx", where: raw("(created_by IS NOT NULL)")) @db.Uuid
+  created_by                                                       String?                 @db.Uuid
   applications_applications_delegation_idTodelegations             applications[]          @relation("applications_delegation_idTodelegations")
   delegation_invites_delegation_invites_delegationTodelegations    delegation_invites[]    @relation("delegation_invites_delegationTodelegations")
   delegation_invites_delegation_invites_delegation_idTodelegations delegation_invites[]    @relation("delegation_invites_delegation_idTodelegations")
@@ -696,8 +696,8 @@ model users {
   conference_assignments_conference_assignments_user_idTousers     conference_assignments?   @relation("conference_assignments_user_idTousers")
   conference_pages                                                 conference_pages[]
   delegation_members                                               delegation_members[]
-  delegations_delegations_created_byTousers                        delegations?              @relation("delegations_created_byTousers")
-  delegations_delegations_owner_idTousers                          delegations?              @relation("delegations_owner_idTousers")
+  delegations_delegations_created_byTousers                        delegations[]           @relation("delegations_created_byTousers")
+  delegations_delegations_owner_idTousers                          delegations[]           @relation("delegations_owner_idTousers")
   device_pairing_codes                                             device_pairing_codes[]
   document_versions                                                document_versions[]
   logs                                                             logs[]
