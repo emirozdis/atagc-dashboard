@@ -14,8 +14,11 @@ import {
   Calendar,
   GraduationCap,
   ArrowUpDown,
-  Briefcase
+  Briefcase,
+  FileSpreadsheet,
+  Loader2
 } from "lucide-react";
+import { toast } from "sonner";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   Table,
@@ -89,6 +92,7 @@ export default function ApplicationsPage() {
   const [filterRole, setFilterRole] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -132,6 +136,39 @@ export default function ApplicationsPage() {
   const applications: ApplicationRow[] = data?.data || [];
   const totalPages = data?.meta?.totalPages || 1;
   const totalRecords = data?.meta?.total || 0;
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const { key, dir } = getSortConfig(sortValue);
+      const params = new URLSearchParams({
+        status: filterStatus,
+        role: filterRole,
+        search: debouncedSearch,
+        sort_by: key,
+        sort_order: dir,
+      });
+      const res = await fetch(`/api/applications/export?${params}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || body?.error || "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `applications-${new Date().toISOString().slice(0, 10)}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Applications exported.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -232,11 +269,26 @@ export default function ApplicationsPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-5 pb-12 animate-fade-in sm:p-8">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Applications</h2>
-        <p className="text-muted-foreground text-sm md:text-base">
-          Showing <span className="font-medium text-foreground">{totalRecords}</span> submitted applications.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">Applications</h2>
+          <p className="text-muted-foreground text-sm md:text-base">
+            Showing <span className="font-medium text-foreground">{totalRecords}</span> submitted applications.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="h-10 w-full sm:w-auto"
+          onClick={handleExport}
+          disabled={isExporting || isLoading}
+        >
+          {isExporting ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+          )}
+          {isExporting ? "Exporting..." : "Export to Excel"}
+        </Button>
       </div>
 
       {/* Controls Toolbar */}
