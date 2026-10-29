@@ -2,7 +2,10 @@ import { supabase } from "@/lib/SERVER_supabase";
 import { z } from "zod";
 import { searchParamsSchema } from "@/lib/schemas";
 
-export async function fetchApplications(params: z.infer<typeof searchParamsSchema>) {
+export async function fetchApplications(
+    params: z.infer<typeof searchParamsSchema>,
+    options: { includeFormSnapshot?: boolean } = {},
+) {
     const { page, limit, search, status, role, sort_by, sort_order } = params;
 
     let query = supabase
@@ -14,9 +17,11 @@ export async function fetchApplications(params: z.infer<typeof searchParamsSchem
             application_type,
             form_version,
             status,
+            payment_status,
             submitted_at,
             review_notes,
             form_data,
+            ${options.includeFormSnapshot ? "form_snapshot," : ""}
             form:application_forms!inner(title, slug, fee),
             user:users!inner (
                 id,

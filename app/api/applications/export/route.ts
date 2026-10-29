@@ -63,6 +63,26 @@ function isoDate(value: unknown): string {
     return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
+function snapshotQuestions(app: Row): Array<{ id: string; label: string }> {
+    const questions = asRecord(app.form_snapshot)?.questions;
+    if (!Array.isArray(questions)) return [];
+    return questions.flatMap((question) => {
+        const record = asRecord(question);
+        const id = text(record?.id);
+        return id ? [{ id, label: text(record?.label) || id }] : [];
+    });
+}
+
+function answerValue(value: unknown): string {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (typeof value === "number") return String(value);
+    if (Array.isArray(value)) return value.map(answerValue).filter(Boolean).join(", ");
+    if (typeof value === "object") return JSON.stringify(value);
+    return "";
+}
+
 // spreadsheetml 2003 is the one excel-readable workbook format that does not
 // need a zip/xlsx dependency. excel opens the .xls file natively.
 const XML_INVALID_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
@@ -78,7 +98,8 @@ function escapeXml(value: string): string {
 }
 
 function cell(value: string, style: "sHeader" | "sBody"): string {
-    return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`;
+    // excel refuses string cells longer than 32,767 characters.
+    return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${escapeXml(value.slice(0, 32_000))}</Data></Cell>`;
 }
 
 export const GET = apiHandler(async (request: Request) => {
@@ -87,25 +108,58 @@ export const GET = apiHandler(async (request: Request) => {
 
     const { searchParams } = new URL(request.url);
     const params = exportParamsSchema.parse(Object.fromEntries(searchParams));
-    const { data } = await fetchApplications({ ...params, page: 1 });
+    const { data } = await fetchApplications({ ...params, page: 1 }, { includeFormSnapshot: true });
 
-    const columns = ["Applicant", "Email", "Role", "School", "Submitted", "Committee", "Status"];
     const rows = (data || []) as unknown as Row[];
+
+    const questionColumns = new Map<string, string>();
+    const dataKeys = new Set<string>();
+    for (const app of rows) {
+        for (const question of snapshotQuestions(app)) {
+            if (!questionColumns.has(question.id)) questionColumns.set(question.id, question.label);
+        }
+        const formData = asRecord(app.form_data);
+        if (formData) {
+            for (const key of Object.keys(formData)) dataKeys.add(key);
+        }
+    }
+    // legacy rows can predate form snapshots; keep their raw field ids so no
+    // answer is dropped from the export.
+    for (const key of dataKeys) {
+        if (!questionColumns.has(key)) questionColumns.set(key, key);
+    }
+    const answerColumns = Array.from(questionColumns, ([id, label]) => ({ id, label }));
+
+    const baseColumns = ["Applicant", "Email", "Phone", "Role", "School", "City", "Grade", "Submitted", "Committee", "Status", "Payment status", "Review notes"];
+    const baseWidths = [140, 180, 90, 120, 160, 80, 60, 70, 130, 80, 90, 180];
+    const columns = [...baseColumns, ...answerColumns.map((column) => column.label)];
+    const widths = [...baseWidths, ...answerColumns.map(() => 180)];
 
     const headerXml = `<Row ss:Height="20">${columns.map((column) => cell(column, "sHeader")).join("")}</Row>`;
     const bodyXml = rows.map((app) => {
         const user = applicant(app);
+        const details = firstRecord(user?.user_details);
         const form = firstRecord(app.form);
-        return `<Row>${[
+        const formData = asRecord(app.form_data) || {};
+        const values = [
             text(user?.full_name),
             text(user?.email),
+            text(details?.phone_number),
             text(form?.title) || text(form?.slug) || text(app.application_type),
             schoolName(app),
+            text(details?.city),
+            text(details?.grade),
             isoDate(app.submitted_at),
             committeeName(app),
             statusLabel(text(app.status)),
-        ].map((value) => cell(value, "sBody")).join("")}</Row>`;
+            statusLabel(text(app.payment_status)),
+            text(app.review_notes),
+            ...answerColumns.map((column) => answerValue(formData[column.id])),
+        ];
+        return `<Row>${values.map((value) => cell(value, "sBody")).join("")}</Row>`;
     }).join("");
+
+    const columnXml = widths.map((width) => `<Column ss:Width="${width}"/>`).join("\n   ");
 
     const workbook = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
@@ -123,13 +177,7 @@ export const GET = apiHandler(async (request: Request) => {
  </Styles>
  <Worksheet ss:Name="Applications">
   <Table>
-   <Column ss:Width="140"/>
-   <Column ss:Width="180"/>
-   <Column ss:Width="120"/>
-   <Column ss:Width="160"/>
-   <Column ss:Width="70"/>
-   <Column ss:Width="130"/>
-   <Column ss:Width="80"/>
+   ${columnXml}
    ${headerXml}
    ${bodyXml}
   </Table>
