@@ -24,6 +24,7 @@ import { toPostgrestValue } from "../lib/prisma-values";
 import { Prisma } from "@prisma/client";
 import { APPLICATION_FIELD_LABEL_MAX_LENGTH, applicationQuestionsSchema } from "../lib/application-form-schema";
 import { parsePagination } from "../lib/pagination";
+import { ApplicationStatusEnum } from "../types/application";
 
 const secret = "ravenmun-test-secret";
 
@@ -133,5 +134,23 @@ assert.equal(customizedStatusEmail.subject, "Decision for Raven Applicant: Accep
 assert.match(customizedStatusEmail.html, /Welcome to the conference\./);
 assert.doesNotMatch(customizedStatusEmail.html, /<script/i);
 assert.match(customizedStatusEmail.html, /\/my-applications\/delegate\?applicationId=app-123/);
+
+const waitlistEmail = renderEmailTemplate(
+  "application_status",
+  "Raven Applicant",
+  "https://ravenmun.example",
+  {
+    applicationId: "app-123",
+    applicationType: "delegate",
+    previousStatus: "pending",
+    status: "waitlist",
+  },
+);
+assert.match(waitlistEmail.html, /Waitlisted/);
+assert.match(waitlistEmail.html, /\/my-applications\/delegate\?applicationId=app-123/);
+
+const waitlistDecision = ApplicationStatusEnum.WAITLIST;
+assert.equal(waitlistDecision, "waitlist");
+assert.ok(Object.values(ApplicationStatusEnum).includes(waitlistDecision));
 
 console.log("RavenMUN security and role tests passed.");

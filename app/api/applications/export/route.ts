@@ -55,7 +55,16 @@ function committeeName(app: Row): string {
 }
 
 function statusLabel(status: string): string {
-    return status ? status.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "";
+    const labels: Record<string, string> = {
+        pending: "Pending",
+        under_review: "Under review",
+        accepted: "Accepted",
+        approved: "Approved",
+        waitlist: "Waitlisted",
+        rejected: "Rejected",
+        withdrawn: "Withdrawn",
+    };
+    return labels[status] || (status ? status.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "");
 }
 
 function isoDate(value: unknown): string {

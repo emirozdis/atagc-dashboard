@@ -332,7 +332,9 @@ async function updateApplicationStatus(
                     day3: false
                 });
         }
-    } else if (!currentApp.form_snapshot?.title) {
+    } else if ((status === ApplicationStatusEnum.REJECTED || status === ApplicationStatusEnum.WITHDRAWN) && !currentApp.form_snapshot?.title) {
+        // Waitlisting must not revoke a conference role the reviewer already
+        // granted; only a negative decision resets legacy applicant roles.
         await supabase.from("users").update({ role: ROLES.APPLICANT }).eq("id", currentApp.user_id);
     }
 

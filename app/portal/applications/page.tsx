@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, FileText, Plus, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, FileText, Hourglass, Plus, XCircle } from "lucide-react";
 
 type Application = {
   id: string;
@@ -14,7 +14,7 @@ type Application = {
 };
 
 const labels: Record<string, string> = { delegate: "Delegate", chairboard: "Chairboard", delegation: "Delegation", press: "Press", observer: "Administrative Staff" };
-const statusLabels: Record<string, string> = { pending: "Under review", under_review: "Under review", accepted: "Accepted", approved: "Accepted", rejected: "Not accepted", withdrawn: "Withdrawn" };
+const statusLabels: Record<string, string> = { pending: "Under review", under_review: "Under review", accepted: "Accepted", approved: "Accepted", waitlist: "Waitlisted", rejected: "Not accepted", withdrawn: "Withdrawn" };
 
 export default function PortalApplicationsPage() {
   const { data, isLoading, error } = useQuery<{ applications: Application[] }>({
@@ -49,8 +49,9 @@ export default function PortalApplicationsPage() {
 function ApplicationCard({ application }: { application: Application }) {
   const status = application.status;
   const accepted = status === "accepted" || status === "approved";
+  const waitlisted = status === "waitlist";
   const rejected = status === "rejected" || status === "withdrawn";
-  const Icon = accepted ? CheckCircle2 : rejected ? XCircle : Clock3;
-  const iconClass = accepted ? "text-[#86EFAC]" : rejected ? "text-[#FDA4AF]" : "text-[#C4B5FD]";
-  return <Link href={`/my-applications/${application.application_type}?applicationId=${encodeURIComponent(application.id)}`} className="block rounded-2xl border border-white/10 bg-[#12101A] p-5 transition hover:border-[#C4B5FD]/40 hover:bg-[#1B1727] sm:flex sm:items-center sm:justify-between"><div className="flex items-start gap-4"><div className="rounded-xl bg-white/5 p-3"><Icon className={`h-5 w-5 ${iconClass}`} /></div><div><h2 className="font-semibold">{labels[application.application_type] || application.application_type}</h2><p className="mt-1 text-sm text-[#9CA3AF]">Submitted {new Date(application.submitted_at).toLocaleDateString("en-GB")}</p>{application.review_notes && <p className="mt-3 max-w-xl text-sm text-[#C3C7D1]">{application.review_notes}</p>}</div></div><span className={`mt-4 inline-flex w-fit rounded-full px-3 py-1 text-xs sm:mt-0 ${accepted ? "bg-[#86EFAC]/10 text-[#BBF7D0]" : rejected ? "bg-[#FDA4AF]/10 text-[#FDA4AF]" : "bg-[#C4B5FD]/10 text-[#C4B5FD]"}`}>{statusLabels[status] || status}</span></Link>;
+  const Icon = accepted ? CheckCircle2 : waitlisted ? Hourglass : rejected ? XCircle : Clock3;
+  const iconClass = accepted ? "text-[#86EFAC]" : waitlisted ? "text-[#FCD34D]" : rejected ? "text-[#FDA4AF]" : "text-[#C4B5FD]";
+  return <Link href={`/my-applications/${application.application_type}?applicationId=${encodeURIComponent(application.id)}`} className="block rounded-2xl border border-white/10 bg-[#12101A] p-5 transition hover:border-[#C4B5FD]/40 hover:bg-[#1B1727] sm:flex sm:items-center sm:justify-between"><div className="flex items-start gap-4"><div className="rounded-xl bg-white/5 p-3"><Icon className={`h-5 w-5 ${iconClass}`} /></div><div><h2 className="font-semibold">{labels[application.application_type] || application.application_type}</h2><p className="mt-1 text-sm text-[#9CA3AF]">Submitted {new Date(application.submitted_at).toLocaleDateString("en-GB")}</p>{application.review_notes && <p className="mt-3 max-w-xl text-sm text-[#C3C7D1]">{application.review_notes}</p>}</div></div><span className={`mt-4 inline-flex w-fit rounded-full px-3 py-1 text-xs sm:mt-0 ${accepted ? "bg-[#86EFAC]/10 text-[#BBF7D0]" : waitlisted ? "bg-[#FCD34D]/10 text-[#FCD34D]" : rejected ? "bg-[#FDA4AF]/10 text-[#FDA4AF]" : "bg-[#C4B5FD]/10 text-[#C4B5FD]"}`}>{statusLabels[status] || status}</span></Link>;
 }

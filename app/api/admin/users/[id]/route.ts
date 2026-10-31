@@ -1,9 +1,31 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { supabase } from "@/lib/SERVER_supabase";
 import getAuthorization from "@/lib/getAuthorization";
 import { apiHandler } from "@/lib/api-handler";
-import { ROLES } from "@/lib/roles";
+import { CONFERENCE_ASSIGNMENT_ROLES, ROLES, UserRole } from "@/lib/roles";
 import { getSignedUrl } from "@/lib/storage-utils";
+
+interface AccountRow {
+    id: string;
+    full_name: string | null;
+    email: string;
+    role: string;
+    account_role: string | null;
+    is_suspended: boolean | null;
+    created_at: string;
+}
+
+interface AssignmentRow {
+    role: string | null;
+    committee_id: string | null;
+    committee?: { id: string; name: string; slug?: string | null } | { id: string; name: string; slug?: string | null }[] | null;
+}
+
+interface UserDetailsRow {
+    profile_picture_url?: string | null;
+    [key: string]: unknown;
+}
 
 export const GET = apiHandler(async (
     request: Request,
@@ -16,6 +38,9 @@ export const GET = apiHandler(async (
     if (!auth.ok || !auth.session) throw new Error(auth.message);
     const session = auth.session;
     const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
     if (session.user.role === ROLES.CHAIRMAN || session.user.role === ROLES.DEPUTY_CHAIR) {
         const { data: relation } = await supabase
@@ -39,38 +64,116 @@ export const GET = apiHandler(async (
         }
     }
 
-    const { data: user, error } = await supabase
-        .rpc('get_admin_user_profile', { p_user_id: id });
+    const [
+        accountResult,
+        detailsResult,
+        assignmentResult,
+        membershipsResult,
+        managedResult,
+        applicationsResult,
+        receiptsResult,
+        warningsResult,
+    ] = await Promise.all([
+        supabase
+            .from("users")
+            .select("id, full_name, email, role, account_role, is_suspended, created_at")
+            .eq("id", id)
+            .maybeSingle(),
+        supabase
+            .from("user_details")
+            .select("user_id, phone_number, birth_date, school, city, grade, profile_picture_url, is_profile_picture_hidden, allow_connections, notification_preferences, additional_info, high_school_id, high_schools(school_name)")
+            .eq("user_id", id)
+            .maybeSingle(),
+        supabase
+            .from("conference_assignments")
+            .select("role, committee_id, committee:committees(id, name, slug)")
+            .eq("user_id", id)
+            .maybeSingle(),
+        supabase
+            .from("committee_members")
+            .select("committee_id, committee:committees(id, name, slug)")
+            .eq("user_id", id),
+        supabase
+            .from("committees")
+            .select("id, name")
+            .eq("admin_id", id),
+        supabase
+            .from("applications")
+            .select("id, form_id, application_type, status, payment_status, form_data, review_notes, reviewed_at, submitted_at, updated_at, form:application_forms(id, slug, title, steps, fee)")
+            .eq("user_id", id)
+            .order("submitted_at", { ascending: false }),
+        supabase
+            .from("payment_receipts")
+            .select("id, status, created_at")
+            .eq("user_id", id)
+            .order("created_at", { ascending: false }),
+        supabase
+            .from("user_warnings")
+            .select("id, user_id, issued_by, reason, category, created_at, issuer:users!issued_by(id, full_name, role)")
+            .eq("user_id", id)
+            .order("created_at", { ascending: false }),
+    ]);
 
-    if (error) {
-        console.error("RPC Error:", error);
+    if (accountResult.error) {
+        console.error("User profile lookup failed:", accountResult.error);
         throw new Error("Failed to fetch user profile");
     }
-
-    if (!user) {
+    const account = accountResult.data as AccountRow | null;
+    if (!account) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // The legacy profile RPC returns the conference role but not the account
-    // role. Resolve that separately so site administrators are not displayed
-    // as ordinary applicants in the detail view.
-    const { data: account } = await supabase
-        .from("users")
-        .select("account_role")
-        .eq("id", id)
-        .maybeSingle();
-    if (account) {
-        user.account_role = account.account_role;
-        if (account.account_role === "super_admin") user.role = ROLES.SUPERADMIN;
-        if (account.account_role === "site_admin") user.role = ROLES.ADMIN;
+    if (detailsResult.error || assignmentResult.error || membershipsResult.error || managedResult.error || applicationsResult.error || receiptsResult.error || warningsResult.error) {
+        console.error("User profile relations failed:", {
+            details: detailsResult.error,
+            assignment: assignmentResult.error,
+            memberships: membershipsResult.error,
+            managed: managedResult.error,
+            applications: applicationsResult.error,
+            receipts: receiptsResult.error,
+            warnings: warningsResult.error,
+        });
+        throw new Error("Failed to fetch user profile");
     }
 
-    if (user.user_details && user.user_details.profile_picture_url) {
-        user.user_details.profile_picture_url = await getSignedUrl(
-            "profile-pictures", 
-            user.user_details.profile_picture_url
+    const details = (detailsResult.data as UserDetailsRow | null) ?? null;
+    if (details?.profile_picture_url) {
+        details.profile_picture_url = await getSignedUrl(
+            "profile-pictures",
+            details.profile_picture_url,
         );
     }
 
-    return NextResponse.json(user);
+    // Keep the displayed role consistent with authorization: a site admin role
+    // wins, then the conference assignment, then the stored legacy role.
+    const assignment = assignmentResult.data as AssignmentRow | null;
+    const assignmentRole = assignment?.role;
+    const role = account.account_role === "super_admin"
+        ? ROLES.SUPERADMIN
+        : account.account_role === "site_admin"
+            ? ROLES.ADMIN
+            : assignmentRole && CONFERENCE_ASSIGNMENT_ROLES.includes(assignmentRole as UserRole)
+                ? assignmentRole
+                : account.role;
+
+    const assignmentCommittee = Array.isArray(assignment?.committee)
+        ? assignment?.committee[0] ?? null
+        : assignment?.committee ?? null;
+    const committeeMembers = assignmentCommittee
+        ? [{ committee: assignmentCommittee }]
+        : membershipsResult.data || [];
+    const userWarnings = Array.isArray(warningsResult.data) ? warningsResult.data : [];
+
+    return NextResponse.json({
+        ...account,
+        role,
+        account_role: account.account_role,
+        user_details: details,
+        committee_members: committeeMembers,
+        managed_committees: managedResult.data || [],
+        application: applicationsResult.data || [],
+        payment_receipts: receiptsResult.data || [],
+        user_warnings: userWarnings,
+        warnings_count: userWarnings.length,
+    });
 });

@@ -7,6 +7,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Hourglass,
   Search,
   Filter,
   Eye,
@@ -190,6 +191,12 @@ export default function ApplicationsPage() {
             <XCircle className="w-3 h-3" /> Rejected
           </Badge>
         );
+      case "waitlist":
+        return (
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20 gap-1.5 whitespace-nowrap">
+            <Hourglass className="w-3 h-3" /> Waitlisted
+          </Badge>
+        );
       case "under_review":
         return (
           <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1.5 whitespace-nowrap">
@@ -318,6 +325,7 @@ export default function ApplicationsPage() {
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="under_review">Under review</SelectItem>
               <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="waitlist">Waitlisted</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="unassigned">Awaiting assignment</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>

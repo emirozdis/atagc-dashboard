@@ -6,11 +6,12 @@ export enum ApplicationStatusEnum {
   UNDER_REVIEW = 'under_review',
   ACCEPTED = 'accepted',
   APPROVED = 'approved',
+  WAITLIST = 'waitlist',
   REJECTED = 'rejected',
   WITHDRAWN = 'withdrawn'
 }
 
-export type ApplicationStatus = 'pending' | 'under_review' | 'accepted' | 'approved' | 'rejected' | 'withdrawn';
+export type ApplicationStatus = 'pending' | 'under_review' | 'accepted' | 'approved' | 'waitlist' | 'rejected' | 'withdrawn';
 
 // --- Static Schemas (Account Creation) ---
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;

@@ -39,7 +39,7 @@ type AdminAdditionalInfo = {
 
 export interface Application {
     id: string;
-    status: "pending" | "under_review" | "accepted" | "approved" | "rejected" | "withdrawn";
+    status: "pending" | "under_review" | "accepted" | "approved" | "waitlist" | "rejected" | "withdrawn";
     submitted_at: string;
     review_notes?: string;
     application_type?: string;

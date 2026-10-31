@@ -8,6 +8,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Hourglass,
   Loader2,
   ArrowLeft,
   Briefcase,
@@ -58,8 +59,10 @@ export default function ApplicationDetailPage() {
   // Modal States
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+  const [showWaitlistConfirm, setShowWaitlistConfirm] = useState(false);
   const [showAssignConfirm, setShowAssignConfirm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [waitlistNote, setWaitlistNote] = useState("");
   // Lets the admin pick which delegation to review against when the applicant owns/members several
   // and none of them is linked to this application.
   const [selectedDelegationKey, setSelectedDelegationKey] = useState<string | null>(null);
@@ -96,7 +99,7 @@ export default function ApplicationDetailPage() {
   const effectiveAssignmentRole = assignmentRole ?? defaultAssignmentRole;
 
   const statusMutation = useMutation({
-    mutationFn: async ({ status, notes }: { status: "accepted" | "approved" | "rejected", notes?: string }) => {
+    mutationFn: async ({ status, notes }: { status: "accepted" | "approved" | "waitlist" | "rejected", notes?: string }) => {
       const res = await fetch("/api/applications", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -112,7 +115,9 @@ export default function ApplicationDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       setShowRejectConfirm(false);
       setShowApproveConfirm(false);
+      setShowWaitlistConfirm(false);
       setRejectionReason("");
+      setWaitlistNote("");
     },
     onError: (err: Error) => toast.error(err.message)
   });
@@ -149,6 +154,10 @@ export default function ApplicationDetailPage() {
   const handleApprove = () => {
     if (!application) return;
     statusMutation.mutate({ status: application.form_snapshot?.title ? 'accepted' : 'approved' });
+  };
+
+  const handleWaitlist = () => {
+    statusMutation.mutate({ status: 'waitlist', notes: waitlistNote.trim() || undefined });
   };
 
   const handleAssign = () => {
@@ -209,6 +218,7 @@ export default function ApplicationDetailPage() {
       case "approved": return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>;
       case "accepted": return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="w-3 h-3 mr-1" /> Accepted</Badge>;
       case "rejected": return <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="w-3 h-3 mr-1" /> Rejected</Badge>;
+      case "waitlist": return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Hourglass className="w-3 h-3 mr-1" /> Waitlisted</Badge>;
       default: return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>;
     }
   };
@@ -312,11 +322,29 @@ export default function ApplicationDetailPage() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {getStatusBadge(application.status)}
 
-          {application.status === 'pending' && canReviewApplication && (
+          {(application.status === 'pending' || application.status === 'waitlist') && canReviewApplication && (
             <>
               <Button variant="destructive" size="sm" onClick={() => setShowRejectConfirm(true)}>Reject</Button>
+              {application.status === 'pending' && (
+                <Button variant="outline" size="sm" className="gap-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10" onClick={() => setShowWaitlistConfirm(true)}>
+                  <Hourglass className="w-3.5 h-3.5" /> Waitlist
+                </Button>
+              )}
               <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => setShowApproveConfirm(true)}>Approve</Button>
             </>
+          )}
+
+          {application.status === 'waitlist' && !canReviewApplication && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 whitespace-nowrap">
+                Waitlisted — waiting for delegation leader approval
+              </Badge>
+              {isAcceptedToDelegation && leaderAppId && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/admin/applications/${leaderAppId}`}>Review leader application</Link>
+                </Button>
+              )}
+            </div>
           )}
 
           {application.status === 'pending' && isDelegationMember && !canReviewApplication && (
@@ -492,6 +520,44 @@ export default function ApplicationDetailPage() {
                 disabled={statusMutation.isPending}
             >
                 {statusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Waitlist Confirmation Dialog */}
+      <AlertDialog open={showWaitlistConfirm} onOpenChange={(val) => {
+          setShowWaitlistConfirm(val);
+          if (!val) setWaitlistNote("");
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-600"><Hourglass className="w-5 h-5" /> Waitlist application</AlertDialogTitle>
+            <AlertDialogDescription>
+              The applicant will be placed on the waiting list and receive an automatic notification email. You can approve or reject them later. Optionally add a note that will be shared with the applicant.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-2">
+              <Textarea
+                value={waitlistNote}
+                onChange={e => setWaitlistNote(e.target.value)}
+                placeholder="Optional note for the applicant..."
+                className="min-h-[100px]"
+              />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={statusMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+                onClick={(e) => {
+                    e.preventDefault();
+                    handleWaitlist();
+                }}
+                className="bg-amber-500 text-black hover:bg-amber-400"
+                disabled={statusMutation.isPending}
+            >
+                {statusMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Move to waitlist
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

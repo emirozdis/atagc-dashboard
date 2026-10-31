@@ -91,6 +91,7 @@ const statusLabel = (value?: string) => {
     under_review: "Under review",
     accepted: "Accepted",
     approved: "Accepted",
+    waitlist: "Waitlisted",
     rejected: "Not accepted",
     withdrawn: "Withdrawn",
   };

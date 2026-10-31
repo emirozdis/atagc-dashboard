@@ -21,7 +21,7 @@ export const GET = apiHandler(async () => {
   ]);
   if (recent.error || applicationRows.error) throw new Error("Unable to load dashboard statistics.");
   const byType = ["delegate", "chairboard", "delegation", "press", "observer"].map((type) => ({ type, count: (applicationRows.data || []).filter((row) => row.application_type === type).length }));
-  const byStatus = ["pending", "under_review", "accepted", "rejected", "withdrawn"].map((status) => ({ status, count: (applicationRows.data || []).filter((row) => row.status === status).length }));
+  const byStatus = ["pending", "under_review", "accepted", "waitlist", "rejected", "withdrawn"].map((status) => ({ status, count: (applicationRows.data || []).filter((row) => row.status === status).length }));
   const submittedByDay = new Map<string, number>();
   for (const row of applicationRows.data || []) {
     const day = new Date(row.submitted_at).toISOString().slice(0, 10);

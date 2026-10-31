@@ -123,6 +123,7 @@ export default withAuth(
     return null;
   },
   {
+    pages: { signIn: "/login" },
     callbacks: {
       authorized: ({ token, req }) => {
         if (req.nextUrl.pathname.startsWith("/login")) {
@@ -149,6 +150,7 @@ export const config = {
       "/tickets", 
       "/resources", 
       "/my-application",
+      "/my-applications/:path*",
       "/gallery"
   ],
 };

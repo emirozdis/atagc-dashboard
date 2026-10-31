@@ -147,7 +147,7 @@ type PasswordlessUser = {
 };
 
 function isApplicationStatus(value: string | null | undefined): value is ApplicationStatusEnum {
-  return value === ApplicationStatusEnum.PENDING || value === ApplicationStatusEnum.UNDER_REVIEW || value === ApplicationStatusEnum.ACCEPTED || value === ApplicationStatusEnum.APPROVED || value === ApplicationStatusEnum.REJECTED || value === ApplicationStatusEnum.WITHDRAWN;
+  return value === ApplicationStatusEnum.PENDING || value === ApplicationStatusEnum.UNDER_REVIEW || value === ApplicationStatusEnum.ACCEPTED || value === ApplicationStatusEnum.APPROVED || value === ApplicationStatusEnum.WAITLIST || value === ApplicationStatusEnum.REJECTED || value === ApplicationStatusEnum.WITHDRAWN;
 }
 
 async function userSessionPayload(user: PasswordlessUser) {
