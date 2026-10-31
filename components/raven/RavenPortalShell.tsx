@@ -57,6 +57,7 @@ export default function RavenPortalShell({ children }: { children: ReactNode }) 
   const role = session?.user ? getEffectiveRole(session.user) : "applicant";
   const isStaff = STAFF_ROLES.includes(actualRole);
   const isApproved = isStaff || session?.user?.applicationStatus === "approved" || session?.user?.applicationStatus === "accepted";
+  const showPayment = session?.user?.applicationStatus === "approved" || session?.user?.applicationStatus === "accepted";
 
   const { data: applicationData } = useQuery<PortalApplicationData>({
     queryKey: ["portal-nav-applications", session?.user?.id],
@@ -79,6 +80,7 @@ export default function RavenPortalShell({ children }: { children: ReactNode }) 
     { href: "/portal/applications", label: "My applications", icon: FileText },
     { href: "/profile", label: "Profile", icon: UserRound },
     ...(hasDelegation ? [{ href: "/portal/delegation", label: "My delegation", icon: Users }] : []),
+    ...(showPayment ? [{ href: "/payment", label: "Payment", icon: Wallet }] : []),
     ...(isApproved ? getApprovedItems(role) : []),
     { href: "/tickets", label: "Support", icon: MessageSquare },
   ];
@@ -145,6 +147,5 @@ function getApprovedItems(role: string): PortalNavItem[] {
     { href: "/connections", label: "Connections", icon: Users },
     { href: "/catering", label: "Catering", icon: Utensils },
   );
-  if (["delegate", "press", "head_press", "observer", "head_observer"].includes(role)) items.push({ href: "/payment", label: "Payment", icon: Wallet });
   return items;
 }

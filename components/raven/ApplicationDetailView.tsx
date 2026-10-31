@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, FileText } from "lucide-react";
+import { ArrowLeft, CalendarDays, FileText, Wallet } from "lucide-react";
 
 export type RavenApplicationQuestion = {
   id: string;
@@ -14,25 +14,30 @@ export type RavenApplicationDetail = {
   id?: string;
   application_type?: string;
   status?: string;
+  payment_status?: string;
   submitted_at?: string;
   review_notes?: string | null;
   form_data?: Record<string, unknown>;
-  form_snapshot?: { title?: string; questions?: RavenApplicationQuestion[] };
+  form_snapshot?: { title?: string; fee?: number; questions?: RavenApplicationQuestion[] };
   form?: { title?: string; questions?: RavenApplicationQuestion[] } | null;
 };
 
 const applicationLabels: Record<string, string> = { delegate: "Delegate", chairboard: "Chairboard", delegation: "Delegation", press: "Press", observer: "Administrative Staff" };
 const statusLabels: Record<string, string> = { pending: "Under review", under_review: "Under review", accepted: "Accepted", approved: "Accepted", waitlist: "Waitlisted", rejected: "Not accepted", withdrawn: "Withdrawn" };
+const paymentLabels: Record<string, string> = { unpaid: "Payment due", processing: "Payment under review", paid: "Paid", rejected: "Payment rejected", exempt: "Payment exempt" };
 
 export function ApplicationDetailView({ application, backHref = "/portal/applications" }: { application: RavenApplicationDetail; backHref?: string }) {
   const questions = application.form_snapshot?.questions || application.form?.questions || [];
   const formData = application.form_data || {};
   const title = application.form_snapshot?.title || application.form?.title || applicationLabels[application.application_type || ""] || "Application";
+  const accepted = application.status === "accepted" || application.status === "approved";
+  const fee = Number(application.form_snapshot?.fee || 0);
 
   return (
     <div className="mx-auto max-w-5xl p-5 sm:p-8">
       <Link href={backHref} className="inline-flex items-center text-sm text-[#9CA3AF] hover:text-white"><ArrowLeft className="mr-2 h-4 w-4" />Back to applications</Link>
       <div className="mt-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm text-[#C4B5FD]">Application details</p><h1 className="mt-2 text-3xl font-semibold">{title}</h1><p className="mt-2 flex items-center gap-2 text-sm text-[#9CA3AF]"><CalendarDays className="h-4 w-4" />Submitted {application.submitted_at ? new Date(application.submitted_at).toLocaleDateString("en-GB") : "Not specified"}</p></div><span className={`w-fit rounded-full px-3 py-1 text-xs ${application.status === "waitlist" ? "bg-[#FCD34D]/10 text-[#FCD34D]" : application.status === "rejected" || application.status === "withdrawn" ? "bg-[#FDA4AF]/10 text-[#FDA4AF]" : application.status === "accepted" || application.status === "approved" ? "bg-[#86EFAC]/10 text-[#BBF7D0]" : "bg-[#C4B5FD]/10 text-[#C4B5FD]"}`}>{statusLabels[application.status || ""] || application.status || "Under review"}</span></div>
+      {accepted && fee > 0 && <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#FCD34D]/25 bg-[#FCD34D]/10 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><Wallet className="mt-0.5 h-5 w-5 shrink-0 text-[#FCD34D]" /><div><p className="font-medium text-white">Participation fee</p><p className="mt-1 text-2xl font-semibold text-[#FDE68A]">{fee.toLocaleString("en-GB")} ₺</p><p className="mt-1 text-sm text-[#C3C7D1]">{paymentLabels[application.payment_status || ""] || "Payment due"}</p></div></div><Link href="/payment" className="inline-flex w-fit items-center justify-center rounded-xl bg-[#FCD34D] px-4 py-2.5 text-sm font-semibold text-[#1A1605] hover:bg-[#FDE68A]">Complete payment</Link></div>}
       {application.review_notes && <div className="mt-6 rounded-2xl border border-[#C4B5FD]/20 bg-[#C4B5FD]/10 p-4 text-sm text-[#C3C7D1]"><p className="font-medium text-white">Review note</p><p className="mt-1">{application.review_notes}</p></div>}
       <section className="mt-8 rounded-3xl border border-white/10 bg-[#12101A] p-6 sm:p-8"><h2 className="text-xl font-semibold">Submitted information</h2>{questions.length ? <div className="mt-6 grid gap-x-8 gap-y-6 sm:grid-cols-2">{questions.map((question) => <ApplicationField key={question.id} question={question} value={formData[question.id]} />)}</div> : <div className="mt-6 rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-[#9CA3AF]"><FileText className="mx-auto h-8 w-8 text-[#C4B5FD]" /><p className="mt-3">The submitted form fields are unavailable.</p></div>}</section>
     </div>

@@ -149,6 +149,22 @@ const waitlistEmail = renderEmailTemplate(
 assert.match(waitlistEmail.html, /Waitlisted/);
 assert.match(waitlistEmail.html, /\/my-applications\/delegate\?applicationId=app-123/);
 
+const acceptedFeeEmail = renderEmailTemplate(
+  "application_status",
+  "Raven Applicant",
+  "https://ravenmun.example",
+  {
+    applicationId: "app-123",
+    applicationType: "delegate",
+    previousStatus: "pending",
+    status: "accepted",
+    fee: 900,
+  },
+);
+assert.match(acceptedFeeEmail.html, /Participation fee:/);
+assert.match(acceptedFeeEmail.html, /900/);
+assert.match(acceptedFeeEmail.html, /\/payment/);
+
 const waitlistDecision = ApplicationStatusEnum.WAITLIST;
 assert.equal(waitlistDecision, "waitlist");
 assert.ok(Object.values(ApplicationStatusEnum).includes(waitlistDecision));

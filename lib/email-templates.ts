@@ -41,6 +41,7 @@ export interface EmailData {
   status?: string;
   reviewNotes?: string;
   applicationId?: string;
+  fee?: number | string;
   purpose?: string;
 }
 
@@ -118,6 +119,11 @@ const getContent = (type: NotificationType, userName: string, data: EmailData = 
   const reviewNotes = data.reviewNotes?.trim()
     ? `<p><strong>Review note:</strong> ${escapeHtml(data.reviewNotes.trim())}</p>`
     : "";
+  const feeValue = Number(data.fee);
+  const paymentRequired = Number.isFinite(feeValue) && feeValue > 0 && (data.status === "accepted" || data.status === "approved");
+  const feeLine = paymentRequired
+    ? `<p><strong>Participation fee:</strong> ${feeValue.toLocaleString("en-GB")} ₺</p><p>You can complete the payment from the participant portal. Bank details and the receipt upload are on the payment page.</p>`
+    : "";
 
   switch (type) {
     case "email_verification":
@@ -178,9 +184,11 @@ const getContent = (type: NotificationType, userName: string, data: EmailData = 
       return {
         subject: "Application update | RavenMUN 2026",
         heading: "Your application status changed",
-        message: `Hello <strong>${name}</strong>,<br/><br/>Your ${application} application changed from <strong>${previousStatus}</strong> to <strong>${currentStatus}</strong>. Sign in to view the latest status and any next steps.${reviewNotes}`,
-        buttonText: "View application",
-        buttonPath: data.applicationId ? `/my-applications/${encodeURIComponent(data.applicationType || "delegate")}?applicationId=${encodeURIComponent(data.applicationId)}` : "/portal/applications",
+        message: `Hello <strong>${name}</strong>,<br/><br/>Your ${application} application changed from <strong>${previousStatus}</strong> to <strong>${currentStatus}</strong>. Sign in to view the latest status and any next steps.${reviewNotes}${feeLine}`,
+        buttonText: paymentRequired ? "Complete payment" : "View application",
+        buttonPath: paymentRequired
+          ? "/payment"
+          : data.applicationId ? `/my-applications/${encodeURIComponent(data.applicationType || "delegate")}?applicationId=${encodeURIComponent(data.applicationId)}` : "/portal/applications",
         accentColor: COLORS.primary,
       };
     case "committee_assignment":
@@ -254,6 +262,8 @@ function templateValues(userName: string, baseUrl: string, data: EmailData) {
     old_status: statusLabel(data.previousStatus),
     review_notes: data.reviewNotes || "",
     application_id: data.applicationId || "",
+    fee: Number.isFinite(Number(data.fee)) && Number(data.fee) > 0 ? Number(data.fee).toLocaleString("en-GB") : "",
+    payment_url: `${baseUrl.replace(/\/$/, "")}/payment`,
     code: data.code || "",
     purpose: data.purpose || "sign in",
     portal_url: `${baseUrl.replace(/\/$/, "")}/portal`,

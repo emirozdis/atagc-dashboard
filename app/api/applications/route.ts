@@ -249,7 +249,7 @@ async function updateApplicationStatus(
 
     const { data: currentAppData, error: fetchError } = await supabase
         .from("applications")
-        .select("status, review_notes, payment_status, user_id, application_type, form_snapshot, form:application_forms(slug, fee)")
+        .select("status, review_notes, payment_status, user_id, application_type, form_id, form_snapshot, form:application_forms(slug, fee)")
         .eq("id", id)
         .single();
 
@@ -297,10 +297,19 @@ async function updateApplicationStatus(
         reviewed_at: new Date().toISOString(),
     };
 
+    const snapshotFee = Number((currentApp.form_snapshot as { fee?: number | string } | undefined)?.fee);
+    const currentFormFee = Number(formObj?.fee || 0);
+    // The fee agreed at submission wins; the current form fee is only a
+    // fallback for legacy applications without a snapshot.
+    const applicationFee = Number.isFinite(snapshotFee) && snapshotFee >= 0 ? snapshotFee : currentFormFee;
+
     if (status === ApplicationStatusEnum.APPROVED || status === ApplicationStatusEnum.ACCEPTED) {
-        const fee = Number(formObj?.fee || 0);
-        if (fee === 0) {
+        if (applicationFee === 0) {
             updatePayload.payment_status = PaymentStatusEnum.EXEMPT;
+        } else if (currentApp.payment_status === PaymentStatusEnum.EXEMPT) {
+            // Older approvals were marked exempt by the missing form relation;
+            // re-approving now restores the real fee.
+            updatePayload.payment_status = PaymentStatusEnum.UNPAID;
         }
     }
 
@@ -373,6 +382,7 @@ async function updateApplicationStatus(
             previousStatus: currentApp.status,
             status,
             reviewNotes: review_notes,
+            fee: applicationFee,
         });
     }
 }

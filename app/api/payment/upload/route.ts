@@ -14,19 +14,18 @@ export const POST = apiHandler(async (request: Request) => {
     const userId = auth.session.user.id;
 
     // Check if application exists
-    const [{ data: applications }, { data: assignment }, { data: existingReceipt }] = await Promise.all([
+    const [{ data: applications }, { data: existingReceipt }] = await Promise.all([
       supabase
         .from("applications")
         .select("id, payment_status")
         .eq("user_id", userId)
         .in("status", ["accepted", "approved"])
         .order("submitted_at", { ascending: false }),
-      supabase.from("conference_assignments").select("user_id").eq("user_id", userId).maybeSingle(),
       supabase.from("payment_receipts").select("storage_path").eq("user_id", userId).maybeSingle(),
     ]);
 
     const app = applications?.[0];
-    if (!app || !assignment) throw new Error("Payment is available after final placement.");
+    if (!app) throw new Error("Payment is available after your application is accepted.");
     if ((applications || []).some((application) => application.payment_status === 'paid' || application.payment_status === 'processing')) {
         throw new Error("Payment already submitted or completed.");
     }

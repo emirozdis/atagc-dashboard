@@ -15,7 +15,9 @@ export async function GET(request: Request) {
   const session = auth.session;
   const canSeePaymentDetails = Boolean(
     session?.user &&
-      (session.user.applicationStatus === "approved" || STAFF_ROLES.includes(session.user.role as never)),
+      (session.user.applicationStatus === "approved" ||
+        session.user.applicationStatus === "accepted" ||
+        STAFF_ROLES.includes(session.user.role as never)),
   );
 
   const { data: records } = await supabase
