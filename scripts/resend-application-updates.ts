@@ -25,6 +25,13 @@ const QA_APPLICATION_ID = "e2730452-0651-4b13-abbd-ae6867edb344";
 
 type Row = { id: string; recipient_email: string; html: string };
 
+function statusHint(html: string): string[] | null {
+  if (/Participation fee|Complete payment/.test(html)) return ["accepted", "approved"];
+  if (/Waitlisted/.test(html)) return ["waitlist"];
+  if (/Not accepted<|>Rejected</.test(html)) return ["rejected"];
+  return null;
+}
+
 async function main() {
   const { sendEmail } = await import("../lib/email");
   const { renderEmailTemplate } = await import("../lib/email-templates");
@@ -40,9 +47,32 @@ async function main() {
 
     const byApplication = new Map<string, { rowIds: string[]; recipient: string }>();
     for (const row of outbox) {
-      const match = row.html.match(applicationIdPattern);
-      if (!match) continue;
-      const applicationId = match[1].toLowerCase();
+      const directMatch = row.html.match(applicationIdPattern);
+      let applicationId = directMatch?.[1]?.toLowerCase() || null;
+
+      if (!applicationId) {
+        const hint = statusHint(row.html);
+        const { rows: users } = await client.query<{ id: string }>(
+          "select id from public.users where lower(email) = lower($1) limit 1",
+          [row.recipient_email],
+        );
+        if (!users[0]) {
+          skipped += 1;
+          continue;
+        }
+        const { rows: apps } = await client.query<{ id: string }>(
+          `select id from public.applications
+           where user_id = $1 and status = any($2::text[])
+           order by reviewed_at desc nulls last, submitted_at desc limit 1`,
+          [users[0].id, hint || [...decisionStatuses]],
+        );
+        if (!apps[0]) {
+          skipped += 1;
+          continue;
+        }
+        applicationId = apps[0].id;
+      }
+
       const current = byApplication.get(applicationId) || { rowIds: [], recipient: row.recipient_email };
       current.rowIds.push(row.id);
       byApplication.set(applicationId, current);
