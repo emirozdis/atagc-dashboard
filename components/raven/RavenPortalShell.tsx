@@ -56,8 +56,6 @@ export default function RavenPortalShell({ children }: { children: ReactNode }) 
   const actualRole = session?.user?.role || "applicant";
   const role = session?.user ? getEffectiveRole(session.user) : "applicant";
   const isStaff = STAFF_ROLES.includes(actualRole);
-  const isApproved = isStaff || session?.user?.applicationStatus === "approved" || session?.user?.applicationStatus === "accepted";
-  const showPayment = session?.user?.applicationStatus === "approved" || session?.user?.applicationStatus === "accepted";
 
   const { data: applicationData } = useQuery<PortalApplicationData>({
     queryKey: ["portal-nav-applications", session?.user?.id],
@@ -69,6 +67,14 @@ export default function RavenPortalShell({ children }: { children: ReactNode }) 
     enabled: Boolean(session?.user?.id),
     staleTime: 60_000,
   });
+
+  // The session JWT can predate an acceptance; the live application list is
+  // the source of truth for payment and approved-only navigation.
+  const hasAcceptedApplication = Boolean(
+    applicationData?.applications?.some((application) => application.status === "accepted" || application.status === "approved"),
+  );
+  const isApproved = isStaff || hasAcceptedApplication || session?.user?.applicationStatus === "approved" || session?.user?.applicationStatus === "accepted";
+  const showPayment = hasAcceptedApplication || session?.user?.applicationStatus === "approved" || session?.user?.applicationStatus === "accepted";
 
   const hasDelegation = Boolean(
     applicationData?.delegation

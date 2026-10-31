@@ -3,6 +3,7 @@ import { RAVENMUN_CONFERENCE } from "@/config/ravenmun";
 import { supabase } from "@/lib/SERVER_supabase";
 import { rateLimit } from "@/lib/rate-limit";
 import getAuthorization from "@/lib/getAuthorization";
+import { getCurrentAuthorizationState } from "@/lib/authorization-state";
 import { STAFF_ROLES } from "@/lib/roles";
 
 const limiter = rateLimit({ namespace: "api/settings:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
@@ -13,11 +14,22 @@ export async function GET(request: Request) {
 
   const auth = await getAuthorization({ requireAuth: false });
   const session = auth.session;
+  let applicationStatus = session?.user?.applicationStatus;
+  let effectiveRole = session?.user?.role;
+  if (session?.user?.id) {
+    try {
+      const state = await getCurrentAuthorizationState(session.user.id);
+      applicationStatus = state.applicationStatus;
+      effectiveRole = state.role;
+    } catch {
+      // Keep the session values if the fresh authorization lookup fails.
+    }
+  }
   const canSeePaymentDetails = Boolean(
     session?.user &&
-      (session.user.applicationStatus === "approved" ||
-        session.user.applicationStatus === "accepted" ||
-        STAFF_ROLES.includes(session.user.role as never)),
+      (applicationStatus === "approved" ||
+        applicationStatus === "accepted" ||
+        STAFF_ROLES.includes(effectiveRole as never)),
   );
 
   const { data: records } = await supabase
