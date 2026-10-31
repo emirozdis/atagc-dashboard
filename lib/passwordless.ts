@@ -161,9 +161,12 @@ async function userSessionPayload(user: PasswordlessUser) {
   }
 
   const role = (assignment?.role || user.role || ROLES.APPLICANT) as UserRole;
-  const latestApplication = applications?.[0];
+  const applicationRows = (applications || []) as Array<{ application_type?: string | null; status?: string | null; submitted_at?: string | null }>;
+  const latestApplication = applicationRows[0];
+  const acceptedApplication = applicationRows.find((application) => application.status === "accepted" || application.status === "approved");
+  const statusSource = acceptedApplication || latestApplication;
   let applicationStatus: ApplicationStatusEnum | undefined;
-  if (isApplicationStatus(latestApplication?.status)) applicationStatus = latestApplication.status;
+  if (isApplicationStatus(statusSource?.status)) applicationStatus = statusSource.status;
   if (assignment?.role) applicationStatus = ApplicationStatusEnum.APPROVED;
 
   const accountRole = user.account_role === "super_admin" ? ROLES.SUPERADMIN : user.account_role === "site_admin" ? ROLES.ADMIN : role;

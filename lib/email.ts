@@ -25,43 +25,76 @@ if (
   });
 }
 
+interface ResendSender {
+  apiKey: string;
+  from: string;
+  label: "primary" | "fallback";
+}
+
+function resendSenders(): ResendSender[] {
+  const primaryKey = process.env.RESEND_API_KEY;
+  const primaryFrom = process.env.EMAIL_FROM || process.env.SMTP_FROM || '\"RavenMUN\" <no-reply@ravenmun.com>';
+  const fallbackKey = process.env.RESEND_FALLBACK_API_KEY;
+  const fallbackFrom = process.env.EMAIL_FALLBACK_FROM || primaryFrom;
+
+  const senders: ResendSender[] = [];
+  if (primaryKey) senders.push({ apiKey: primaryKey, from: primaryFrom, label: "primary" });
+  if (fallbackKey && fallbackKey !== primaryKey) {
+    senders.push({ apiKey: fallbackKey, from: fallbackFrom, label: "fallback" });
+  }
+  return senders;
+}
+
+async function sendWithResend(sender: ResendSender, to: string, subject: string, html: string) {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${sender.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    signal: AbortSignal.timeout(10_000),
+    body: JSON.stringify({ from: sender.from, to: [to], subject, html }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    let detail = body;
+    try {
+      const parsed = JSON.parse(body) as { message?: string };
+      detail = parsed.message || body;
+    } catch {
+      // Keep the raw response in the server log when Resend does not return JSON.
+    }
+    console.error(`Resend ${sender.label} email delivery failed:`, { status: response.status, detail });
+    throw new Error(`Resend ${sender.label} email delivery failed (${response.status}): ${detail}`);
+  }
+  return response.json();
+}
+
 export async function sendEmail(to: string, subject: string, html: string) {
   if (process.env.NODE_ENV === "production" && process.env.EMAIL_DEV_MODE === "true") {
     throw new Error("EMAIL_DEV_MODE cannot be enabled in production.");
   }
-  const from = process.env.EMAIL_FROM || process.env.SMTP_FROM || '\"RavenMUN\" <no-reply@ravenmun.com>';
   const safeSubject = /atag/i.test(subject) ? "RavenMUN notification" : subject;
+  const senders = resendSenders();
 
-  if (process.env.RESEND_API_KEY) {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      signal: AbortSignal.timeout(10_000),
-      body: JSON.stringify({ from, to: [to], subject: safeSubject, html }),
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      let detail = body;
+  if (senders.length) {
+    let lastError: unknown = null;
+    for (const sender of senders) {
       try {
-        const parsed = JSON.parse(body) as { message?: string };
-        detail = parsed.message || body;
-      } catch {
-        // Keep the raw response in the server log when Resend does not return JSON.
+        return await sendWithResend(sender, to, safeSubject, html);
+      } catch (error) {
+        lastError = error;
       }
-      console.error("Resend email delivery failed:", { status: response.status, detail });
-      throw new Error(`Resend email delivery failed (${response.status}): ${detail}`);
     }
-    return response.json();
+    throw lastError instanceof Error ? lastError : new Error("Resend email delivery failed");
   }
 
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error("Email delivery is not configured.");
   }
 
+  const from = process.env.EMAIL_FROM || process.env.SMTP_FROM || '\"RavenMUN\" <no-reply@ravenmun.com>';
   try {
     return await transporter.sendMail({ from, to, subject: safeSubject, html });
   } catch (error) {
@@ -89,30 +122,38 @@ export async function sendPlainTextEmail(to: string, from: string, subject: stri
   if (!isRavenmunEmailAddress(from)) throw new Error("The sender must use a ravenmun.com address.");
   if (/[\r\n]/.test(subject)) throw new Error("Subject cannot contain line breaks.");
 
-  if (process.env.RESEND_API_KEY) {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      signal: AbortSignal.timeout(10_000),
-      body: JSON.stringify({ from: from.trim(), to: [to.trim()], subject: subject.trim(), text }),
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      let detail = body;
+  const senders = resendSenders();
+  if (senders.length) {
+    let lastError: unknown = null;
+    for (const sender of senders) {
       try {
-        const parsed = JSON.parse(body) as { message?: string };
-        detail = parsed.message || body;
-      } catch {
-        // Keep the raw response in the server log when Resend does not return JSON.
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${sender.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify({ from: from.trim(), to: [to.trim()], subject: subject.trim(), text }),
+        });
+        if (!response.ok) {
+          const body = await response.text();
+          let detail = body;
+          try {
+            const parsed = JSON.parse(body) as { message?: string };
+            detail = parsed.message || body;
+          } catch {
+            // Keep the raw response in the server log when Resend does not return JSON.
+          }
+          console.error(`Resend ${sender.label} plain-text delivery failed:`, { status: response.status, detail });
+          throw new Error(`Resend ${sender.label} plain-text delivery failed (${response.status}): ${detail}`);
+        }
+        return response.json();
+      } catch (error) {
+        lastError = error;
       }
-      console.error("Resend plain-text email delivery failed:", { status: response.status, detail });
-      throw new Error(`Resend email delivery failed (${response.status}): ${detail}`);
     }
-    return response.json();
+    throw lastError instanceof Error ? lastError : new Error("Resend plain-text delivery failed");
   }
 
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {

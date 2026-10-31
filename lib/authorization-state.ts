@@ -15,7 +15,7 @@ function isApplicationStatus(value: unknown): value is ApplicationStatus {
 }
 
 export async function getCurrentAuthorizationState(userId: string) {
-  const [{ data: account, error: accountError }, { data: assignment, error: assignmentError }, { data: latestApplication, error: applicationError }] = await Promise.all([
+  const [{ data: account, error: accountError }, { data: assignment, error: assignmentError }, { data: applications, error: applicationError }] = await Promise.all([
     supabase
       .from("users")
       .select("id, role, account_role, is_suspended")
@@ -30,14 +30,16 @@ export async function getCurrentAuthorizationState(userId: string) {
       .from("applications")
       .select("status, submitted_at")
       .eq("user_id", userId)
-      .order("submitted_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .order("submitted_at", { ascending: false }),
   ]);
 
   if (accountError || assignmentError || applicationError || !account) {
     throw new Error("Unable to load account authorization.");
   }
+
+  const applicationRows = (applications || []) as Array<{ status?: string | null; submitted_at?: string | null }>;
+  const latestApplication = applicationRows[0];
+  const acceptedApplication = applicationRows.find((application) => application.status === "accepted" || application.status === "approved");
 
   const accountRole = account.account_role === "super_admin"
     ? ROLES.SUPERADMIN
@@ -50,9 +52,11 @@ export async function getCurrentAuthorizationState(userId: string) {
   const role = accountRole || assignedRole || (isUserRole(account.role) ? account.role : ROLES.APPLICANT);
   const applicationStatus = assignedRole
     ? ApplicationStatusEnum.APPROVED
-    : isApplicationStatus(latestApplication?.status)
-      ? latestApplication.status
-      : undefined;
+    : isApplicationStatus(acceptedApplication?.status)
+      ? acceptedApplication.status
+      : isApplicationStatus(latestApplication?.status)
+        ? latestApplication.status
+        : undefined;
 
   return {
     isSuspended: account.is_suspended === true,

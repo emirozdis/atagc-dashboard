@@ -40,13 +40,16 @@ export const authOptions: NextAuthOptions = {
         if (session?.user?.image) token.picture = session.user.image;
         const userId = (token.id as string) || token.sub;
         if (userId) {
-          const [{ data: freshUser }, { data: assignment }, { data: latestApplication }] = await Promise.all([
+          const [{ data: freshUser }, { data: assignment }, { data: applications }] = await Promise.all([
             supabase.from("users").select("role, account_role").eq("id", userId).maybeSingle(),
             supabase.from("conference_assignments").select("role, committee_id").eq("user_id", userId).maybeSingle(),
-            supabase.from("applications").select("application_type, status").eq("user_id", userId).order("submitted_at", { ascending: false }).limit(1).maybeSingle(),
+            supabase.from("applications").select("application_type, status").eq("user_id", userId).order("submitted_at", { ascending: false }),
           ]);
           if (freshUser) token.role = freshUser.account_role === "super_admin" ? ROLES.SUPERADMIN : freshUser.account_role === "site_admin" ? ROLES.ADMIN : (assignment?.role || freshUser.role || ROLES.APPLICANT) as UserRole;
-          if (latestApplication && Object.values(ApplicationStatusEnum).includes(latestApplication.status as ApplicationStatusEnum)) token.applicationStatus = latestApplication.status as ApplicationStatusEnum;
+          const applicationRows = (applications || []) as Array<{ status?: string | null }>;
+          const acceptedApplication = applicationRows.find((application) => application.status === "accepted" || application.status === "approved");
+          const statusSource = acceptedApplication || applicationRows[0];
+          if (statusSource && Object.values(ApplicationStatusEnum).includes(statusSource.status as ApplicationStatusEnum)) token.applicationStatus = statusSource.status as ApplicationStatusEnum;
           token.committeeId = assignment?.committee_id || null;
         }
       }
