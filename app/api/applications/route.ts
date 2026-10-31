@@ -75,7 +75,11 @@ async function processRavenApplicationSubmission(
     const formData = input.formData;
 
     const { data: settings } = await supabase.from("ravenmun_settings").select("applications_open").eq("id", true).maybeSingle();
-    if (settings?.applications_open === false) throw new Error("Applications are currently closed.");
+    // Delegation invitations stay usable after the general application window
+    // closes: a leader can still invite a specific delegate, and the invite is
+    // validated (token, email, expiry) below before anything is written.
+    const hasDelegationInvite = Boolean(input.delegationInviteToken || input.delegationMagiclinkId);
+    if (settings?.applications_open === false && !hasDelegationInvite) throw new Error("Applications are currently closed.");
 
     const { data: form, error: formError } = await supabase
         .from("application_forms")
