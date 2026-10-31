@@ -362,6 +362,24 @@ export default function ApplicationDetailPage() {
         </div>
       </div>
 
+      {application.status === 'waitlist' && canReviewApplication && (
+        <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <Hourglass className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-600">On the waiting list</p>
+              <p className="text-sm text-muted-foreground">
+                This application is still open for a final decision. Approving accepts it; rejecting closes it. The applicant is notified by email either way.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="destructive" size="sm" onClick={() => setShowRejectConfirm(true)}>Reject</Button>
+            <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => setShowApproveConfirm(true)}>Approve</Button>
+          </div>
+        </div>
+      )}
+
       {needsDelegationChoice && (
         <div className="bg-card border border-amber-500/30 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
           <div className="flex items-start gap-2 text-sm text-amber-600">
@@ -506,7 +524,9 @@ export default function ApplicationDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Approve application</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to approve this application? The user will receive an automatic notification email and their role will be updated to <strong>{formDef?.title || "participant"}</strong>.
+              {application.status === 'waitlist'
+                ? "This applicant is currently on the waiting list. Approving will accept the application and send an automatic notification email."
+                : <>Are you sure you want to approve this application? The user will receive an automatic notification email and their role will be updated to <strong>{formDef?.title || "participant"}</strong>.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
