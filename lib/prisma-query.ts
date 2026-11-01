@@ -120,7 +120,7 @@ function splitSelection(selection: string): string[] {
   return parts;
 }
 
-function parseSelection(selection: string): { columns: string; nested: NestedSelection[] } {
+function parseSelection(selection: string, parentTable?: string): { columns: string; nested: NestedSelection[] } {
   const fields = splitSelection(selection || "*");
   const columns: string[] = [];
   const nested: NestedSelection[] = [];
@@ -139,11 +139,19 @@ function parseSelection(selection: string): { columns: string; nested: NestedSel
     const afterColon = head.includes(":") ? head.split(":").slice(1).join(":") : alias;
     const target = afterColon.split("!", 2)[0].trim() || alias;
     if (IDENTIFIER.test(alias) && IDENTIFIER.test(target)) {
-      nested.push({ alias, target, fields: field.slice(open + 1, close), relationName: head.includes("!") ? head.split("!", 2)[1] : undefined });
+      const nestedSelection = { alias, target, fields: field.slice(open + 1, close), relationName: head.includes("!") ? head.split("!", 2)[1] : undefined };
+      nested.push(nestedSelection);
+      // Hydration joins on the relation's source column. Always select it so a
+      // caller cannot accidentally receive a null relation by omitting it.
+      if (parentTable && !columns.includes("*")) {
+        const relation = relationFor(parentTable, nestedSelection);
+        if (relation) columns.push(identifier(relation.source));
+      }
     }
   }
 
-  return { columns: columns.length ? columns.join(", ") : "*", nested };
+  const uniqueColumns = [...new Set(columns)];
+  return { columns: uniqueColumns.length ? uniqueColumns.join(", ") : "*", nested };
 }
 
 function asArray<T>(value: T | T[] | null): T[] {
@@ -168,7 +176,7 @@ async function hydrateRelations(parent: string, rows: DatabaseRow[], nested: Nes
       continue;
     }
 
-    const { columns, nested: childNested } = parseSelection(selection.fields);
+    const { columns, nested: childNested } = parseSelection(selection.fields, relation.target);
     for (const row of rows) {
       const sourceValue = row[relation.source];
       if (sourceValue === null || sourceValue === undefined) {
@@ -359,7 +367,7 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
   }
 
   private async executeSelect(): Promise<DatabaseResult<T>> {
-    const parsed = parseSelection(this.selection);
+    const parsed = parseSelection(this.selection, this.table);
     const where = this.whereClause();
     const order = this.orderBy.length ? ` ORDER BY ${this.orderBy.map((item) => `${identifier(item.column)} ${item.ascending ? "ASC" : "DESC"}`).join(", ")}` : "";
     const pagination = this.limitValue === undefined ? "" : ` LIMIT ${this.limitValue}${this.offsetValue === undefined ? "" : ` OFFSET ${this.offsetValue}`}`;

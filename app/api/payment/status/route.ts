@@ -41,7 +41,19 @@ export const GET = apiHandler(async () => {
     }>;
     const fee = Math.max(0, ...placedApplications.map((application) => Number((Array.isArray(application.form) ? application.form[0]?.fee : application.form?.fee) || application.form_snapshot?.fee || 0)));
     const appStatuses = placedApplications.map((application) => application.payment_status);
-    const paymentStatus = appStatuses.includes(PaymentStatusEnum.EXEMPT) ? PaymentStatusEnum.EXEMPT : appStatuses.includes(PaymentStatusEnum.PAID) ? PaymentStatusEnum.PAID : appStatuses.includes(PaymentStatusEnum.PROCESSING) ? PaymentStatusEnum.PROCESSING : PaymentStatusEnum.UNPAID;
+    // A single exempt application must not hide another accepted application
+    // that still needs payment. Outstanding states win over completed ones.
+    const paymentStatus = appStatuses.includes(PaymentStatusEnum.UNPAID)
+      ? PaymentStatusEnum.UNPAID
+      : appStatuses.includes(PaymentStatusEnum.REJECTED)
+        ? PaymentStatusEnum.REJECTED
+        : appStatuses.includes(PaymentStatusEnum.PROCESSING)
+          ? PaymentStatusEnum.PROCESSING
+          : appStatuses.includes(PaymentStatusEnum.PAID)
+            ? PaymentStatusEnum.PAID
+            : appStatuses.includes(PaymentStatusEnum.EXEMPT)
+              ? PaymentStatusEnum.EXEMPT
+              : PaymentStatusEnum.UNPAID;
 
     // If exempt, force amount to 0
     const finalAmount = paymentStatus === PaymentStatusEnum.EXEMPT ? 0 : fee;
