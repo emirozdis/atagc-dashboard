@@ -39,7 +39,7 @@ export const GET = apiHandler(async () => {
       form?: { fee?: number } | Array<{ fee?: number }> | null;
       payment_status?: string;
     }>;
-    const fee = Math.max(0, ...placedApplications.map((application) => Number(application.form_snapshot?.fee || (Array.isArray(application.form) ? application.form[0]?.fee : application.form?.fee) || 0)));
+    const fee = Math.max(0, ...placedApplications.map((application) => Number((Array.isArray(application.form) ? application.form[0]?.fee : application.form?.fee) || application.form_snapshot?.fee || 0)));
     const appStatuses = placedApplications.map((application) => application.payment_status);
     const paymentStatus = appStatuses.includes(PaymentStatusEnum.EXEMPT) ? PaymentStatusEnum.EXEMPT : appStatuses.includes(PaymentStatusEnum.PAID) ? PaymentStatusEnum.PAID : appStatuses.includes(PaymentStatusEnum.PROCESSING) ? PaymentStatusEnum.PROCESSING : PaymentStatusEnum.UNPAID;
 

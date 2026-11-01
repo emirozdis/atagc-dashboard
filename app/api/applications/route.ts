@@ -298,10 +298,10 @@ async function updateApplicationStatus(
     };
 
     const snapshotFee = Number((currentApp.form_snapshot as { fee?: number | string } | undefined)?.fee);
-    const currentFormFee = Number(formObj?.fee || 0);
-    // The fee agreed at submission wins; the current form fee is only a
-    // fallback for legacy applications without a snapshot.
-    const applicationFee = Number.isFinite(snapshotFee) && snapshotFee >= 0 ? snapshotFee : currentFormFee;
+    const currentFormFee = formObj?.fee === null || formObj?.fee === undefined ? null : Number(formObj.fee);
+    // The form fee is the live price. The snapshot is only a fallback for
+    // legacy applications whose form relation is missing.
+    const applicationFee = currentFormFee !== null && Number.isFinite(currentFormFee) && currentFormFee >= 0 ? currentFormFee : snapshotFee;
 
     if (status === ApplicationStatusEnum.APPROVED || status === ApplicationStatusEnum.ACCEPTED) {
         if (applicationFee === 0) {

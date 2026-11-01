@@ -59,7 +59,7 @@ export const PUT = apiHandler(async (request: Request) => {
 
   const { id, title, description, fee, steps, questions, is_active } = formUpdateSchema.parse(await request.json());
 
-  const { data: current, error: currentError } = await supabase.from("application_forms").select("version, application_type, is_active, questions").eq("id", id).maybeSingle();
+  const { data: current, error: currentError } = await supabase.from("application_forms").select("version, application_type, is_active, questions, fee").eq("id", id).maybeSingle();
   if (currentError || !current) throw new Error("Form not found.");
 
   const currentQuestions = applicationQuestionsSchema.safeParse(current.questions);
@@ -89,6 +89,36 @@ export const PUT = apiHandler(async (request: Request) => {
     .eq("id", id);
 
   if (error) throw error;
+
+  // The participation fee is a live price, not a historical term. Keep every
+  // existing application's snapshot in step with the form so the portal and
+  // acceptance emails never show an outdated amount.
+  if (Number(current.fee) !== Number(fee)) {
+    const { data: applications, error: applicationsError } = await supabase
+      .from("applications")
+      .select("id, form_snapshot")
+      .eq("form_id", id);
+    if (applicationsError) throw applicationsError;
+    for (const application of applications || []) {
+      const snapshot = application.form_snapshot && typeof application.form_snapshot === "object" && !Array.isArray(application.form_snapshot)
+        ? application.form_snapshot as Record<string, unknown>
+        : {};
+      const { error: syncError } = await supabase
+        .from("applications")
+        .update({ form_snapshot: { ...snapshot, fee }, updated_at: new Date().toISOString() })
+        .eq("id", application.id);
+      if (syncError) throw new Error("Fee saved, but an existing application could not be synchronized.");
+    }
+    if (Number(fee) > 0) {
+      const { error: paymentSyncError } = await supabase
+        .from("applications")
+        .update({ payment_status: "unpaid", updated_at: new Date().toISOString() })
+        .eq("form_id", id)
+        .in("status", ["accepted", "approved"])
+        .eq("payment_status", "exempt");
+      if (paymentSyncError) throw paymentSyncError;
+    }
+  }
 
   // The public application pages are statically rendered with ISR. Invalidate
   // the saved form's page so the next visitor receives the updated questions.

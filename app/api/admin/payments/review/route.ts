@@ -25,7 +25,7 @@ export const GET = apiHandler(async (request: Request) => {
                 role,
                 user_details (
                     phone_number,
-                    school_name,
+                    school,
                     additional_info,
                     high_schools(school_name)
                 )

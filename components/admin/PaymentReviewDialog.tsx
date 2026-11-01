@@ -28,14 +28,15 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
     const [rejectReason, setRejectReason] = useState("");
     const [isRejecting, setIsRejecting] = useState(false);
 
-    const { data: payment, isLoading } = useQuery({
+    const { data: payment, isLoading, error } = useQuery({
         queryKey: ['payment-detail', paymentId],
         queryFn: async () => {
             const res = await fetch(`/api/admin/payments/review?id=${paymentId}`);
             if (!res.ok) throw new Error("Failed");
             return res.json();
         },
-        enabled: !!paymentId && open
+        enabled: !!paymentId && open,
+        retry: 1,
     });
 
     const reviewMutation = useMutation({
@@ -60,6 +61,22 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
 
     if (!paymentId) return null;
 
+    if (error) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Payment review</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <p className="text-sm text-muted-foreground">This receipt could not be loaded. It may have been removed or the payment record is incomplete.</p>
+                        <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
     // Safe Accessor for User Details
     const userDetails = payment?.user?.user_details
         ? (Array.isArray(payment.user.user_details) ? payment.user.user_details[0] : payment.user.user_details)
@@ -67,6 +84,7 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
 
     const additional = userDetails?.additional_info || {};
     const highSchool = userDetails?.high_schools as { school_name?: string } | undefined;
+    const schoolName = highSchool?.school_name || userDetails?.school || additional?.manual_school_name;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -142,8 +160,8 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
                                                     <div className="flex items-center gap-3">
                                                         <GraduationCap className="w-4 h-4 text-primary/70 shrink-0" />
                                                         <div className="text-foreground/90">
-                                                            <span className="line-clamp-1" title={highSchool?.school_name || additional?.manual_school_name}>
-                                                                {highSchool?.school_name || additional?.manual_school_name || "No school specified"}
+                                                            <span className="line-clamp-1" title={schoolName}>
+                                                                {schoolName || "No school specified"}
                                                             </span>
                                                             {additional.grade && <span className="text-muted-foreground text-xs block mt-0.5">Grade {additional.grade}</span>}
                                                         </div>
