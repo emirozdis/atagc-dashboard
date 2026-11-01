@@ -16,7 +16,7 @@ export const GET = apiHandler(async (request: Request) => {
   let query = supabase
     .from("payment_receipts")
     .select(`
-        id, created_at, status, file_type,
+        id, user_id, reviewed_by, created_at, status, file_type,
         user:users!payment_receipts_user_id_fkey ( id, full_name, email ),
         reviewer:users!payment_receipts_reviewed_by_fkey ( full_name )
     `, { count: 'exact' });
