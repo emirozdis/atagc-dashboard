@@ -92,14 +92,14 @@ export const POST = apiHandler(async (request: Request) => {
     if (rError) throw rError;
     if (!updatedReceipt) throw new Error("Receipt has already been processed.");
 
-    const { data: updatedApplication, error: aError } = await supabase
+    const { data: updatedApplications, error: aError } = await supabase
         .from("applications")
         .update({ payment_status: appPaymentStatus })
-        .eq("id", receipt.application_id)
-        .select("id")
-        .maybeSingle();
+        .eq("user_id", receipt.user_id)
+        .in("status", ["accepted", "approved"])
+        .select("id");
 
-    if (aError || !updatedApplication) {
+    if (aError || !updatedApplications || updatedApplications.length === 0) {
         const { error: rollbackError } = await supabase
             .from("payment_receipts")
             .update({

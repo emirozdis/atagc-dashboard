@@ -261,7 +261,7 @@ export default function ApplicationsPage() {
                 <Building2 className="w-3.5 h-3.5 shrink-0" />
                 {assignedCommittee ? (
                   <span className="font-medium text-foreground truncate">{assignedCommittee.name}</span>
-                ) : app.status === 'approved' ? (
+                ) : ['approved', 'accepted'].includes(app.status) ? (
                   <span className="text-orange-500 font-medium">Awaiting assignment</span>
                 ) : (
                   <span className="italic opacity-70">No committee</span>
@@ -466,7 +466,7 @@ export default function ApplicationsPage() {
                                 {assignedCommittee.name}
                               </span>
                             </div>
-                          ) : app.status === 'approved' ? (
+                          ) : ['approved', 'accepted'].includes(app.status) ? (
                             <Badge variant="outline" className="bg-orange-500/5 text-orange-500 border-orange-500/20 border-dashed whitespace-nowrap">
                               Awaiting assignment
                             </Badge>

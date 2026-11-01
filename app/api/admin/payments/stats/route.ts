@@ -10,11 +10,12 @@ export const GET = apiHandler(async (request: Request) => {
     const { count: totalDelegates } = await supabase
         .from("applications")
         .select("*", { count: 'exact', head: true })
-        .eq("status", "approved");
+        .in("status", ["accepted", "approved"]);
 
     const { count: paidDelegates } = await supabase
         .from("applications")
         .select("*", { count: 'exact', head: true })
+        .in("status", ["accepted", "approved"])
         .eq("payment_status", "paid");
 
     const total = totalDelegates || 0;

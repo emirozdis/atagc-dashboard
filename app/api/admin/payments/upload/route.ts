@@ -19,7 +19,7 @@ export const POST = apiHandler(async (request: Request) => {
     const userId = z.uuid().parse(targetUserId);
 
     // Check if application exists
-    const [{ data: app }, { data: assignment }, { data: existingReceipt }] = await Promise.all([
+    const [{ data: app }, { data: existingReceipt }] = await Promise.all([
       supabase
         .from("applications")
         .select("id, payment_status, status")
@@ -28,11 +28,10 @@ export const POST = apiHandler(async (request: Request) => {
         .order("submitted_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("conference_assignments").select("user_id").eq("user_id", userId).maybeSingle(),
       supabase.from("payment_receipts").select("storage_path").eq("user_id", userId).maybeSingle(),
     ]);
 
-    if (!app || !assignment) throw new Error("The participant must have a final placement first.");
+    if (!app) throw new Error("The participant must have an accepted application first.");
     if (app.payment_status === 'paid' || app.payment_status === 'processing') {
         throw new Error("Payment already submitted or completed.");
     }

@@ -146,8 +146,8 @@ export function PaymentReviewDialog({ paymentId, open, onOpenChange }: PaymentRe
 
                                             <div className="bg-secondary/10 border border-border/50 rounded-xl p-4 space-y-3">
                                                 <div>
-                                                    <div className="font-bold text-lg text-foreground">{payment.user.full_name}</div>
-                                                    <div className="text-sm text-muted-foreground">{payment.user.email}</div>
+                                                    <div className="font-bold text-lg text-foreground">{payment?.user?.full_name || "Unknown user"}</div>
+                                                    <div className="text-sm text-muted-foreground">{payment?.user?.email || "-"}</div>
                                                 </div>
 
                                                 <Separator className="bg-border/50" />

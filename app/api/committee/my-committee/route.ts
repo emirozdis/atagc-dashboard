@@ -56,26 +56,63 @@ export const GET = apiHandler(async (request: Request) => {
     return NextResponse.json({ error: "Committee not found" }, { status: 404 });
   }
 
-  const { data: dashboardData, error } = await supabase
-      .rpc("get_committee_dashboard_data", { target_committee_id: committeeId });
+  const [committeeResult, topicResult, memberRows, rollCalls] = await Promise.all([
+    supabase
+      .from("committees")
+      .select("id, name, description, image_url, slug")
+      .eq("id", committeeId)
+      .maybeSingle(),
+    supabase
+      .from("topics")
+      .select("id, title, description")
+      .eq("committee_id", committeeId)
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("committee_members")
+      .select("id, user_id, can_write, user:users(id, full_name, email, role, user_details(profile_picture_url, is_profile_picture_hidden))")
+      .eq("committee_id", committeeId),
+    supabase
+      .from("roll_calls")
+      .select("id, session_name, created_at")
+      .eq("committee_id", committeeId)
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ]);
 
-  if (error) {
-      console.error("RPC Error:", error);
+  if (committeeResult.error || !committeeResult.data) {
+      console.error("Committee lookup failed:", committeeResult.error);
       throw new Error("Could not load committee data.");
   }
+  if (memberRows.error) {
+      console.error("Committee members lookup failed:", memberRows.error);
+      throw new Error("Could not load committee members.");
+  }
 
-  const members = (dashboardData.members || []) as DashboardMember[];
+  const members = (memberRows.data || []).map((row) => {
+      const user = Array.isArray(row.user) ? row.user[0] : row.user;
+      const details = user?.user_details
+          ? (Array.isArray(user.user_details) ? user.user_details[0] : user.user_details)
+          : null;
+      return {
+          id: row.id,
+          userId: row.user_id,
+          user_id: row.user_id,
+          full_name: user?.full_name || "Unknown member",
+          email: user?.email || null,
+          role: user?.role || "applicant",
+          user: user ? { role: user.role } : undefined,
+          can_write: row.can_write === true,
+          profile_picture_url: details?.profile_picture_url || null,
+          is_profile_picture_hidden: details?.is_profile_picture_hidden === true,
+      };
+  });
+
   const pathsToSign: string[] = [];
-  const memberMap = new Map();
-
   members.forEach((m) => {
-      m.userId = m.user_id;
-      
       const isSelf = m.userId === session.user.id;
-      const isHidden = m.is_profile_picture_hidden;
-      
       if (m.profile_picture_url) {
-          if (isSelf || !isHidden) {
+          if (isSelf || !m.is_profile_picture_hidden) {
                if (!m.profile_picture_url.startsWith('http')) {
                    pathsToSign.push(m.profile_picture_url);
                }
@@ -83,7 +120,6 @@ export const GET = apiHandler(async (request: Request) => {
               m.profile_picture_url = null; // Hide if privacy enabled
           }
       }
-      memberMap.set(m.userId, m);
   });
 
   if (pathsToSign.length > 0) {
@@ -92,24 +128,18 @@ export const GET = apiHandler(async (request: Request) => {
 
       members.forEach((m) => {
           if (m.profile_picture_url && urlMap.has(m.profile_picture_url)) {
-              m.image = urlMap.get(m.profile_picture_url);
-              m.profile_picture_url = m.image;
+              const signedUrl = urlMap.get(m.profile_picture_url) || null;
+              (m as DashboardMember).image = signedUrl;
+              m.profile_picture_url = signedUrl;
           }
       });
   }
 
-  const { data: rollCalls } = await supabase
-      .from("roll_calls")
-      .select("id, session_name, created_at")
-      .eq("committee_id", committeeId)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
   return NextResponse.json({
-    ...dashboardData.committee,
-    topic: dashboardData.topic,
+    ...committeeResult.data,
+    topic: topicResult.data || null,
     members: members,
-    roll_calls: rollCalls || [],
+    roll_calls: rollCalls.data || [],
     stats: {
       total_members: members.length
     }

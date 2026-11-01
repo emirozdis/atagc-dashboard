@@ -88,8 +88,8 @@ export default function AdminPaymentsPage() {
       <CardContent className="p-4 space-y-3">
         <div className="flex justify-between items-start">
           <div>
-            <div className="font-semibold text-sm">{p.user.full_name}</div>
-            <div className="text-xs text-muted-foreground">{p.user.email}</div>
+            <div className="font-semibold text-sm">{p.user?.full_name || "Unknown user"}</div>
+            <div className="text-xs text-muted-foreground">{p.user?.email || "-"}</div>
           </div>
           {getStatusBadge(p.status)}
         </div>
@@ -173,8 +173,8 @@ export default function AdminPaymentsPage() {
                     payments.map((p) => (
                       <TableRow key={p.id} className="cursor-pointer hover:bg-muted/30 transition-colors group" onClick={() => setSelectedPaymentId(p.id)}>
                         <TableCell>
-                          <div className="font-medium">{p.user.full_name}</div>
-                          <div className="text-xs text-muted-foreground">{p.user.email}</div>
+                          <div className="font-medium">{p.user?.full_name || "Unknown user"}</div>
+                          <div className="text-xs text-muted-foreground">{p.user?.email || "-"}</div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">{new Date(p.created_at).toLocaleString('en-GB')}</TableCell>
                         <TableCell><div className="flex items-center gap-2 text-sm text-muted-foreground">{p.reviewer ? <><User className="w-3.5 h-3.5" /> {p.reviewer.full_name}</> : "-"}</div></TableCell>

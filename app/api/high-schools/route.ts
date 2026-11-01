@@ -16,23 +16,17 @@ export const GET = apiHandler(async (request: Request) => {
     return NextResponse.json([]);
   }
 
-  // Calls the RPC function 'search_high_schools'
-  const { data, error } = await supabase.rpc('search_high_schools', { 
-    search_text: search 
-  });
+  // Search directly; the legacy RPC is not present in every environment.
+  const { data, error } = await supabase
+    .from("high_schools")
+    .select("id, school_name, city, district")
+    .ilike("school_name", `%${search}%`)
+    .limit(20);
 
   if (error) {
     console.error("High school search error:", error);
-    // Fallback if RPC not yet created
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from("high_schools")
-      .select("id, school_name, city, district") // Added district
-      .ilike("school_name", `%${search}%`)
-      .limit(20);
-      
-    if (fallbackError) throw fallbackError;
-    return NextResponse.json(fallbackData);
+    throw error;
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(data || []);
 });

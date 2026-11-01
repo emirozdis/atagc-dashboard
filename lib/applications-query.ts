@@ -52,7 +52,7 @@ export async function fetchApplications(
         if (status === 'unassigned') {
             // Joined-field filters are applied after the Prisma compatibility
             // layer hydrates the applicant relation below.
-            query = query.eq('status', 'approved');
+            query = query.in('status', ['accepted', 'approved']);
         } else {
             query = query.eq("status", status);
         }
