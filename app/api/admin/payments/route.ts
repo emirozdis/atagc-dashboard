@@ -26,7 +26,14 @@ export const GET = apiHandler(async (request: Request) => {
   }
 
   if (search) {
-      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`, { foreignTable: 'users' });
+      // The compatibility layer cannot filter an embedded relation, so resolve
+      // matching users first and filter the receipts by their ids.
+      const { data: matchingUsers, error: userSearchError } = await supabase
+          .from("users")
+          .select("id")
+          .or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+      if (userSearchError) throw userSearchError;
+      query = query.in("user_id", (matchingUsers || []).map((user) => user.id));
   }
 
   query = query.order("created_at", { ascending: status === 'pending' });
