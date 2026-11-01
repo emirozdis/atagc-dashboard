@@ -41,16 +41,17 @@ export const GET = apiHandler(async () => {
     }>;
     const fee = Math.max(0, ...placedApplications.map((application) => Number((Array.isArray(application.form) ? application.form[0]?.fee : application.form?.fee) || application.form_snapshot?.fee || 0)));
     const appStatuses = placedApplications.map((application) => application.payment_status);
-    // A single exempt application must not hide another accepted application
-    // that still needs payment. Outstanding states win over completed ones.
-    const paymentStatus = appStatuses.includes(PaymentStatusEnum.UNPAID)
-      ? PaymentStatusEnum.UNPAID
-      : appStatuses.includes(PaymentStatusEnum.REJECTED)
-        ? PaymentStatusEnum.REJECTED
-        : appStatuses.includes(PaymentStatusEnum.PROCESSING)
-          ? PaymentStatusEnum.PROCESSING
-          : appStatuses.includes(PaymentStatusEnum.PAID)
-            ? PaymentStatusEnum.PAID
+    // Payment is per participant, not per accepted application. A settled
+    // receipt therefore wins over a later accepted application; only an
+    // outstanding receipt when nothing is paid keeps the balance due.
+    const paymentStatus = appStatuses.includes(PaymentStatusEnum.PAID)
+      ? PaymentStatusEnum.PAID
+      : appStatuses.includes(PaymentStatusEnum.PROCESSING)
+        ? PaymentStatusEnum.PROCESSING
+        : appStatuses.includes(PaymentStatusEnum.UNPAID)
+          ? PaymentStatusEnum.UNPAID
+          : appStatuses.includes(PaymentStatusEnum.REJECTED)
+            ? PaymentStatusEnum.REJECTED
             : appStatuses.includes(PaymentStatusEnum.EXEMPT)
               ? PaymentStatusEnum.EXEMPT
               : PaymentStatusEnum.UNPAID;
