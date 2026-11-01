@@ -187,7 +187,7 @@ const getContent = (type: NotificationType, userName: string, data: EmailData = 
         message: `Hello <strong>${name}</strong>,<br/><br/>Your ${application} application changed from <strong>${previousStatus}</strong> to <strong>${currentStatus}</strong>. Sign in to view the latest status and any next steps.${reviewNotes}${feeLine}`,
         buttonText: paymentRequired ? "Complete payment" : "View application",
         buttonPath: paymentRequired
-          ? "/payment"
+          ? (data.applicationId ? `/payment?applicationId=${encodeURIComponent(data.applicationId)}` : "/payment")
           : data.applicationId ? `/my-applications/${encodeURIComponent(data.applicationType || "delegate")}?applicationId=${encodeURIComponent(data.applicationId)}` : "/portal/applications",
         accentColor: COLORS.primary,
       };
@@ -263,7 +263,7 @@ function templateValues(userName: string, baseUrl: string, data: EmailData) {
     review_notes: data.reviewNotes || "",
     application_id: data.applicationId || "",
     fee: Number.isFinite(Number(data.fee)) && Number(data.fee) > 0 ? Number(data.fee).toLocaleString("en-GB") : "",
-    payment_url: `${baseUrl.replace(/\/$/, "")}/payment`,
+    payment_url: `${baseUrl.replace(/\/$/, "")}/payment${data.applicationId ? `?applicationId=${encodeURIComponent(data.applicationId)}` : ""}`,
     code: data.code || "",
     purpose: data.purpose || "sign in",
     portal_url: `${baseUrl.replace(/\/$/, "")}/portal`,

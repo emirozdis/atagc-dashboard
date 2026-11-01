@@ -2,6 +2,8 @@
 
 "use client";
 
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PaymentUploadForm } from "@/components/dashboard/payment/PaymentUploadForm";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,20 +13,35 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { PaymentStatusEnum } from "@/types/payment";
 import { SystemSettings } from "@/types/dashboard";
 
+const applicationTypeLabels: Record<string, string> = {
+    delegate: "Delegate",
+    chairboard: "Chairboard",
+    delegation: "Delegation",
+    press: "Press",
+    observer: "Administrative Staff",
+};
+
 export function PaymentView() {
+    const searchParams = useSearchParams();
+    const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(searchParams.get("applicationId"));
+
     const { data: statusData, isLoading: statusLoading } = useQuery({
-        queryKey: ['payment-status'],
+        queryKey: ['payment-status', selectedApplicationId],
         queryFn: async () => {
-            const res = await fetch("/api/payment/status");
+            const query = selectedApplicationId ? `?applicationId=${encodeURIComponent(selectedApplicationId)}` : "";
+            const res = await fetch(`/api/payment/status${query}`);
             if (!res.ok) throw new Error("Failed");
             return res.json();
         },
     });
+
+    const effectiveApplicationId = selectedApplicationId || statusData?.selected_application_id || null;
 
     const { data: settings, isLoading: settingsLoading } = useQuery<SystemSettings>({
         queryKey: ['public-settings'],
@@ -85,6 +102,7 @@ export function PaymentView() {
     const status = statusData?.payment_status || PaymentStatusEnum.UNPAID;
     const receipt = statusData?.last_receipt;
     const amount = statusData?.amount_required;
+    const acceptedApplications: Array<{ id: string; application_type: string; fee: number; payment_status: string }> = statusData?.accepted_applications || [];
 
     const isPaid = status === PaymentStatusEnum.PAID;
     const isProcessing = status === PaymentStatusEnum.PROCESSING;
@@ -116,6 +134,30 @@ export function PaymentView() {
                         isExempt={false}
                         hasError={isRejected}
                     />
+                )}
+
+                {acceptedApplications.length > 1 && (
+                    <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-sm font-medium">Paying for</p>
+                            <p className="text-xs text-muted-foreground">You have multiple accepted applications. Select the role you are paying for.</p>
+                        </div>
+                        <Select
+                            value={effectiveApplicationId || undefined}
+                            onValueChange={setSelectedApplicationId}
+                        >
+                            <SelectTrigger className="w-full bg-background sm:w-[320px]">
+                                <SelectValue placeholder="Select an application" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {acceptedApplications.map((application) => (
+                                    <SelectItem key={application.id} value={application.id}>
+                                        {applicationTypeLabels[application.application_type] || application.application_type} — {Number(application.fee).toLocaleString("en-GB")} ₺
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 )}
             </div>
 
@@ -229,7 +271,7 @@ export function PaymentView() {
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">2</div>
                                 Upload receipt
                             </div>
-                            <PaymentUploadForm />
+                            <PaymentUploadForm applicationId={effectiveApplicationId} />
                         </div>
                     )}
 

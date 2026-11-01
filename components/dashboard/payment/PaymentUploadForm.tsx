@@ -9,7 +9,7 @@ import { UploadCloud, Loader2, X, FileText, CheckCircle, Image as ImageIcon, Tra
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export function PaymentUploadForm() {
+export function PaymentUploadForm({ applicationId }: { applicationId?: string | null }) {
     const queryClient = useQueryClient();
     const [file, setFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -36,6 +36,7 @@ export function PaymentUploadForm() {
         mutationFn: async (uploadFile: File) => {
             const formData = new FormData();
             formData.append("file", uploadFile);
+            if (applicationId) formData.append("applicationId", applicationId);
             
             const res = await fetch("/api/payment/upload", {
                 method: "POST",

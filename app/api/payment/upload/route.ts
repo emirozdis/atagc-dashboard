@@ -12,6 +12,10 @@ export const POST = apiHandler(async (request: Request) => {
     const auth = await getAuthorization({ requireAuth: true });
     if (!auth.ok || !auth.session) throw new Error("Unauthorized");
     const userId = auth.session.user.id;
+    const formData = await request.formData();
+    const requestedApplicationId = typeof formData.get("applicationId") === "string"
+        ? String(formData.get("applicationId"))
+        : null;
 
     // Check if application exists
     const [{ data: applications }, { data: existingReceipt }] = await Promise.all([
@@ -20,17 +24,18 @@ export const POST = apiHandler(async (request: Request) => {
         .select("id, payment_status")
         .eq("user_id", userId)
         .in("status", ["accepted", "approved"])
-        .order("submitted_at", { ascending: false }),
+        .order("reviewed_at", { ascending: false }),
       supabase.from("payment_receipts").select("storage_path").eq("user_id", userId).maybeSingle(),
     ]);
 
-    const app = applications?.[0];
-    if (!app) throw new Error("Payment is available after your application is accepted.");
+    const app = requestedApplicationId
+      ? (applications || []).find((application) => application.id === requestedApplicationId)
+      : applications?.[0];
+    if (!app) throw new Error("The selected application is not available for payment.");
     if ((applications || []).some((application) => application.payment_status === 'paid' || application.payment_status === 'processing')) {
         throw new Error("Payment already submitted or completed.");
     }
 
-    const formData = await request.formData();
     const file = formData.get("file") as File;
 
     if (!file) throw new Error("No file uploaded");
