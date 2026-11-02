@@ -5,6 +5,7 @@ import { createEmailChallenge } from "@/lib/passwordless";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/crypto-utils";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { HttpError } from "@/lib/http-error";
 
 const limiter = rateLimit({ namespace: "api/auth/challenges/email:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const requestSchema = z.object({
@@ -20,12 +21,18 @@ export const POST = apiHandler(async (request: Request) => {
   await limiter.check(5, `ip:${ip}`);
   await limiter.check(5, `email:${normalizeEmail(body.email)}`);
   if (!(await verifyTurnstileToken(body.turnstileToken, request))) {
-    throw new Error("Please complete the security verification and try again.");
+    throw new HttpError(400, "Please complete the security verification and try again.");
   }
 
-  const result = await createEmailChallenge(body);
-  return NextResponse.json({
-    success: true,
-    challengeId: result.challengeId,
-  });
+  try {
+    const result = await createEmailChallenge(body);
+    return NextResponse.json({
+      success: true,
+      challengeId: result.challengeId,
+    });
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    console.error("Verification email could not be sent:", error);
+    throw new HttpError(503, "We could not send the verification email. Please try again in a moment.");
+  }
 });

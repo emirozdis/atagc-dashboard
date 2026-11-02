@@ -4,6 +4,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { verifyEmailChallenge } from "@/lib/passwordless";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/crypto-utils";
+import { HttpError } from "@/lib/http-error";
 
 const limiter = rateLimit({ namespace: "api/auth/challenges/verify:limiter", interval: 60 * 1000, uniqueTokenPerInterval: 500 });
 const verifySchema = z.object({
@@ -20,6 +21,12 @@ export const POST = apiHandler(async (request: Request) => {
   await limiter.check(10, `ip:${ip}`);
   await limiter.check(10, `email:${normalizeEmail(body.email)}`);
 
-  const result = await verifyEmailChallenge(body);
-  return NextResponse.json({ success: true, exchangeToken: result.exchangeToken });
+  try {
+    const result = await verifyEmailChallenge(body);
+    return NextResponse.json({ success: true, exchangeToken: result.exchangeToken });
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    const message = error instanceof Error ? error.message : "Invalid or expired verification code.";
+    throw new HttpError(400, message);
+  }
 });
