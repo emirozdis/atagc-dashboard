@@ -460,7 +460,7 @@ export default function ApplicationDetailPage() {
                          <span className="font-medium text-primary">Delegation: {delegationName}</span>
                       )}
                       <span className="text-[10px] text-muted-foreground mt-0.5">
-                        Leader status: {!actualDelegation ? 'Select a delegation above' : leaderStatus === 'approved' ? 'Approved' : leaderStatus === 'rejected' ? 'Rejected' : 'Pending'}
+                        Leader status: {!actualDelegation ? 'Select a delegation above' : leaderStatus === 'accepted' ? 'Accepted' : leaderStatus === 'approved' ? 'Approved' : leaderStatus === 'rejected' ? 'Rejected' : leaderStatus === 'waitlist' ? 'Waitlisted' : 'Pending'}
                       </span>
                     </div>
                   ) : "Individual participant"}

@@ -241,8 +241,10 @@ function DelegationContent() {
 
   // Helper to render application status badge
   const AppStatusBadge = ({ status }: { status: string | undefined }) => {
+    if (status === 'accepted') return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1"><ShieldCheck className="w-3 h-3" /> Accepted</Badge>;
     if (status === 'approved') return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1"><ShieldCheck className="w-3 h-3" /> Approved</Badge>;
     if (status === 'rejected') return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">Rejected</Badge>;
+    if (status === 'waitlist') return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">Waitlisted</Badge>;
     if (status === 'pending') return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">Pending</Badge>;
     return <span className="text-muted-foreground text-xs italic">No application</span>;
   };
@@ -264,7 +266,8 @@ function DelegationContent() {
                 <div className="h-4 w-px bg-border hidden sm:block" />
                 <div className="flex items-center gap-2 text-sm bg-secondary/30 px-2 py-1 rounded-md border border-border/50">
                   <span className="text-muted-foreground text-xs">Your application:</span>
-                  {leaderAppStatus === 'approved' ? <span className="font-semibold text-emerald-600 flex items-center gap-1 text-xs"><Check className="w-3 h-3" /> Approved</span> :
+                  {leaderAppStatus === 'accepted' ? <span className="font-semibold text-emerald-600 flex items-center gap-1 text-xs"><Check className="w-3 h-3" /> Accepted</span> :
+                    leaderAppStatus === 'approved' ? <span className="font-semibold text-emerald-600 flex items-center gap-1 text-xs"><Check className="w-3 h-3" /> Approved</span> :
                     leaderAppStatus === 'rejected' ? <span className="font-semibold text-red-600 flex items-center gap-1 text-xs"><X className="w-3 h-3" /> Rejected</span> :
                       leaderAppStatus === 'pending' ? <span className="font-semibold text-amber-600 flex items-center gap-1 text-xs"><Clock className="w-3 h-3" /> Pending</span> :
                         <span className="text-xs">No application</span>}
