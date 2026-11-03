@@ -135,7 +135,7 @@ export default function AdminPaymentsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search by name or email..." className="pl-9 bg-background border-border/50 h-10" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setPage(1); }}>
             <SelectTrigger className="w-full sm:w-[200px] bg-background border-border/50 h-10">
               <div className="flex items-center gap-2"><Filter className="w-4 h-4" /><SelectValue placeholder="Filter by status" /></div>
             </SelectTrigger>
@@ -186,8 +186,11 @@ export default function AdminPaymentsPage() {
                   )}
                 </TableBody>
               </Table>
-              {payments.length > 0 && <div className="border-t border-border/50 p-4 bg-muted/5"><PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} /></div>}
             </Card>
+
+            {payments.length > 0 && (
+              <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            )}
           </>
         )}
       </div>
