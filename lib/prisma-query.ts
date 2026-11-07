@@ -73,6 +73,7 @@ const RELATIONS: Record<string, { target: string; source: string; targetKey?: st
   "delegation_members.users": { target: "users", source: "user_id" },
   "delegation_members.application": { target: "applications", source: "user_id", targetKey: "user_id" },
   "tickets.messages": { target: "ticket_messages", source: "id", targetKey: "ticket_id", many: true },
+  "announcements.author": { target: "users", source: "author_id" },
   "observer_allocations.users": { target: "users", source: "id", many: false },
   "committees.topic": { target: "topics", source: "id", targetKey: "committee_id", many: true },
   "committees.topics": { target: "topics", source: "id", targetKey: "committee_id", many: true },
