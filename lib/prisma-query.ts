@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "./prisma";
-import { toPostgrestValue } from "./prisma-values";
+import { toJsonQueryParameter, toPostgrestValue } from "./prisma-values";
 
 /*
  * Compatibility data layer for the existing API surface. It deliberately
@@ -320,7 +320,7 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
         const columns = Object.keys(payloadRows[0]);
         columns.forEach(identifier);
         const params: unknown[] = [];
-        const values = payloadRows.map((row) => `(${columns.map((column) => { const isJson = isJsonPayloadValue(row[column]); params.push(toQueryParameter(row[column])); return `$${params.length}${isJson ? "::jsonb" : ""}`; }).join(", ")})`).join(", ");
+        const values = payloadRows.map((row) => `(${columns.map((column) => { const isJson = isJsonPayloadValue(row[column]); params.push(isJson ? toJsonQueryParameter(row[column]) : toQueryParameter(row[column])); return `$${params.length}${isJson ? "::jsonb" : ""}`; }).join(", ")})`).join(", ");
         const rows = this.returnRows
           ? await prisma.$queryRawUnsafe<DatabaseRow[]>(`INSERT INTO ${tableName(this.table)} (${columns.map(identifier).join(", ")}) VALUES ${values}${returning}`, ...params)
           : await prisma.$executeRawUnsafe(`INSERT INTO ${tableName(this.table)} (${columns.map(identifier).join(", ")}) VALUES ${values}`, ...params).then(() => null);
@@ -333,7 +333,7 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
         const columns = Object.keys(payloadRows[0]);
         columns.forEach(identifier);
         const params: unknown[] = [];
-        const values = payloadRows.map((row) => `(${columns.map((column) => { const isJson = isJsonPayloadValue(row[column]); params.push(toQueryParameter(row[column])); return `$${params.length}${isJson ? "::jsonb" : ""}`; }).join(", ")})`).join(", ");
+        const values = payloadRows.map((row) => `(${columns.map((column) => { const isJson = isJsonPayloadValue(row[column]); params.push(isJson ? toJsonQueryParameter(row[column]) : toQueryParameter(row[column])); return `$${params.length}${isJson ? "::jsonb" : ""}`; }).join(", ")})`).join(", ");
         const updates = columns.map((column) => `${identifier(column)} = EXCLUDED.${identifier(column)}`).join(", ");
         const conflict = this.conflictTarget ? ` (${this.conflictTarget.split(",").map(identifier).join(", ")})` : "";
         const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`INSERT INTO ${tableName(this.table)} (${columns.map(identifier).join(", ")}) VALUES ${values} ON CONFLICT${conflict} DO UPDATE SET ${updates} RETURNING *`, ...params);
@@ -344,7 +344,7 @@ export class PrismaQuery<T = DatabaseRow> implements PromiseLike<DatabaseResult<
       }
       if (this.operation === "update") {
         const values: unknown[] = [];
-        const assignments = Object.keys(this.payload ?? {}).map((column) => { identifier(column); const rawVal = (this.payload as DatabaseRow)[column]; const isJson = isJsonPayloadValue(rawVal); values.push(toQueryParameter(rawVal)); return `${identifier(column)} = $${values.length}${isJson ? "::jsonb" : ""}`; }).join(", ");
+        const assignments = Object.keys(this.payload ?? {}).map((column) => { identifier(column); const rawVal = (this.payload as DatabaseRow)[column]; const isJson = isJsonPayloadValue(rawVal); values.push(isJson ? toJsonQueryParameter(rawVal) : toQueryParameter(rawVal)); return `${identifier(column)} = $${values.length}${isJson ? "::jsonb" : ""}`; }).join(", ");
         const offset = values.length;
         const shiftedWhere = where.sql.replace(/\$(\d+)/g, (_, index: string) => `$${Number(index) + offset}`);
         const rows = await prisma.$queryRawUnsafe<DatabaseRow[]>(`UPDATE ${tableName(this.table)} SET ${assignments}${shiftedWhere}${returning}`, ...values, ...where.values.map(toQueryParameter));

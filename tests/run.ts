@@ -20,7 +20,7 @@ import {
 import { verifyResendWebhook } from "../lib/resend-webhook";
 import { renderEmailTemplate } from "../lib/email-templates";
 import { isRavenmunEmailAddress } from "../lib/email";
-import { toPostgrestValue } from "../lib/prisma-values";
+import { toJsonQueryParameter, toPostgrestValue } from "../lib/prisma-values";
 import { Prisma } from "@prisma/client";
 import { APPLICATION_FIELD_LABEL_MAX_LENGTH, applicationQuestionsSchema } from "../lib/application-form-schema";
 import { parsePagination } from "../lib/pagination";
@@ -64,6 +64,14 @@ assert.equal(isRavenmunEmailAddress("team@ravenmun.com.evil.example"), false);
 
 assert.equal(toPostgrestValue(new Prisma.Decimal("800")), 800);
 assert.deepEqual(toPostgrestValue({ fee: new Prisma.Decimal("1250.50") }), { fee: 1250.5 });
+
+// jsonb parameters must always be JSON text; node-postgres would otherwise
+// send primitive arrays as PostgreSQL array literals and Postgres rejects them.
+assert.equal(toJsonQueryParameter(["tickets/attachment.jpg"]), '["tickets/attachment.jpg"]');
+assert.deepEqual(JSON.parse(toJsonQueryParameter(["a", "b"])), ["a", "b"]);
+assert.deepEqual(JSON.parse(toJsonQueryParameter([])), []);
+assert.deepEqual(JSON.parse(toJsonQueryParameter({ paths: ["a"] })), { paths: ["a"] });
+assert.equal(toJsonQueryParameter(null), "null");
 
 const validFormQuestions = [
   { id: "email", label: "Email", type: "email", required: true },
