@@ -17,7 +17,18 @@ interface UserParams {
   warnings?: string;
   sortBy: string;
   sortOrder: "asc" | "desc";
+  includeApplicantRoles: boolean;
 }
+
+const APPLICATION_TYPE_BY_CONFERENCE_ROLE: Partial<Record<UserRole, string>> = {
+  [ROLES.DELEGATE]: "delegate",
+  [ROLES.CHAIRMAN]: "chairboard",
+  [ROLES.DEPUTY_CHAIR]: "chairboard",
+  [ROLES.PRESS]: "press",
+  [ROLES.HEAD_PRESS]: "press",
+  [ROLES.OBSERVER]: "observer",
+  [ROLES.HEAD_OBSERVER]: "observer",
+};
 
 async function getUsersByIds(ids: string[]) {
   const { data, error } = await supabase
@@ -30,7 +41,7 @@ async function getUsersByIds(ids: string[]) {
 }
 
 async function getFilteredUsers(params: UserParams) {
-  const { page, limit, search, role, status, paymentStatus, warnings, sortBy, sortOrder } = params;
+  const { page, limit, search, role, status, paymentStatus, warnings, sortBy, sortOrder, includeApplicantRoles } = params;
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
@@ -77,6 +88,26 @@ async function getFilteredUsers(params: UserParams) {
         .in("role", conferenceRoles);
       if (conferenceUsersError) throw conferenceUsersError;
       (conferenceUsers || []).forEach((user) => roleIds.add(String(user.id)));
+
+      // Accepted applicants do not receive a conference role until an
+      // administrator assigns one. Include them when the admin is looking for
+      // candidates to assign (e.g. accepted observers before role assignment).
+      if (includeApplicantRoles) {
+        const applicationTypes = [...new Set(
+          conferenceRoles
+            .map((value) => APPLICATION_TYPE_BY_CONFERENCE_ROLE[value as UserRole])
+            .filter((value): value is string => Boolean(value)),
+        )];
+        if (applicationTypes.length) {
+          const { data: applicantUsers, error: applicantUsersError } = await supabase
+            .from("applications")
+            .select("user_id")
+            .in("application_type", applicationTypes)
+            .in("status", ["accepted", "approved"]);
+          if (applicantUsersError) throw applicantUsersError;
+          (applicantUsers || []).forEach((application) => roleIds.add(String(application.user_id)));
+        }
+      }
     }
     query = query.in("id", [...roleIds]);
   }
@@ -238,6 +269,7 @@ export const GET = apiHandler(async (request: Request) => {
     warnings: searchParams.get("warnings") || "all",
     sortBy: searchParams.get("sort_by") || "created_at",
     sortOrder: (searchParams.get("sort_order") as "asc" | "desc") || "desc",
+    includeApplicantRoles: searchParams.get("include_applicant_roles") === "1",
   };
 
   const result = await getFilteredUsers(params);

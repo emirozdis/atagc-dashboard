@@ -38,6 +38,7 @@ import {
 interface UserSelectionTableProps {
   selectedUsers?: string[];
   onSelectionChange?: (ids: string[]) => void;
+  includeApplicantRoles?: boolean;
 }
 
 const roleOptions: MultiSelectOption[] = Object.values(ROLES).map(role => ({
@@ -58,7 +59,7 @@ const paymentStatusOptions: MultiSelectOption[] = [
   { value: PaymentStatusEnum.EXEMPT, label: "Exempt" },
 ];
 
-export function UserSelectionTable({ selectedUsers: externalSelected, onSelectionChange }: UserSelectionTableProps) {
+export function UserSelectionTable({ selectedUsers: externalSelected, onSelectionChange, includeApplicantRoles = false }: UserSelectionTableProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [internalSelected, setInternalSelected] = useState<string[]>([]);
@@ -111,7 +112,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
   }, [search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["users", page, debouncedSearch, roleFilter, statusFilter, paymentStatusFilter, warningFilter, sortBy, sortOrder],
+    queryKey: ["users", page, debouncedSearch, roleFilter, statusFilter, paymentStatusFilter, warningFilter, sortBy, sortOrder, includeApplicantRoles],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -124,6 +125,7 @@ export function UserSelectionTable({ selectedUsers: externalSelected, onSelectio
       if (roleFilter.length > 0) params.append("role", roleFilter.join(','));
       if (statusFilter.length > 0) params.append("status", statusFilter.join(','));
       if (paymentStatusFilter.length > 0) params.append("payment_status", paymentStatusFilter.join(','));
+      if (includeApplicantRoles) params.append("include_applicant_roles", "1");
 
       const res = await fetch(`/api/admin/users?${params}`);
       if (!res.ok) throw new Error("Failed");

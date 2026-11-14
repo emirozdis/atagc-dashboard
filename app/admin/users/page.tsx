@@ -18,7 +18,7 @@ export default function UsersPage() {
       </div>
 
       {/* Removed the large wrapping Card here to allow the component to manage its own layout */}
-      <UserSelectionTable />
+      <UserSelectionTable includeApplicantRoles />
     </div>
   );
 }
