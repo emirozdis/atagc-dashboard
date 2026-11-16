@@ -130,7 +130,7 @@ export async function fetchApplications(
             const form = firstRecord(application.form);
             const user = getApplicant(application);
             const committeeMembers = user?.committee_members;
-            return form?.slug === "delegate" && (!Array.isArray(committeeMembers) || committeeMembers.length === 0);
+            return ["delegate", "chairboard"].includes(String(form?.slug)) && (!Array.isArray(committeeMembers) || committeeMembers.length === 0);
         });
     }
     if (search.trim()) {

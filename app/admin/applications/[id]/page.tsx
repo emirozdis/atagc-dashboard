@@ -52,6 +52,7 @@ type ReviewDelegation = NonNullable<NonNullable<Application["user"]["owned_deleg
 export default function ApplicationDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedCommittee, setSelectedCommittee] = useState<string | null>(null);
   const [assignmentRole, setAssignmentRole] = useState<string | null>(null);
@@ -162,6 +163,15 @@ export default function ApplicationDetailPage() {
 
   const handleAssign = () => {
     assignMutation.mutate();
+  };
+
+  const handleBack = () => {
+    const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push(returnTo ? `/admin/applications?${returnTo}` : "/admin/applications");
   };
 
   if (appLoading) {
@@ -305,9 +315,9 @@ export default function ApplicationDetailPage() {
 
       <div className="bg-card border border-border/50 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 sticky top-4 z-20 shadow-sm">
         <div className="flex items-center gap-3">
-          <Link href="/admin/applications">
-            <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="w-4 h-4" /></Button>
-          </Link>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleBack} aria-label="Back to applications">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
           <div className="flex flex-col">
             <span className="font-bold text-lg leading-none">{user.full_name}</span>
             <span className="text-xs text-muted-foreground mt-1 flex items-center gap-2">

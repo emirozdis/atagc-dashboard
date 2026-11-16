@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle,
   XCircle,
@@ -17,7 +17,8 @@ import {
   ArrowUpDown,
   Briefcase,
   FileSpreadsheet,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { PaginationControls } from "@/components/ui/pagination-controls";
@@ -52,15 +53,17 @@ interface ApplicationRow {
   form_data?: Record<string, unknown>;
   form?: { slug?: string; title?: string } | null;
   user?: {
+    id: string;
     full_name: string;
     email: string;
+    role?: string;
     user_details?: ApplicationDetails | ApplicationDetails[] | null;
     committee_members?: Array<{ committee?: { id: string; name: string } | null }>;
   };
 }
 
 function applicationUser(app: ApplicationRow) {
-  return app.user || { full_name: "Unknown applicant", email: "", user_details: null, committee_members: [] };
+  return app.user || { id: "", full_name: "Unknown applicant", email: "", user_details: null, committee_members: [] };
 }
 
 function applicationSchool(app: ApplicationRow) {
@@ -77,31 +80,108 @@ function applicationSchool(app: ApplicationRow) {
     || "-";
 }
 
+function canAssignCommittee(app: ApplicationRow) {
+  return (app.application_type === "delegate" || app.application_type === "chairboard")
+    && ["accepted", "approved"].includes(app.status);
+}
+
+function committeeAssignmentRole(app: ApplicationRow) {
+  const user = applicationUser(app);
+  return app.application_type === "chairboard"
+    ? "committee_chairman"
+    : user.role === "chair"
+      ? "chair"
+      : "delegate";
+}
+
 interface ApplicationsResponse {
   data: ApplicationRow[];
   meta?: { totalPages?: number; total?: number };
 }
 
-export default function ApplicationsPage() {
+interface CommitteeStat {
+  id: string;
+  name: string;
+  total: number;
+  chairs: number;
+  delegates: number;
+}
+
+interface CommitteeStatsResponse {
+  committees: CommitteeStat[];
+  placed: number;
+  unassigned: number;
+}
+
+const STATUS_VALUES = new Set(["all", "pending", "under_review", "accepted", "waitlist", "approved", "unassigned", "rejected"]);
+const ROLE_VALUES = new Set(["all", "delegate", "chairboard", "delegation", "press", "observer"]);
+const SORT_VALUES = new Set(["newest", "oldest", "name_asc", "name_desc", "school_asc"]);
+const LIMIT_VALUES = new Set([10, 20, 50]);
+
+function initialFilters(searchParams: ReturnType<typeof useSearchParams>) {
+  const pageValue = Number(searchParams.get("page"));
+  const limitValue = Number(searchParams.get("limit"));
+  const statusValue = searchParams.get("status") || "all";
+  const roleValue = searchParams.get("role") || "all";
+  const sortValue = searchParams.get("sort") || "newest";
+  return {
+    page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
+    limit: LIMIT_VALUES.has(limitValue) ? limitValue : 10,
+    status: STATUS_VALUES.has(statusValue) ? statusValue : "all",
+    role: ROLE_VALUES.has(roleValue) ? roleValue : "all",
+    search: searchParams.get("search") || "",
+    sort: SORT_VALUES.has(sortValue) ? sortValue : "newest",
+  };
+}
+
+function ApplicationsPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const initial = useMemo(() => initialFilters(searchParams), [searchParams]);
 
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [sortValue, setSortValue] = useState("newest");
+  const [page, setPage] = useState(initial.page);
+  const [limit, setLimit] = useState(initial.limit);
+  const [sortValue, setSortValue] = useState(initial.sort);
 
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterRole, setFilterRole] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>(initial.status);
+  const [filterRole, setFilterRole] = useState<string>(initial.role);
+  const [searchQuery, setSearchQuery] = useState(initial.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(initial.search);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
+    if (searchQuery === debouncedSearch) return;
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setPage(1);
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, debouncedSearch]);
+
+  const buildListQuery = useCallback(() => {
+    const params = new URLSearchParams();
+    if (page !== 1) params.set("page", String(page));
+    if (limit !== 10) params.set("limit", String(limit));
+    if (filterStatus !== "all") params.set("status", filterStatus);
+    if (filterRole !== "all") params.set("role", filterRole);
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+    if (sortValue !== "newest") params.set("sort", sortValue);
+    return params.toString();
+  }, [page, limit, filterStatus, filterRole, debouncedSearch, sortValue]);
+
+  useEffect(() => {
+    const query = buildListQuery();
+    const currentQuery = new URLSearchParams(window.location.search).toString();
+    if (query === currentQuery) return;
+    const url = `${window.location.pathname}${query ? `?${query}` : ""}`;
+    router.replace(url, { scroll: false });
+  }, [buildListQuery, router]);
+
+  const openApplication = (applicationId: string) => {
+    const query = buildListQuery();
+    router.push(`/admin/applications/${applicationId}${query ? `?returnTo=${encodeURIComponent(query)}` : ""}`);
+  };
 
   const getSortConfig = (val: string) => {
     switch (val) {
@@ -137,6 +217,36 @@ export default function ApplicationsPage() {
   const applications: ApplicationRow[] = data?.data || [];
   const totalPages = data?.meta?.totalPages || 1;
   const totalRecords = data?.meta?.total || 0;
+
+  const { data: committeeStats } = useQuery<CommitteeStatsResponse>({
+    queryKey: ["committee-stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/committee-stats");
+      if (!res.ok) throw new Error("Failed to load committee counts");
+      return res.json();
+    },
+  });
+  const committees = committeeStats?.committees || [];
+
+  const assignMutation = useMutation({
+    mutationFn: async ({ userId, committeeId, role }: { userId: string; committeeId: string | null; role: string }) => {
+      const res = await fetch("/api/admin/committee-assignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, committeeId, role }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null) as { message?: string; error?: string } | null;
+        throw new Error(body?.message || body?.error || "Committee assignment failed.");
+      }
+    },
+    onSuccess: () => {
+      toast.success("Committee assignment updated");
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
+      queryClient.invalidateQueries({ queryKey: ["committee-stats"] });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Committee assignment failed."),
+  });
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -219,12 +329,12 @@ export default function ApplicationsPage() {
 
     const formSlug = app.form?.slug || app.application_type || 'delegate';
     const roleLabel = app.form?.title || formSlug;
-    const isAcademic = formSlug === 'delegate';
+    const assignable = canAssignCommittee(app);
 
     return (
       <Card
         className="mb-4 bg-card border-border/50 hover:border-primary/20 transition-all active:scale-[0.99] cursor-pointer"
-        onClick={() => router.push(`/admin/applications/${app.id}`)}
+        onClick={() => openApplication(app.id)}
       >
         <CardContent className="p-4 space-y-4">
           <div className="flex justify-between items-start gap-3">
@@ -256,16 +366,41 @@ export default function ApplicationsPage() {
               <Calendar className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{new Date(app.submitted_at).toLocaleDateString("en-GB")}</span>
             </div>
-            {isAcademic && (
+            {(assignable || assignedCommittee) && (
               <div className="col-span-2 flex items-center gap-2 pt-2 border-t border-border/10 mt-1">
                 <Building2 className="w-3.5 h-3.5 shrink-0" />
-                {assignedCommittee ? (
+                {assignable ? (
+                  <div
+                    className="min-w-0 flex-1"
+                    onClick={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                  >
+                    <Select
+                      value={assignedCommittee?.id || "none"}
+                      onValueChange={(value) => assignMutation.mutate({
+                        userId: user.id,
+                        committeeId: value === "none" ? null : value,
+                        role: committeeAssignmentRole(app),
+                      })}
+                      disabled={assignMutation.isPending && assignMutation.variables?.userId === user.id}
+                    >
+                      <SelectTrigger className={`h-8 w-full text-xs ${assignedCommittee ? "" : "border-dashed text-orange-500"}`}>
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          {assignMutation.isPending && assignMutation.variables?.userId === user.id && <Loader2 className="h-3 w-3 shrink-0 animate-spin" />}
+                          <SelectValue placeholder="Assign committee" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No assignment</SelectItem>
+                        {committees.map((committee) => (
+                          <SelectItem key={committee.id} value={committee.id}>{committee.name} ({committee.total})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : assignedCommittee ? (
                   <span className="font-medium text-foreground truncate">{assignedCommittee.name}</span>
-                ) : ['approved', 'accepted'].includes(app.status) ? (
-                  <span className="text-orange-500 font-medium">Awaiting assignment</span>
-                ) : (
-                  <span className="italic opacity-70">No committee</span>
-                )}
+                ) : null}
               </div>
             )}
           </div>
@@ -297,6 +432,42 @@ export default function ApplicationsPage() {
           {isExporting ? "Exporting..." : "Export to Excel"}
         </Button>
       </div>
+
+      {committeeStats && (
+        <section className="space-y-3 rounded-xl border border-border/50 bg-card p-4 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold">Committee placement</h3>
+              <Badge variant="secondary" className="text-[10px]">{committeeStats.placed} placed</Badge>
+            </div>
+            {committeeStats.unassigned > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-fit gap-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
+                onClick={() => { setFilterStatus("unassigned"); setFilterRole("all"); setPage(1); }}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {committeeStats.unassigned} awaiting committee
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+            {committeeStats.committees.map((committee) => (
+              <div key={committee.id} className="rounded-lg border border-border/50 bg-background/60 p-3">
+                <div className="truncate text-[11px] font-medium text-muted-foreground" title={committee.name}>
+                  {committee.name}
+                </div>
+                <div className="mt-1 text-2xl font-bold leading-none">{committee.total}</div>
+                <div className="mt-1 text-[10px] text-muted-foreground">
+                  {committee.chairs} chair{committee.chairs === 1 ? "" : "s"} · {committee.delegates} delegate{committee.delegates === 1 ? "" : "s"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Controls Toolbar */}
       <div className="flex flex-col xl:flex-row gap-3 bg-card p-3 rounded-xl border border-border/50 shadow-sm">
@@ -398,7 +569,7 @@ export default function ApplicationsPage() {
           <Search className="w-12 h-12 mb-3 opacity-20" />
           <p>No applications match the selected filters.</p>
           {(filterStatus !== 'all' || filterRole !== 'all' || searchQuery) && (
-            <Button variant="link" onClick={() => { setFilterStatus('all'); setFilterRole('all'); setSearchQuery(''); }} className="mt-2">
+            <Button variant="link" onClick={() => { setFilterStatus('all'); setFilterRole('all'); setSearchQuery(''); setPage(1); }} className="mt-2">
               Clear filters
             </Button>
           )}
@@ -426,13 +597,13 @@ export default function ApplicationsPage() {
                   const assignedCommittee = user.committee_members?.[0]?.committee;
 
                   const formSlug = app.form?.slug || app.application_type || 'delegate';
-                  const isAcademic = formSlug === 'delegate' || formSlug === 'committee_chairman' || formSlug === 'chair' || formSlug === 'deputy_chair';
+                  const assignable = canAssignCommittee(app);
 
                   return (
                     <TableRow
                       key={app.id}
                       className="cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => router.push(`/admin/applications/${app.id}`)}
+                      onClick={() => openApplication(app.id)}
                     >
                       <TableCell className="pl-6">
                         <div className="flex items-center gap-3">
@@ -458,21 +629,41 @@ export default function ApplicationsPage() {
                         {new Date(app.submitted_at).toLocaleDateString("en-GB")}
                       </TableCell>
                       <TableCell>
-                        {isAcademic ? (
-                          assignedCommittee ? (
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                              <span className="font-medium truncate max-w-[150px]" title={assignedCommittee.name}>
-                                {assignedCommittee.name}
-                              </span>
-                            </div>
-                          ) : ['approved', 'accepted'].includes(app.status) ? (
-                            <Badge variant="outline" className="bg-orange-500/5 text-orange-500 border-orange-500/20 border-dashed whitespace-nowrap">
-                              Awaiting assignment
-                            </Badge>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )
+                        {assignable ? (
+                          <div
+                            onClick={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            <Select
+                              value={assignedCommittee?.id || "none"}
+                              onValueChange={(value) => assignMutation.mutate({
+                                userId: user.id,
+                                committeeId: value === "none" ? null : value,
+                                role: committeeAssignmentRole(app),
+                              })}
+                              disabled={assignMutation.isPending && assignMutation.variables?.userId === user.id}
+                            >
+                              <SelectTrigger className={`h-8 w-[170px] text-xs ${assignedCommittee ? "" : "border-dashed text-orange-500"}`}>
+                                <div className="flex min-w-0 items-center gap-1.5">
+                                  {assignMutation.isPending && assignMutation.variables?.userId === user.id && <Loader2 className="h-3 w-3 shrink-0 animate-spin" />}
+                                  <SelectValue placeholder="Assign committee" />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No assignment</SelectItem>
+                                {committees.map((committee) => (
+                                  <SelectItem key={committee.id} value={committee.id}>{committee.name} ({committee.total})</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : assignedCommittee ? (
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <span className="font-medium truncate max-w-[150px]" title={assignedCommittee.name}>
+                              {assignedCommittee.name}
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-sm text-muted-foreground opacity-50">-</span>
                         )}
@@ -485,7 +676,7 @@ export default function ApplicationsPage() {
                           className="h-8"
                           onClick={(event) => {
                             event.stopPropagation();
-                            router.push(`/admin/applications/${app.id}`);
+                            openApplication(app.id);
                           }}
                         >
                           <Eye className="w-4 h-4 mr-2" /> Review
@@ -515,5 +706,13 @@ export default function ApplicationsPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function ApplicationsPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-7xl p-5 sm:p-8"><TableSkeleton cols={7} rows={10} showTitle={false} /></div>}>
+      <ApplicationsPageContent />
+    </Suspense>
   );
 }
